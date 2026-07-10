@@ -10,9 +10,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
@@ -54,7 +56,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     super.initState();
     _inv = Map.from(widget.invoice);
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -68,8 +72,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   // ── Derived ─────────────────────────────────────────────────────────────────
 
   String get _status {
-    final raw =
-        (_inv['status'] ?? _inv['paymentStatus'] ?? '').toString().trim();
+    final raw = (_inv['status'] ?? _inv['paymentStatus'] ?? '')
+        .toString()
+        .trim();
     if (raw.isEmpty) return 'pending';
     return raw.toLowerCase();
   }
@@ -142,28 +147,34 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'sales_invoices',
+      );
       await col.doc(_inv['id'] as String).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       // Mirror into Drift so the sales list and dashboard revenue update
       // immediately (a cancelled invoice must drop out of revenue now).
-      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
-          status: newStatus);
+      await mirrorInvoiceFieldsToDrift(
+        ref,
+        _inv['id'] as String,
+        status: newStatus,
+      );
       if (newStatus == 'cancelled') {
-        unawaited(AuditLogService().logSaleAction(
-          ownerUid: scope.ownerUid,
-          businessId: scope.businessId,
-          performedByUid: scope.userUid,
-          performedByRole: ref.read(currentUserRoleProvider),
-          action: AuditLogService.invoiceCancelled,
-          invoiceId: _inv['id'] as String,
-          invoiceNumber: _invoiceNumber,
-          amount: _total,
-        ));
+        unawaited(
+          AuditLogService().logSaleAction(
+            ownerUid: scope.ownerUid,
+            businessId: scope.businessId,
+            performedByUid: scope.userUid,
+            performedByRole: ref.read(currentUserRoleProvider),
+            action: AuditLogService.invoiceCancelled,
+            invoiceId: _inv['id'] as String,
+            invoiceNumber: _invoiceNumber,
+            amount: _total,
+          ),
+        );
       }
       unawaited(ref.read(syncServiceProvider).syncNow());
       if (!mounted) return;
@@ -233,13 +244,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'sales_invoices',
+      );
       final inventoryCol = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'inventory_items');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'inventory_items',
+      );
 
       // Deduct stock only for lines whose product exists locally — lines
       // round-tripped through the local mirror carry a generated row id for
@@ -248,8 +261,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       final db = ref.read(appDatabaseProvider);
       final deductions = <({String id, double qty})>[];
       for (final item in _lineItems) {
-        final productId =
-            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
+        final productId = (item['productId'] ?? item['inventoryItemId'] ?? '')
+            .toString();
         if (productId.isEmpty) continue;
         if (await db.inventoryDao.getById(productId) == null) continue;
         deductions.add((
@@ -266,13 +279,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         'updatedAt': FieldValue.serverTimestamp(),
       });
       for (final d in deductions) {
-        batch.set(
-            inventoryCol.doc(d.id),
-            {
-              'currentStock': FieldValue.increment(-d.qty),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
+        batch.set(inventoryCol.doc(d.id), {
+          'currentStock': FieldValue.increment(-d.qty),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
       await batch.commit();
 
@@ -287,19 +297,25 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
       // Mirror the conversion into Drift so the sales list reflects the new
       // invoice immediately.
-      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
-          type: 'invoice', status: 'sent');
+      await mirrorInvoiceFieldsToDrift(
+        ref,
+        _inv['id'] as String,
+        type: 'invoice',
+        status: 'sent',
+      );
 
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: ref.read(currentUserRoleProvider),
-        action: AuditLogService.quotationConverted,
-        invoiceId: _inv['id'] as String,
-        invoiceNumber: _invoiceNumber,
-        amount: _total,
-      ));
+      unawaited(
+        AuditLogService().logSaleAction(
+          ownerUid: scope.ownerUid,
+          businessId: scope.businessId,
+          performedByUid: scope.userUid,
+          performedByRole: ref.read(currentUserRoleProvider),
+          action: AuditLogService.quotationConverted,
+          invoiceId: _inv['id'] as String,
+          invoiceNumber: _invoiceNumber,
+          amount: _total,
+        ),
+      );
       unawaited(ref.read(syncServiceProvider).syncNow());
       if (!mounted) return;
       setState(() {
@@ -314,36 +330,29 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   void _openEdit() {
-    Navigator.of(context).push(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => CreateInvoiceScreen(
-        isQuotation: _isQuotation,
-        invoiceToEdit: _inv,
+    Navigator.of(context).push(
+      AppMotion.taskRoute<void>(
+        builder: (_) =>
+            CreateInvoiceScreen(isQuotation: _isQuotation, invoiceToEdit: _inv),
       ),
-    ));
+    );
   }
 
   Future<void> _openReturn() async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      PageRouteBuilder<Map<String, dynamic>>(
-        pageBuilder: (_, _, _) => SalesReturnScreen(originalInvoice: _inv),
-        transitionDuration: const Duration(milliseconds: 380),
-        transitionsBuilder: (_, animation, _, child) => SlideTransition(
-          position: animation.drive(
-            Tween(begin: const Offset(0, 1), end: Offset.zero)
-                .chain(CurveTween(curve: Curves.easeOutCubic)),
-          ),
-          child: child,
-        ),
+      AppMotion.taskRoute<Map<String, dynamic>>(
+        builder: (_) => SalesReturnScreen(originalInvoice: _inv),
       ),
     );
     if (result?['saved'] == true && mounted) {
-      setState(() => _inv = {
-            ..._inv,
-            'hasReturn': true,
-            if (result?['creditNoteNumber'] != null)
-              'creditNoteNumber': result!['creditNoteNumber'],
-          });
+      setState(
+        () => _inv = {
+          ..._inv,
+          'hasReturn': true,
+          if (result?['creditNoteNumber'] != null)
+            'creditNoteNumber': result!['creditNoteNumber'],
+        },
+      );
     }
   }
 
@@ -391,11 +400,14 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         };
         _updating = false;
       });
-      _showSnack(paymentResult.fullySettled
-          ? _tr('Invoice fully paid!', 'Ankara imelipwa kamili!')
-          : _tr(
-              'Payment recorded — TZS ${_fmtNum(paymentResult.received)} received.',
-              'Malipo yamerekodiwa — TZS ${_fmtNum(paymentResult.received)} imepokelewa.'));
+      _showSnack(
+        paymentResult.fullySettled
+            ? _tr('Invoice fully paid!', 'Ankara imelipwa kamili!')
+            : _tr(
+                'Payment recorded — TZS ${_fmtNum(paymentResult.received)} received.',
+                'Malipo yamerekodiwa — TZS ${_fmtNum(paymentResult.received)} imepokelewa.',
+              ),
+      );
     } catch (e) {
       _showSnack(_tr('Payment failed: $e', 'Malipo yameshindikana: $e'));
       if (mounted) setState(() => _updating = false);
@@ -410,13 +422,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         ? 'https://wa.me/?text=$text'
         : 'https://wa.me/$phone?text=$text';
     try {
-      final ok = await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
       if (!ok) throw Exception('no handler');
       _offerMarkSent();
     } catch (_) {
-      _showSnack(_tr('Could not open WhatsApp. Make sure it is installed.',
-          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'));
+      _showSnack(
+        _tr(
+          'Could not open WhatsApp. Make sure it is installed.',
+          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+        ),
+      );
     }
   }
 
@@ -424,18 +442,26 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     // Email clients don't render WhatsApp markdown — strip it.
     final text = _buildShareText().replaceAll(RegExp(r'[*_]'), '');
     final subject = Uri.encodeComponent(
-        _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
+      _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'),
+    );
     final body = Uri.encodeComponent(text);
     final customerEmail = (_inv['customerEmail'] ?? '').toString();
-    final to = customerEmail.isNotEmpty ? Uri.encodeComponent(customerEmail) : '';
+    final to = customerEmail.isNotEmpty
+        ? Uri.encodeComponent(customerEmail)
+        : '';
     try {
-      final ok =
-          await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
+      final ok = await launchUrl(
+        Uri.parse('mailto:$to?subject=$subject&body=$body'),
+      );
       if (!ok) throw Exception('no handler');
       _offerMarkSent();
     } catch (_) {
-      _showSnack(_tr('No email app found on this device.',
-          'Hakuna programu ya barua pepe kwenye kifaa hiki.'));
+      _showSnack(
+        _tr(
+          'No email app found on this device.',
+          'Hakuna programu ya barua pepe kwenye kifaa hiki.',
+        ),
+      );
     }
   }
 
@@ -443,17 +469,23 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   /// steps don't silently drift apart. Quotations and non-drafts are skipped.
   void _offerMarkSent() {
     if (!mounted || _isQuotation || _status != 'draft' || !_canEdit) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(_tr('Invoice shared. Mark it as sent?',
-          'Ankara imeshirikiwa. Uiweke kama imetumwa?')),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 8),
-      action: SnackBarAction(
-        label: _tr('Mark as Sent', 'Imetumwa'),
-        onPressed: () => _updateStatus('sent'),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _tr(
+            'Invoice shared. Mark it as sent?',
+            'Ankara imeshirikiwa. Uiweke kama imetumwa?',
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: _tr('Mark as Sent', 'Imetumwa'),
+          onPressed: () => _updateStatus('sent'),
+        ),
       ),
-    ));
+    );
   }
 
   void _copyText() {
@@ -462,7 +494,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   String _buildShareText() {
-    final type = _isQuotation ? _tr('QUOTATION', 'NUKUU') : _tr('INVOICE', 'ANKARA');
+    final type = _isQuotation
+        ? _tr('QUOTATION', 'NUKUU')
+        : _tr('INVOICE', 'ANKARA');
     final lines = StringBuffer();
     lines.writeln('*$type — $_invoiceNumber*');
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
@@ -475,15 +509,21 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
     lines.writeln();
     for (final item in _lineItems) {
-      final name = item['productName']?.toString() ?? item['name']?.toString() ?? '';
-      final qty = item['qty']?.toString() ?? item['quantity']?.toString() ?? '1';
+      final name =
+          item['productName']?.toString() ?? item['name']?.toString() ?? '';
+      final qty =
+          item['qty']?.toString() ?? item['quantity']?.toString() ?? '1';
       final price = _fmtNum(parseNumericAmount(item['unitPrice']));
-      final total = _fmtNum(parseNumericAmount(item['lineTotal'] ?? item['total']));
+      final total = _fmtNum(
+        parseNumericAmount(item['lineTotal'] ?? item['total']),
+      );
       lines.writeln('• $name × $qty @ TZS $price = *TZS $total*');
     }
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
     if (_discount > 0) {
-      lines.writeln('${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}');
+      lines.writeln(
+        '${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}',
+      );
     }
     if (_vat > 0) {
       lines.writeln('${_tr('VAT (18%):', 'VAT (18%):')} TZS ${_fmtNum(_vat)}');
@@ -582,9 +622,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       title: Text(
         _isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Invoice', 'Ankara'),
         style: GoogleFonts.dmSans(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white),
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+          color: Colors.white,
+        ),
       ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -605,24 +646,32 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(_tr('Cancel Invoice?', 'Futa Ankara?'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+        title: Text(
+          _tr('Cancel Invoice?', 'Futa Ankara?'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
         content: Text(
-            _tr('This action cannot be undone.', 'Hatua hii haiwezi kutenduliwa.'),
-            style: GoogleFonts.dmSans()),
+          _tr(
+            'This action cannot be undone.',
+            'Hatua hii haiwezi kutenduliwa.',
+          ),
+          style: GoogleFonts.dmSans(),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(_tr('Back', 'Rudi'),
-                  style: GoogleFonts.dmSans())),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(_tr('Back', 'Rudi'), style: GoogleFonts.dmSans()),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               Navigator.of(context).pop();
               _updateStatus('cancelled');
             },
-            child: Text(_tr('Cancel Invoice', 'Futa Ankara'),
-                style: GoogleFonts.dmSans()),
+            child: Text(
+              _tr('Cancel Invoice', 'Futa Ankara'),
+              style: GoogleFonts.dmSans(),
+            ),
           ),
         ],
       ),
@@ -655,7 +704,8 @@ class _InvoiceSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overdue = dueDate != null &&
+    final overdue =
+        dueDate != null &&
         dueDate!.isBefore(DateTime.now()) &&
         status != 'paid' &&
         status != 'cancelled';
@@ -699,7 +749,9 @@ class _InvoiceSummaryCard extends StatelessWidget {
                           SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(4),
@@ -792,8 +844,11 @@ class _InvoiceSummaryCard extends StatelessWidget {
             SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.schedule_rounded,
-                    size: 12, color: AppColors.error),
+                const Icon(
+                  Icons.schedule_rounded,
+                  size: 12,
+                  color: AppColors.error,
+                ),
                 SizedBox(width: 4),
                 Text(
                   '${_tr('Due was', 'Malipo ilikuwa')} ${_fmt(dueDate!)} ${dueDate!.year}',
@@ -866,10 +921,11 @@ class _ShareRow extends StatelessWidget {
   final VoidCallback onEmail;
   final VoidCallback onCopy;
 
-  const _ShareRow(
-      {required this.onWhatsApp,
-      required this.onEmail,
-      required this.onCopy});
+  const _ShareRow({
+    required this.onWhatsApp,
+    required this.onEmail,
+    required this.onCopy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -912,11 +968,12 @@ class _ShareBtn extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _ShareBtn(
-      {required this.label,
-      required this.icon,
-      required this.color,
-      required this.onTap});
+  const _ShareBtn({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -936,9 +993,10 @@ class _ShareBtn extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -966,10 +1024,11 @@ class _LineItemsCard extends StatelessWidget {
           child: Text(
             _tr('Items', 'Bidhaaa'),
             style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-                letterSpacing: 0.3),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
         ...items.asMap().entries.map((e) {
@@ -993,9 +1052,10 @@ class _LineItemsCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
                 boxShadow: const [
                   BoxShadow(
-                      color: AppColors.shadowCard,
-                      blurRadius: 6,
-                      offset: Offset(0, 1)),
+                    color: AppColors.shadowCard,
+                    blurRadius: 6,
+                    offset: Offset(0, 1),
+                  ),
                 ],
               ),
               child: Row(
@@ -1024,9 +1084,10 @@ class _LineItemsCard extends StatelessWidget {
                         Text(
                           productName,
                           style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navyPrimary),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
                         ),
                         if (unit.isNotEmpty || unitPrice > 0) ...[
                           SizedBox(height: 3),
@@ -1037,8 +1098,9 @@ class _LineItemsCard extends StatelessWidget {
                                 'TZS ${_fmtNum(unitPrice)} ${_tr("each", "kila")}',
                             ].join(' · '),
                             style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppColors.textMuted),
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                       ],
@@ -1052,26 +1114,33 @@ class _LineItemsCard extends StatelessWidget {
                       Text(
                         'TZS ${_fmtNum(lineTotal)}',
                         style: GoogleFonts.jetBrainsMono(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.navyPrimary),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
                       ),
                       SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.navyPrimary.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: AppColors.navyPrimary.withValues(alpha: 0.15)),
+                            color: AppColors.navyPrimary.withValues(
+                              alpha: 0.15,
+                            ),
+                          ),
                         ),
                         child: Text(
                           '×$qty',
                           style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navyPrimary),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -1115,20 +1184,23 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         children: [
           _SRow(
-              label: _tr('Subtotal', 'Jumla Ndogo'),
-              value: 'TZS ${_fmtNum(subtotal)}'),
+            label: _tr('Subtotal', 'Jumla Ndogo'),
+            value: 'TZS ${_fmtNum(subtotal)}',
+          ),
           if (discount > 0) ...[
             const SizedBox(height: 8),
             _SRow(
-                label: _tr('Discount', 'Punguzo'),
-                value: '-TZS ${_fmtNum(discount)}',
-                valueColor: AppColors.success),
+              label: _tr('Discount', 'Punguzo'),
+              value: '-TZS ${_fmtNum(discount)}',
+              valueColor: AppColors.success,
+            ),
           ],
           if (applyVat && vatAmount > 0) ...[
             const SizedBox(height: 8),
             _SRow(
-                label: _tr('VAT (18%)', 'VAT (18%)'),
-                value: 'TZS ${_fmtNum(vatAmount)}'),
+              label: _tr('VAT (18%)', 'VAT (18%)'),
+              value: 'TZS ${_fmtNum(vatAmount)}',
+            ),
           ],
           const SizedBox(height: 12),
           const Divider(color: AppColors.border, height: 1),
@@ -1139,15 +1211,18 @@ class _SummaryCard extends StatelessWidget {
               Text(
                 _tr('TOTAL', 'JUMLA'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: AppColors.textSecondary),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: AppColors.textSecondary,
+                ),
               ),
               Text(
                 'TZS ${_fmtNum(total)}',
                 style: GoogleFonts.dmSerifDisplay(
-                    fontSize: 22, color: AppColors.navyPrimary),
+                  fontSize: 22,
+                  color: AppColors.navyPrimary,
+                ),
               ),
             ],
           ),
@@ -1169,15 +1244,20 @@ class _SRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: GoogleFonts.dmSans(
-                fontSize: 13, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
         Text(
           value,
           style: GoogleFonts.jetBrainsMono(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: valueColor ?? AppColors.textPrimary),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -1220,8 +1300,11 @@ class _PaymentInfoCard extends StatelessWidget {
               color: AppColors.navyPrimary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.payments_rounded,
-                size: 20, color: AppColors.navyPrimary),
+            child: const Icon(
+              Icons.payments_rounded,
+              size: 20,
+              color: AppColors.navyPrimary,
+            ),
           ),
           SizedBox(width: 12),
           Expanded(
@@ -1231,18 +1314,24 @@ class _PaymentInfoCard extends StatelessWidget {
                 Text(
                   _tr('Payment Method', 'Njia ya Malipo'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 Text(
                   methodLabel,
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (ref.isNotEmpty)
                   Text(
                     '${_tr('Ref:', 'Kumb:')} $ref',
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12, color: AppColors.textMuted),
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
               ],
             ),
@@ -1275,15 +1364,20 @@ class _NotesCard extends StatelessWidget {
           Text(
             _tr('Notes', 'Maelezo'),
             style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textMuted,
-                letterSpacing: 0.5),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+              letterSpacing: 0.5,
+            ),
           ),
           SizedBox(height: 6),
-          Text(notes,
-              style: GoogleFonts.dmSans(
-                  fontSize: 14, color: AppColors.textPrimary)),
+          Text(
+            notes,
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+            ),
+          ),
         ],
       ),
     );
@@ -1337,9 +1431,10 @@ class _ActionsCard extends StatelessWidget {
           Text(
             _tr('Actions', 'Hatua'),
             style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 12),
           if (isQuotation && !isCancelled && onConvert != null) ...[
@@ -1351,7 +1446,9 @@ class _ActionsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          if (!isPaid && !isCancelled && !isQuotation &&
+          if (!isPaid &&
+              !isCancelled &&
+              !isQuotation &&
               onRecordPayment != null) ...[
             _ActionTile(
               icon: Icons.check_circle_rounded,
@@ -1380,8 +1477,10 @@ class _ActionsCard extends StatelessWidget {
           if (isPaid && !isQuotation && onReturn != null) ...[
             _ActionTile(
               icon: Icons.undo_rounded,
-              label: _tr('Issue Credit Note / Return',
-                  'Toa Nota ya Mkopo / Rudisha'),
+              label: _tr(
+                'Issue Credit Note / Return',
+                'Toa Nota ya Mkopo / Rudisha',
+              ),
               color: AppColors.warning,
               onTap: onReturn,
             ),
@@ -1432,17 +1531,17 @@ class _ActionTile extends StatelessWidget {
         opacity: onTap == null ? 0.4 : 1.0,
         duration: Duration(milliseconds: 200),
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: destructive
                 ? AppColors.error.withValues(alpha: 0.05)
                 : color.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-                color: destructive
-                    ? AppColors.error.withValues(alpha: 0.2)
-                    : color.withValues(alpha: 0.15)),
+              color: destructive
+                  ? AppColors.error.withValues(alpha: 0.2)
+                  : color.withValues(alpha: 0.15),
+            ),
           ),
           child: Row(
             children: [
@@ -1452,15 +1551,19 @@ class _ActionTile extends StatelessWidget {
                 child: Text(
                   label,
                   style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: destructive
-                          ? AppColors.error
-                          : AppColors.textPrimary),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: destructive
+                        ? AppColors.error
+                        : AppColors.textPrimary,
+                  ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 18, color: AppColors.textMuted),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: AppColors.textMuted,
+              ),
             ],
           ),
         ),
@@ -1481,18 +1584,18 @@ class _RecordPaymentSheet extends ConsumerStatefulWidget {
       _RecordPaymentSheetState();
 }
 
-class _RecordPaymentSheetState
-    extends ConsumerState<_RecordPaymentSheet> {
+class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
   final _amountCtrl = TextEditingController();
   final _refCtrl = TextEditingController();
   CashAccount? _selectedAccount;
   final bool _saving = false;
+  String? _amountError;
+  String? _paymentError;
 
   @override
   void initState() {
     super.initState();
-    _amountCtrl.text =
-        widget.outstanding.toStringAsFixed(0);
+    _amountCtrl.text = widget.outstanding.toStringAsFixed(0);
   }
 
   @override
@@ -1505,20 +1608,27 @@ class _RecordPaymentSheetState
   // Input-only sheet: the caller commits the payment atomically together
   // with the invoice balance and customer balance updates.
   void _save() {
-    final amount = double.tryParse(
-            _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+    setState(() {
+      _amountError = null;
+      _paymentError = null;
+    });
+    final amount =
+        double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text(_tr('Enter a valid amount', 'Ingiza kiasi sahihi'))));
+      setState(
+        () => _amountError = _tr('Enter a valid amount', 'Ingiza kiasi sahihi'),
+      );
       return;
     }
     final account = _selectedAccount;
     if (account == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              _tr('Select a payment account', 'Chagua akaunti ya malipo'))));
+      setState(
+        () => _paymentError = _tr(
+          'Select a payment account',
+          'Chagua akaunti ya malipo',
+        ),
+      );
       return;
     }
     final method = switch (account.id) {
@@ -1540,7 +1650,8 @@ class _RecordPaymentSheetState
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1552,40 +1663,60 @@ class _RecordPaymentSheetState
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2)),
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             SizedBox(height: 16),
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(
-                  fontSize: 18, fontWeight: FontWeight.w700),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             SizedBox(height: 4),
             Text(
-              _tr('Outstanding: TZS ${_fmtNum(widget.outstanding)}',
-                  'Inayodaiwa: TZS ${_fmtNum(widget.outstanding)}'),
+              _tr(
+                'Outstanding: TZS ${_fmtNum(widget.outstanding)}',
+                'Inayodaiwa: TZS ${_fmtNum(widget.outstanding)}',
+              ),
               style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13, color: AppColors.textMuted),
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
             SizedBox(height: 20),
-            Text(_tr('Amount Received', 'Kiasi Kilichopokelewa'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary)),
+            Text(
+              _tr('Amount Received', 'Kiasi Kilichopokelewa'),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
             SizedBox(height: 6),
             TextField(
               controller: _amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) {
+                if (_amountError != null) {
+                  setState(() => _amountError = null);
+                }
+              },
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: GoogleFonts.jetBrainsMono(
-                  fontSize: 20, fontWeight: FontWeight.w700),
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
               decoration: InputDecoration(
                 prefixText: 'TZS ',
                 prefixStyle: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted),
+                  fontSize: 14,
+                  color: AppColors.textMuted,
+                ),
                 filled: true,
                 fillColor: AppColors.surfaceVariant,
                 border: OutlineInputBorder(
@@ -1593,22 +1724,35 @@ class _RecordPaymentSheetState
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
+                  horizontal: 14,
+                  vertical: 14,
+                ),
               ),
+            ),
+            ValidationBanner(
+              message: _amountError,
+              onDismiss: () => setState(() => _amountError = null),
             ),
             const SizedBox(height: 16),
             PaymentAccountChips(
               selectedAccountId: _selectedAccount?.id,
-              onSelectAccount: (account) =>
-                  setState(() => _selectedAccount = account),
+              onSelectAccount: (account) => setState(() {
+                _selectedAccount = account;
+                _paymentError = null;
+              }),
+              onActivationRequired: (message) =>
+                  setState(() => _paymentError = message),
+            ),
+            ValidationBanner(
+              message: _paymentError,
+              onDismiss: () => setState(() => _paymentError = null),
             ),
             if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
               SizedBox(height: 12),
               TextField(
                 controller: _refCtrl,
                 decoration: InputDecoration(
-                  hintText:
-                      _tr('M-Pesa reference', 'Nambari ya M-Pesa'),
+                  hintText: _tr('M-Pesa reference', 'Nambari ya M-Pesa'),
                   filled: true,
                   fillColor: AppColors.surfaceVariant,
                   border: OutlineInputBorder(
@@ -1616,7 +1760,9 @@ class _RecordPaymentSheetState
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                 ),
                 style: GoogleFonts.jetBrainsMono(fontSize: 14),
               ),
@@ -1630,18 +1776,23 @@ class _RecordPaymentSheetState
                   backgroundColor: AppColors.navyPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _saving
                     ? const SizedBox.square(
                         dimension: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
                         _tr('Confirm Payment', 'Thibitisha Malipo'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
               ),
             ),
@@ -1668,4 +1819,3 @@ String _fmtNum(double v) {
   }
   return buf.toString();
 }
-

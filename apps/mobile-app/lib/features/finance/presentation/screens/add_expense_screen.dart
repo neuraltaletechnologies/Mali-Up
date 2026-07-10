@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -25,6 +26,8 @@ import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+enum _ExpenseErrorField { amount, payment, general }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category meta (mirrors expense_list_screen)
@@ -96,6 +99,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   bool _saving = false;
   bool _uploadingReceipt = false;
   bool _isCreditPurchase = false;
+  String? _errorMessage;
+  _ExpenseErrorField _errorField = _ExpenseErrorField.general;
 
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -252,9 +257,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // ── Save ────────────────────────────────────────────────────────────────────
 
   Future<void> _save() async {
+    if (_errorMessage != null) setState(() => _errorMessage = null);
     final amountStr = _amountCtrl.text.trim();
     if (amountStr.isEmpty || (double.tryParse(amountStr) ?? 0) <= 0) {
-      _showSnack(_tr('Enter a valid amount', 'Weka kiasi sahihi'));
+      _showValidation(
+        _tr('Enter a valid amount', 'Weka kiasi sahihi'),
+        _ExpenseErrorField.amount,
+      );
       return;
     }
 
@@ -262,16 +271,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     // PaymentAccountChips only lets an activated built-in or custom account
     // become selected, so a null selection here just means nothing was picked.
     if (_selectedAccountId == null) {
-      _showSnack(_tr('Select a payment account', 'Chagua akaunti ya malipo'));
+      _showValidation(
+        _tr('Select a payment account', 'Chagua akaunti ya malipo'),
+        _ExpenseErrorField.payment,
+      );
       return;
     }
-    final account =
-        await ref.read(cashRepositoryProvider).getAccountById(_selectedAccountId!);
+    final account = await ref
+        .read(cashRepositoryProvider)
+        .getAccountById(_selectedAccountId!);
     if (account == null) {
-      _showSnack(_tr(
-        'That payment account is no longer available. Choose another.',
-        'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
-      ));
+      _showValidation(
+        _tr(
+          'That payment account is no longer available. Choose another.',
+          'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
+        ),
+        _ExpenseErrorField.payment,
+      );
       return;
     }
     final paymentMethodValue = switch (account.id) {
@@ -400,8 +416,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         Navigator.of(context).pop({'saved': true});
       }
     } catch (e) {
-      _showSnack(_tr('Failed to save: $e', 'Imeshindwa kuhifadhi: $e'));
-      setState(() => _saving = false);
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _errorMessage = _tr(
+          'Failed to save. Try again.',
+          'Imeshindwa kuhifadhi. Jaribu tena.',
+        );
+        _errorField = _ExpenseErrorField.general;
+      });
     }
   }
 
@@ -431,16 +454,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
+  void _showValidation(String message, _ExpenseErrorField field) =>
+      setState(() {
+        _errorMessage = message;
+        _errorField = field;
+      });
+
+  Widget _buildValidation(_ExpenseErrorField field) => ValidationBanner(
+    message: _errorField == field ? _errorMessage : null,
+    onDismiss: () => setState(() => _errorMessage = null),
+  );
 
   // ── UI ──────────────────────────────────────────────────────────────────────
 
@@ -501,7 +524,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   controller: _scrollCtrl,
                   padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
                   children: [
-                    _AmountSection(controller: _amountCtrl),
+                    _AmountSection(
+                      controller: _amountCtrl,
+                      onChanged: (_) {
+                        if (_errorField == _ExpenseErrorField.amount &&
+                            _errorMessage != null) {
+                          setState(() => _errorMessage = null);
+                        }
+                      },
+                    ),
+                    _buildValidation(_ExpenseErrorField.amount),
                     const SizedBox(height: 20),
                     _SectionLabel(_tr('Category', 'Kundi')),
                     const SizedBox(height: 10),
@@ -523,9 +555,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     const SizedBox(height: 12),
                     PaymentAccountChips(
                       selectedAccountId: _selectedAccountId,
-                      onSelectAccount: (a) =>
-                          setState(() => _selectedAccountId = a.id),
+                      onSelectAccount: (a) => setState(() {
+                        _selectedAccountId = a.id;
+                        if (_errorField == _ExpenseErrorField.payment) {
+                          _errorMessage = null;
+                        }
+                      }),
+                      onActivationRequired: (message) =>
+                          _showValidation(message, _ExpenseErrorField.payment),
                     ),
+                    _buildValidation(_ExpenseErrorField.payment),
                     const SizedBox(height: 20),
                     _SectionLabel(_tr('Details', 'Maelezo')),
                     const SizedBox(height: 10),
@@ -702,6 +741,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             setState(() => _submitForApproval = v),
                       ),
                     ),
+                    _buildValidation(_ExpenseErrorField.general),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -756,8 +796,9 @@ InputDecoration _fieldDec({
 
 class _AmountSection extends StatelessWidget {
   final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
-  const _AmountSection({required this.controller});
+  const _AmountSection({required this.controller, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -790,6 +831,7 @@ class _AmountSection extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
+                  onChanged: onChanged,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),

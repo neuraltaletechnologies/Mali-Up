@@ -17,6 +17,7 @@ import '../../core/services/plan_service.dart';
 import '../../core/services/version_gate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_motion.dart';
 import '../../config/routing.dart';
 import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
@@ -465,7 +466,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final isDashboard = _isSelected(location, AppRouter.dashboardPath);
         return Align(
           alignment: Alignment.centerLeft,
           child: SafeArea(
@@ -528,7 +528,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                           color: Colors.white.withValues(
                                             alpha: 0.16,
                                           ),
-                                          width: 1,
                                         ),
                                       ),
                                       child: Center(
@@ -1015,15 +1014,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // (dragging sideways or releasing without moving up cancels — same idea
   // as a slide-to-cancel voice-note recorder). One continuous gesture, no
   // second tap, no sheet.
-  static const double _navPickItemHeight = 72;
-  static const double _navPickStripWidth = 96;
+  static const double _navPickItemHeight = 46;
+  static const double _navPickStripWidth = 76;
   static const double _navPickCancelDx = 56;
-  static const double _navPickCircleSize = 40;
-  static const double _navPickCircleSizeSelected = 46;
+  static const double _navPickCircleSize = 28;
+  static const double _navPickCircleSizeSelected = 34;
   // How far the finger must drag up past the origin before the nearest
   // (index 0) option starts highlighting, so the strip clears the held
   // icon and its label first.
-  static const double _navPickOriginClearance = 30;
+  static const double _navPickOriginClearance = 20;
   // One per customizable slot — pins the picker overlay to that exact
   // icon's on-screen position via CompositedTransformFollower, which is
   // immune to the manual-coordinate-math bugs an absolute Y calculation
@@ -1039,6 +1038,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   double _navPickOriginX = 0;
   double _navPickOriginY = 0;
   OverlayEntry? _navPickOverlayEntry;
+  bool _navPickWasCancelled = false;
   final ValueNotifier<int> _navPickHighlightIndex = ValueNotifier<int>(-1);
 
   void _startNavPick(
@@ -1049,8 +1049,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   ) {
     final slotPosition = destination.slotPosition;
     if (slotPosition == null) return;
-    final catalog = _fullNavCatalog(ps);
-    if (catalog.length <= 1) return;
+    // Only offer screens that are not already visible in the bottom bar.
+    // This keeps the picker short and prevents the current/other slot icons
+    // from being presented as if they were new choices.
+    final occupiedKeys = _buildNavDestinations(ps).map((d) => d.key).toSet();
+    final catalog = _fullNavCatalog(
+      ps,
+    ).where((candidate) => !occupiedKeys.contains(candidate.key)).toList();
+    if (catalog.isEmpty) return;
     HapticFeedback.mediumImpact();
 
     _navPickCatalog = catalog;
@@ -1058,6 +1064,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _navPickCurrentKey = destination.key;
     _navPickOriginX = globalPosition.dx;
     _navPickOriginY = globalPosition.dy;
+    _navPickWasCancelled = false;
     _navPickHighlightIndex.value = -1;
 
     _navPickOverlayEntry = OverlayEntry(builder: _buildNavPickOverlay);
@@ -1071,8 +1078,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // started — self-contained, so it can't be thrown off by whatever
     // coordinate space globalPosition happens to be reported in.
     final draggedUp = _navPickOriginY - globalPosition.dy;
+    // Crossing the horizontal threshold cancels the whole gesture. Moving
+    // back over the strip must not accidentally assign a destination.
+    if (dx > _navPickCancelDx) {
+      _navPickWasCancelled = true;
+    }
     var nextIndex = -1;
-    if (dx <= _navPickCancelDx && draggedUp > _navPickOriginClearance) {
+    if (!_navPickWasCancelled && draggedUp > _navPickOriginClearance) {
       final distanceIntoStrip = draggedUp - _navPickOriginClearance;
       nextIndex = (distanceIntoStrip / _navPickItemHeight).floor().clamp(
         0,
@@ -1080,7 +1092,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       );
     }
     if (nextIndex != _navPickHighlightIndex.value) {
-      HapticFeedback.selectionClick();
+      // Entering an option gets a tick; cancelling or returning to the dead
+      // zone stays quiet.
+      if (nextIndex >= 0) HapticFeedback.selectionClick();
       _navPickHighlightIndex.value = nextIndex;
     }
   }
@@ -1090,8 +1104,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     final index = _navPickHighlightIndex.value;
     final catalog = _navPickCatalog;
     final currentKey = _navPickCurrentKey;
+    final wasCancelled = _navPickWasCancelled;
     _removeNavPickOverlay();
-    if (slotPosition == null || index < 0 || index >= catalog.length) return;
+    if (wasCancelled ||
+        slotPosition == null ||
+        index < 0 ||
+        index >= catalog.length) {
+      return;
+    }
     final chosen = catalog[index];
     if (chosen.key == currentKey) return;
     _assignNavSlot(slotPosition, chosen.key);
@@ -1104,98 +1124,101 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _navPickOverlayEntry = null;
     _navPickSlotPosition = null;
     _navPickCatalog = [];
+    _navPickWasCancelled = false;
   }
 
-  // No shared box, no scrim — each option is its own floating circular
-  // icon button with a label underneath (same shape language as the nav
-  // bar's own icon-over-label items), stacked upward from the held icon
-  // directly over the page content.
+  // Transparent overlay: only the floating destination icons and labels are
+  // painted above the held navbar slot; there is no strip or page scrim.
   Widget _buildNavPickOverlay(BuildContext overlayContext) {
     final slotPosition = _navPickSlotPosition;
     if (slotPosition == null) return const SizedBox.shrink();
     return IgnorePointer(
-      child: CompositedTransformFollower(
-        link: _navSlotLayerLinks[slotPosition],
-        targetAnchor: Alignment.topCenter,
-        followerAnchor: Alignment.bottomCenter,
-        offset: const Offset(0, -14),
-        child: SizedBox(
-          width: _navPickStripWidth,
-          child: ValueListenableBuilder<int>(
-            valueListenable: _navPickHighlightIndex,
-            builder: (_, highlighted, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              // Rendered top-to-bottom in the strip, but index 0 (the
-              // catalog entry nearest the held icon) is the *last* child so
-              // it sits at the bottom, nearest the finger's starting point.
-              children: List.generate(_navPickCatalog.length, (i) {
-                final catalogIndex = _navPickCatalog.length - 1 - i;
-                final destination = _navPickCatalog[catalogIndex];
-                final isSelected = catalogIndex == highlighted;
-                final isCurrent = destination.key == _navPickCurrentKey;
-                final circleSize = isSelected
-                    ? _navPickCircleSizeSelected
-                    : _navPickCircleSize;
-                return SizedBox(
-                  height: _navPickItemHeight,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 140),
-                        curve: Curves.easeOut,
-                        width: circleSize,
-                        height: circleSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected
-                              ? AppColors.yellowBrand
-                              : AppColors.navyPrimary,
-                          border: isCurrent
-                              ? Border.all(color: Colors.white, width: 2)
-                              : null,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.28),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: CompositedTransformFollower(
+          link: _navSlotLayerLinks[slotPosition],
+          targetAnchor: Alignment.topCenter,
+          followerAnchor: Alignment.bottomCenter,
+          offset: const Offset(0, -14),
+          showWhenUnlinked: false,
+          child: SizedBox(
+            width: _navPickStripWidth,
+            child: ValueListenableBuilder<int>(
+              valueListenable: _navPickHighlightIndex,
+              builder: (_, highlighted, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                // Rendered top-to-bottom in the strip, but index 0 (the
+                // catalog entry nearest the held icon) is the *last* child so
+                // it sits at the bottom, nearest the finger's starting point.
+                children: List.generate(_navPickCatalog.length, (i) {
+                  final catalogIndex = _navPickCatalog.length - 1 - i;
+                  final destination = _navPickCatalog[catalogIndex];
+                  final isSelected = catalogIndex == highlighted;
+                  final isCurrent = destination.key == _navPickCurrentKey;
+                  final circleSize = isSelected
+                      ? _navPickCircleSizeSelected
+                      : _navPickCircleSize;
+                  return SizedBox(
+                    height: _navPickItemHeight,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          curve: Curves.easeOut,
+                          width: circleSize,
+                          height: circleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected
+                                ? AppColors.yellowBrand
+                                : AppColors.navyPrimary,
+                            border: isCurrent
+                                ? Border.all(color: Colors.white, width: 2)
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.28),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            destination.activeIcon,
+                            size: isSelected ? 18 : 14,
+                            color: isSelected
+                                ? AppColors.navyPrimary
+                                : Colors.white,
+                          ),
                         ),
-                        child: Icon(
-                          destination.activeIcon,
-                          size: isSelected ? 22 : 18,
-                          color: isSelected
-                              ? AppColors.navyPrimary
-                              : Colors.white,
+                        const SizedBox(height: 2),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 140),
+                          style: GoogleFonts.dmSans(
+                            fontSize: isSelected ? 10 : 9,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.tealAccent
+                                : Colors.white,
+                            shadows: const [
+                              Shadow(color: Colors.black54, blurRadius: 6),
+                            ],
+                          ),
+                          child: Text(
+                            destination.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 140),
-                        style: GoogleFonts.dmSans(
-                          fontSize: isSelected ? 11 : 10,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? AppColors.yellowBrand
-                              : Colors.white,
-                          shadows: const [
-                            Shadow(color: Colors.black54, blurRadius: 6),
-                          ],
-                        ),
-                        child: Text(
-                          destination.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                      ],
+                    ),
+                  );
+                }),
+              ),
             ),
           ),
         ),
@@ -1292,7 +1315,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       final status = next.valueOrNull;
       if (status == null) return;
       _planActivationWatcher.checkAndUpdate(status.tier).then((previousTier) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         // No baseline yet (first load on this device) — just seed it.
         if (previousTier == null) return;
         // Only celebrate genuine upgrades, not no-ops or expiry downgrades.
@@ -1438,7 +1461,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           ),
                         ],
                       ),
-                      clipBehavior: Clip.none,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: List.generate(destinations.length, (index) {
@@ -1493,6 +1515,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     GestureLongPressEndCallback? onLongPressEnd,
     VoidCallback? onLongPressCancel,
   }) {
+    final reduceMotion = AppMotion.reduceMotion(context);
     final navItem = GestureDetector(
       onTap: () => context.go(destination.route),
       onLongPressStart: onLongPressStart,
@@ -1510,9 +1533,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
+                  duration: reduceMotion ? Duration.zero : AppMotion.quick,
+                  transitionBuilder: (child, animation) => reduceMotion
+                      ? child
+                      : ScaleTransition(scale: animation, child: child),
                   child: Icon(
                     isSelected ? destination.activeIcon : destination.icon,
                     key: ValueKey<bool>(isSelected),
@@ -1522,7 +1546,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 ),
                 const SizedBox(height: 3),
                 AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
+                  duration: reduceMotion ? Duration.zero : AppMotion.quick,
                   style: GoogleFonts.dmSans(
                     color: isSelected ? AppColors.yellowBrand : Colors.white54,
                     fontSize: 10,
@@ -1730,7 +1754,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
@@ -1856,9 +1880,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
                   size: 16,
                   color: AppColors.primary,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 130),
+                  constraints: const BoxConstraints(maxWidth: 130),
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
@@ -1935,7 +1959,7 @@ class _HeaderTag extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.85)),
-          SizedBox(width: 5),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.dmSans(
@@ -2028,7 +2052,7 @@ class _DrawerItemLight extends StatelessWidget {
                       color: selected ? Colors.white : AppColors.secondary,
                     ),
                   ),
-                  SizedBox(width: 13),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Text(
                       label,
@@ -2071,7 +2095,7 @@ class _DrawerSectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
       child: Row(
         children: [
-          Expanded(child: Divider(height: 1, color: AppColors.border)),
+          const Expanded(child: Divider(height: 1, color: AppColors.border)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(

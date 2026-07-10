@@ -9,6 +9,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
@@ -1135,6 +1136,8 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
   CashAccount? _selectedAccount;
   late DateTime _date;
   bool _saving = false;
+  String? _paymentError;
+  String? _generalError;
 
   @override
   void initState() {
@@ -1150,14 +1153,17 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
   }
 
   Future<void> _save() async {
+    if (_paymentError != null || _generalError != null) {
+      setState(() {
+        _paymentError = null;
+        _generalError = null;
+      });
+    }
     if (!_formKey.currentState!.validate()) return;
     final account = _selectedAccount;
     if (account == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            _tr('Select a payment account', 'Chagua akaunti ya malipo')),
-        backgroundColor: AppColors.error,
-      ));
+      setState(() => _paymentError =
+          _tr('Select a payment account', 'Chagua akaunti ya malipo'));
       return;
     }
     setState(() => _saving = true);
@@ -1242,13 +1248,13 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
-        setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Failed to save payment.', 'Imeshindwa kuhifadhi malipo.')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        setState(() {
+          _saving = false;
+          _generalError = _tr(
+            'Failed to save payment. Try again.',
+            'Imeshindwa kuhifadhi malipo. Jaribu tena.',
+          );
+        });
       }
     }
   }
@@ -1343,7 +1349,16 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             const SizedBox(height: 8),
             PaymentAccountChips(
               selectedAccountId: _selectedAccount?.id,
-              onSelectAccount: (a) => setState(() => _selectedAccount = a),
+              onSelectAccount: (a) => setState(() {
+                _selectedAccount = a;
+                _paymentError = null;
+              }),
+              onActivationRequired: (message) =>
+                  setState(() => _paymentError = message),
+            ),
+            ValidationBanner(
+              message: _paymentError,
+              onDismiss: () => setState(() => _paymentError = null),
             ),
             const SizedBox(height: 14),
 
@@ -1368,6 +1383,13 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               minLines: 1,
             ),
             const SizedBox(height: 18),
+
+            ValidationBanner(
+              message: _generalError,
+              onDismiss: () => setState(() => _generalError = null),
+              margin: EdgeInsets.zero,
+            ),
+            if (_generalError != null) const SizedBox(height: 10),
 
             // Save button
             SizedBox(
@@ -1403,4 +1425,3 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     );
   }
 }
-

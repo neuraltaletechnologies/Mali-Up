@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'app_motion.dart';
 
 /// Mali Up — Premium Fintech White Theme
 /// Typography: DM Sans (body/UI), DM Serif Display (hero amounts via AmountDisplay widget),
@@ -185,6 +186,16 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: MaliPageTransitionsBuilder(),
+          TargetPlatform.iOS: MaliPageTransitionsBuilder(),
+          TargetPlatform.macOS: MaliPageTransitionsBuilder(),
+          TargetPlatform.windows: MaliPageTransitionsBuilder(),
+          TargetPlatform.linux: MaliPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: MaliPageTransitionsBuilder(),
+        },
+      ),
 
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,

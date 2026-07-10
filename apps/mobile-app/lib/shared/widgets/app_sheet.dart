@@ -14,6 +14,7 @@ Future<T?> showAppSheet<T>(
   Color backgroundColor = Colors.transparent,
   bool showDragHandle = false,
   ShapeBorder? shape,
+  double maxHeightFactor = 0.8,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -30,7 +31,7 @@ Future<T?> showAppSheet<T>(
     showDragHandle: showDragHandle,
     shape: shape,
     constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+      maxHeight: MediaQuery.sizeOf(context).height * maxHeightFactor,
     ),
     builder: builder,
   );
