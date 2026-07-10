@@ -34,11 +34,13 @@ NEXT_PRIVATE_MINIMAL_MODE = "1"
 
 # Public Firebase client SDK config — safe to commit (project identifiers only).
 # NOTE: NEXT_PUBLIC_* vars are embedded by Next.js at BUILD TIME, not at Worker
-# runtime. These [vars] entries do NOT affect the build — they're here only so
-# `wrangler dev` (local preview) has them. For production builds you must have
-# these in .env.local (or CI env vars) when running `pnpm cf:build`.
-# The one exception: NEXT_PUBLIC_FIREBASE_API_KEY is intentionally omitted here
-# because it is already in .env.local. Do not commit it.
+# runtime. These [vars] entries do NOT affect the build at all — they're here
+# only so `wrangler dev` (local preview) has them. For real production builds
+# (Cloudflare's Git-connected Build, or `pnpm cf:build` locally with .env.local),
+# ALL NEXT_PUBLIC_* values — including these five plus the API key — must be
+# set as Build-time "Variables and secrets" on the Cloudflare Build page
+# (Workers & Pages → mali-up → Settings → Build). This section is a convenience
+# copy for `wrangler dev` only.
 NEXT_PUBLIC_FIREBASE_PROJECT_ID          = "neuraltale-mali-up"
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN         = "neuraltale-mali-up.firebaseapp.com"
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET      = "neuraltale-mali-up.firebasestorage.app"
@@ -48,17 +50,35 @@ NEXT_PUBLIC_FIREBASE_APP_ID              = "1:596683133951:web:1430c6e5bcb28bb5a
 # NextAuth: required on non-Vercel / Cloudflare Workers deployments.
 AUTH_TRUST_HOST = "true"
 
-# Secret env vars set in the Cloudflare dashboard under:
-# Workers & Pages → maliup → Settings → Variables and Secrets
+# Deployment: Cloudflare's native Git Build integration (Workers & Pages →
+# mali-up → Settings → Build) is the ONLY deployer. It triggers on pushes to
+# the `production` branch. GitHub Actions (deploy-admin.yml) only runs a build
+# check on `main` and does not deploy — see promote-to-production.yml for the
+# main → production release checkpoint.
 #
-# Secrets required (never commit these):
-#   AUTH_SECRET                — NextAuth signing secret (openssl rand -base64 32)
-#   AUTH_URL                   — https://maliup.neuraltale.com   ← NOT localhost
-#   FIREBASE_PROJECT_ID        — neuraltale-mali-up
-#   FIREBASE_CLIENT_EMAIL      — firebase-adminsdk-fbsvc@neuraltale-mali-up.iam.gserviceaccount.com
-#   FIREBASE_PRIVATE_KEY       — paste full PEM with literal \n, not real newlines
+# The Cloudflare dashboard has TWO separate "Variables and secrets" panels —
+# values must go in the right one or they silently have no effect:
 #
-# NOTE: NEXT_PUBLIC_FIREBASE_API_KEY is a BUILD-TIME var (embedded by next build),
-# not a Worker runtime secret. Keep it in .env.local only — Cloudflare Secrets
-# cannot inject it into already-built JS bundles. Run `pnpm cf:build` locally
-# (where .env.local exists) before deploying.
+# 1) Settings → Variables and Secrets (Worker RUNTIME — read via `env` by
+#    NextAuth / Firebase Admin SDK on each request; changing these does NOT
+#    require a rebuild):
+#      AUTH_SECRET           (Secret) — NextAuth signing secret (openssl rand -base64 32)
+#      AUTH_URL               (Variable) — https://maliup.neuraltale.com  ← NOT localhost
+#      FIREBASE_PROJECT_ID    (Variable) — neuraltale-mali-up
+#      FIREBASE_CLIENT_EMAIL  (Variable) — firebase-adminsdk-fbsvc@neuraltale-mali-up.iam.gserviceaccount.com
+#      FIREBASE_PRIVATE_KEY   (Secret) — full PEM, literal \n escapes, not real newlines
+#
+# 2) Settings → Build → Variables and secrets (BUILD-TIME — inlined into the
+#    client JS bundle by `next build`; changing these requires a fresh build,
+#    a dashboard-only edit does nothing until the next deploy runs):
+#      NEXT_PUBLIC_BASE_URL
+#      NEXT_PUBLIC_FIREBASE_API_KEY
+#      NEXT_PUBLIC_FIREBASE_PROJECT_ID
+#      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+#      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+#      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+#      NEXT_PUBLIC_FIREBASE_APP_ID
+#
+# AUTH_TRUST_HOST, NEXT_PRIVATE_MINIMAL_MODE and the [vars] above are already
+# committed here and applied automatically on every `wrangler deploy` — no
+# need to duplicate them in either dashboard panel.
