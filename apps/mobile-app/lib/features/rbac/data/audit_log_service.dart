@@ -20,6 +20,7 @@ class AuditLogService {
   static const String memberActivated  = 'member_activated';
   static const String roleChanged      = 'role_changed';
   static const String permissionsChanged = 'permissions_changed';
+  static const String userSignedIn     = 'user_signed_in';
 
   // Customer-management actions
   static const String customerCreated     = 'customer_created';
@@ -76,6 +77,32 @@ class AuditLogService {
         'targetName': targetName,
         'previousValue': ?previousValue,
         'newValue': ?newValue,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Best-effort: do not propagate audit-log failures.
+    }
+  }
+
+  /// Logs a successful sign-in. Same best-effort semantics as [log]; skipped
+  /// entirely when [businessId] is empty (e.g. not yet resolved for a
+  /// returning team member) rather than writing to a bad path.
+  Future<void> logSignIn({
+    required String businessId,
+    required String performedByUid,
+    required String performedByName,
+  }) async {
+    if (businessId.isEmpty) return;
+    try {
+      await _firestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('audit_logs')
+          .add({
+        'action': userSignedIn,
+        'entityType': 'session',
+        'performedBy': performedByUid,
+        'performedByName': performedByName,
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (_) {

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { KPICard } from '@/components/ui/kpi-card'
 import { MRRTrendChart } from '@/components/charts/mrr-trend-chart'
+import { FreeVsPaidChart } from '@/components/charts/free-vs-paid-chart'
 import { KPIRowSkeleton, ChartSkeleton, RevalidatingBar, SkeletonTable } from '@/components/ui/skeleton'
 import { fetchAnalytics, fetchConfig, saveConfig, fetchPlans } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
@@ -153,6 +154,13 @@ export default function RevenuePage() {
     ? Math.round((data?.mrr ?? 0) / (data?.totalBusinesses ?? 1))
     : 0
 
+  // Free (Starter/Trial) vs paid — how much of the base is still to be converted
+  const totalBusinesses = data?.totalBusinesses ?? 0
+  const freeCount = (data?.planDistribution ?? []).find((p) => p.name.toLowerCase() === 'starter')?.value ?? 0
+  const paidCount = Math.max(totalBusinesses - freeCount, 0)
+  const freePct = totalBusinesses > 0 ? Math.round((freeCount / totalBusinesses) * 100) : 0
+  const paidPct = totalBusinesses > 0 ? 100 - freePct : 0
+
   return (
     <div>
       <PageHeader
@@ -249,6 +257,49 @@ export default function RevenuePage() {
               )}
             </div>
           </div>
+
+          {/* Free vs Paid conversion opportunity */}
+          {totalBusinesses > 0 && (
+            <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+              <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">Free vs Paid</h2>
+              <p className="text-[12px] text-[var(--ink-muted)] mb-4">
+                Share of businesses still on the free Starter plan — the pool to target for upgrade pushes
+              </p>
+
+              <div className="flex items-center gap-6">
+                <div className="relative w-[160px] h-[160px] shrink-0">
+                  <FreeVsPaidChart freeCount={freeCount} paidCount={paidCount} />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[20px] font-mono font-semibold text-[var(--ink)]">{freePct}%</span>
+                    <span className="text-[10px] text-[var(--ink-faint)]">free</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="inline-flex items-center gap-1.5 text-[var(--ink-muted)]">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: '#94A3B8' }} />
+                      Free (Starter)
+                    </span>
+                    <span className="font-mono text-[var(--ink)]">{freeCount.toLocaleString()} ({freePct}%)</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="inline-flex items-center gap-1.5 text-[var(--ink-muted)]">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: '#1A6E8A' }} />
+                      Paid (Growth+)
+                    </span>
+                    <span className="font-mono text-[var(--ink)]">{paidCount.toLocaleString()} ({paidPct}%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {freePct >= 50 && (
+                <div className="mt-4 rounded-md border border-[var(--status-warn)] bg-[var(--status-warn-bg)] px-3 py-2.5 text-[12px] text-[var(--status-warn)]">
+                  {freePct}% of businesses ({freeCount.toLocaleString()}) are still on the free plan — a strong pool to target with upgrade prompts or campaigns.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Plan counts table */}
           {data.planDistribution.length > 0 && (
