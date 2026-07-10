@@ -11,6 +11,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../finance/data/finance_providers.dart';
@@ -103,6 +104,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   bool _applyVat = false;
   String _notes = '';
   bool _saving = false;
+  String? _paymentError;
 
   final _notesCtrl = TextEditingController();
   final _discountCtrl = TextEditingController();
@@ -221,6 +223,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   // ── Save ────────────────────────────────────────────────────────────────────
 
   Future<void> _save({required bool asDraft}) async {
+    if (_paymentError != null) setState(() => _paymentError = null);
     // The full editor (drafts, quotations, edits) commits an atomic Firestore
     // batch — online-only for now. Offline sales go through Quick Sale.
     if (!await OnlineGuard.ensureOnline(context)) return;
@@ -268,6 +271,14 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     final wasConfirmed =
         isEdit && previousStatus.isNotEmpty && previousStatus != 'draft';
     final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
+
+    if (confirmingNow && !_isCredit && _selectedAccountId == null) {
+      setState(() => _paymentError = _tr(
+        'Select an activated payment account',
+        'Chagua akaunti ya malipo iliyowashwa',
+      ));
+      return;
+    }
 
     // A confirmed sale must never oversell stock — a line's product may have
     // sold out (elsewhere, or via another draft) since it was added here.
@@ -346,14 +357,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       // Credit moves no money at confirmation, so it needs no account.
       if (confirmingNow && !_isCredit && selectedAccount == null) {
         if (mounted) {
-          setState(() => _saving = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_tr(
+          setState(() {
+            _saving = false;
+            _paymentError = _tr(
               'Select an activated payment account',
               'Chagua akaunti ya malipo iliyowashwa',
-            )),
-            backgroundColor: AppColors.error,
-          ));
+            );
+          });
         }
         return;
       }
@@ -721,13 +731,20 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     onAccount: (a) => setState(() {
                       _selectedAccountId = a.id;
                       _isCredit = false;
+                      _paymentError = null;
                     }),
                     onCredit: () => setState(() {
                       _selectedAccountId = null;
                       _isCredit = true;
+                      _paymentError = null;
                     }),
                     onMpesaRef: (v) => _mpesaRef = v,
                     lockUnactivated: !_isQuotation,
+                    errorMessage: _paymentError,
+                    onActivationRequired: (message) =>
+                        setState(() => _paymentError = message),
+                    onDismissError: () =>
+                        setState(() => _paymentError = null),
                   ),
                   const SizedBox(height: 16),
                   _NotesField(
@@ -1721,6 +1738,9 @@ class _PaymentSection extends ConsumerWidget {
   /// (a real invoice). Quotations only note the intended method, so they
   /// may pick anything — the block happens if/when money actually arrives.
   final bool lockUnactivated;
+  final String? errorMessage;
+  final ValueChanged<String> onActivationRequired;
+  final VoidCallback onDismissError;
 
   const _PaymentSection({
     required this.selectedAccountId,
@@ -1731,6 +1751,9 @@ class _PaymentSection extends ConsumerWidget {
     required this.onCredit,
     required this.onMpesaRef,
     required this.lockUnactivated,
+    required this.errorMessage,
+    required this.onActivationRequired,
+    required this.onDismissError,
   });
 
   @override
@@ -1754,6 +1777,11 @@ class _PaymentSection extends ConsumerWidget {
           lockUnactivated: lockUnactivated,
           onSelectAccount: onAccount,
           onSelectCredit: onCredit,
+          onActivationRequired: onActivationRequired,
+        ),
+        ValidationBanner(
+          message: errorMessage,
+          onDismiss: onDismissError,
         ),
         if (!isCredit && selectedAccountId == PaymentMethodAccounts.mpesaId) ...[
           SizedBox(height: 12),
@@ -2076,4 +2104,3 @@ String _fmtNum(double v) {
   }
   return buf.toString();
 }
-

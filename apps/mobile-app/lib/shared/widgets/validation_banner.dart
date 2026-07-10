@@ -43,7 +43,7 @@ class ValidationBanner extends StatelessWidget {
         children: [
           const Icon(
             Icons.info_outline_rounded,
-            color: AppColors.warning,
+            color: AppColors.warningText,
             size: 18,
           ),
           const SizedBox(width: 8),
@@ -53,7 +53,7 @@ class ValidationBanner extends StatelessWidget {
               style: GoogleFonts.dmSans(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.warning,
+                color: AppColors.warningText,
               ),
             ),
           ),
@@ -63,7 +63,7 @@ class ValidationBanner extends StatelessWidget {
               onTap: onDismiss,
               child: const Icon(
                 Icons.close_rounded,
-                color: AppColors.warning,
+                color: AppColors.warningText,
                 size: 16,
               ),
             ),

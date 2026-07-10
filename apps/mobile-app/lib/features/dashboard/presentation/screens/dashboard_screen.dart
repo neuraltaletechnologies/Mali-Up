@@ -139,7 +139,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (hour >= 12 && hour < 17) return _tr('Good afternoon', 'Habari za mchana');
     if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
     if (hour >= 21) return _tr('Good night', 'Usiku mwema');
-    return _tr('Good midnight', 'Usiku wa manane mwema');
+    return _tr('Good midnight', 'Usiku mwema');
   }
 
   Future<void> _showFirstEntryRewardIfNeeded() async {

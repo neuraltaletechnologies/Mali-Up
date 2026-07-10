@@ -16,6 +16,7 @@ import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_motion.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
@@ -277,7 +278,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       return;
     }
     if (!ctx.mounted) return;
-    await showAppSheet<void>(ctx, builder: (_) => const _NewSaleSheet());
+    await showAppSheet<void>(
+      ctx,
+      maxHeightFactor: 0.92,
+      builder: (_) => const _NewSaleSheet(),
+    );
   }
 
   @override
@@ -537,7 +542,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       b.writeln(line);
     }
 
-    final subtotal = (parseNumericAmount(sale['subtotal']) > 0
+    final subtotal =
+        (parseNumericAmount(sale['subtotal']) > 0
             ? parseNumericAmount(sale['subtotal'])
             : amount) +
         itemDiscount;
@@ -1784,6 +1790,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
+  bool _adjustmentsExpanded = false;
+  bool _detailsExpanded = false;
   bool _isSaving = false;
   // Surfaced as an inline banner next to the field it's about, rather than
   // a SnackBar: this sheet is pushed on the root Navigator and covers
@@ -2155,7 +2163,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     // Money received now must land in a chosen, activated payment account —
     // PaymentAccountChips only lets an activated built-in or custom account
     // become selected, so a null selection here just means nothing was picked.
-    if (payStatus != _PayStatus.unpaid && amountPaid > 0 && _selectedAccount == null) {
+    if (payStatus != _PayStatus.unpaid &&
+        amountPaid > 0 &&
+        _selectedAccount == null) {
       _snack(
         _tr('Select a payment account', 'Chagua akaunti ya malipo'),
         field: _ErrorField.payment,
@@ -2248,7 +2258,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         tax: _vatAmt,
         total: _grandTotal,
         amountPaid: amountPaid,
-        paymentMethod: payStatus != _PayStatus.unpaid ? _paymentMethodValue : '',
+        paymentMethod: payStatus != _PayStatus.unpaid
+            ? _paymentMethodValue
+            : '',
         paymentAccountId: payStatus != _PayStatus.unpaid
             ? (_selectedAccount?.id ?? '')
             : '',
@@ -2310,8 +2322,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             accountId: _selectedAccount!.id,
             amount: amountPaid,
             isDeposit: true,
-            description:
-                LocalizationService.tr(en: 'Sale $invoiceNumber', sw: 'Mauzo $invoiceNumber'),
+            description: LocalizationService.tr(
+              en: 'Sale $invoiceNumber',
+              sw: 'Mauzo $invoiceNumber',
+            ),
             reference: invoiceNumber,
             createdBy: user.uid,
           );
@@ -2490,8 +2504,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           accountId: _selectedAccount!.id,
           amount: amountPaid,
           isDeposit: true,
-          description:
-              LocalizationService.tr(en: 'Sale $invoiceNumber', sw: 'Mauzo $invoiceNumber'),
+          description: LocalizationService.tr(
+            en: 'Sale $invoiceNumber',
+            sw: 'Mauzo $invoiceNumber',
+          ),
           reference: invoiceNumber,
           createdBy: scope.userUid,
         );
@@ -2529,7 +2545,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorMsg = _tr('Failed to save. Try again.', 'Imeshindikana. Jaribu tena.');
+        _errorMsg = _tr(
+          'Failed to save. Try again.',
+          'Imeshindikana. Jaribu tena.',
+        );
         _errorField = _ErrorField.general;
       });
     }
@@ -2571,14 +2590,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     if (!mounted) return;
     final navigator = Navigator.of(context);
     await Navigator.of(context, rootNavigator: true).push<void>(
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) =>
-            _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
-          child: child,
-        ),
-        transitionDuration: const Duration(milliseconds: 250),
+      AppMotion.celebrationRoute<void>(
+        builder: (_) => _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
       ),
     );
     if (!mounted) return;
@@ -2593,55 +2606,59 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: size.height * 0.95),
-      child: Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            _buildHandle(),
-            _buildHeader(),
-            const Divider(height: 1, color: AppColors.border),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  16,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 32,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildItemsSection(),
-                    _buildFieldError(_ErrorField.items),
-                    const SizedBox(height: 16),
-                    _buildTotalsSection(),
-                    const SizedBox(height: 16),
-                    _buildPaymentSection(),
-                    _buildFieldError(_ErrorField.payment),
-                    const SizedBox(height: 16),
-                    _buildCustomerSection(),
-                    _buildFieldError(_ErrorField.customer),
-                    if (_payStatus != _PayStatus.paid) ...[
-                      const SizedBox(height: 12),
-                      _buildDueDateRow(),
-                    ],
-                    const SizedBox(height: 16),
-                    _buildNotesField(),
-                    const SizedBox(height: 16),
-                    _buildFieldError(_ErrorField.general),
-                    const SizedBox(height: 8),
-                    _buildSaveButton(),
-                  ],
-                ),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _buildHandle(),
+          _buildHeader(),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildFormSection(
+                    number: 1,
+                    title: _tr('Add products', 'Ongeza bidhaa'),
+                    subtitle: _tr(
+                      'Choose what the customer is buying',
+                      'Chagua bidhaa anazonunua mteja',
+                    ),
+                    child: _buildItemsSection(),
+                  ),
+                  _buildFieldError(_ErrorField.items),
+                  const SizedBox(height: 12),
+                  _buildTotalsSection(),
+                  const SizedBox(height: 12),
+                  _buildFormSection(
+                    number: 2,
+                    title: _tr('Payment', 'Malipo'),
+                    subtitle: _tr(
+                      'How is this sale being paid?',
+                      'Mauzo haya yanalipwaje?',
+                    ),
+                    child: _buildPaymentSection(),
+                  ),
+                  _buildFieldError(_ErrorField.payment),
+                  const SizedBox(height: 12),
+                  _buildDetailsSection(),
+                  _buildFieldError(_ErrorField.customer),
+                  _buildFieldError(_ErrorField.general),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          _buildStickyFooter(),
+        ],
       ),
     );
   }
@@ -2660,22 +2677,40 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         sl = _tr('Half Paid', 'Nusu Imelipwa');
       case _PayStatus.unpaid:
         sc = AppColors.error;
-        sl = _tr('Not Paid', 'Haijaliwa');
+        sl = _tr('Not Paid', 'Haijalipwa');
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 2, 12, 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(
-              _tr('New Sale', 'Mauzo Mapya'),
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('New Sale', 'Mauzo Mapya'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _tr(
+                    'Record a sale in three simple steps',
+                    'Rekodi mauzo kwa hatua tatu rahisi',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 8),
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -2692,6 +2727,80 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               ),
             ),
           ),
+          IconButton(
+            onPressed: _isSaving ? null : () => Navigator.pop(context),
+            tooltip: _tr('Close', 'Funga'),
+            icon: const Icon(Icons.close_rounded, size: 20),
+            color: AppColors.textMuted,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormSection({
+    required int number,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$number',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
         ],
       ),
     );
@@ -2779,6 +2888,207 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         ),
         if (_showCustomerSuggs) _buildCustomerSuggestions(),
       ],
+    );
+  }
+
+  Widget _buildDetailsSection() {
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
+    final showDetails = _detailsExpanded || needsCustomer;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: needsCustomer
+              ? AppColors.warning.withValues(alpha: 0.45)
+              : AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _detailsExpanded = !showDetails),
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: showDetails
+                          ? AppColors.navyPrimary
+                          : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '3',
+                      style: GoogleFonts.dmSans(
+                        color: showDetails
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _tr('Customer & details', 'Mteja na maelezo'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (needsCustomer
+                                            ? AppColors.warning
+                                            : AppColors.surfaceVariant)
+                                        .withValues(
+                                          alpha: needsCustomer ? 0.12 : 1,
+                                        ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                needsCustomer
+                                    ? _tr('Required', 'Lazima')
+                                    : _tr('Optional', 'Hiari'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: needsCustomer
+                                      ? AppColors.warning
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          needsCustomer
+                              ? _tr(
+                                  'Add a customer for unpaid sales',
+                                  'Ongeza mteja kwa mauzo yenye deni',
+                                )
+                              : _tr(
+                                  'Customer, due date and notes',
+                                  'Mteja, tarehe ya malipo na maelezo',
+                                ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    showDetails
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  const Divider(height: 1, color: AppColors.borderLight),
+                  const SizedBox(height: 16),
+                  _buildCustomerSection(),
+                  if (_payStatus != _PayStatus.paid) ...[
+                    const SizedBox(height: 12),
+                    _buildDueDateRow(),
+                  ],
+                  const SizedBox(height: 12),
+                  _buildNotesField(),
+                ],
+              ),
+            ),
+            crossFadeState: showDetails
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStickyFooter() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.paddingOf(context).bottom + 12,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x120D1B3E),
+            blurRadius: 18,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Total', 'Jumla'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'TSh ${_grandTotal.toStringAsFixed(0)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          SizedBox(width: 190, child: _buildSaveButton()),
+        ],
+      ),
     );
   }
 
@@ -2894,14 +3204,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       children: [
         Row(
           children: [
-            Text(
-              _tr('Items', 'Bidhaa'),
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMuted,
-              ),
-            ),
             const Spacer(),
             // POS continuous scan button
             GestureDetector(
@@ -2941,7 +3243,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
             SizedBox(width: 8),
             Text(
-              '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
+              '${_items.length} ${_tr("item", "bidhaa")}${_items.length != 1 ? "s" : ""}',
               style: GoogleFonts.dmSans(
                 fontSize: 11,
                 color: AppColors.textMuted,
@@ -2976,7 +3278,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  _tr('Add Item', 'Ongeza Bidhaaa'),
+                  _tr('Add Item', 'Ongeza Bidhaa'),
                   style: GoogleFonts.dmSans(
                     color: AppColors.navyPrimary,
                     fontWeight: FontWeight.w700,
@@ -3017,7 +3319,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           Row(
             children: [
               Text(
-                '${_tr("Item", "Bidhaaa")} ${index + 1}',
+                '${_tr("Item", "Bidhaa")} ${index + 1}',
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -3043,7 +3345,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
             decoration: _fieldDec(
-              label: _tr('Product name', 'Jina la bidhaaa'),
+              label: _tr('Product name', 'Jina la bidhaa'),
               prefix: Icons.inventory_2_outlined,
               suffix: entry.selectedItem != null
                   ? const Icon(
@@ -3553,62 +3855,111 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             child: Column(
               children: [
                 _TotalRow(
-                  label: _tr('Subtotal', 'Jumla Bidhaaa'),
+                  label: _tr('Subtotal', 'Jumla ya bidhaa'),
                   value: 'TSh ${_subtotal.toStringAsFixed(0)}',
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _discountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                InkWell(
+                  onTap: () => setState(
+                    () => _adjustmentsExpanded = !_adjustmentsExpanded,
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  onChanged: (_) => setState(() {}),
-                  decoration: _fieldDec(
-                    label: _tr(
-                      'Discount (TSh, optional)',
-                      'Punguzo (TSh, hiari)',
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tune_rounded,
+                          size: 17,
+                          color: _adjustmentsExpanded
+                              ? AppColors.tealAccent
+                              : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _tr('Discount & VAT', 'Punguzo na kodi'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _tr('Optional', 'Hiari'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _adjustmentsExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: AppColors.textMuted,
+                        ),
+                      ],
                     ),
-                    prefix: Icons.discount_outlined,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.receipt_long_rounded,
-                      size: 16,
-                      color: AppColors.tealAccent,
+                if (_adjustmentsExpanded) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _discountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                    decoration: _fieldDec(
+                      label: _tr(
+                        'Discount (TSh, optional)',
+                        'Punguzo (TSh, hiari)',
+                      ),
+                      prefix: Icons.discount_outlined,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 16,
+                        color: AppColors.tealAccent,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                    Switch.adaptive(
-                      value: _vatEnabled,
-                      onChanged: (v) => setState(() => _vatEnabled = v),
-                      activeThumbColor: AppColors.tealAccent,
-                      activeTrackColor: AppColors.tealAccent.withValues(
-                        alpha: 0.4,
+                      Switch.adaptive(
+                        value: _vatEnabled,
+                        onChanged: (v) => setState(() => _vatEnabled = v),
+                        activeThumbColor: AppColors.tealAccent,
+                        activeTrackColor: AppColors.tealAccent.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
+                    ],
+                  ),
+                  if (_vatEnabled) ...[
+                    const SizedBox(height: 4),
+                    _TotalRow(
+                      label: 'VAT (18%)',
+                      value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
                     ),
                   ],
-                ),
-                if (_vatEnabled) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(
-                    label: 'VAT (18%)',
-                    value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
-                  ),
                 ],
                 const SizedBox(height: 12),
               ],
@@ -3652,6 +4003,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
+  void _setPayStatus(_PayStatus status) {
+    setState(() {
+      _payStatus = status;
+      if (status != _PayStatus.paid) _detailsExpanded = true;
+    });
+  }
+
   Widget _buildPaymentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3679,7 +4037,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.check_circle_outline_rounded,
                 active: _payStatus == _PayStatus.paid,
                 activeColor: AppColors.success,
-                onTap: () => setState(() => _payStatus = _PayStatus.paid),
+                onTap: () => _setPayStatus(_PayStatus.paid),
               ),
               const SizedBox(width: 4),
               _PayBtn(
@@ -3687,15 +4045,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.timelapse_rounded,
                 active: _payStatus == _PayStatus.partial,
                 activeColor: AppColors.warning,
-                onTap: () => setState(() => _payStatus = _PayStatus.partial),
+                onTap: () => _setPayStatus(_PayStatus.partial),
               ),
               const SizedBox(width: 4),
               _PayBtn(
-                label: _tr('Unpaid', 'Haijaliwa'),
+                label: _tr('Unpaid', 'Haijalipwa'),
                 icon: Icons.cancel_outlined,
                 active: _payStatus == _PayStatus.unpaid,
                 activeColor: AppColors.error,
-                onTap: () => setState(() => _payStatus = _PayStatus.unpaid),
+                onTap: () => _setPayStatus(_PayStatus.unpaid),
               ),
             ],
           ),
@@ -4046,11 +4404,15 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final category = _categoryCtrl.text.trim();
 
     if (name.isEmpty) {
-      setState(() => _errorMsg = _tr('Enter product name', 'Ingiza jina la bidhaaa'));
+      setState(
+        () => _errorMsg = _tr('Enter product name', 'Ingiza jina la bidhaaa'),
+      );
       return;
     }
     if (price <= 0) {
-      setState(() => _errorMsg = _tr('Enter a valid price', 'Ingiza bei sahihi'));
+      setState(
+        () => _errorMsg = _tr('Enter a valid price', 'Ingiza bei sahihi'),
+      );
       return;
     }
 
@@ -4096,7 +4458,10 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorMsg = _tr('Failed to add product', 'Imeshindikana kuongeza bidhaaa');
+        _errorMsg = _tr(
+          'Failed to add product',
+          'Imeshindikana kuongeza bidhaaa',
+        );
       });
     }
   }

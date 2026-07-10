@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../data/finance_providers.dart';
 import '../../data/payment_account_service.dart';
 import '../../domain/models/cash_account.dart';
@@ -14,7 +15,7 @@ import '../../domain/payment_method_accounts.dart';
 /// (locked with an "activate first" prompt until activated in Cash Flow)
 /// plus every custom account the user created, and optionally a trailing
 /// "On Account" credit chip for invoicing.
-class PaymentAccountChips extends ConsumerWidget {
+class PaymentAccountChips extends ConsumerStatefulWidget {
   final String? selectedAccountId;
   final bool selectedIsCredit;
   final bool allowCredit;
@@ -45,11 +46,18 @@ class PaymentAccountChips extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final accounts = ref.watch(cashAccountListProvider).maybeWhen(
-          data: (d) => d,
-          orElse: () => const <CashAccount>[],
-        );
+  ConsumerState<PaymentAccountChips> createState() =>
+      _PaymentAccountChipsState();
+}
+
+class _PaymentAccountChipsState extends ConsumerState<PaymentAccountChips> {
+  String? _activationMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref
+        .watch(cashAccountListProvider)
+        .maybeWhen(data: (d) => d, orElse: () => const <CashAccount>[]);
     final byId = {for (final a in accounts) a.id: a};
     final custom = accounts
         .where((a) => !PaymentMethodAccounts.isMethodAccountId(a.id))
@@ -57,64 +65,91 @@ class PaymentAccountChips extends ConsumerWidget {
 
     void snackActivationRequired(String methodKey) {
       final message = activationRequiredMessage(methodKey);
-      if (onActivationRequired != null) {
-        onActivationRequired!(message);
+      if (widget.onActivationRequired != null) {
+        widget.onActivationRequired!(message);
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      setState(() => _activationMessage = message);
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    void selectAccount(CashAccount account) {
+      if (_activationMessage != null) {
+        setState(() => _activationMessage = null);
+      }
+      widget.onSelectAccount(account);
+    }
+
+    void selectCredit() {
+      if (_activationMessage != null) {
+        setState(() => _activationMessage = null);
+      }
+      widget.onSelectCredit?.call();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final spec in PaymentMethodAccounts.specs)
-          _PaymentChip(
-            icon: byId[spec.accountId] == null
-                ? Icons.lock_outline_rounded
-                : spec.icon,
-            label: spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en'),
-            active: !selectedIsCredit && selectedAccountId == spec.accountId,
-            enabled: byId[spec.accountId] != null,
-            onTap: () {
-              final account = byId[spec.accountId];
-              if (account != null) {
-                onSelectAccount(account);
-                return;
-              }
-              if (lockUnactivated) {
-                snackActivationRequired(spec.methodKey);
-                return;
-              }
-              onSelectAccount(spec.toAccount(openingBalance: 0));
-            },
-          ),
-        for (final account in custom)
-          _PaymentChip(
-            icon: switch (account.type) {
-              'Cash' => Icons.payments_outlined,
-              'Bank' => Icons.account_balance_outlined,
-              'Card' => Icons.credit_card_outlined,
-              _ => Icons.smartphone_outlined,
-            },
-            label: account.name,
-            active: !selectedIsCredit && selectedAccountId == account.id,
-            enabled: true,
-            onTap: () => onSelectAccount(account),
-          ),
-        if (allowCredit)
-          _PaymentChip(
-            icon: Icons.receipt_long_outlined,
-            label: LocalizationService.tr(en: 'On Account', sw: 'Kwa Mkopo'),
-            active: selectedIsCredit,
-            enabled: true,
-            onTap: () => onSelectCredit?.call(),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final spec in PaymentMethodAccounts.specs)
+              _PaymentChip(
+                icon: byId[spec.accountId] == null
+                    ? Icons.lock_outline_rounded
+                    : spec.icon,
+                label: spec.nameFor(
+                  LocalizationService.isSwahili ? 'sw' : 'en',
+                ),
+                active:
+                    !widget.selectedIsCredit &&
+                    widget.selectedAccountId == spec.accountId,
+                enabled: byId[spec.accountId] != null,
+                onTap: () {
+                  final account = byId[spec.accountId];
+                  if (account != null) {
+                    selectAccount(account);
+                    return;
+                  }
+                  if (widget.lockUnactivated) {
+                    snackActivationRequired(spec.methodKey);
+                    return;
+                  }
+                  selectAccount(spec.toAccount(openingBalance: 0));
+                },
+              ),
+            for (final account in custom)
+              _PaymentChip(
+                icon: switch (account.type) {
+                  'Cash' => Icons.payments_outlined,
+                  'Bank' => Icons.account_balance_outlined,
+                  'Card' => Icons.credit_card_outlined,
+                  _ => Icons.smartphone_outlined,
+                },
+                label: account.name,
+                active:
+                    !widget.selectedIsCredit &&
+                    widget.selectedAccountId == account.id,
+                enabled: true,
+                onTap: () => selectAccount(account),
+              ),
+            if (widget.allowCredit)
+              _PaymentChip(
+                icon: Icons.receipt_long_outlined,
+                label: LocalizationService.tr(
+                  en: 'On Account',
+                  sw: 'Kwa Mkopo',
+                ),
+                active: widget.selectedIsCredit,
+                enabled: true,
+                onTap: selectCredit,
+              ),
+          ],
+        ),
+        if (widget.onActivationRequired == null)
+          ValidationBanner(
+            message: _activationMessage,
+            onDismiss: () => setState(() => _activationMessage = null),
           ),
       ],
     );
@@ -141,8 +176,8 @@ class _PaymentChip extends StatelessWidget {
     final color = active
         ? Colors.white
         : enabled
-            ? AppColors.textSecondary
-            : AppColors.textDisabled;
+        ? AppColors.textSecondary
+        : AppColors.textDisabled;
 
     return GestureDetector(
       onTap: onTap,
