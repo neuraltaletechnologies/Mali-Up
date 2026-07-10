@@ -127,6 +127,23 @@ class SentryMetricsService {
     );
   }
 
+  static void deviceIntegrityChecked({
+    required List<String> deviceVerdict,
+    String? playProtectVerdict,
+  }) {
+    count(
+      'device_integrity_checked',
+      1,
+      attributes: {
+        'device_verdict': SentryAttribute.string(
+          deviceVerdict.isEmpty ? 'none' : deviceVerdict.join(','),
+        ),
+        'play_protect_verdict':
+            SentryAttribute.string(playProtectVerdict ?? 'unknown'),
+      },
+    );
+  }
+
   static void syncCycleCompleted({required bool success, required int queueSize}) {
     count(
       'sync_cycle',
