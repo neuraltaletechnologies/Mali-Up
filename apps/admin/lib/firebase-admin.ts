@@ -29,11 +29,22 @@ export const adminApp = getAdminApp()
 export const adminAuth = admin.auth(adminApp)
 export const adminFirestore = admin.firestore(adminApp)
 
-// This app runs on Cloudflare Workers (via OpenNext), which doesn't support
-// the long-lived gRPC/HTTP2 streams the Firestore SDK uses by default —
-// falling back to plain HTTP REST avoids multi-second stalls/retries on
-// every query. Must be set before any other Firestore call.
-adminFirestore.settings({ preferRest: true })
+// admin.firestore(adminApp) returns the same cached Firestore instance across
+// module re-evaluations (e.g. Turbopack/webpack re-executing this module on
+// every dev-server request), but Firestore throws if settings() is called
+// twice on that instance. Swallow that specific error — it just means an
+// earlier module evaluation in this process already configured it.
+try {
+  // This app runs on Cloudflare Workers (via OpenNext), which doesn't support
+  // the long-lived gRPC/HTTP2 streams the Firestore SDK uses by default —
+  // falling back to plain HTTP REST avoids multi-second stalls/retries on
+  // every query. Must be set before any other Firestore call.
+  adminFirestore.settings({ preferRest: true })
+} catch (err) {
+  if (!(err instanceof Error && err.message.includes('already been initialized'))) {
+    throw err
+  }
+}
 
 export const adminStorage = admin.storage(adminApp).bucket('neuraltale-mali-up.firebasestorage.app')
 
