@@ -200,7 +200,14 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(jq --version)",
       "Bash(npx wrangler *)",
-      "Bash(sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad/purge_deploys.sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad)"
+      "Bash(sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad/purge_deploys.sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad)",
+      "Bash(nohup sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad/purge_deploys.sh C:/Users/NTALE/AppData/Local/Temp/claude/c--SIDE-GIT-Maliapp/81a43466-6450-4a7b-af61-c0c2331e5c3a/scratchpad)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(disown)",
+      "Bash(gh pr *)",
+      "PowerShell(gh pr list --repo neuraltaletechnologies/Mali-Up --base production --head main --state all --json number,state,title,url)",
+      "Read(//c/Program Files/**)",
+      "Bash(where gh *)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

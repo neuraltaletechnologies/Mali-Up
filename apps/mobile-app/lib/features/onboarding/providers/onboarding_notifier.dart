@@ -282,6 +282,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         phone: state.phone,
         pin: pin,
         userId: state.existingUserId,
+        businessId: state.businessId,
+        performedByName: state.fullName,
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {

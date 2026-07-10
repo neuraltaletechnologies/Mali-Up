@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/onboarding_state.dart';
 import '../../domain/models/user_lookup_result.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../repositories/onboarding_repository.dart';
 
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
@@ -100,16 +101,28 @@ class OnboardingService {
 
   /// Signs in with [pin], touches lastActiveAt, marks onboarding complete.
   ///
+  /// [businessId] and [performedByName], when known from the preceding phone
+  /// lookup, are used to record a best-effort `user_signed_in` activity entry
+  /// — skipped silently if [businessId] is empty (e.g. unresolved for a
+  /// returning team member).
+  ///
   /// Throws [FirebaseAuthException] on wrong PIN — notifier shows error.
   Future<void> loginWithPin({
     required String phone,
     required String pin,
     required String userId,
+    String businessId = '',
+    String performedByName = '',
   }) async {
     await _repository.loginWithPin(phone: phone, pin: pin);
     await Future.wait([
       _repository.touchLastActive(userId),
       completeOnboarding(),
+      AuditLogService().logSignIn(
+        businessId: businessId,
+        performedByUid: userId,
+        performedByName: performedByName,
+      ),
     ]);
   }
 
