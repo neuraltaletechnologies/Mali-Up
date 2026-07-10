@@ -1196,7 +1196,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 140),
                           style: GoogleFonts.dmSans(
-                            fontSize: isSelected ? 10 : 9,
+                            fontSize: 9,
+                            height: 1,
                             fontWeight: isSelected
                                 ? FontWeight.w700
                                 : FontWeight.w500,
