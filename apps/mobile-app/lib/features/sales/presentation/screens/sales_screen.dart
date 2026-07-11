@@ -2301,7 +2301,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
         // Stock deductions as deltas so concurrent sessions compose on push.
         for (final e in _items) {
-          if (e.selectedItem == null) continue;
+          if (e.selectedItem == null || e._isService) continue;
           final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
           if (itemId.isEmpty) continue;
           await ref
@@ -2431,7 +2431,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         childCollection: 'inventory_items',
       );
       for (final e in _items) {
-        if (e.selectedItem == null) continue;
+        if (e.selectedItem == null || e._isService) continue;
         final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
         if (itemId.isEmpty) continue;
         batch.set(inventoryRef.doc(itemId), {
@@ -2488,7 +2488,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       try {
         final db = ref.read(appDatabaseProvider);
         for (final e in _items) {
-          if (e.selectedItem == null) continue;
+          if (e.selectedItem == null || e._isService) continue;
           final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
           if (itemId.isEmpty) continue;
           await db.inventoryDao.applyCommittedDelta(itemId, -e.qty.toDouble());
@@ -4164,6 +4164,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final _categoryCtrl = TextEditingController();
   final _skuCtrl = TextEditingController();
   String _selectedUnit = 'pcs';
+  bool _isService = false;
   bool _isSaving = false;
   String? _errorMsg;
 
@@ -4199,7 +4200,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final price =
         double.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0;
-    final stock = int.tryParse(_stockCtrl.text.trim()) ?? 1;
+    final stock = _isService ? 0 : int.tryParse(_stockCtrl.text.trim()) ?? 1;
     final category = _categoryCtrl.text.trim();
 
     if (name.isEmpty) {
@@ -4235,8 +4236,9 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               category: category.isNotEmpty ? category : 'General',
               sku: _skuCtrl.text.trim(),
               currentStock: stock.toDouble(),
-              reorderPoint: 5,
+              reorderPoint: _isService ? 0 : 5,
               unitPrice: price,
+              productType: _isService ? 'service' : 'stock',
               unit: _selectedUnit,
               createdAt: nowIso,
               updatedAt: nowIso,
@@ -4250,6 +4252,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         'unitPrice': price,
         'category': category.isNotEmpty ? category : 'General',
         'currentStock': stock,
+        'productType': _isService ? 'service' : 'stock',
         'unit': _selectedUnit,
       });
     } catch (e, st) {
@@ -4286,18 +4289,51 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
             children: [
               SheetHandle(),
               Text(
-                _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
+                _tr(
+                  _isService ? 'Add New Service' : 'Add New Product',
+                  _isService ? 'Ongeza Huduma Mpya' : 'Ongeza Bidhaa Mpya',
+                ),
                 style: GoogleFonts.dmSans(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.secondary,
                 ),
               ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _typeButton(
+                      label: _tr('Product', 'Bidhaa'),
+                      icon: Icons.inventory_2_outlined,
+                      selected: !_isService,
+                      onTap: () => setState(() => _isService = false),
+                    ),
+                    _typeButton(
+                      label: _tr('Service', 'Huduma'),
+                      icon: Icons.design_services_outlined,
+                      selected: _isService,
+                      onTap: () => setState(() => _isService = true),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 20),
               _field(
                 ctrl: _nameCtrl,
-                label: _tr('Product Name *', 'Jina la Bidhaaa *'),
-                icon: Icons.inventory_2_outlined,
+                label: _tr(
+                  _isService ? 'Service Name *' : 'Product Name *',
+                  _isService ? 'Jina la Huduma *' : 'Jina la Bidhaa *',
+                ),
+                icon: _isService
+                    ? Icons.design_services_outlined
+                    : Icons.inventory_2_outlined,
                 caps: TextCapitalization.words,
               ),
               const SizedBox(height: 14),
@@ -4317,16 +4353,18 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _field(
-                      ctrl: _stockCtrl,
-                      label: _tr('Stock', 'Stoku'),
-                      icon: Icons.inventory_outlined,
-                      keyboard: TextInputType.number,
-                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                  if (!_isService) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _field(
+                        ctrl: _stockCtrl,
+                        label: _tr('Stock', 'Stoku'),
+                        icon: Icons.inventory_outlined,
+                        keyboard: TextInputType.number,
+                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 14),
@@ -4417,7 +4455,14 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                           ),
                         )
                       : Text(
-                          _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
+                          _tr(
+                            _isService
+                                ? 'Add Service to Sale'
+                                : 'Add Product to Sale',
+                            _isService
+                                ? 'Ongeza Huduma kwenye Mauzo'
+                                : 'Ongeza Bidhaa kwenye Mauzo',
+                          ),
                           style: GoogleFonts.dmSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -4431,6 +4476,45 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       ),
     );
   }
+
+  Widget _typeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? Colors.white : AppColors.textMuted,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _field({
     required TextEditingController ctrl,

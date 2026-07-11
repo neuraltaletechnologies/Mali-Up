@@ -339,10 +339,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   Future<void> _openReturn() async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      AppMotion.taskRoute<Map<String, dynamic>>(
-        builder: (_) => SalesReturnScreen(originalInvoice: _inv),
-      ),
+    final result = await showAppSheet<Map<String, dynamic>>(
+      context,
+      maxHeightFactor: 0.92,
+      builder: (_) => SalesReturnScreen(originalInvoice: _inv),
     );
     if (result?['saved'] == true && mounted) {
       setState(
