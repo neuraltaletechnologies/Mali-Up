@@ -3215,6 +3215,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   static const _units = [
     'pcs',
+    'units',
     'kg',
     'liters',
     'boxes',
@@ -3224,6 +3225,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     'sets',
     'dozen',
     'packets',
+    'hours',
+    'days',
+    'visits',
   ];
 
   bool get _isEdit => widget.existingItem != null;
@@ -3419,7 +3423,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
 
     // Validate selling units — each must have a name and price
-    for (final u in _sellingUnits) {
+    for (final u
+        in _type == ProductType.service
+            ? const <_UnitEntry>[]
+            : _sellingUnits) {
       if (u.nameCtrl.text.trim().isEmpty) {
         _snack(
           _tr('Each selling unit needs a name', 'Kila kitengo kinahitaji jina'),
@@ -3638,10 +3645,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         _ => _type.name,
       };
 
-      final units = _sellingUnits
-          .map((u) => u.toModel(_unit))
-          .where((u) => u.name.isNotEmpty && u.price > 0)
-          .toList();
+      final units = _type == ProductType.service
+          ? const <SellingUnit>[]
+          : _sellingUnits
+                .map((u) => u.toModel(_unit))
+                .where((u) => u.name.isNotEmpty && u.price > 0)
+                .toList();
 
       // Build BOM models
       final bomIngredients = _bomIngredients
@@ -4161,6 +4170,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     'Add Manufactured Product',
                                     'Ongeza Bidhaa ya Uzalishaji',
                                   )
+                                : _type == ProductType.service
+                                ? _tr('Add Service', 'Ongeza Huduma')
                                 : _tr('Add Product', 'Ongeza Bidhaa'),
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
@@ -4208,7 +4219,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             }
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _type = t),
+                                onTap: () => setState(() {
+                                  if (t != _type &&
+                                      t == ProductType.service &&
+                                      _unit == 'pcs') {
+                                    _unit = 'units';
+                                  }
+                                  _type = t;
+                                }),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(
@@ -4273,7 +4291,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     children: [
                       // Product name
                       _FormLabel(
-                        '${isReturn ? _tr('Returned Product Name', 'Jina la Bidhaa Iliyorudishwa') : BusinessProductConfig.productNameLabel(bizType, isSwahili: LocalizationService.isSwahili)} *',
+                        '${isReturn
+                            ? _tr('Returned Product Name', 'Jina la Bidhaa Iliyorudishwa')
+                            : _type == ProductType.service
+                            ? _tr('Service Name', 'Jina la Huduma')
+                            : BusinessProductConfig.productNameLabel(bizType, isSwahili: LocalizationService.isSwahili)} *',
                       ),
                       const SizedBox(height: 6),
                       _FormField(
@@ -4282,6 +4304,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ? _tr(
                                 'e.g. Book, T-Shirt …',
                                 'k.m. Kitabu, Shati …',
+                              )
+                            : _type == ProductType.service
+                            ? _tr(
+                                'e.g. Water supply, Cleaning',
+                                'k.m. Usambazaji wa maji, Usafi',
                               )
                             : _tr(
                                 'e.g. Unga wa mahindi 2kg',
@@ -4700,7 +4727,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _FormLabel(_tr('Unit', 'Kitengo')),
+                                  _FormLabel(
+                                    _type == ProductType.service
+                                        ? _tr(
+                                            'Billing unit',
+                                            'Kitengo cha malipo',
+                                          )
+                                        : _tr('Unit', 'Kitengo'),
+                                  ),
                                   const SizedBox(height: 6),
                                   _UnitDropdown(
                                     value: _unit,
@@ -4714,8 +4748,50 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ),
                       const SizedBox(height: 14),
 
-                      // SKU / Barcode — hidden for returns
-                      if (!isReturn) ...[
+                      if (_type == ProductType.service) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealAccent.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.tealAccent.withValues(
+                                alpha: 0.25,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: AppColors.tealAccent,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  _tr(
+                                    'Choose how this service is measured. In Sales, enter the units used by the customer; service stock is never reduced.',
+                                    'Chagua jinsi huduma inavyopimwa. Kwenye Mauzo, ingiza vitengo alivyotumia mteja; stoo ya huduma haitapunguzwa.',
+                                  ),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    height: 1.35,
+                                    color: AppColors.tealAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // SKU / Barcode — not needed for services or returns
+                      if (!isReturn && _type != ProductType.service) ...[
                         _FormLabel(
                           'SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})',
                         ),
@@ -5085,6 +5161,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       _FormSectionLabel(
                         isReturn
                             ? _tr('Reference Price', 'Bei ya Kumbukumbu')
+                            : _type == ProductType.service
+                            ? _tr('Service price', 'Bei ya huduma')
                             : _tr('Pricing', 'Bei'),
                       ),
                       const SizedBox(height: 12),
@@ -5110,6 +5188,41 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ),
                           ],
                           onChanged: (_) => setState(() {}),
+                        ),
+                      ] else if (_type == ProductType.service) ...[
+                        _FormLabel(
+                          _tr('Price per $_unit *', 'Bei kwa $_unit *'),
+                        ),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _sellCtrl,
+                          hint: '0',
+                          prefix: 'TSh',
+                          keyboard: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          formatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.]'),
+                            ),
+                          ],
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _sellVal > 0
+                              ? _tr(
+                                  'Customers will be charged TSh ${_sellVal.toStringAsFixed(0)} for each $_unit used.',
+                                  'Wateja watatozwa TSh ${_sellVal.toStringAsFixed(0)} kwa kila $_unit iliyotumika.',
+                                )
+                              : _tr(
+                                  'Enter the amount charged for one $_unit.',
+                                  'Ingiza kiasi kinachotozwa kwa $_unit moja.',
+                                ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ] else if (isManufactured) ...[
                         // For manufactured: show auto-calculated cost (read-only) + selling price
@@ -5256,7 +5369,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
 
                       // ── Selling Units ──────────────────────────────────────
-                      if (!isReturn) ...[
+                      if (!isReturn && _type != ProductType.service) ...[
                         const SizedBox(height: 20),
                         Container(height: 1, color: AppColors.border),
                         SizedBox(height: 20),
@@ -5685,6 +5798,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       ? _tr('Record Return', 'Rekodi Urejesho')
                                       : isManufactured
                                       ? _tr('Save product', 'Hifadhi bidhaa')
+                                      : _type == ProductType.service
+                                      ? _tr('Save service', 'Hifadhi huduma')
                                       : _tr(
                                           'Add to inventory',
                                           'Ongeza kwenye bidhaa',
@@ -6613,6 +6728,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   String _query = '';
   bool _showAdd = false;
   bool _adding = false;
+  String? _addError;
 
   @override
   void dispose() {
@@ -6632,10 +6748,20 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
   Future<void> _addCommunityCategory() async {
     final name = _newCtrl.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      setState(
+        () => _addError = _tr(
+          'Enter a category name.',
+          'Ingiza jina la kategoria.',
+        ),
+      );
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    setState(() => _adding = true);
+    setState(() {
+      _adding = true;
+      _addError = null;
+    });
     try {
       final bizType =
           ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
@@ -6643,12 +6769,20 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
       final newCat = await repo.addCommunityCategory(
         businessType: bizType,
         categoryName: name,
-        addedByUid: user.uid,
+        addedByUid: user?.uid ?? '',
       );
       ref.invalidate(masterCategoriesProvider);
       if (mounted) Navigator.of(context).pop(newCat);
     } catch (_) {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) {
+        setState(() {
+          _adding = false;
+          _addError = _tr(
+            'Could not save this category. Please try again.',
+            'Imeshindikana kuhifadhi kategoria. Jaribu tena.',
+          );
+        });
+      }
     }
   }
 
@@ -6680,6 +6814,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                 TextButton.icon(
                   onPressed: () => setState(() {
                     _showAdd = !_showAdd;
+                    _addError = null;
                     if (!_showAdd) _newCtrl.clear();
                   }),
                   icon: Icon(
@@ -6781,6 +6916,18 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                 ],
               ),
             ),
+            if (_addError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Text(
+                  _addError!,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
           ],
 
           const SizedBox(height: 8),
