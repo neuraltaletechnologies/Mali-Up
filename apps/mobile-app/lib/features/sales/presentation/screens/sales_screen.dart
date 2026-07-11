@@ -292,7 +292,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       barrierColor: AppColors.navyPrimary.withValues(alpha: 0.42),
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (_, _, _) =>
-          _SaleSuccessNotice(saleData: saleReceipt, ref: ref),
+          _PaperSaleReceiptNotice(saleData: saleReceipt, ref: ref),
       transitionBuilder: (_, animation, _, child) {
         final curved = CurvedAnimation(
           parent: animation,
@@ -5482,6 +5482,456 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
 }
 
 // ── Ticket-style receipt card with perforated edge ────────────────────────────
+
+class _PaperSaleReceiptNotice extends _SaleSuccessNotice {
+  const _PaperSaleReceiptNotice({required super.saleData, required super.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    const paperColor = Color(0xFFFFFEF7);
+    final amount = parseNumericAmount(saleData['amount']);
+    final amountPaid = parseNumericAmount(saleData['amountPaid']);
+    final subtotal = parseNumericAmount(saleData['subtotal']);
+    final discount = parseNumericAmount(saleData['discountAmount']);
+    final vat = parseNumericAmount(saleData['vatAmount']);
+    final outstanding = (amount - amountPaid).clamp(0.0, amount);
+    final invoiceNo = (saleData['invoiceNumber'] ?? '').toString();
+    final rawCustomer = (saleData['customerName'] ?? '').toString().trim();
+    final customer = rawCustomer.isEmpty
+        ? _tr('Walk-in customer', 'Mteja wa kawaida')
+        : rawCustomer;
+    final status = (saleData['status'] ?? 'paid').toString();
+    final statusLabel = switch (status) {
+      'paid' => _tr('PAID', 'IMELIPWA'),
+      'partial' => _tr('PART PAID', 'SEHEMU'),
+      'unpaid' => _tr('CREDIT', 'MKOPO'),
+      _ => _tr('SAVED', 'IMEHIFADHIWA'),
+    };
+    final items = (saleData['items'] as List?)?.whereType<Map>().toList() ?? [];
+    final createdAt = saleData['createdAt'] as DateTime? ?? DateTime.now();
+    final date =
+        '${createdAt.day.toString().padLeft(2, '0')}/'
+        '${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}  '
+        '${createdAt.hour.toString().padLeft(2, '0')}:'
+        '${createdAt.minute.toString().padLeft(2, '0')}';
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 370,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+            ),
+            child: PhysicalShape(
+              clipper: const _ReceiptPaperClipper(),
+              color: paperColor,
+              elevation: 20,
+              shadowColor: AppColors.navyPrimary.withValues(alpha: 0.35),
+              clipBehavior: Clip.antiAlias,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(width: 40),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.navyPrimary,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.check_rounded,
+                                  color: AppColors.navyPrimary,
+                                  size: 25,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'MALI UP',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                  letterSpacing: 2.2,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _tr('SALE RECEIPT', 'RISITI YA MAUZO'),
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            tooltip: _tr('Close', 'Funga'),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 21,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 17),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 13),
+                    _ReceiptMetaRow(
+                      label: _tr('RECEIPT', 'RISITI'),
+                      value: invoiceNo,
+                    ),
+                    const SizedBox(height: 5),
+                    _ReceiptMetaRow(label: _tr('DATE', 'TAREHE'), value: date),
+                    const SizedBox(height: 5),
+                    _ReceiptMetaRow(
+                      label: _tr('CUSTOMER', 'MTEJA'),
+                      value: customer,
+                    ),
+                    const SizedBox(height: 13),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _tr('ITEM', 'BIDHAA'),
+                            style: _receiptLabelStyle(),
+                          ),
+                        ),
+                        Text(
+                          _tr('AMOUNT', 'KIASI'),
+                          style: _receiptLabelStyle(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    for (final item in items) ...[
+                      _ReceiptItemRow(item: item),
+                      const SizedBox(height: 9),
+                    ],
+                    if (items.isEmpty)
+                      Text(
+                        _tr('Sale item', 'Bidhaa ya mauzo'),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    const SizedBox(height: 3),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 12),
+                    if (subtotal > 0)
+                      _ReceiptAmountRow(
+                        label: _tr('Subtotal', 'Jumla ndogo'),
+                        amount: subtotal,
+                      ),
+                    if (discount > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(
+                        label: _tr('Discount', 'Punguzo'),
+                        amount: -discount,
+                      ),
+                    ],
+                    if (vat > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(label: 'VAT', amount: vat),
+                    ],
+                    const SizedBox(height: 10),
+                    _ReceiptAmountRow(
+                      label: _tr('TOTAL', 'JUMLA KUU'),
+                      amount: amount,
+                      prominent: true,
+                    ),
+                    const SizedBox(height: 7),
+                    _ReceiptAmountRow(
+                      label: _tr('Paid', 'Imelipwa'),
+                      amount: amountPaid,
+                    ),
+                    if (outstanding > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(
+                        label: _tr('Balance due', 'Baki'),
+                        amount: outstanding,
+                        valueColor: AppColors.error,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.navyPrimary),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      _tr(
+                        'Thank you for your business!',
+                        'Asante kwa kufanya biashara nasi!',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                _SalesScreenState._openReceiptActions(
+                                  context: context,
+                                  sale: saleData,
+                                  ref: ref,
+                                ),
+                            icon: const Icon(Icons.share_rounded, size: 16),
+                            label: Text(_tr('Share', 'Shiriki')),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.navyPrimary,
+                              side: const BorderSide(
+                                color: AppColors.navyPrimary,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            child: Text(_tr('Done', 'Maliza')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static TextStyle _receiptLabelStyle() => GoogleFonts.jetBrainsMono(
+    fontSize: 9,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textMuted,
+    letterSpacing: 0.8,
+  );
+}
+
+class _ReceiptMetaRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReceiptMetaRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 76,
+          child: Text(
+            label,
+            style: _PaperSaleReceiptNotice._receiptLabelStyle(),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptItemRow extends StatelessWidget {
+  final Map item;
+
+  const _ReceiptItemRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (item['name'] ?? item['productName'] ?? '-').toString();
+    final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+    final unitPrice = parseNumericAmount(item['unitPrice']);
+    final storedTotal = parseNumericAmount(item['total'] ?? item['lineTotal']);
+    final total = storedTotal > 0 ? storedTotal : unitPrice * qty;
+    final qtyText = qty == qty.roundToDouble()
+        ? qty.toInt().toString()
+        : qty.toStringAsFixed(1);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                '$qtyText × TSh ${_sNum(unitPrice)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'TSh ${_sNum(total)}',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptAmountRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final bool prominent;
+  final Color? valueColor;
+
+  const _ReceiptAmountRow({
+    required this.label,
+    required this.amount,
+    this.prominent = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final prefix = amount < 0 ? '-' : '';
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: prominent ? 13 : 10.5,
+              fontWeight: prominent ? FontWeight.w800 : FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        Text(
+          '${prefix}TSh ${_sNum(amount.abs())}',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: prominent ? 15 : 11,
+            fontWeight: prominent ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptPaperClipper extends CustomClipper<Path> {
+  const _ReceiptPaperClipper();
+
+  @override
+  Path getClip(Size size) {
+    const toothWidth = 12.0;
+    const toothDepth = 7.0;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height - toothDepth);
+    var x = size.width;
+    var down = false;
+    while (x > 0) {
+      x = (x - toothWidth / 2).clamp(0, size.width);
+      path.lineTo(x, down ? size.height - toothDepth : size.height);
+      down = !down;
+    }
+    return path
+      ..lineTo(0, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
 
 class _SaleSuccessNotice extends StatelessWidget {
   final Map<String, dynamic> saleData;

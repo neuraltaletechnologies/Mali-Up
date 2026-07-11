@@ -15,10 +15,12 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../catalog/presentation/screens/catalog_search_screen.dart';
+import '../../../catalog/presentation/screens/import_product_screen.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
 import '../../../catalog/domain/models/master_category.dart';
+import '../../../catalog/domain/models/master_product.dart';
 import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
@@ -3408,7 +3410,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? '';
     final config = BusinessProductConfig.forBusinessType(bizType);
-    if (config.isExpiryRequired &&
+    if ((config.isExpiryRequired || _type == ProductType.perishable) &&
         _expiryDate == null &&
         !isReturn &&
         !isManufactured) {
@@ -3956,11 +3958,24 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   }
 
   Future<void> _pickExpiryDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final currentDate = _expiryDate == null
+        ? null
+        : DateUtils.dateOnly(_expiryDate!);
+    // Existing products may already be expired. Keep their saved date inside
+    // the picker range so editing one never triggers a date-picker assertion.
+    final firstDate = currentDate != null && currentDate.isBefore(today)
+        ? currentDate
+        : today;
+    final defaultLastDate = DateTime(today.year + 20, today.month, today.day);
+    final lastDate = currentDate != null && currentDate.isAfter(defaultLastDate)
+        ? currentDate
+        : defaultLastDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _expiryDate ?? DateTime.now().add(const Duration(days: 90)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 20)),
+      initialDate: currentDate ?? today.add(const Duration(days: 90)),
+      firstDate: firstDate,
+      lastDate: lastDate,
       helpText: _tr('Select Expiry Date', 'Chagua Tarehe ya Mwisho'),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
@@ -3989,6 +4004,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         _selectedCategoryName = result.categoryName;
       });
     }
+  }
+
+  void _openCatalogImport(MasterProduct product) {
+    _nameFocus.unfocus();
+    showAppSheet<void>(
+      context,
+      builder: (_) => ImportProductScreen(product: product),
+    );
   }
 
   void _snack(String t) =>
@@ -4058,17 +4081,22 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
 
     final categoriesAsync = ref.watch(masterCategoriesProvider);
+    final masterProductsAsync = ref.watch(masterProductsProvider);
     final bizTypeAsync = ref.watch(currentBusinessTypeProvider);
     final bizType = bizTypeAsync.valueOrNull ?? '';
     final config = BusinessProductConfig.forBusinessType(bizType);
     final allInventory =
         ref.watch(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
 
-    // Live name suggestions: match any existing item whose name contains the typed text
+    // Live name suggestions from both the user's inventory and the cached
+    // master catalog. Inventory matches restock; catalog matches start the
+    // normal import flow with the catalog data pre-filled.
     final query = _nameCtrl.text.trim().toLowerCase();
     final nameSuggestions =
         (!_isEdit &&
             _restockTarget == null &&
+            _type != ProductType.customerReturn &&
+            _type != ProductType.manufactured &&
             query.isNotEmpty &&
             _nameFocus.hasFocus)
         ? allInventory
@@ -4076,6 +4104,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               .take(5)
               .toList()
         : const <InventoryItem>[];
+    final catalogSuggestions =
+        (!_isEdit &&
+            _restockTarget == null &&
+            query.isNotEmpty &&
+            _nameFocus.hasFocus)
+        ? (masterProductsAsync.valueOrNull ?? const <MasterProduct>[])
+              .where((product) => product.matchesQuery(query))
+              .take(5)
+              .toList()
+        : const <MasterProduct>[];
 
     final isReturn = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
@@ -4437,6 +4475,144 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                       ],
 
+                      // Master-catalog suggestions open the existing import
+                      // sheet so the user keeps the catalog's name, category,
+                      // unit and product identity without retyping them.
+                      if (catalogSuggestions.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  9,
+                                  14,
+                                  4,
+                                ),
+                                child: Text(
+                                  _tr(
+                                    'Found in product catalog — tap to import',
+                                    'Imeonekana kwenye katalogi — gusa kuingiza',
+                                  ),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.tealAccent,
+                                  ),
+                                ),
+                              ),
+                              ...catalogSuggestions.asMap().entries.map((e) {
+                                final index = e.key;
+                                final product = e.value;
+                                final displayName =
+                                    LocalizationService.isSwahili &&
+                                        product.productNameSw.isNotEmpty
+                                    ? product.productNameSw
+                                    : product.productName;
+                                final alternativeName =
+                                    displayName == product.productName
+                                    ? product.productNameSw
+                                    : product.productName;
+                                return InkWell(
+                                  onTap: () => _openCatalogImport(product),
+                                  borderRadius: BorderRadius.vertical(
+                                    bottom:
+                                        index == catalogSuggestions.length - 1
+                                        ? const Radius.circular(12)
+                                        : Radius.zero,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.yellowBrand
+                                                .withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.download_rounded,
+                                            size: 16,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                displayName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.dmSans(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.navyPrimary,
+                                                ),
+                                              ),
+                                              Text(
+                                                [
+                                                  if (alternativeName
+                                                      .isNotEmpty)
+                                                    alternativeName,
+                                                  if (product
+                                                      .genericName
+                                                      .isNotEmpty)
+                                                    product.genericName,
+                                                  product.unit,
+                                                ].join(' · '),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.dmSans(
+                                                  fontSize: 11,
+                                                  color: AppColors.textMuted,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _tr('Import', 'Ingiza'),
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.tealAccent,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        const Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 15,
+                                          color: AppColors.tealAccent,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       // ── Restock mode banner ───────────────────────────────
                       if (_restockTarget != null) ...[
                         SizedBox(height: 8),
@@ -4584,10 +4760,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
                       // ── Business-type-specific fields (not for returns) ────
 
-                      // Expiry date (pharmacy required, perishable optional)
-                      if (!isReturn && config.showExpiryDate) ...[
+                      // Perishable products always require an expiry date;
+                      // other product types follow the business configuration.
+                      if (!isReturn &&
+                          (config.showExpiryDate ||
+                              _type == ProductType.perishable)) ...[
                         _FormLabel(
-                          config.isExpiryRequired
+                          (config.isExpiryRequired ||
+                                  _type == ProductType.perishable)
                               ? _tr('Expiry Date *', 'Tarehe ya Mwisho *')
                               : _tr(
                                   'Expiry Date (optional)',
@@ -4597,7 +4777,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         const SizedBox(height: 6),
                         _ExpiryDateButton(
                           date: _expiryDate,
-                          isRequired: config.isExpiryRequired,
+                          isRequired:
+                              config.isExpiryRequired ||
+                              _type == ProductType.perishable,
                           onTap: _pickExpiryDate,
                           onClear: () => setState(() => _expiryDate = null),
                         ),
