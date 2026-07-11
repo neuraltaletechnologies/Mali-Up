@@ -159,7 +159,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         _receiptFile = File(file.path);
         _receiptUrl = '';
       });
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not open ${source == ImageSource.camera ? 'the camera' : 'your photos'}. Check app permissions and try again.',
+              'Imeshindwa kufungua ${source == ImageSource.camera ? 'kamera' : 'picha zako'}. Angalia ruhusa za programu kisha ujaribu tena.',
+            ),
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<String?> _uploadReceipt(String uid) async {
@@ -172,21 +186,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       );
       await ref.putFile(_receiptFile!);
       final url = await ref.getDownloadURL();
-      setState(() => _uploadingReceipt = false);
+      if (mounted) setState(() => _uploadingReceipt = false);
       return url;
     } catch (_) {
-      setState(() => _uploadingReceipt = false);
+      if (mounted) setState(() => _uploadingReceipt = false);
       return null;
     }
   }
 
-  void _showReceiptOptions() {
-    showAppSheet(
+  Future<void> _showReceiptOptions() async {
+    final source = await showAppSheet<ImageSource>(
       context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -199,10 +213,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Take photo', 'Piga picha'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickPhoto(ImageSource.camera);
-              },
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(
@@ -213,10 +225,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Choose from gallery', 'Chagua kutoka maktaba'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickPhoto(ImageSource.gallery);
-              },
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
             if (_receiptFile != null || _receiptUrl.isNotEmpty)
               ListTile(
@@ -229,7 +239,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   style: GoogleFonts.dmSans(color: AppColors.error),
                 ),
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(sheetContext).pop();
                   setState(() {
                     _receiptFile = null;
                     _receiptUrl = '';
@@ -240,6 +250,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ),
       ),
     );
+    if (source != null && mounted) await _pickPhoto(source);
   }
 
   // ── Date picker ──────────────────────────────────────────────────────────────
@@ -314,6 +325,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
       // Upload receipt if a new file was selected
       final uploadedUrl = await _uploadReceipt(user.uid);
+      if (_receiptFile != null && uploadedUrl == null) {
+        if (!mounted) return;
+        final message = _tr(
+          'Receipt upload failed. Check your connection and try again, or remove the receipt.',
+          'Imeshindwa kupakia risiti. Angalia intaneti kisha ujaribu tena, au ondoa risiti.',
+        );
+        setState(() {
+          _saving = false;
+          _errorMessage = message;
+          _errorField = _ExpenseErrorField.general;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
       final finalReceiptUrl = uploadedUrl ?? '';
 
       final dateStr =
@@ -802,8 +833,16 @@ class _AmountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HeroCard.business(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.yellowBrand.withValues(alpha: 0.55),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -812,22 +851,22 @@ class _AmountSection extends StatelessWidget {
             style: GoogleFonts.dmSans(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Colors.white54,
+              color: AppColors.textSecondary,
               letterSpacing: 1.2,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             children: [
               Text(
                 'TZS',
                 style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white54,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: controller,
@@ -839,18 +878,18 @@ class _AmountSection extends StatelessWidget {
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                   ],
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 36,
+                    fontSize: 32,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: AppColors.navyPrimary,
                     letterSpacing: -0.5,
                   ),
-                  cursorColor: AppColors.yellowBrand,
+                  cursorColor: AppColors.navyPrimary,
                   decoration: InputDecoration(
                     hintText: '0',
                     hintStyle: GoogleFonts.jetBrainsMono(
-                      fontSize: 36,
+                      fontSize: 32,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white24,
+                      color: AppColors.textDisabled,
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -874,61 +913,64 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 4,
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 1.15,
-      children: _Cat.values.map((cat) {
+      itemCount: _Cat.values.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        mainAxisExtent: 50,
+      ),
+      itemBuilder: (context, index) {
+        final cat = _Cat.values[index];
         final active = cat == selected;
-        return GestureDetector(
+        final activeForeground = cat == _Cat.transport || cat == _Cat.supplies
+            ? AppColors.navyPrimary
+            : Colors.white;
+        return InkWell(
           onTap: () => onSelect(cat),
+          borderRadius: BorderRadius.circular(10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             decoration: BoxDecoration(
               color: active ? cat.color : Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: active ? cat.color : AppColors.border,
                 width: active ? 0 : 1,
               ),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: cat.color.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : AppTheme.cardShadow,
             ),
-            child: Column(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   cat.icon,
-                  size: 18,
-                  color: active ? Colors.white : cat.color,
+                  size: 15,
+                  color: active ? activeForeground : cat.color,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  cat.label,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : AppColors.textSecondary,
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    cat.label,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: active
+                          ? activeForeground
+                          : AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -1000,10 +1042,11 @@ class _ReceiptSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (hasReceipt) {
-      return GestureDetector(
+      return InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          height: 120,
+          height: 92,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -1020,6 +1063,12 @@ class _ReceiptSection extends StatelessWidget {
                 Image.network(
                   receiptUrl,
                   fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: AppColors.error,
+                    ),
+                  ),
                   loadingBuilder: (_, child, progress) {
                     if (progress == null) return child;
                     return const Center(
@@ -1079,10 +1128,11 @@ class _ReceiptSection extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -1092,23 +1142,23 @@ class _ReceiptSection extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: AppColors.tealAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.add_photo_alternate_rounded,
-                size: 24,
+                size: 20,
                 color: AppColors.tealAccent,
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 6),
             Text(
               _tr('Attach receipt photo', 'Ambatanisha picha ya risiti'),
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.tealAccent,
               ),
@@ -1116,8 +1166,8 @@ class _ReceiptSection extends StatelessWidget {
             SizedBox(height: 4),
             Text(
               _tr(
-                'Camera or gallery — Phase 2: auto OCR extraction',
-                'Kamera au maktaba — Awamu 2: utambuzi wa maandishi',
+                'Take a photo or choose from gallery',
+                'Piga picha au chagua kutoka maktaba',
               ),
               style: GoogleFonts.dmSans(
                 fontSize: 11,
@@ -1299,11 +1349,13 @@ class _BottomSaveBar extends StatelessWidget {
         child: FilledButton.icon(
           onPressed: saving ? null : onSave,
           icon: saving
-              ? const SizedBox.square(
+              ? SizedBox.square(
                   dimension: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: submitForApproval
+                        ? AppColors.navyPrimary
+                        : Colors.white,
                   ),
                 )
               : Icon(
@@ -1327,6 +1379,15 @@ class _BottomSaveBar extends StatelessWidget {
             backgroundColor: submitForApproval
                 ? AppColors.warning
                 : AppColors.navyPrimary,
+            foregroundColor: submitForApproval
+                ? AppColors.navyPrimary
+                : Colors.white,
+            disabledBackgroundColor: AppColors.navyPrimary.withValues(
+              alpha: 0.65,
+            ),
+            disabledForegroundColor: submitForApproval
+                ? AppColors.navyPrimary
+                : Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 15),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),

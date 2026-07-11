@@ -15,6 +15,7 @@ import '../../domain/models/cash_transaction.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../widgets/add_transaction_dialog.dart';
+import '../widgets/delete_account_dialog.dart';
 import 'reconciliation_screen.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -36,7 +37,9 @@ class AccountDetailScreen extends ConsumerWidget {
         .where((a) => a.id == account.id);
     final liveAccount = liveMatches.isEmpty ? account : liveMatches.first;
     final transactions = ref.watch(accountTransactionsProvider(account.id));
-    final reconciliations = ref.watch(accountReconciliationsProvider(account.id));
+    final reconciliations = ref.watch(
+      accountReconciliationsProvider(account.id),
+    );
     final lastRecon = reconciliations.isNotEmpty ? reconciliations.first : null;
 
     return Scaffold(
@@ -59,7 +62,14 @@ class AccountDetailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: _t('Delete', 'Futa'),
-            onPressed: () => _deleteAccount(context, ref, liveAccount),
+            onPressed: () async {
+              final deleted = await confirmAndDeleteCashAccount(
+                context,
+                ref,
+                liveAccount,
+              );
+              if (deleted && context.mounted) Navigator.of(context).pop();
+            },
           ),
         ],
       ),
@@ -80,8 +90,10 @@ class AccountDetailScreen extends ConsumerWidget {
                     ),
                   )
                 : ListView.separated(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemCount: transactions.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, i) =>
@@ -120,88 +132,6 @@ class AccountDetailScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-}
-
-Future<void> _deleteAccount(
-    BuildContext context, WidgetRef ref, CashAccount account) async {
-  if (account.balance != 0) {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          _t('Empty the account first', 'Toa pesa yote kwanza'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          _t(
-            'This account still holds ${_fmtAmt(account.balance)}. Withdraw or transfer it to another account before deleting.',
-            'Akaunti hii bado ina ${_fmtAmt(account.balance)}. Toa au hamisha kwenda akaunti nyingine kabla ya kufuta.',
-          ),
-          style: GoogleFonts.dmSans(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(_t('OK', 'Sawa')),
-          ),
-        ],
-      ),
-    );
-    return;
-  }
-
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        _t('Delete Account?', 'Futa Akaunti?'),
-        style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-      ),
-      content: Text(
-        _t(
-          'Delete "${account.name}"? This cannot be undone.',
-          'Futa "${account.name}"? Hii haiwezi kutenduliwa.',
-        ),
-        style: GoogleFonts.dmSans(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(_t('Cancel', 'Ghairi')),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          style: TextButton.styleFrom(foregroundColor: AppColors.error),
-          child: Text(_t('Delete', 'Futa'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed != true) return;
-
-  try {
-    await ref.read(cashRepositoryProvider).deleteAccount(account.id);
-    if (context.mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_t('Account deleted', 'Akaunti imefutwa')),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_t('Error: $e', 'Kosa: $e')),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
   }
 }
 
@@ -286,15 +216,21 @@ class _AccountHeader extends StatelessWidget {
             SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.check_circle_outline,
-                    color: Colors.white54, size: 14),
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.white54,
+                  size: 14,
+                ),
                 SizedBox(width: 4),
                 Text(
                   _t(
                     'Last reconciled: $lastReconDate',
                     'Mwisho kulinganishwa: $lastReconDate',
                   ),
-                  style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 12),
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -317,18 +253,18 @@ class _TxnTile extends StatelessWidget {
     final color = txn.isTransfer
         ? AppColors.tealAccent
         : isIncoming
-            ? AppColors.success
-            : AppColors.error;
+        ? AppColors.success
+        : AppColors.error;
     final icon = txn.isTransfer
         ? Icons.swap_horiz_rounded
         : isIncoming
-            ? Icons.south_west_rounded
-            : Icons.north_east_rounded;
+        ? Icons.south_west_rounded
+        : Icons.north_east_rounded;
     final prefix = txn.isTransfer
         ? ''
         : isIncoming
-            ? '+'
-            : '-';
+        ? '+'
+        : '-';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -376,7 +312,9 @@ class _TxnTile extends StatelessWidget {
                       SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.borderLight,
                           borderRadius: BorderRadius.circular(4),

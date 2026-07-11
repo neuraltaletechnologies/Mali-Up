@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -439,30 +438,27 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     TeamMember? member,
     PlanStatus? planStatus,
   }) async {
+    final reduceMotion = AppMotion.reduceMotion(context);
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: _tr('Close navigation menu', 'Funga menyu ya urambazaji'),
       barrierColor: AppColors.overlay,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: reduceMotion ? Duration.zero : AppMotion.quick,
       transitionBuilder: (context, animation, secondaryAnimation, child) {
+        if (reduceMotion) return child;
         final curved = CurvedAnimation(
           parent: animation,
-          curve: Curves.easeOutCubic,
+          curve: AppMotion.enterCurve,
+          reverseCurve: AppMotion.exitCurve,
         );
         final fade = Tween<double>(begin: 0, end: 1).animate(curved);
-        return BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 10 * fade.value,
-            sigmaY: 10 * fade.value,
-          ),
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(-1, 0),
-              end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(opacity: fade, child: child),
-          ),
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(-0.12, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: fade, child: child),
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
@@ -475,12 +471,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 topRight: Radius.circular(24),
                 bottomRight: Radius.circular(24),
               ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: RepaintBoundary(
                 child: Container(
                   width: MediaQuery.of(dialogContext).size.width * 0.82,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.94),
+                    color: Colors.white.withValues(alpha: 0.98),
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
