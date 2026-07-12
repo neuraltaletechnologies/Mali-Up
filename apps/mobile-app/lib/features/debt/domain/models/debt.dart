@@ -13,9 +13,13 @@ class DebtPayment {
   final String id;
   final double amount;
   final String date;
-  final String method; // 'cash' | 'mpesa' | 'bank' | 'card'
+  final String method; // 'cash' | 'mpesa' | 'bank' | 'card' | custom account name
   final String note;
   final String recordedBy;
+
+  /// The CashAccount the payment moved through, if any. Empty on legacy
+  /// records recorded before repayments were wired into Cash Flow.
+  final String accountId;
 
   const DebtPayment({
     required this.id,
@@ -24,6 +28,7 @@ class DebtPayment {
     this.method = 'cash',
     this.note = '',
     this.recordedBy = '',
+    this.accountId = '',
   });
 
   factory DebtPayment.fromFirestore(Map<String, dynamic> data, String id) =>
@@ -34,6 +39,7 @@ class DebtPayment {
         method: data['method']?.toString() ?? 'cash',
         note: data['note']?.toString() ?? '',
         recordedBy: data['recordedBy']?.toString() ?? '',
+        accountId: data['accountId']?.toString() ?? '',
       );
 
   Map<String, dynamic> toFirestore() => {
@@ -42,6 +48,7 @@ class DebtPayment {
         'method': method,
         if (note.isNotEmpty) 'note': note,
         if (recordedBy.isNotEmpty) 'recordedBy': recordedBy,
+        if (accountId.isNotEmpty) 'accountId': accountId,
       };
 }
 

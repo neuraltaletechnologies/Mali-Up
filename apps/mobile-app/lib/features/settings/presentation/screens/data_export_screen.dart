@@ -31,6 +31,8 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -57,7 +59,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 40 + bottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

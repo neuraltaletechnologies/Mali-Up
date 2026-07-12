@@ -66,8 +66,9 @@ class SubscriptionScreen extends ConsumerWidget {
           final defs = status.definitions;
           final growthLimits   = limitsFor(PlanTier.growth,   defs);
           final businessLimits = limitsFor(PlanTier.business, defs);
+          final bottomInset = MediaQuery.paddingOf(context).bottom;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 40 + bottomInset),
             children: [
               // ── Pending request notice ─────────────────────────
               const PlanPendingBanner(),

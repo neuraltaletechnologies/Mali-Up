@@ -124,37 +124,33 @@ class MasterCatalogRepository {
     required AppDatabase db,
     FirebaseFirestore? firestore,
     CatalogSubmissionService? submissions,
-  })  : _db = db,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _submissions = submissions ?? CatalogSubmissionService();
+  }) : _db = db,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _submissions = submissions ?? CatalogSubmissionService();
 
   // ── Public read API ────────────────────────────────────────────────────────
 
-  Future<List<MasterCategory>> getCategoriesForType(
-    String businessType,
-  ) async {
+  Future<List<MasterCategory>> getCategoriesForType(String businessType) async {
     await _ensureFresh(businessType);
-    final rows =
-        await _db.masterCatalogDao.getCategoriesForType(businessType);
+    final rows = await _db.masterCatalogDao.getCategoriesForType(businessType);
     return rows
-        .map((r) => MasterCategory(
-              id: r.id,
-              businessType: r.businessType,
-              categoryName: r.categoryName,
-              categoryNameSw: r.categoryNameSw,
-              categorySlug: r.categorySlug,
-              icon: r.icon,
-              displayOrder: r.displayOrder,
-            ))
+        .map(
+          (r) => MasterCategory(
+            id: r.id,
+            businessType: r.businessType,
+            categoryName: r.categoryName,
+            categoryNameSw: r.categoryNameSw,
+            categorySlug: r.categorySlug,
+            icon: r.icon,
+            displayOrder: r.displayOrder,
+          ),
+        )
         .toList();
   }
 
-  Future<List<MasterProduct>> getProductsForType(
-    String businessType,
-  ) async {
+  Future<List<MasterProduct>> getProductsForType(String businessType) async {
     await _ensureFresh(businessType);
-    final rows =
-        await _db.masterCatalogDao.getProductsForType(businessType);
+    final rows = await _db.masterCatalogDao.getProductsForType(businessType);
     return rows.map(_rowToProduct).toList();
   }
 
@@ -163,8 +159,10 @@ class MasterCatalogRepository {
     String categorySlug,
   ) async {
     await _ensureFresh(businessType);
-    final rows = await _db.masterCatalogDao
-        .getProductsForCategory(businessType, categorySlug);
+    final rows = await _db.masterCatalogDao.getProductsForCategory(
+      businessType,
+      categorySlug,
+    );
     return rows.map(_rowToProduct).toList();
   }
 
@@ -174,16 +172,17 @@ class MasterCatalogRepository {
   ) async {
     await _ensureFresh(businessType);
     if (query.trim().isEmpty) return getProductsForType(businessType);
-    final rows =
-        await _db.masterCatalogDao.searchProducts(businessType, query.trim());
+    final rows = await _db.masterCatalogDao.searchProducts(
+      businessType,
+      query.trim(),
+    );
     return rows.map(_rowToProduct).toList();
   }
 
   // ── Cache management ───────────────────────────────────────────────────────
 
   Future<void> _ensureFresh(String businessType) async {
-    final catCount =
-        await _db.masterCatalogDao.categoryCount(businessType);
+    final catCount = await _db.masterCatalogDao.categoryCount(businessType);
 
     if (catCount == 0) {
       await _fetchFromFirestore(businessType);
@@ -197,8 +196,7 @@ class MasterCatalogRepository {
   }
 
   Future<int?> _cacheAgeMs(String businessType) async {
-    final rows =
-        await _db.masterCatalogDao.getCategoriesForType(businessType);
+    final rows = await _db.masterCatalogDao.getCategoriesForType(businessType);
     if (rows.isEmpty) return null;
     final cachedAt = rows.first.cachedAt;
     if (cachedAt == 0) return null;
@@ -253,25 +251,35 @@ class MasterCatalogRepository {
         return MasterProductsTableCompanion(
           id: Value(d.id),
           businessType: Value(businessType), // store normalised key
-          categorySlug: Value(data['categorySlug'] as String? ??
-              data['categoryId'] as String? ?? ''),
+          categorySlug: Value(
+            data['categorySlug'] as String? ??
+                data['categoryId'] as String? ??
+                '',
+          ),
           productName: Value(data['productName'] as String? ?? ''),
           productNameSw: Value(data['productNameSw'] as String? ?? ''),
           productSlug: Value(data['productSlug'] as String? ?? d.id),
           genericName: Value(data['genericName'] as String? ?? ''),
           brandNames: Value(jsonEncode(strList(data['brandNames']))),
-          unit: Value(data['unit'] as String? ??
-              data['defaultUnit'] as String? ?? 'Piece'),
-          unitAlternatives: Value(jsonEncode(strList(data['unitAlternatives']))),
+          unit: Value(
+            data['unit'] as String? ??
+                data['defaultUnit'] as String? ??
+                'Piece',
+          ),
+          unitAlternatives: Value(
+            jsonEncode(strList(data['unitAlternatives'])),
+          ),
           commonBarcodes: Value(jsonEncode(strList(data['commonBarcodes']))),
-          searchKeywords: Value(jsonEncode(
-            strList(data['searchKeywords'] ?? data['searchableKeywords']),
-          )),
+          searchKeywords: Value(
+            jsonEncode(
+              strList(data['searchKeywords'] ?? data['searchableKeywords']),
+            ),
+          ),
           tags: Value(jsonEncode(strList(data['tags']))),
-          prescriptionRequired:
-              Value((data['prescriptionRequired'] as bool? ?? false) ? 1 : 0),
-          coldStorage:
-              Value((data['coldStorage'] as bool? ?? false) ? 1 : 0),
+          prescriptionRequired: Value(
+            (data['prescriptionRequired'] as bool? ?? false) ? 1 : 0,
+          ),
+          coldStorage: Value((data['coldStorage'] as bool? ?? false) ? 1 : 0),
           cachedAt: Value(now),
         );
       }).toList();
@@ -281,7 +289,8 @@ class MasterCatalogRepository {
       }
     } catch (e) {
       debugPrint('[MasterCatalog] fetch failed for "$businessType": $e');
-      final isOffline = e is FirebaseException &&
+      final isOffline =
+          e is FirebaseException &&
           (e.code == 'unavailable' ||
               e.code == 'deadline-exceeded' ||
               e.code == 'network-request-failed');
@@ -309,18 +318,9 @@ class MasterCatalogRepository {
     final id = '${slug}_${businessType}_community';
     final catalogName = _catalogTypeNames(businessType).first;
 
-    await _firestore.collection('master_categories').doc(id).set({
-      'businessTypes': [catalogName],
-      'categoryName': trimmed,
-      'categoryNameSw': '',
-      'categorySlug': slug,
-      'icon': '',
-      'displayOrder': 999,
-      'source': 'community',
-      'addedByUid': addedByUid,
-      'addedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
+    // The product form is offline-first. Persist the category locally before
+    // attempting either community Firestore write, otherwise a denied or
+    // offline request makes the Save button appear to do nothing.
     final now = DateTime.now().millisecondsSinceEpoch;
     await _db.masterCatalogDao.upsertCategories([
       MasterCategoriesTableCompanion(
@@ -335,14 +335,30 @@ class MasterCatalogRepository {
       ),
     ]);
 
+    // Best-effort community contribution. The locally saved category remains
+    // immediately usable even when this request is offline or not permitted.
+    _firestore.collection('master_categories').doc(id).set({
+      'businessTypes': [catalogName],
+      'categoryName': trimmed,
+      'categoryNameSw': '',
+      'categorySlug': slug,
+      'icon': '',
+      'displayOrder': 999,
+      'source': 'community',
+      'addedByUid': addedByUid,
+      'addedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true)).ignore();
+
     // Submit to community submissions for admin awareness — fire and forget
-    _submissions.submitCategory(
-      categoryName: trimmed,
-      businessType: businessType,
-      businessTypeName: catalogName,
-      submittedByUid: addedByUid,
-      submittedByBusinessId: businessId ?? '',
-    ).ignore();
+    _submissions
+        .submitCategory(
+          categoryName: trimmed,
+          businessType: businessType,
+          businessTypeName: catalogName,
+          submittedByUid: addedByUid,
+          submittedByBusinessId: businessId ?? '',
+        )
+        .ignore();
 
     return MasterCategory(
       id: id,

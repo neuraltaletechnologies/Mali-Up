@@ -10,7 +10,8 @@ class Expense {
   final String nextDueDate;    // ISO date for the next auto-create
   final String templateId;     // non-empty when generated from a template
   final String receiptUrl;     // Firebase Storage download URL
-  final String paymentMethod;  // cash | mpesa | bank | card
+  final String paymentMethod;  // cash | mpesa | bank | card | custom account name
+  final String paymentAccountId; // the CashAccount money left, when known
   final String status;         // approved | pending | rejected
   final String approvedBy;
   final String createdBy;
@@ -28,6 +29,7 @@ class Expense {
     this.templateId = '',
     this.receiptUrl = '',
     this.paymentMethod = 'cash',
+    this.paymentAccountId = '',
     this.status = 'approved',
     this.approvedBy = '',
     this.createdBy = '',
@@ -47,6 +49,7 @@ class Expense {
       templateId: data['templateId']?.toString() ?? '',
       receiptUrl: data['receiptUrl']?.toString() ?? '',
       paymentMethod: data['paymentMethod']?.toString() ?? 'cash',
+      paymentAccountId: data['paymentAccountId']?.toString() ?? '',
       status: data['status']?.toString() ?? 'approved',
       approvedBy: data['approvedBy']?.toString() ?? '',
       createdBy: data['createdBy']?.toString() ?? '',
@@ -62,6 +65,7 @@ class Expense {
       'recipient': recipient,
       'isRecurring': isRecurring,
       'paymentMethod': paymentMethod,
+      if (paymentAccountId.isNotEmpty) 'paymentAccountId': paymentAccountId,
       'status': status,
       'createdBy': createdBy,
       if (isRecurring) 'recurrenceType': recurrenceType,
@@ -84,6 +88,7 @@ class Expense {
     String? templateId,
     String? receiptUrl,
     String? paymentMethod,
+    String? paymentAccountId,
     String? status,
     String? approvedBy,
     String? createdBy,
@@ -101,6 +106,7 @@ class Expense {
       templateId: templateId ?? this.templateId,
       receiptUrl: receiptUrl ?? this.receiptUrl,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       status: status ?? this.status,
       approvedBy: approvedBy ?? this.approvedBy,
       createdBy: createdBy ?? this.createdBy,

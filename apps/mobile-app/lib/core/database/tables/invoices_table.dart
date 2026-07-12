@@ -21,6 +21,7 @@ class InvoicesTable extends Table {
   RealColumn get total => real()();
   RealColumn get amountPaid => real().withDefault(const Constant(0))();
   TextColumn get paymentMethod => text().withDefault(const Constant(''))();
+  TextColumn get paymentAccountId => text().withDefault(const Constant(''))();
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();
 

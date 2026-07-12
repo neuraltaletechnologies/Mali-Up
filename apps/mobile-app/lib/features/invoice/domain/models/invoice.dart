@@ -16,6 +16,10 @@ class Invoice {
   final double total;
   final double amountPaid;
   final String paymentMethod;
+
+  /// The exact CashAccount money moved through, when payment was via a
+  /// custom account (built-in channels are re-derived from [paymentMethod]).
+  final String paymentAccountId;
   final List<InvoiceItem> items;
   final String note;
   final String createdAt;
@@ -37,6 +41,7 @@ class Invoice {
     required this.total,
     this.amountPaid = 0.0,
     this.paymentMethod = '',
+    this.paymentAccountId = '',
     required this.items,
     this.note = '',
     required this.createdAt,
@@ -99,6 +104,7 @@ class Invoice {
       total: total,
       amountPaid: _readNum(data['amountPaid']),
       paymentMethod: (data['paymentMethod'] ?? '').toString(),
+      paymentAccountId: (data['paymentAccountId'] ?? '').toString(),
       items: itemsList,
       note: (data['note'] ?? data['notes'] ?? '').toString(),
       createdAt: _readDate(data['createdAt']),
@@ -125,6 +131,7 @@ class Invoice {
       'amount': total,
       'amountPaid': amountPaid,
       'paymentMethod': paymentMethod,
+      if (paymentAccountId.isNotEmpty) 'paymentAccountId': paymentAccountId,
       'items': items.map((item) => item.toFirestore()).toList(),
       'note': note,
       'createdAt': createdAt,
@@ -148,6 +155,7 @@ class Invoice {
     double? total,
     double? amountPaid,
     String? paymentMethod,
+    String? paymentAccountId,
     List<InvoiceItem>? items,
     String? note,
     String? createdAt,
@@ -169,6 +177,7 @@ class Invoice {
       total: total ?? this.total,
       amountPaid: amountPaid ?? this.amountPaid,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       items: items ?? this.items,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,

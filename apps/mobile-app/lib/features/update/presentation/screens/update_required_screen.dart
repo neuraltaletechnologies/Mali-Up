@@ -28,6 +28,22 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    LocalizationService.languageNotifier.addListener(_onLanguageChanged);
+  }
+
+  @override
+  void dispose() {
+    LocalizationService.languageNotifier.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
   Future<void> _openStore() async {
     final url = Platform.isIOS
         ? widget.status.updateUrlIOS

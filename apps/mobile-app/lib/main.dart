@@ -19,7 +19,11 @@ import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/core/services/version_gate_service.dart';
 import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
-    show onboardingBootstrapProvider, onboardingDraftBootstrapProvider, onboardingPhoneEntryBootstrapProvider, OnboardingDraft;
+    show
+        onboardingBootstrapProvider,
+        onboardingDraftBootstrapProvider,
+        onboardingPhoneEntryBootstrapProvider,
+        OnboardingDraft;
 import 'package:mali_up/features/onboarding/data/services/onboarding_service.dart'
     show OnboardingService;
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
@@ -35,9 +39,7 @@ const String _sentryEnvironment = String.fromEnvironment(
 );
 const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
-const bool _sentryTestEvent = bool.fromEnvironment(
-  'SENTRY_TEST_EVENT',
-);
+const bool _sentryTestEvent = bool.fromEnvironment('SENTRY_TEST_EVENT');
 
 Future<void> _startApp() async {
   // SharedPreferences and Firebase init are independent — kick both off now.
@@ -81,7 +83,8 @@ Future<void> _startApp() async {
   final hasCompletedOnboarding =
       prefs.getBool(_onboardingCompletedKey) ?? false;
   // initializeWithPrefs already loaded this value into languageSelectedNotifier.
-  final hasSelectedLanguage = LocalizationService.languageSelectedNotifier.value;
+  final hasSelectedLanguage =
+      LocalizationService.languageSelectedNotifier.value;
   // If onboarding was completed before but there is no active Firebase session
   // (user logged out then killed the app), we must NOT treat them as fully
   // onboarded — instead start at phone-entry so they can sign back in.
@@ -93,11 +96,13 @@ Future<void> _startApp() async {
       ? null
       : OnboardingService.loadDraft(prefs);
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ),
+  );
 
   runApp(
     ProviderScope(
@@ -107,7 +112,9 @@ Future<void> _startApp() async {
         onboardingBootstrapProvider.overrideWithValue(
           hasCompletedOnboarding && hasActiveSession,
         ),
-        onboardingPhoneEntryBootstrapProvider.overrideWithValue(startAtPhoneEntry),
+        onboardingPhoneEntryBootstrapProvider.overrideWithValue(
+          startAtPhoneEntry,
+        ),
         onboardingDraftBootstrapProvider.overrideWithValue(registrationDraft),
       ],
       child: MaliUpApp(
@@ -150,10 +157,7 @@ Future<void> main() async {
         final originalOnError = FlutterError.onError;
         FlutterError.onError = (FlutterErrorDetails details) {
           originalOnError?.call(details);
-          Sentry.captureException(
-            details.exception,
-            stackTrace: details.stack,
-          );
+          Sentry.captureException(details.exception, stackTrace: details.stack);
         };
 
         // Catch unhandled async/isolate errors from the platform layer.
@@ -165,9 +169,7 @@ Future<void> main() async {
         await _startApp();
         SentryMetricsService.appLaunched(sentryEnabled: true);
         if (_sentryTestEvent) {
-          await Sentry.captureException(
-            StateError('This is test exception'),
-          );
+          await Sentry.captureException(StateError('This is test exception'));
         }
       },
     );
@@ -286,10 +288,7 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                     debugShowCheckedModeBanner: false,
                     theme: AppTheme.lightTheme,
                     locale: Locale(language.code),
-                    supportedLocales: const [
-                      Locale('en'),
-                      Locale('sw'),
-                    ],
+                    supportedLocales: const [Locale('en'), Locale('sw')],
                     localizationsDelegates: const [
                       GlobalMaterialLocalizations.delegate,
                       GlobalWidgetsLocalizations.delegate,
@@ -302,17 +301,23 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                       // at the route level and works regardless of backgroundColor.
                       final maxSheetHeight =
                           MediaQuery.sizeOf(context).height * 0.8;
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          bottomSheetTheme: Theme.of(context)
-                              .bottomSheetTheme
-                              .copyWith(
-                                constraints: BoxConstraints(
-                                  maxHeight: maxSheetHeight,
-                                ),
-                              ),
+                      final mediaQuery = MediaQuery.of(context);
+                      return MediaQuery(
+                        data: mediaQuery.copyWith(
+                          disableAnimations:
+                              mediaQuery.disableAnimations || reducedMotion,
                         ),
-                        child: child!,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            bottomSheetTheme: Theme.of(context).bottomSheetTheme
+                                .copyWith(
+                                  constraints: BoxConstraints(
+                                    maxHeight: maxSheetHeight,
+                                  ),
+                                ),
+                          ),
+                          child: child!,
+                        ),
                       );
                     },
                   ),

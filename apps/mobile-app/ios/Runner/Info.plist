@@ -47,6 +47,10 @@
 		<true/>
 		<key>NSContactsUsageDescription</key>
 		<string>This app needs access to your contacts so you can import multiple customers at once.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Mali Up uses the camera so you can attach receipt photos to expenses.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Mali Up uses your photo library so you can attach existing receipt photos to expenses.</string>
 		<key>UIStatusBarHidden</key>
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
