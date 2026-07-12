@@ -439,7 +439,10 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         top: false,
         child: Column(
           children: [
-            const SheetHandle(),
+            const ColoredBox(
+              color: AppColors.navyPrimary,
+              child: SheetHandle(),
+            ),
             Expanded(
               child: FadeTransition(
                 opacity: _fadeAnim,
