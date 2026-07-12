@@ -12,6 +12,7 @@ import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/pin_attempt_throttle.dart';
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../../../core/utils/phone_number_utils.dart';
 import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -77,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
       false; // Flag to switch between phone and PIN entry views
   bool _isLoading = false;
   String? _normalizedPhone;
-  String? _authEmailForSignIn;
+  List<String> _authEmailsForSignIn = const [];
   String? _recoveryEmail;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
@@ -195,18 +196,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       _isLoading = true;
-      _normalizedPhone = localPhone;
+      _normalizedPhone = PhoneNumberUtils.canonical(digitsOnly);
     });
 
     try {
-      // Check if user exists in Firestore
-      final userSnapshot = await _firestore
-          .collection('users')
-          .where('phone', isEqualTo: localPhone)
-          .limit(1)
-          .get();
+      final userDoc = await _lookupUserByPhone(digitsOnly);
 
-      if (userSnapshot.docs.isEmpty) {
+      if (userDoc == null) {
         setState(() => _isLoading = false);
         if (!mounted) return;
         await _NotificationHelper.showError(
@@ -219,19 +215,23 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final profile = userSnapshot.docs.first.data();
+      final profile = userDoc.data();
       final recoveryEmail =
           ((profile['recoveryEmail'] ?? profile['email']) as String?)
               ?.trim()
               .toLowerCase();
-      final authEmail = (profile['authEmail'] as String?)?.trim().toLowerCase();
+      final authEmails = <String>{
+        PhoneNumberUtils.authEmail(_normalizedPhone ?? digitsOnly),
+        for (final field in ['authEmail', 'email', 'recoveryEmail'])
+          if ((profile[field] as String?)?.trim().isNotEmpty == true)
+            (profile[field] as String).trim().toLowerCase(),
+      }.toList(growable: false);
 
       setState(() {
         _showPinEntry = true;
         _isLoading = false;
         _recoveryEmail = recoveryEmail;
-        _authEmailForSignIn =
-            authEmail ?? '${_normalizedPhone ?? localPhone}@mali.up';
+        _authEmailsForSignIn = authEmails;
       });
       _setFeedback(
         _tr(
@@ -292,17 +292,34 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    final email = _authEmailForSignIn ?? '${_normalizedPhone ?? ''}@mali.up';
     final authPassword = buildAuthPasswordFromPin(
       phone: _normalizedPhone ?? '',
       pin: pin,
     );
 
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: authPassword,
-      );
+      FirebaseAuthException? lastError;
+      final candidates = _authEmailsForSignIn.isNotEmpty
+          ? _authEmailsForSignIn
+          : [PhoneNumberUtils.authEmail(_normalizedPhone ?? '')];
+      for (final email in candidates) {
+        try {
+          await _auth.signInWithEmailAndPassword(
+            email: email,
+            password: authPassword,
+          );
+          lastError = null;
+          break;
+        } on FirebaseAuthException catch (e) {
+          lastError = e;
+          if (e.code != 'user-not-found' &&
+              e.code != 'invalid-credential' &&
+              e.code != 'wrong-password') {
+            rethrow;
+          }
+        }
+      }
+      if (lastError != null) throw lastError;
       await _loginThrottle.recordSuccess(throttleKey);
       if (!mounted) return;
 
@@ -323,7 +340,10 @@ class _LoginScreenState extends State<LoginScreen> {
           'Incorrect PIN. Please try again.',
           'PIN si sahihi. Jaribu tena.',
         ),
-        'user-not-found' => _tr('Account not found. Please go back and check your phone number.', 'Akaunti haijapatikana. Rudi nyuma na uangalie namba yako ya simu.'),
+        'user-not-found' => _tr(
+          'Account not found. Please go back and check your phone number.',
+          'Akaunti haijapatikana. Rudi nyuma na uangalie namba yako ya simu.',
+        ),
         _ => _tr(
           'Login failed. Please check your PIN.',
           'Uingiaji umeshindikana. Hakiki PIN yako.',
@@ -347,6 +367,23 @@ class _LoginScreenState extends State<LoginScreen> {
   String _formatLockout(Duration d) {
     if (d.inMinutes >= 1) return '${(d.inSeconds / 60).ceil()} min';
     return '${d.inSeconds}s';
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _lookupUserByPhone(
+    String phone,
+  ) async {
+    final variants = PhoneNumberUtils.lookupVariants(phone);
+    for (final field in ['phone', 'phoneNumber']) {
+      for (final variant in variants) {
+        final snapshot = await _firestore
+            .collection('users')
+            .where(field, isEqualTo: variant)
+            .limit(1)
+            .get();
+        if (snapshot.docs.isNotEmpty) return snapshot.docs.first;
+      }
+    }
+    return null;
   }
 
   Future<void> _handleForgotPIN() async {

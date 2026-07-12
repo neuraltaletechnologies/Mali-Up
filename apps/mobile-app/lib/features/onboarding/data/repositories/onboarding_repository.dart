@@ -7,6 +7,7 @@ import '../../domain/models/onboarding_state.dart';
 import '../../domain/models/user_lookup_result.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
 import '../../../team/domain/models/team_member.dart';
+import '../../../../core/utils/phone_number_utils.dart';
 
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
@@ -22,11 +23,9 @@ final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) {
 /// - No business logic lives here — only data reads/writes.
 /// - The notifier never imports this class directly; it goes through [OnboardingService].
 class OnboardingRepository {
-  OnboardingRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  OnboardingRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
@@ -36,20 +35,12 @@ class OnboardingRepository {
   /// Searches for a document matching [phone] directly in Firestore.
   Future<UserLookupResult> lookupByPhone(String phone) async {
     try {
-      final userFuture = _db
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
+      final canonicalPhone = PhoneNumberUtils.canonical(phone);
+      final variants = PhoneNumberUtils.lookupVariants(phone);
+      final userFuture = _lookupUserByPhone(variants);
+      final inviteFuture = _lookupPendingInviteByPhone(variants);
 
-      final inviteFuture = _db
-          .collection('pendingInvites')
-          .where('phoneNumber', isEqualTo: phone)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-
-      final memberFuture = _lookupTeamMemberByPhone(phone);
+      final memberFuture = _lookupTeamMemberByPhone(variants);
 
       final results = await Future.wait([
         userFuture,
@@ -57,12 +48,13 @@ class OnboardingRepository {
         memberFuture,
       ]);
 
-      final userSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;
-      final inviteSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
-      final memberSnap = results[2];
+      final userDoc =
+          results[0] as QueryDocumentSnapshot<Map<String, dynamic>>?;
+      final inviteDoc =
+          results[1] as QueryDocumentSnapshot<Map<String, dynamic>>?;
+      final memberSnap = results[2] as QuerySnapshot<Map<String, dynamic>>?;
 
-      if (userSnap.docs.isNotEmpty) {
-        final userDoc = userSnap.docs[0];
+      if (userDoc != null) {
         final userData = userDoc.data();
         final userId = userDoc.id;
 
@@ -94,7 +86,10 @@ class OnboardingRepository {
           name: fullName,
           firstName: parts.isNotEmpty ? parts.first : '',
           lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
-          phone: (userData['phone'] as String?) ?? phone,
+          phone:
+              (userData['phone'] as String?) ??
+              (userData['phoneNumber'] as String?) ??
+              canonicalPhone,
           city: (userData['city'] as String?) ?? '',
           role: (userData['role'] as String?) ?? '',
           businessName: businessName,
@@ -104,8 +99,8 @@ class OnboardingRepository {
         );
       }
 
-      if (inviteSnap.docs.isNotEmpty) {
-        final invite = inviteSnap.docs[0].data();
+      if (inviteDoc != null) {
+        final invite = inviteDoc.data();
         return TeamMemberPending(
           memberId: (invite['memberId'] as String?) ?? '',
           name: (invite['fullName'] as String?) ?? '',
@@ -113,7 +108,7 @@ class OnboardingRepository {
           businessName: (invite['businessName'] as String?) ?? '',
           ownerUid: (invite['ownerUid'] as String?) ?? '',
           businessId: (invite['businessId'] as String?) ?? '',
-          inviteId: inviteSnap.docs[0].id,
+          inviteId: inviteDoc.id,
           email: (invite['email'] as String?) ?? '',
         );
       }
@@ -123,7 +118,7 @@ class OnboardingRepository {
         final memberData = memberDoc.data();
         // Path: businesses/{bizId}/staff/{staffId}
         final pathSegments = memberDoc.reference.path.split('/');
-        final bizId    = pathSegments.length > 1 ? pathSegments[1] : '';
+        final bizId = pathSegments.length > 1 ? pathSegments[1] : '';
         final ownerUid = (memberData['invitedBy'] as String?) ?? '';
 
         // Fetch business name and the matching pendingInvite in parallel.
@@ -141,7 +136,9 @@ class OnboardingRepository {
         final bizDoc = bizFuture != null ? await bizFuture : null;
 
         final businessName = (bizDoc?.data()?['businessName'] as String?) ?? '';
-        final inviteId = inviteSnap2.docs.isNotEmpty ? inviteSnap2.docs.first.id : '';
+        final inviteId = inviteSnap2.docs.isNotEmpty
+            ? inviteSnap2.docs.first.id
+            : '';
         final email = inviteSnap2.docs.isNotEmpty
             ? (inviteSnap2.docs.first.data()['email'] as String?) ?? ''
             : (memberData['email'] as String?) ?? '';
@@ -182,26 +179,31 @@ class OnboardingRepository {
     required String phone,
     required String pin,
   }) async {
-    final derivedEmail = _emailFromPhone(phone);
-    final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
+    final canonicalPhone = PhoneNumberUtils.canonical(phone);
+    final password = buildAuthPasswordFromPin(phone: canonicalPhone, pin: pin);
+    final profileEmails = await _fetchUserAuthEmails(phone);
+    final candidates = <String>{_emailFromPhone(phone), ...profileEmails};
 
-    late FirebaseAuthException notFoundError;
-    try {
-      await _auth.signInWithEmailAndPassword(
-          email: derivedEmail, password: password);
-      return;
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'user-not-found') rethrow;
-      notFoundError = e;
+    FirebaseAuthException? lastError;
+    for (final email in candidates) {
+      try {
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        return;
+      } on FirebaseAuthException catch (e) {
+        lastError = e;
+        // With email-enumeration protection Firebase reports a missing account
+        // as invalid-credential, so legacy identifiers must still be tried.
+        if (e.code != 'user-not-found' &&
+            e.code != 'invalid-credential' &&
+            e.code != 'wrong-password') {
+          rethrow;
+        }
+      }
     }
-
-    // Account may have been migrated to the user's real email address.
-    final realEmail = await _fetchUserEmail(phone);
-    if (realEmail == null || realEmail.isEmpty || realEmail == derivedEmail) {
-      throw notFoundError;
-    }
-    await _auth.signInWithEmailAndPassword(
-        email: realEmail, password: password);
+    throw lastError!;
   }
 
   // ─── AUTH — TEAM MEMBER FIRST-TIME SETUP ─────────────────────────────────
@@ -269,16 +271,13 @@ class OnboardingRepository {
     });
 
     // 2. Worker profile document.
-    batch.set(
-      _db.collection('workers').doc(uid),
-      {
-        'name': name,
-        'firstName': firstName,
-        'lastName': lastName,
-        'phone': phone,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-    );
+    batch.set(_db.collection('workers').doc(uid), {
+      'name': name,
+      'firstName': firstName,
+      'lastName': lastName,
+      'phone': phone,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
 
     if (businessId.isNotEmpty && memberId.isNotEmpty) {
       // Read the invite's actual permissions via a limited *query* (not a direct
@@ -296,19 +295,23 @@ class OnboardingRepository {
           .get();
       final existingPermissions = existingStaffSnap.docs.isNotEmpty
           ? ((existingStaffSnap.docs.first.data()['permissions'] as List?)
-                  ?.map((p) => p.toString())
-                  .toList() ??
-              const <String>[])
-          : defaultPermissionsFor(TeamRole.fromString(role))
-              .map((p) => p.name)
-              .toList();
+                    ?.map((p) => p.toString())
+                    .toList() ??
+                const <String>[])
+          : defaultPermissionsFor(
+              TeamRole.fromString(role),
+            ).map((p) => p.name).toList();
 
       // 3. Activate the staff record and stamp workerUid. Role/permissions are
       //    left untouched — they were already set correctly by the owner when
       //    the invite was created. (Firestore rules also only permit
       //    status/acceptedAt/workerUid/updatedAt/email to change here.)
       batch.set(
-        _db.collection('businesses').doc(businessId).collection('staff').doc(memberId),
+        _db
+            .collection('businesses')
+            .doc(businessId)
+            .collection('staff')
+            .doc(memberId),
         {
           'status': 'active',
           'workerUid': uid,
@@ -324,7 +327,11 @@ class OnboardingRepository {
       // directly. Permissions are mirrored here from the owner-controlled doc; the
       // Firestore rule enforces equality so the worker cannot self-elevate.
       batch.set(
-        _db.collection('businesses').doc(businessId).collection('staff').doc(uid),
+        _db
+            .collection('businesses')
+            .doc(businessId)
+            .collection('staff')
+            .doc(uid),
         {
           'workerUid': uid,
           'memberId': memberId,
@@ -339,16 +346,12 @@ class OnboardingRepository {
 
     // 4. Mark pendingInvite as accepted.
     if (inviteId.isNotEmpty) {
-      batch.set(
-        _db.collection('pendingInvites').doc(inviteId),
-        {
-          'status': 'accepted',
-          'pinCreated': true,
-          'acceptedAt': FieldValue.serverTimestamp(),
-          'uid': uid,
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_db.collection('pendingInvites').doc(inviteId), {
+        'status': 'accepted',
+        'pinCreated': true,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'uid': uid,
+      }, SetOptions(merge: true));
     }
 
     try {
@@ -366,24 +369,35 @@ class OnboardingRepository {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Sends a Firebase password reset email to the user's real (Firestore) email
-  /// address if one is on file, while the actual Firebase Auth account (which
-  /// uses the derived phone email) receives the reset link.
+  /// Sends a Firebase password reset email to the user's real Auth email when
+  /// the account was migrated away from its derived phone email.
   ///
   /// Returns the display email (shown to the user in the UI) on success,
   /// or null if recovery cannot proceed.
   Future<String?> sendPinRecovery({required String phone}) async {
     try {
-      // Firebase Auth account always uses the derived phone email — that is the
-      // address Firebase recognises.  The real email is only stored in Firestore
-      // and cannot be used for password reset (the account isn't registered there).
       final derivedEmail = _emailFromPhone(phone);
-      await _auth.sendPasswordResetEmail(email: derivedEmail);
+      final emails = await _fetchUserAuthEmails(phone);
+      final candidates = <String>{
+        ...emails.where((email) => !email.endsWith('@mali.up')),
+        derivedEmail,
+        ...emails,
+      };
 
-      // Return the real email so the UI can display a friendlier address,
-      // falling back to the derived one if none is on file.
-      final realEmail = await _fetchUserEmail(phone);
-      return (realEmail != null && realEmail.isNotEmpty) ? realEmail : derivedEmail;
+      FirebaseAuthException? lastError;
+      for (final email in candidates) {
+        try {
+          await _auth.sendPasswordResetEmail(email: email);
+          return email;
+        } on FirebaseAuthException catch (e) {
+          lastError = e;
+          if (e.code != 'user-not-found' && e.code != 'invalid-credential') {
+            rethrow;
+          }
+        }
+      }
+      if (lastError != null) throw lastError;
+      return null;
     } catch (e) {
       if (kDebugMode) debugPrint('[sendPinRecovery] $e');
       return null;
@@ -415,7 +429,8 @@ class OnboardingRepository {
     required String businessId,
   }) async {
     await _db.collection('users').doc(userId).set({
-      'phone': state.phone,
+      'phone': PhoneNumberUtils.canonical(state.phone),
+      'authEmail': _emailFromPhone(state.phone),
       'name': state.fullName,
       'firstName': state.firstName,
       'lastName': state.lastName,
@@ -514,26 +529,59 @@ class OnboardingRepository {
   /// Derives the Firebase Auth email from an E.164 phone number.
   /// Strips the leading '+' so the email is valid.
   String _emailFromPhone(String phone) {
-    final digits = phone.replaceAll(RegExp(r'\D'), '');
-    return '$digits@mali.up';
+    return PhoneNumberUtils.authEmail(phone);
   }
 
-  /// Looks up a user's real email from Firestore by phone number.
-  /// Returns null if the user has no email on file or a query error occurs.
-  Future<String?> _fetchUserEmail(String phone) async {
+  /// Looks up possible Firebase Auth identifiers saved by different app
+  /// generations. Contact/recovery emails are included as legacy fallbacks.
+  Future<List<String>> _fetchUserAuthEmails(String phone) async {
     try {
+      final doc = await _lookupUserByPhone(
+        PhoneNumberUtils.lookupVariants(phone),
+      );
+      if (doc == null) return const [];
+      final data = doc.data();
+      return <String>{
+        for (final field in ['authEmail', 'email', 'recoveryEmail'])
+          if ((data[field] as String?)?.trim().isNotEmpty == true)
+            (data[field] as String).trim().toLowerCase(),
+      }.toList(growable: false);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[OnboardingRepository._fetchUserAuthEmails] $e');
+      }
+      return const [];
+    }
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _lookupUserByPhone(
+    List<String> variants,
+  ) async {
+    for (final field in ['phone', 'phoneNumber']) {
+      for (final variant in variants) {
+        final snap = await _db
+            .collection('users')
+            .where(field, isEqualTo: variant)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty) return snap.docs.first;
+      }
+    }
+    return null;
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?>
+  _lookupPendingInviteByPhone(List<String> variants) async {
+    for (final variant in variants) {
       final snap = await _db
-          .collection('users')
-          .where('phone', isEqualTo: phone)
+          .collection('pendingInvites')
+          .where('phoneNumber', isEqualTo: variant)
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
-      if (snap.docs.isEmpty) return null;
-      final email = snap.docs.first.data()['email'] as String?;
-      return (email != null && email.isNotEmpty) ? email : null;
-    } catch (e) {
-      if (kDebugMode) debugPrint('[OnboardingRepository._fetchUserEmail] $e');
-      return null;
+      if (snap.docs.isNotEmpty) return snap.docs.first;
     }
+    return null;
   }
 
   // ─── GUARD ────────────────────────────────────────────────────────────────
@@ -557,14 +605,18 @@ class OnboardingRepository {
   }
 
   Future<QuerySnapshot<Map<String, dynamic>>?> _lookupTeamMemberByPhone(
-    String phone,
+    List<String> variants,
   ) async {
     try {
-      return await _db
-          .collectionGroup('staff')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
+      for (final phone in variants) {
+        final snap = await _db
+            .collectionGroup('staff')
+            .where('phone', isEqualTo: phone)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty) return snap;
+      }
+      return null;
     } on FirebaseException catch (e) {
       // `failed-precondition` = missing collectionGroup index.
       // `permission-denied`   = query requires auth (user is pre-login).

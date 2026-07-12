@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../utils/phone_number_utils.dart';
 
 enum AuthResult {
   success,
@@ -81,7 +82,7 @@ class PhoneAuthService {
       // Check if user already exists (for login flow)
       final userSnapshot = await _firestore
           .collection('users')
-          .where('phone', isEqualTo: normalizedPhone.substring(3)) // Store without 255
+          .where('phone', isEqualTo: PhoneNumberUtils.canonical(normalizedPhone))
           .limit(1)
           .get();
 
@@ -205,9 +206,9 @@ class PhoneAuthService {
     Map<String, dynamic> userData,
     String? phoneNumber,
   ) async {
-    final normalizedPhone = phoneNumber != null 
-        ? _normalizeTanzanianPhone(phoneNumber).substring(3) // Remove 255
-        : userData['phone'] ?? '';
+    final normalizedPhone = PhoneNumberUtils.canonical(
+      phoneNumber ?? (userData['phone'] as String? ?? ''),
+    );
 
     final businessId = userData['includesBusiness'] == true
         ? _firestore.collection('businesses').doc().id
@@ -223,6 +224,8 @@ class PhoneAuthService {
       'name': userData['name'] ?? '',
       'displayName': userData['name'] ?? '',
       'email': userData['email']?.toLowerCase(),
+      if (user.email?.trim().isNotEmpty == true)
+        'authEmail': user.email!.trim().toLowerCase(),
       'businessName': userData['businessName'],
       'defaultAccountType': userData['defaultAccountType'] ?? 'business',
       'accountTypes': userData['accountTypes'] ?? ['business'],
