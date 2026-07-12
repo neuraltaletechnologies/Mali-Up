@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../../../core/utils/phone_number_utils.dart';
 
 /// Authentication service for handling phone authentication and user profile management
 class AuthService {
@@ -130,7 +131,7 @@ class AuthService {
       // 1. Create user document
       final userRef = _firestore.collection('users').doc(userId);
       final userData = {
-        'phoneNumber': phoneNumber,
+        'phone': PhoneNumberUtils.canonical(phoneNumber),
         'displayName': displayName,
         'businessName': businessName,
         'subscriptionStatus': 'free',
@@ -258,14 +259,16 @@ class AuthService {
   /// Get user by phone number (for login flow)
   Future<Map<String, dynamic>?> getUserByPhone(String phoneNumber) async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .where('phoneNumber', isEqualTo: phoneNumber)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.data();
+      final variants = PhoneNumberUtils.lookupVariants(phoneNumber);
+      for (final field in ['phone', 'phoneNumber']) {
+        for (final variant in variants) {
+          final snapshot = await _firestore
+              .collection('users')
+              .where(field, isEqualTo: variant)
+              .limit(1)
+              .get();
+          if (snapshot.docs.isNotEmpty) return snapshot.docs.first.data();
+        }
       }
       return null;
     } catch (e) {
