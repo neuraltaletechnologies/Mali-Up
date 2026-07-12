@@ -21,6 +21,7 @@ import '../shared/widgets/main_shell_page.dart';
 import '../shared/widgets/app_sheet.dart';
 import '../shared/widgets/shimmer.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_motion.dart';
 
 // Deferred imports — loaded on first navigation to avoid bundling everything upfront.
 import '../features/onboarding/presentation/screens/language_selection_screen.dart'
@@ -83,36 +84,44 @@ import '../features/team/domain/models/team_member.dart';
 
 abstract final class AppRoutes {
   // ── Onboarding ────────────────────────────────────────────────────────────
-  static const splash     = '/splash';
-  static const welcome    = '/welcome';    // Screen 1 — language picker
-  static const intro      = '/intro';      // Screen 2 — app intro slides
-  static const phone      = '/phone';      // Screen 3 — phone entry + lookup
-  static const pinLogin   = '/pin-login';  // Screen 4A — existing user PIN
-  static const teamSetup  = '/team-setup'; // Screen 4B — team member first login
-  static const newUser    = '/new-user';   // Screen 4C — new user personal info
-  static const business   = '/business';   // Screen 5 — business details
-  static const security   = '/security';   // Screen 6 — PIN setup (new owners)
-  static const success    = '/success';    // Screen 7 — success
+  static const splash = '/splash';
+  static const welcome = '/welcome'; // Screen 1 — language picker
+  static const intro = '/intro'; // Screen 2 — app intro slides
+  static const phone = '/phone'; // Screen 3 — phone entry + lookup
+  static const pinLogin = '/pin-login'; // Screen 4A — existing user PIN
+  static const teamSetup = '/team-setup'; // Screen 4B — team member first login
+  static const newUser = '/new-user'; // Screen 4C — new user personal info
+  static const business = '/business'; // Screen 5 — business details
+  static const security = '/security'; // Screen 6 — PIN setup (new owners)
+  static const success = '/success'; // Screen 7 — success
 
   // ── Main app shell ────────────────────────────────────────────────────────
-  static const dashboard    = '/';
-  static const sales        = '/sales';
-  static const inventory    = '/inventory';
-  static const crm          = '/crm';
-  static const debt         = '/debt';
-  static const expenses     = '/expenses';
-  static const cashflow     = '/cashflow';
-  static const team         = '/team';
-  static const settings         = '/settings';
-  static const subscription     = '/subscription';
-  static const businesses       = '/businesses';
-  static const reports          = '/reports';
-  static const syncDiagnostics  = '/sync-diagnostics';
-  static const login            = '/login';
-  static const accessDenied     = '/access-denied';
+  static const dashboard = '/';
+  static const sales = '/sales';
+  static const inventory = '/inventory';
+  static const crm = '/crm';
+  static const debt = '/debt';
+  static const expenses = '/expenses';
+  static const cashflow = '/cashflow';
+  static const team = '/team';
+  static const settings = '/settings';
+  static const subscription = '/subscription';
+  static const businesses = '/businesses';
+  static const reports = '/reports';
+  static const syncDiagnostics = '/sync-diagnostics';
+  static const login = '/login';
+  static const accessDenied = '/access-denied';
 
   static const _onboardingPaths = {
-    welcome, intro, phone, pinLogin, teamSetup, newUser, business, security, success,
+    welcome,
+    intro,
+    phone,
+    pinLogin,
+    teamSetup,
+    newUser,
+    business,
+    security,
+    success,
   };
 
   static bool isOnboardingPath(String path) => _onboardingPaths.contains(path);
@@ -123,14 +132,14 @@ abstract final class AppRoutes {
   /// is always accessible to authenticated users (dashboard, access-denied).
   static AppPermission? requiredPermission(String path) {
     // Match on prefix so sub-routes (e.g. /reports/pnl) inherit the guard.
-    if (path.startsWith(sales))        return AppPermission.viewSales;
-    if (path.startsWith(inventory))    return AppPermission.viewInventory;
-    if (path.startsWith(crm))          return AppPermission.viewCustomers;
-    if (path.startsWith(debt))         return AppPermission.viewDebt;
-    if (path.startsWith(expenses))     return AppPermission.manageExpenses;
-    if (path.startsWith(cashflow))     return AppPermission.viewCashFlow;
-    if (path.startsWith(team))         return AppPermission.manageTeam;
-    if (path.startsWith(reports))      return AppPermission.viewFinancialReports;
+    if (path.startsWith(sales)) return AppPermission.viewSales;
+    if (path.startsWith(inventory)) return AppPermission.viewInventory;
+    if (path.startsWith(crm)) return AppPermission.viewCustomers;
+    if (path.startsWith(debt)) return AppPermission.viewDebt;
+    if (path.startsWith(expenses)) return AppPermission.manageExpenses;
+    if (path.startsWith(cashflow)) return AppPermission.viewCashFlow;
+    if (path.startsWith(team)) return AppPermission.manageTeam;
+    if (path.startsWith(reports)) return AppPermission.viewFinancialReports;
     return null;
   }
 
@@ -205,7 +214,8 @@ class _RouterNotifier extends ChangeNotifier {
         final loaded = _ref.read(permissionsLoadedProvider);
         if (!loaded) {
           return (!ob.isReturningUser && !ob.isTeamMember)
-              ? AppRoutes.success // new-owner buffer screen
+              ? AppRoutes
+                    .success // new-owner buffer screen
               : null; // stay on pin-login / team-setup
         }
         return AppRoutes.dashboard;
@@ -224,8 +234,10 @@ class _RouterNotifier extends ChangeNotifier {
       final loaded = _ref.read(permissionsLoadedProvider);
       if (kDebugMode) {
         final ps2 = _ref.read(permissionServiceProvider);
-        debugPrint('[Router] redirect path=$path loaded=$loaded '
-            'isOwner=${ps2.isOwner} canSales=${ps2.canViewSales}');
+        debugPrint(
+          '[Router] redirect path=$path loaded=$loaded '
+          'isOwner=${ps2.isOwner} canSales=${ps2.canViewSales}',
+        );
       }
       if (loaded) {
         final ps = _ref.read(permissionServiceProvider);
@@ -289,8 +301,7 @@ class _RouterNotifier extends ChangeNotifier {
     }
 
     // Screen 4C only for new users (not returning, not team member).
-    if (path == AppRoutes.newUser &&
-        (ob.isReturningUser || ob.isTeamMember)) {
+    if (path == AppRoutes.newUser && (ob.isReturningUser || ob.isTeamMember)) {
       return ob.isReturningUser ? AppRoutes.pinLogin : AppRoutes.teamSetup;
     }
 
@@ -348,10 +359,8 @@ List<RouteBase> _buildRoutes() {
     // ── Screen 2 — App intro slides ──────────────────────────────────────────
     GoRoute(
       path: AppRoutes.intro,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const IntroSlidesScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const IntroSlidesScreen()),
     ),
 
     // ── Screen 3 — Phone Entry ───────────────────────────────────────────────
@@ -359,8 +368,7 @@ List<RouteBase> _buildRoutes() {
       path: AppRoutes.phone,
       pageBuilder: (context, state) {
         final extra = state.extra;
-        final isSwitchAccount =
-            extra is Map && extra['switchAccount'] == true;
+        final isSwitchAccount = extra is Map && extra['switchAccount'] == true;
         return _authPage(
           state,
           PhoneEntryScreen(isSwitchAccount: isSwitchAccount),
@@ -371,55 +379,42 @@ List<RouteBase> _buildRoutes() {
     // ── Screen 4A — PIN Login ────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.pinLogin,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const PinLoginScreen(),
-      ),
+      pageBuilder: (context, state) => _authPage(state, const PinLoginScreen()),
     ),
 
     // ── Screen 4B — Team Member Setup ───────────────────────────────────────
     GoRoute(
       path: AppRoutes.teamSetup,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const TeamMemberSetupScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const TeamMemberSetupScreen()),
     ),
 
     // ── Screen 4C — New User Personal Info ───────────────────────────────────
     GoRoute(
       path: AppRoutes.newUser,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const NewUserInfoScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const NewUserInfoScreen()),
     ),
 
     // ── Screen 5 — Business Details ──────────────────────────────────────────
     GoRoute(
       path: AppRoutes.business,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const BusinessDetailsScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const BusinessDetailsScreen()),
     ),
 
     // ── Screen 6 — PIN Setup ────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.security,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const SecuritySetupScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const SecuritySetupScreen()),
     ),
 
     // ── Screen 7 — Success ───────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.success,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const OnboardingSuccessScreen(),
-      ),
+      pageBuilder: (context, state) =>
+          _authPage(state, const OnboardingSuccessScreen()),
     ),
 
     // ── Login (standalone, bypasses onboarding guard) ────────────────────────
@@ -439,171 +434,241 @@ List<RouteBase> _buildRoutes() {
       pageBuilder: (context, state, child) => CustomTransitionPage<void>(
         key: state.pageKey,
         child: MainShellPage(child: child),
+        transitionDuration: AppMotion.quick,
         reverseTransitionDuration: const Duration(milliseconds: 220),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: child,
+          return AppMotion.fadeThrough(
+            context,
+            animation,
+            secondaryAnimation,
+            child,
           );
         },
       ),
       routes: [
         GoRoute(
           path: AppRoutes.dashboard,
-          builder: (context, state) => _deferred(
-            load: screen_dashboard.loadLibrary,
-            build: () => screen_dashboard.DashboardScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_dashboard.loadLibrary,
+              build: () => screen_dashboard.DashboardScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.sales,
-          builder: (context, state) => _deferred(
-            load: screen_sales.loadLibrary,
-            build: () => screen_sales.SalesScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_sales.loadLibrary,
+              build: () => screen_sales.SalesScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.inventory,
-          builder: (context, state) => _deferred(
-            load: screen_inventory.loadLibrary,
-            build: () => screen_inventory.InventoryScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_inventory.loadLibrary,
+              build: () => screen_inventory.InventoryScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.crm,
-          builder: (context, state) => _deferred(
-            load: screen_customers.loadLibrary,
-            build: () => screen_customers.CustomerListScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_customers.loadLibrary,
+              build: () => screen_customers.CustomerListScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.debt,
-          builder: (context, state) => _deferred(
-            load: screen_debt.loadLibrary,
-            build: () => screen_debt.DebtTrackingScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_debt.loadLibrary,
+              build: () => screen_debt.DebtTrackingScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.expenses,
-          builder: (context, state) => _deferred(
-            load: screen_expenses.loadLibrary,
-            build: () => screen_expenses.ExpenseListScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_expenses.loadLibrary,
+              build: () => screen_expenses.ExpenseListScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.cashflow,
-          builder: (context, state) => _deferred(
-            load: screen_cashflow.loadLibrary,
-            build: () => screen_cashflow.CashFlowScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_cashflow.loadLibrary,
+              build: () => screen_cashflow.CashFlowScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.settings,
-          builder: (context, state) => _deferred(
-            load: screen_settings.loadLibrary,
-            build: () => screen_settings.SettingsScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_settings.loadLibrary,
+              build: () => screen_settings.SettingsScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.subscription,
-          builder: (context, state) => _deferred(
-            load: screen_subscription.loadLibrary,
-            build: () => screen_subscription.SubscriptionScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_subscription.loadLibrary,
+              build: () => screen_subscription.SubscriptionScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.businesses,
-          builder: (context, state) => _deferred(
-            load: screen_businesses.loadLibrary,
-            build: () => screen_businesses.ManageBusinessesScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_businesses.loadLibrary,
+              build: () => screen_businesses.ManageBusinessesScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.team,
-          builder: (context, state) => _deferred(
-            load: screen_team.loadLibrary,
-            build: () => screen_team.TeamScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_team.loadLibrary,
+              build: () => screen_team.TeamScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.accessDenied,
-          builder: (context, state) => const AccessDeniedScreen(),
+          pageBuilder: (context, state) =>
+              _primaryPage(state, const AccessDeniedScreen()),
         ),
         GoRoute(
           path: AppRoutes.syncDiagnostics,
-          builder: (context, state) => _deferred(
-            load: screen_sync_diagnostics.loadLibrary,
-            build: () => screen_sync_diagnostics.SyncDiagnosticsScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_sync_diagnostics.loadLibrary,
+              build: () => screen_sync_diagnostics.SyncDiagnosticsScreen(),
+            ),
           ),
         ),
         GoRoute(
           path: AppRoutes.reports,
-          builder: (context, state) => _deferred(
-            load: screen_reports.loadLibrary,
-            build: () => screen_reports.ReportsHubScreen(),
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_reports.loadLibrary,
+              build: () => screen_reports.ReportsHubScreen(),
+            ),
           ),
           routes: [
             GoRoute(
               path: 'pnl',
-              builder: (context, state) => _deferred(
-                load: screen_pnl.loadLibrary,
-                build: () => screen_pnl.ProfitLossScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_pnl.loadLibrary,
+                  build: () => screen_pnl.ProfitLossScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'sales',
-              builder: (context, state) => _deferred(
-                load: screen_sales_report.loadLibrary,
-                build: () => screen_sales_report.SalesReportScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_sales_report.loadLibrary,
+                  build: () => screen_sales_report.SalesReportScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'expenses',
-              builder: (context, state) => _deferred(
-                load: screen_expense_report.loadLibrary,
-                build: () => screen_expense_report.ExpenseReportScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_expense_report.loadLibrary,
+                  build: () => screen_expense_report.ExpenseReportScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'vat',
-              builder: (context, state) => _deferred(
-                load: screen_vat.loadLibrary,
-                build: () => screen_vat.VatSummaryScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_vat.loadLibrary,
+                  build: () => screen_vat.VatSummaryScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'ar-aging',
-              builder: (context, state) => _deferred(
-                load: screen_ar.loadLibrary,
-                build: () => screen_ar.ArAgingScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_ar.loadLibrary,
+                  build: () => screen_ar.ArAgingScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'ap-aging',
-              builder: (context, state) => _deferred(
-                load: screen_ap.loadLibrary,
-                build: () => screen_ap.ApAgingScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_ap.loadLibrary,
+                  build: () => screen_ap.ApAgingScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'cash-flow',
-              builder: (context, state) => _deferred(
-                load: screen_cashflow_report.loadLibrary,
-                build: () => screen_cashflow_report.CashFlowReportScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_cashflow_report.loadLibrary,
+                  build: () => screen_cashflow_report.CashFlowReportScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'balance-sheet',
-              builder: (context, state) => _deferred(
-                load: screen_balance.loadLibrary,
-                build: () => screen_balance.BalanceSheetScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_balance.loadLibrary,
+                  build: () => screen_balance.BalanceSheetScreen(),
+                ),
               ),
             ),
             GoRoute(
               path: 'inventory-valuation',
-              builder: (context, state) => _deferred(
-                load: screen_inv_val.loadLibrary,
-                build: () => screen_inv_val.InventoryValuationScreen(),
+              pageBuilder: (context, state) => _detailPage(
+                state,
+                _deferred(
+                  load: screen_inv_val.loadLibrary,
+                  build: () => screen_inv_val.InventoryValuationScreen(),
+                ),
               ),
             ),
           ],
@@ -619,22 +684,28 @@ CustomTransitionPage<void> _authPage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 380),
-    reverseTransitionDuration: const Duration(milliseconds: 280),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curved =
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      return FadeTransition(
-        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.06, 0),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    reverseTransitionDuration: AppMotion.reverse,
+    transitionsBuilder: AppMotion.sharedAxisHorizontal,
+  );
+}
+
+CustomTransitionPage<void> _primaryPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: AppMotion.quick,
+    reverseTransitionDuration: AppMotion.quick,
+    transitionsBuilder: AppMotion.fadeThrough,
+  );
+}
+
+CustomTransitionPage<void> _detailPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: AppMotion.standard,
+    reverseTransitionDuration: AppMotion.reverse,
+    transitionsBuilder: AppMotion.sharedAxisHorizontal,
   );
 }
 
@@ -683,43 +754,40 @@ Widget _deferred({
 
 @Deprecated('Use goRouterProvider instead')
 class AppRouter {
-  static const splashPath      = AppRoutes.splash;
-  static const dashboardPath   = AppRoutes.dashboard;
-  static const loginPath       = AppRoutes.login;
-  static const welcomePath     = AppRoutes.welcome;
-  static const phonePath       = AppRoutes.phone;
-  static const pinLoginPath    = AppRoutes.pinLogin;
-  static const newUserPath     = AppRoutes.newUser;
-  static const businessPath    = AppRoutes.business;
-  static const securityPath    = AppRoutes.security;
-  static const successPath     = AppRoutes.success;
+  static const splashPath = AppRoutes.splash;
+  static const dashboardPath = AppRoutes.dashboard;
+  static const loginPath = AppRoutes.login;
+  static const welcomePath = AppRoutes.welcome;
+  static const phonePath = AppRoutes.phone;
+  static const pinLoginPath = AppRoutes.pinLogin;
+  static const newUserPath = AppRoutes.newUser;
+  static const businessPath = AppRoutes.business;
+  static const securityPath = AppRoutes.security;
+  static const successPath = AppRoutes.success;
 
   // Legacy aliases kept so existing code doesn't break at compile time.
   static const languageSelectionPath = AppRoutes.welcome;
-  static const onboardingPath        = AppRoutes.welcome;
-  static const registerPath          = AppRoutes.phone;
-  static const otpPath               = AppRoutes.phone;
-  static const returningPath         = AppRoutes.pinLogin;
-  static const salesPath             = AppRoutes.sales;
-  static const inventoryPath         = AppRoutes.inventory;
-  static const crmPath               = AppRoutes.crm;
-  static const debtPath              = AppRoutes.debt;
-  static const expensesPath          = AppRoutes.expenses;
-  static const cashFlowPath          = AppRoutes.cashflow;
-  static const teamPath              = AppRoutes.team;
-  static const settingsPath          = AppRoutes.settings;
-  static const subscriptionPath      = AppRoutes.subscription;
-  static const businessesPath        = AppRoutes.businesses;
-  static const reportsPath           = AppRoutes.reports;
-  static const syncDiagnosticsPath   = AppRoutes.syncDiagnostics;
+  static const onboardingPath = AppRoutes.welcome;
+  static const registerPath = AppRoutes.phone;
+  static const otpPath = AppRoutes.phone;
+  static const returningPath = AppRoutes.pinLogin;
+  static const salesPath = AppRoutes.sales;
+  static const inventoryPath = AppRoutes.inventory;
+  static const crmPath = AppRoutes.crm;
+  static const debtPath = AppRoutes.debt;
+  static const expensesPath = AppRoutes.expenses;
+  static const cashFlowPath = AppRoutes.cashflow;
+  static const teamPath = AppRoutes.team;
+  static const settingsPath = AppRoutes.settings;
+  static const subscriptionPath = AppRoutes.subscription;
+  static const businessesPath = AppRoutes.businesses;
+  static const reportsPath = AppRoutes.reports;
+  static const syncDiagnosticsPath = AppRoutes.syncDiagnostics;
 
   static GoRouter createRouter({
     required bool showLanguageSelection,
     required bool showOnboarding,
   }) {
-    return GoRouter(
-      initialLocation: AppRoutes.splash,
-      routes: _buildRoutes(),
-    );
+    return GoRouter(initialLocation: AppRoutes.splash, routes: _buildRoutes());
   }
 }

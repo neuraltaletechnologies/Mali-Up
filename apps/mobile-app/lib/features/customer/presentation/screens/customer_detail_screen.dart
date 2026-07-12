@@ -164,17 +164,30 @@ class _Insights {
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class CustomerDetailScreen extends ConsumerStatefulWidget {
-  final Customer customer;
-
-  const CustomerDetailScreen({super.key, required this.customer});
-
-  @override
-  ConsumerState<CustomerDetailScreen> createState() =>
-      _CustomerDetailScreenState();
+/// Opens the complete customer profile as a slide-up sheet.
+///
+/// [showAppSheet] enforces the app-wide maximum height of 80% of the screen.
+Future<void> showCustomerDetailSheet(
+  BuildContext context, {
+  required Customer customer,
+}) {
+  return showAppSheet<void>(
+    context,
+    builder: (_) => _CustomerDetailSheet(customer: customer),
+  );
 }
 
-class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
+class _CustomerDetailSheet extends ConsumerStatefulWidget {
+  final Customer customer;
+
+  const _CustomerDetailSheet({required this.customer});
+
+  @override
+  ConsumerState<_CustomerDetailSheet> createState() =>
+      _CustomerDetailSheetState();
+}
+
+class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     with TickerProviderStateMixin {
   late Customer _customer;
   late TabController _tabCtrl;
@@ -418,36 +431,52 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         .firstOrNull;
     if (live != null) _customer = live;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: NestedScrollView(
-          headerSliverBuilder: (_, _) => [
-            _buildSliverAppBar(canManage: canManage, showFinancials: showFinancials),
-            SliverToBoxAdapter(child: _buildTabBar()),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SheetHandle(),
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: NestedScrollView(
+                  headerSliverBuilder: (_, _) => [
+                    _buildSliverAppBar(
+                      canManage: canManage,
+                      showFinancials: showFinancials,
+                    ),
+                    SliverToBoxAdapter(child: _buildTabBar()),
+                  ],
+                  body: TabBarView(
+                    controller: _tabCtrl,
+                    children: [
+                      _OverviewTab(
+                        customer: _customer,
+                        showFinancials: showFinancials,
+                        canEditCredit: canEditCredit,
+                        onTagsChanged: _updateTags,
+                        onCreditLimitSave: _updateCreditLimit,
+                        onCall: _callCustomer,
+                        onWhatsApp: _whatsappCustomer,
+                        onSms: _smsCustomer,
+                        onReminder: _sendReminder,
+                        onPayDebt:
+                            showFinancials ? _showPayDebtSheet : null,
+                      ),
+                      _ActivityTab(
+                        customerId: _customer.id,
+                        showFinancials: showFinancials,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
-          body: TabBarView(
-            controller: _tabCtrl,
-            children: [
-              _OverviewTab(
-                customer: _customer,
-                showFinancials: showFinancials,
-                canEditCredit: canEditCredit,
-                onTagsChanged: _updateTags,
-                onCreditLimitSave: _updateCreditLimit,
-                onCall: _callCustomer,
-                onWhatsApp: _whatsappCustomer,
-                onSms: _smsCustomer,
-                onReminder: _sendReminder,
-                onPayDebt: showFinancials ? _showPayDebtSheet : null,
-              ),
-              _ActivityTab(
-                customerId: _customer.id,
-                showFinancials: showFinancials,
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -471,10 +500,12 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     return SliverAppBar(
       expandedHeight: 112,
       pinned: true,
+      primary: false,
       backgroundColor: AppColors.navyPrimary,
       foregroundColor: Colors.white,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        icon: const Icon(Icons.close_rounded, size: 22),
+        tooltip: _tr('Close', 'Funga'),
         onPressed: () => Navigator.of(context).pop(),
       ),
       actions: [

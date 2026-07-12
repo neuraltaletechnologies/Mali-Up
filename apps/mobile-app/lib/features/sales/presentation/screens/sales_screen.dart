@@ -23,14 +23,16 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
-import '../../../finance/data/cash_flow_providers.dart';
 import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
@@ -48,31 +50,6 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum _PayStatus { paid, partial, unpaid }
-
-enum _QuickPayMethod { cash, mpesa, bank, card }
-
-extension _QuickPayMethodX on _QuickPayMethod {
-  String get label => switch (this) {
-    _QuickPayMethod.cash => _tr('Cash', 'Taslimu'),
-    _QuickPayMethod.mpesa => 'M-Pesa',
-    _QuickPayMethod.bank => _tr('Bank', 'Benki'),
-    _QuickPayMethod.card => _tr('Card', 'Kadi'),
-  };
-
-  IconData get icon => switch (this) {
-    _QuickPayMethod.cash => Icons.payments_rounded,
-    _QuickPayMethod.mpesa => Icons.phone_android_rounded,
-    _QuickPayMethod.bank => Icons.account_balance_rounded,
-    _QuickPayMethod.card => Icons.credit_card_rounded,
-  };
-
-  String get firestoreKey => switch (this) {
-    _QuickPayMethod.cash => 'cash',
-    _QuickPayMethod.mpesa => 'mpesa',
-    _QuickPayMethod.bank => 'bank_transfer',
-    _QuickPayMethod.card => 'card',
-  };
-}
 
 enum _SalesFilter { all, paid, sent, overdue, draft, cancelled }
 
@@ -300,7 +277,34 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       return;
     }
     if (!ctx.mounted) return;
-    await showAppSheet<void>(ctx, builder: (_) => const _NewSaleSheet());
+    final saleReceipt = await showAppSheet<Map<String, dynamic>>(
+      ctx,
+      maxHeightFactor: 0.92,
+      builder: (_) => const _NewSaleSheet(),
+    );
+    if (saleReceipt == null || !ctx.mounted) return;
+
+    unawaited(HapticFeedback.heavyImpact());
+    await showGeneralDialog<void>(
+      context: ctx,
+      barrierDismissible: true,
+      barrierLabel: _tr('Close receipt', 'Funga risiti'),
+      barrierColor: AppColors.navyPrimary.withValues(alpha: 0.42),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (_, _, _) =>
+          _PaperSaleReceiptNotice(saleData: saleReceipt, ref: ref),
+      transitionBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: curved, child: child),
+        );
+      },
+    );
   }
 
   @override
@@ -560,7 +564,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       b.writeln(line);
     }
 
-    final subtotal = (parseNumericAmount(sale['subtotal']) > 0
+    final subtotal =
+        (parseNumericAmount(sale['subtotal']) > 0
             ? parseNumericAmount(sale['subtotal'])
             : amount) +
         itemDiscount;
@@ -1779,6 +1784,11 @@ class _ItemEntry {
   }
 }
 
+/// Where a validation error from [_NewSaleSheetState._save] belongs, so it
+/// can render right next to the field it's actually about instead of a
+/// single message far away from what needs fixing.
+enum _ErrorField { items, customer, payment, general }
+
 class _NewSaleSheet extends ConsumerStatefulWidget {
   const _NewSaleSheet();
 
@@ -1798,11 +1808,35 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   List<Customer> _customerSuggs = [];
   bool _showCustomerSuggs = false;
   _PayStatus _payStatus = _PayStatus.paid;
-  _QuickPayMethod _payMethod = _QuickPayMethod.cash;
+  CashAccount? _selectedAccount;
   final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
+  bool _adjustmentsExpanded = false;
+  bool _detailsExpanded = false;
   bool _isSaving = false;
+  // Surfaced as an inline banner next to the field it's about, rather than
+  // a SnackBar: this sheet is pushed on the root Navigator and covers
+  // ~80-95% of the screen height, so a SnackBar from the underlying
+  // Scaffold renders behind it and is never seen by the user.
+  String? _errorMsg;
+  _ErrorField _errorField = _ErrorField.general;
+
+  /// Value written to the invoice's `paymentMethod` field. Built-in channels
+  /// keep the exact strings quick sale has always written ('bank_transfer'
+  /// for Bank, matching the historical firestoreKey); a custom account's
+  /// name is used instead so reports group by it meaningfully.
+  String get _paymentMethodValue {
+    final acc = _selectedAccount;
+    if (acc == null) return '';
+    return switch (acc.id) {
+      PaymentMethodAccounts.cashId => 'cash',
+      PaymentMethodAccounts.mpesaId => 'mpesa',
+      PaymentMethodAccounts.bankId => 'bank_transfer',
+      PaymentMethodAccounts.cardId => 'card',
+      _ => acc.name,
+    };
+  }
 
   double get _subtotal => _items.fold(0.0, (s, e) => s + e.lineTotal);
   // Discount can never exceed the subtotal — otherwise VAT (computed on the
@@ -1911,30 +1945,28 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     });
   }
 
-  /// Products sold most often in recent sales — shown as quick suggestions
-  /// before the cashier starts typing.
-  List<Map<String, dynamic>> _frequentProducts() {
+  List<Map<String, dynamic>> _recentlySoldProducts() {
     final inventory = ref.read(inventoryItemListProvider).value ?? [];
     if (inventory.isEmpty) return const [];
     final sales = ref.read(salesInvoiceListProvider).value ?? [];
+    final inventoryByName = <String, Map<String, dynamic>>{
+      for (final item in inventory)
+        (item['name'] ?? '').toString().toLowerCase(): item,
+    };
+    final recent = <Map<String, dynamic>>[];
+    final seen = <String>{};
 
-    final counts = <String, int>{};
-    for (final sale in sales.take(50)) {
+    for (final sale in sales.take(30)) {
       final items = (sale['items'] as List?) ?? const [];
-      for (final item in items.whereType<Map>()) {
-        final name = (item['name'] ?? '').toString().toLowerCase();
-        if (name.isEmpty) continue;
-        counts[name] = (counts[name] ?? 0) + 1;
+      for (final soldItem in items.whereType<Map>()) {
+        final name = (soldItem['name'] ?? '').toString().toLowerCase();
+        final inventoryItem = inventoryByName[name];
+        if (name.isEmpty || inventoryItem == null || !seen.add(name)) continue;
+        recent.add(inventoryItem);
+        if (recent.length == 3) return recent;
       }
     }
-
-    final ranked = [...inventory];
-    ranked.sort((a, b) {
-      final ca = counts[(a['name'] ?? '').toString().toLowerCase()] ?? 0;
-      final cb = counts[(b['name'] ?? '').toString().toLowerCase()] ?? 0;
-      return cb.compareTo(ca);
-    });
-    return ranked.take(4).toList();
+    return recent;
   }
 
   void _selectProduct(_ItemEntry entry, Map<String, dynamic> item) {
@@ -1988,6 +2020,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _customerCtrl.text = c.name;
       _customerSuggs = [];
       _showCustomerSuggs = false;
+      if (_errorField == _ErrorField.customer) _errorMsg = null;
     });
   }
 
@@ -2075,6 +2108,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Future<void> _save() async {
+    if (_errorMsg != null) setState(() => _errorMsg = null);
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
@@ -2118,6 +2152,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           'Please select a customer before recording a credit sale.',
           'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
         ),
+        field: _ErrorField.customer,
       );
       return;
     }
@@ -2130,7 +2165,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final t = _amtPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
       amountPaid = double.tryParse(t) ?? 0;
       if (amountPaid <= 0) {
-        _snack(_tr('Enter amount paid.', 'Ingiza kiasi kilicholipwa.'));
+        _snack(
+          _tr('Enter amount paid.', 'Ingiza kiasi kilicholipwa.'),
+          field: _ErrorField.payment,
+        );
         return;
       }
       // A "partial" payment covering the full total is simply a paid sale.
@@ -2142,17 +2180,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       amountPaid = 0;
     }
 
-    // Money received now must land in an activated payment channel —
-    // an unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money.
-    if (payStatus != _PayStatus.unpaid && amountPaid > 0) {
-      final account = await activatedAccountForMethod(
-        ref,
-        _payMethod.firestoreKey,
+    // Money received now must land in a chosen, activated payment account —
+    // PaymentAccountChips only lets an activated built-in or custom account
+    // become selected, so a null selection here just means nothing was picked.
+    if (payStatus != _PayStatus.unpaid &&
+        amountPaid > 0 &&
+        _selectedAccount == null) {
+      _snack(
+        _tr('Select a payment account', 'Chagua akaunti ya malipo'),
+        field: _ErrorField.payment,
       );
-      if (account == null) {
-        _snack(activationRequiredMessage(_payMethod.firestoreKey));
-        return;
-      }
+      return;
     }
 
     // Enforce credit limit: block the sale if the projected balance after
@@ -2169,13 +2207,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             'Credit limit exceeded. ${_selectedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
             'Kikomo cha mkopo kimezidiwa. ${_selectedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
           ),
+          field: _ErrorField.customer,
         );
         return;
       }
     }
 
     setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final now = DateTime.now();
@@ -2241,7 +2279,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         total: _grandTotal,
         amountPaid: amountPaid,
         paymentMethod: payStatus != _PayStatus.unpaid
-            ? _payMethod.firestoreKey
+            ? _paymentMethodValue
+            : '',
+        paymentAccountId: payStatus != _PayStatus.unpaid
+            ? (_selectedAccount?.id ?? '')
             : '',
         items: invoiceItems,
         note: notes,
@@ -2260,7 +2301,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
         // Stock deductions as deltas so concurrent sessions compose on push.
         for (final e in _items) {
-          if (e.selectedItem == null) continue;
+          if (e.selectedItem == null || e._isService) continue;
           final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
           if (itemId.isEmpty) continue;
           await ref
@@ -2293,14 +2334,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               );
         }
 
-        // Money received lands in the activated payment channel — Drift
-        // balance moves instantly, the queued op replays on Firestore later.
-        if (payStatus != _PayStatus.unpaid) {
-          await depositSaleIntoMethodAccount(
+        // Money received lands in the chosen account — Drift balance moves
+        // instantly, the queued op replays on Firestore later.
+        if (payStatus != _PayStatus.unpaid && _selectedAccount != null) {
+          await moveMoneyForAccount(
             ref,
-            method: _payMethod.firestoreKey,
+            accountId: _selectedAccount!.id,
             amount: amountPaid,
-            invoiceNumber: invoiceNumber,
+            isDeposit: true,
+            description: LocalizationService.tr(
+              en: 'Sale $invoiceNumber',
+              sw: 'Mauzo $invoiceNumber',
+            ),
+            reference: invoiceNumber,
             createdBy: user.uid,
           );
         }
@@ -2361,10 +2407,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         'amount': _grandTotal,
         'totalAmount': _grandTotal,
         'amountPaid': amountPaid,
-        if (payStatus != _PayStatus.unpaid)
-          'paymentMethod': _payMethod.firestoreKey,
+        if (payStatus != _PayStatus.unpaid) ...{
+          'paymentMethod': _paymentMethodValue,
+          'paymentAccountId': _selectedAccount?.id ?? '',
+        },
         if (payStatus != _PayStatus.unpaid &&
-            _payMethod == _QuickPayMethod.mpesa &&
+            _selectedAccount?.id == PaymentMethodAccounts.mpesaId &&
             mpesaRef.isNotEmpty)
           'mpesaRef': mpesaRef,
         if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
@@ -2383,7 +2431,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         childCollection: 'inventory_items',
       );
       for (final e in _items) {
-        if (e.selectedItem == null) continue;
+        if (e.selectedItem == null || e._isService) continue;
         final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
         if (itemId.isEmpty) continue;
         batch.set(inventoryRef.doc(itemId), {
@@ -2440,7 +2488,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       try {
         final db = ref.read(appDatabaseProvider);
         for (final e in _items) {
-          if (e.selectedItem == null) continue;
+          if (e.selectedItem == null || e._isService) continue;
           final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
           if (itemId.isEmpty) continue;
           await db.inventoryDao.applyCommittedDelta(itemId, -e.qty.toDouble());
@@ -2468,14 +2516,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // without waiting for the next Firestore sync pull.
       await mirrorInvoiceToDrift(ref, invoiceObj);
 
-      // Money received lands in the activated payment channel — Drift
-      // balance moves instantly, the queued op replays on Firestore later.
-      if (payStatus != _PayStatus.unpaid) {
-        await depositSaleIntoMethodAccount(
+      // Money received lands in the chosen account — Drift balance moves
+      // instantly, the queued op replays on Firestore later.
+      if (payStatus != _PayStatus.unpaid && _selectedAccount != null) {
+        await moveMoneyForAccount(
           ref,
-          method: _payMethod.firestoreKey,
+          accountId: _selectedAccount!.id,
           amount: amountPaid,
-          invoiceNumber: invoiceNumber,
+          isDeposit: true,
+          description: LocalizationService.tr(
+            en: 'Sale $invoiceNumber',
+            sw: 'Mauzo $invoiceNumber',
+          ),
+          reference: invoiceNumber,
           createdBy: scope.userUid,
         );
       }
@@ -2510,19 +2563,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
-      setState(() => _isSaving = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed to save. Try again.', 'Imeshindikana. Jaribu tena.'),
-          ),
-        ),
-      );
+      setState(() {
+        _isSaving = false;
+        _errorMsg = _tr(
+          'Failed to save. Try again.',
+          'Imeshindikana. Jaribu tena.',
+        );
+        _errorField = _ErrorField.general;
+      });
     }
   }
 
   /// Shared success tail for the online and offline quick-sale paths:
-  /// records the metric, shows the receipt popup, then closes the sheet.
+  /// records the metric and closes the sale sheet with the receipt data. The
+  /// sales screen presents the compact success notice after the sheet is gone.
   Future<void> _showQuickSaleReceipt({
     required String invoiceNumber,
     required String? customerName,
@@ -2548,79 +2602,70 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       'vatAmount': _vatAmt,
       'amount': _grandTotal,
       'amountPaid': amountPaid,
-      if (payStatus != _PayStatus.unpaid)
-        'paymentMethod': _payMethod.firestoreKey,
+      if (payStatus != _PayStatus.unpaid) 'paymentMethod': _paymentMethodValue,
       if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
       'status': statusStr,
       'createdAt': now,
     };
 
     if (!mounted) return;
-    final navigator = Navigator.of(context);
-    await Navigator.of(context, rootNavigator: true).push<void>(
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) =>
-            _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
-          child: child,
-        ),
-        transitionDuration: const Duration(milliseconds: 250),
-      ),
-    );
-    if (!mounted) return;
-    navigator.pop();
+    Navigator.of(context).pop(saleReceipt);
   }
 
-  void _snack(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg, {_ErrorField field = _ErrorField.items}) =>
+      setState(() {
+        _errorMsg = msg;
+        _errorField = field;
+      });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: size.height * 0.95),
-      child: Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            _buildHandle(),
-            _buildHeader(),
-            const Divider(height: 1, color: AppColors.border),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  16,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 32,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildItemsSection(),
-                    const SizedBox(height: 16),
-                    _buildTotalsSection(),
-                    const SizedBox(height: 16),
-                    _buildPaymentSection(),
-                    const SizedBox(height: 16),
-                    _buildCustomerSection(),
-                    if (_payStatus != _PayStatus.paid) ...[
-                      const SizedBox(height: 12),
-                      _buildDueDateRow(),
-                    ],
-                    const SizedBox(height: 16),
-                    _buildNotesField(),
-                    const SizedBox(height: 24),
-                    _buildSaveButton(),
-                  ],
-                ),
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _buildHandle(),
+          _buildHeader(),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildItemsSection(),
+                  _buildFieldError(_ErrorField.items),
+                  const SizedBox(height: 8),
+                  _buildTotalsSection(),
+                  const SizedBox(height: 16),
+                  Text(
+                    _tr('Payment', 'Malipo'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPaymentSection(),
+                  _buildFieldError(_ErrorField.payment),
+                  const SizedBox(height: 8),
+                  _buildDetailsSection(),
+                  _buildFieldError(_ErrorField.customer),
+                  _buildFieldError(_ErrorField.general),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          _buildStickyFooter(),
+        ],
       ),
     );
   }
@@ -2628,21 +2673,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildHandle() => const SheetHandle();
 
   Widget _buildHeader() {
-    final Color sc;
-    final String sl;
-    switch (_payStatus) {
-      case _PayStatus.paid:
-        sc = AppColors.success;
-        sl = _tr('Paid in Full', 'Imelipwa Kabisa');
-      case _PayStatus.partial:
-        sc = AppColors.warning;
-        sl = _tr('Half Paid', 'Nusu Imelipwa');
-      case _PayStatus.unpaid:
-        sc = AppColors.error;
-        sl = _tr('Not Paid', 'Haijaliwa');
-    }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
       child: Row(
         children: [
           Expanded(
@@ -2655,24 +2687,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               ),
             ),
           ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: sc.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              sl,
-              style: GoogleFonts.dmSans(
-                color: sc,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          IconButton(
+            onPressed: _isSaving ? null : () => Navigator.pop(context),
+            tooltip: _tr('Close', 'Funga'),
+            icon: const Icon(Icons.close_rounded, size: 20),
+            color: AppColors.textMuted,
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
+    );
+  }
+
+  /// Renders the current [_errorMsg] right where it belongs — directly under
+  /// the section it's about — or nothing if the error is for a different
+  /// field (or there is none). Keeps validation messages next to the data
+  /// that needs fixing instead of a single message far away from it.
+  Widget _buildFieldError(_ErrorField field) {
+    if (_errorField != field) return const SizedBox.shrink();
+    return ValidationBanner(
+      message: _errorMsg,
+      onDismiss: () => setState(() => _errorMsg = null),
     );
   }
 
@@ -2746,6 +2781,157 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         ),
         if (_showCustomerSuggs) _buildCustomerSuggestions(),
       ],
+    );
+  }
+
+  Widget _buildDetailsSection() {
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
+    final showDetails = _detailsExpanded || needsCustomer;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: needsCustomer
+              ? AppColors.warning.withValues(alpha: 0.45)
+              : AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _detailsExpanded = !showDetails),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 19,
+                    color: needsCustomer
+                        ? AppColors.warning
+                        : AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _tr('Customer & details', 'Mteja na maelezo'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          needsCustomer
+                              ? _tr('Required', 'Lazima')
+                              : _tr('Optional', 'Hiari'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: needsCustomer
+                                ? AppColors.warning
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    showDetails
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Column(
+                children: [
+                  const Divider(height: 1, color: AppColors.borderLight),
+                  const SizedBox(height: 12),
+                  _buildCustomerSection(),
+                  if (_payStatus != _PayStatus.paid) ...[
+                    const SizedBox(height: 12),
+                    _buildDueDateRow(),
+                  ],
+                  const SizedBox(height: 12),
+                  _buildNotesField(),
+                ],
+              ),
+            ),
+            crossFadeState: showDetails
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStickyFooter() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        MediaQuery.paddingOf(context).bottom + 8,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x120D1B3E),
+            blurRadius: 18,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Total', 'Jumla'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'TSh ${_grandTotal.toStringAsFixed(0)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 10),
+          SizedBox(width: 176, child: _buildSaveButton()),
+        ],
+      ),
     );
   }
 
@@ -2862,11 +3048,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         Row(
           children: [
             Text(
-              _tr('Items', 'Bidhaa'),
+              _tr('Products', 'Bidhaa'),
               style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
               ),
             ),
             const Spacer(),
@@ -2908,7 +3094,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
             SizedBox(width: 8),
             Text(
-              '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
+              '${_items.length} ${_tr("item", "bidhaa")}${_items.length != 1 ? "s" : ""}',
               style: GoogleFonts.dmSans(
                 fontSize: 11,
                 color: AppColors.textMuted,
@@ -2916,16 +3102,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         for (var i = 0; i < _items.length; i++) ...[
           _buildItemRow(i),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
         ],
         InkWell(
           onTap: _addItem,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
             decoration: BoxDecoration(
               color: AppColors.navyPrimary.withValues(alpha: 0.06),
               border: Border.all(
@@ -2943,7 +3129,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  _tr('Add Item', 'Ongeza Bidhaaa'),
+                  _tr('Add Item', 'Ongeza Bidhaa'),
                   style: GoogleFonts.dmSans(
                     color: AppColors.navyPrimary,
                     fontWeight: FontWeight.w700,
@@ -2961,22 +3147,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildItemRow(int index) {
     final entry = _items[index];
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: entry.isOutOfStock
               ? AppColors.error.withValues(alpha: 0.4)
               : AppColors.border,
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 6,
-            offset: Offset(0, 1),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2984,7 +3163,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           Row(
             children: [
               Text(
-                '${_tr("Item", "Bidhaaa")} ${index + 1}',
+                '${_tr("Item", "Bidhaa")} ${index + 1}',
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -3003,14 +3182,14 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           TextField(
             controller: entry.nameCtrl,
             autofocus: index == 0 && _items.length == 1,
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
             decoration: _fieldDec(
-              label: _tr('Product name', 'Jina la bidhaaa'),
+              label: _tr('Product name', 'Jina la bidhaa'),
               prefix: Icons.inventory_2_outlined,
               suffix: entry.selectedItem != null
                   ? const Icon(
@@ -3043,53 +3222,58 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           if (entry.showSuggs) _buildProductSuggestions(index),
-          // Quick suggestions: frequently sold products, one tap to add.
           if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
             Builder(
               builder: (_) {
-                final frequent = _frequentProducts();
-                if (frequent.isEmpty) return const SizedBox.shrink();
+                final recent = _recentlySoldProducts();
+                if (recent.isEmpty) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: frequent.map((item) {
-                      final name = (item['name'] ?? '').toString();
-                      return GestureDetector(
-                        onTap: () => _selectProduct(entry, item),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.border),
-                          ),
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    children: [
+                      Text(
+                        _tr('Recent', 'Hivi karibuni'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.history_rounded,
-                                size: 12,
-                                color: AppColors.textMuted,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                name,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
+                            children: recent.map((item) {
+                              final name = (item['name'] ?? '').toString();
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  side: const BorderSide(
+                                    color: AppColors.border,
+                                  ),
+                                  backgroundColor: AppColors.surface,
+                                  label: Text(
+                                    name,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  onPressed: () => _selectProduct(entry, item),
                                 ),
-                              ),
-                            ],
+                              );
+                            }).toList(),
                           ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -3502,115 +3686,123 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildTotalsSection() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 6,
-            offset: Offset(0, 1),
-          ),
-        ],
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Column(
               children: [
                 _TotalRow(
-                  label: _tr('Subtotal', 'Jumla Bidhaaa'),
+                  label: _tr('Subtotal', 'Jumla ya bidhaa'),
                   value: 'TSh ${_subtotal.toStringAsFixed(0)}',
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _discountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () => setState(
+                    () => _adjustmentsExpanded = !_adjustmentsExpanded,
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  onChanged: (_) => setState(() {}),
-                  decoration: _fieldDec(
-                    label: _tr(
-                      'Discount (TSh, optional)',
-                      'Punguzo (TSh, hiari)',
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tune_rounded,
+                          size: 17,
+                          color: _adjustmentsExpanded
+                              ? AppColors.tealAccent
+                              : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _tr('Discount & VAT', 'Punguzo na kodi'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _tr('Optional', 'Hiari'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _adjustmentsExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: AppColors.textMuted,
+                        ),
+                      ],
                     ),
-                    prefix: Icons.discount_outlined,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.receipt_long_rounded,
-                      size: 16,
-                      color: AppColors.tealAccent,
+                if (_adjustmentsExpanded) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _discountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                    decoration: _fieldDec(
+                      label: _tr(
+                        'Discount (TSh, optional)',
+                        'Punguzo (TSh, hiari)',
+                      ),
+                      prefix: Icons.discount_outlined,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 16,
+                        color: AppColors.tealAccent,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                    Switch.adaptive(
-                      value: _vatEnabled,
-                      onChanged: (v) => setState(() => _vatEnabled = v),
-                      activeThumbColor: AppColors.tealAccent,
-                      activeTrackColor: AppColors.tealAccent.withValues(
-                        alpha: 0.4,
+                      Switch.adaptive(
+                        value: _vatEnabled,
+                        onChanged: (v) => setState(() => _vatEnabled = v),
+                        activeThumbColor: AppColors.tealAccent,
+                        activeTrackColor: AppColors.tealAccent.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
+                    ],
+                  ),
+                  if (_vatEnabled) ...[
+                    const SizedBox(height: 4),
+                    _TotalRow(
+                      label: 'VAT (18%)',
+                      value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
                     ),
                   ],
-                ),
-                if (_vatEnabled) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(
-                    label: 'VAT (18%)',
-                    value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
-                  ),
                 ],
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-          // Grand total — pulled out as its own banded row so the number a
-          // cashier actually needs to read is unmissable at a glance.
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _tr('TOTAL', 'JUMLA KUU'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white70,
-                    letterSpacing: 1,
-                  ),
-                ),
-                Text(
-                  'TSh ${_grandTotal.toStringAsFixed(0)}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
               ],
             ),
           ),
@@ -3619,23 +3811,21 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
+  void _setPayStatus(_PayStatus status) {
+    setState(() {
+      _payStatus = status;
+      if (status != _PayStatus.paid) _detailsExpanded = true;
+    });
+  }
+
   Widget _buildPaymentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _tr('Payment Status', 'Hali ya Malipo'),
-          style: GoogleFonts.dmSans(
-            fontSize: 12,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
           padding: const EdgeInsets.all(4),
@@ -3646,7 +3836,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.check_circle_outline_rounded,
                 active: _payStatus == _PayStatus.paid,
                 activeColor: AppColors.success,
-                onTap: () => setState(() => _payStatus = _PayStatus.paid),
+                onTap: () => _setPayStatus(_PayStatus.paid),
               ),
               const SizedBox(width: 4),
               _PayBtn(
@@ -3654,21 +3844,21 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.timelapse_rounded,
                 active: _payStatus == _PayStatus.partial,
                 activeColor: AppColors.warning,
-                onTap: () => setState(() => _payStatus = _PayStatus.partial),
+                onTap: () => _setPayStatus(_PayStatus.partial),
               ),
               const SizedBox(width: 4),
               _PayBtn(
-                label: _tr('Unpaid', 'Haijaliwa'),
+                label: _tr('Unpaid', 'Haijalipwa'),
                 icon: Icons.cancel_outlined,
                 active: _payStatus == _PayStatus.unpaid,
                 activeColor: AppColors.error,
-                onTap: () => setState(() => _payStatus = _PayStatus.unpaid),
+                onTap: () => _setPayStatus(_PayStatus.unpaid),
               ),
             ],
           ),
         ),
         if (_payStatus != _PayStatus.unpaid) ...[
-          SizedBox(height: 12),
+          SizedBox(height: 8),
           Text(
             _tr('Payment Method', 'Njia ya Malipo'),
             style: GoogleFonts.dmSans(
@@ -3677,75 +3867,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: _QuickPayMethod.values.map((m) {
-              final active = m == _payMethod;
-              final activated = ref
-                  .watch(activatedMethodAccountsProvider)
-                  .containsKey(
-                    PaymentMethodAccounts.accountIdForMethod(m.firestoreKey),
-                  );
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!activated) {
-                        _snack(activationRequiredMessage(m.firestoreKey));
-                        return;
-                      }
-                      setState(() => _payMethod = m);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? AppColors.navyPrimary
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: active
-                              ? AppColors.navyPrimary
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            activated ? m.icon : Icons.lock_outline,
-                            size: 16,
-                            color: active
-                                ? Colors.white
-                                : activated
-                                ? AppColors.textMuted
-                                : AppColors.textDisabled,
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            m.label,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: active
-                                  ? Colors.white
-                                  : activated
-                                  ? AppColors.textMuted
-                                  : AppColors.textDisabled,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          const SizedBox(height: 6),
+          PaymentAccountChips(
+            selectedAccountId: _selectedAccount?.id,
+            onSelectAccount: (account) => setState(() {
+              _selectedAccount = account;
+              if (_errorField == _ErrorField.payment) _errorMsg = null;
+            }),
+            onActivationRequired: (message) =>
+                _snack(message, field: _ErrorField.payment),
           ),
-          if (_payMethod == _QuickPayMethod.mpesa) ...[
+          if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
             const SizedBox(height: 10),
             TextField(
               controller: _mpesaRefCtrl,
@@ -3868,7 +4000,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     }
 
     return SizedBox(
-      height: 52,
+      height: 48,
       child: ElevatedButton(
         onPressed: isDisabled ? null : _save,
         style: ElevatedButton.styleFrom(
@@ -3922,7 +4054,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
     ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
   );
 }
 
@@ -4032,7 +4164,9 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final _categoryCtrl = TextEditingController();
   final _skuCtrl = TextEditingController();
   String _selectedUnit = 'pcs';
+  bool _isService = false;
   bool _isSaving = false;
+  String? _errorMsg;
 
   final List<String> _units = [
     'pcs',
@@ -4066,27 +4200,26 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final price =
         double.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0;
-    final stock = int.tryParse(_stockCtrl.text.trim()) ?? 1;
+    final stock = _isService ? 0 : int.tryParse(_stockCtrl.text.trim()) ?? 1;
     final category = _categoryCtrl.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Enter product name', 'Ingiza jina la bidhaaa')),
-        ),
+      setState(
+        () => _errorMsg = _tr('Enter product name', 'Ingiza jina la bidhaaa'),
       );
       return;
     }
     if (price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Enter a valid price', 'Ingiza bei sahihi')),
-        ),
+      setState(
+        () => _errorMsg = _tr('Enter a valid price', 'Ingiza bei sahihi'),
       );
       return;
     }
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _errorMsg = null;
+    });
     final navigator = Navigator.of(context);
 
     try {
@@ -4103,8 +4236,9 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               category: category.isNotEmpty ? category : 'General',
               sku: _skuCtrl.text.trim(),
               currentStock: stock.toDouble(),
-              reorderPoint: 5,
+              reorderPoint: _isService ? 0 : 5,
               unitPrice: price,
+              productType: _isService ? 'service' : 'stock',
               unit: _selectedUnit,
               createdAt: nowIso,
               updatedAt: nowIso,
@@ -4118,19 +4252,19 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         'unitPrice': price,
         'category': category.isNotEmpty ? category : 'General',
         'currentStock': stock,
+        'productType': _isService ? 'service' : 'stock',
         'unit': _selectedUnit,
       });
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed to add product', 'Imeshindikana kuongeza bidhaaa'),
-          ),
-        ),
-      );
+      setState(() {
+        _isSaving = false;
+        _errorMsg = _tr(
+          'Failed to add product',
+          'Imeshindikana kuongeza bidhaaa',
+        );
+      });
     }
   }
 
@@ -4155,18 +4289,51 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
             children: [
               SheetHandle(),
               Text(
-                _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
+                _tr(
+                  _isService ? 'Add New Service' : 'Add New Product',
+                  _isService ? 'Ongeza Huduma Mpya' : 'Ongeza Bidhaa Mpya',
+                ),
                 style: GoogleFonts.dmSans(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.secondary,
                 ),
               ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _typeButton(
+                      label: _tr('Product', 'Bidhaa'),
+                      icon: Icons.inventory_2_outlined,
+                      selected: !_isService,
+                      onTap: () => setState(() => _isService = false),
+                    ),
+                    _typeButton(
+                      label: _tr('Service', 'Huduma'),
+                      icon: Icons.design_services_outlined,
+                      selected: _isService,
+                      onTap: () => setState(() => _isService = true),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 20),
               _field(
                 ctrl: _nameCtrl,
-                label: _tr('Product Name *', 'Jina la Bidhaaa *'),
-                icon: Icons.inventory_2_outlined,
+                label: _tr(
+                  _isService ? 'Service Name *' : 'Product Name *',
+                  _isService ? 'Jina la Huduma *' : 'Jina la Bidhaa *',
+                ),
+                icon: _isService
+                    ? Icons.design_services_outlined
+                    : Icons.inventory_2_outlined,
                 caps: TextCapitalization.words,
               ),
               const SizedBox(height: 14),
@@ -4186,16 +4353,18 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _field(
-                      ctrl: _stockCtrl,
-                      label: _tr('Stock', 'Stoku'),
-                      icon: Icons.inventory_outlined,
-                      keyboard: TextInputType.number,
-                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                  if (!_isService) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _field(
+                        ctrl: _stockCtrl,
+                        label: _tr('Stock', 'Stoku'),
+                        icon: Icons.inventory_outlined,
+                        keyboard: TextInputType.number,
+                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 14),
@@ -4255,6 +4424,11 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                 icon: Icons.tag_outlined,
                 caps: TextCapitalization.characters,
               ),
+              ValidationBanner(
+                message: _errorMsg,
+                onDismiss: () => setState(() => _errorMsg = null),
+                margin: const EdgeInsets.only(top: 16),
+              ),
               SizedBox(height: 24),
               SizedBox(
                 height: 52,
@@ -4281,7 +4455,14 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                           ),
                         )
                       : Text(
-                          _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
+                          _tr(
+                            _isService
+                                ? 'Add Service to Sale'
+                                : 'Add Product to Sale',
+                            _isService
+                                ? 'Ongeza Huduma kwenye Mauzo'
+                                : 'Ongeza Bidhaa kwenye Mauzo',
+                          ),
                           style: GoogleFonts.dmSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -4295,6 +4476,45 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       ),
     );
   }
+
+  Widget _typeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? Colors.white : AppColors.textMuted,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _field({
     required TextEditingController ctrl,
@@ -5346,6 +5566,715 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
 }
 
 // ── Ticket-style receipt card with perforated edge ────────────────────────────
+
+class _PaperSaleReceiptNotice extends _SaleSuccessNotice {
+  const _PaperSaleReceiptNotice({required super.saleData, required super.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    const paperColor = Color(0xFFFFFEF7);
+    final amount = parseNumericAmount(saleData['amount']);
+    final amountPaid = parseNumericAmount(saleData['amountPaid']);
+    final subtotal = parseNumericAmount(saleData['subtotal']);
+    final discount = parseNumericAmount(saleData['discountAmount']);
+    final vat = parseNumericAmount(saleData['vatAmount']);
+    final outstanding = (amount - amountPaid).clamp(0.0, amount);
+    final invoiceNo = (saleData['invoiceNumber'] ?? '').toString();
+    final rawCustomer = (saleData['customerName'] ?? '').toString().trim();
+    final customer = rawCustomer.isEmpty
+        ? _tr('Walk-in customer', 'Mteja wa kawaida')
+        : rawCustomer;
+    final status = (saleData['status'] ?? 'paid').toString();
+    final statusLabel = switch (status) {
+      'paid' => _tr('PAID', 'IMELIPWA'),
+      'partial' => _tr('PART PAID', 'SEHEMU'),
+      'unpaid' => _tr('CREDIT', 'MKOPO'),
+      _ => _tr('SAVED', 'IMEHIFADHIWA'),
+    };
+    final items = (saleData['items'] as List?)?.whereType<Map>().toList() ?? [];
+    final createdAt = saleData['createdAt'] as DateTime? ?? DateTime.now();
+    final date =
+        '${createdAt.day.toString().padLeft(2, '0')}/'
+        '${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}  '
+        '${createdAt.hour.toString().padLeft(2, '0')}:'
+        '${createdAt.minute.toString().padLeft(2, '0')}';
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 370,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+            ),
+            child: PhysicalShape(
+              clipper: const _ReceiptPaperClipper(),
+              color: paperColor,
+              elevation: 20,
+              shadowColor: AppColors.navyPrimary.withValues(alpha: 0.35),
+              clipBehavior: Clip.antiAlias,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(width: 40),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.navyPrimary,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.check_rounded,
+                                  color: AppColors.navyPrimary,
+                                  size: 25,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'MALI UP',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                  letterSpacing: 2.2,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _tr('SALE RECEIPT', 'RISITI YA MAUZO'),
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            tooltip: _tr('Close', 'Funga'),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 21,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 17),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 13),
+                    _ReceiptMetaRow(
+                      label: _tr('RECEIPT', 'RISITI'),
+                      value: invoiceNo,
+                    ),
+                    const SizedBox(height: 5),
+                    _ReceiptMetaRow(label: _tr('DATE', 'TAREHE'), value: date),
+                    const SizedBox(height: 5),
+                    _ReceiptMetaRow(
+                      label: _tr('CUSTOMER', 'MTEJA'),
+                      value: customer,
+                    ),
+                    const SizedBox(height: 13),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _tr('ITEM', 'BIDHAA'),
+                            style: _receiptLabelStyle(),
+                          ),
+                        ),
+                        Text(
+                          _tr('AMOUNT', 'KIASI'),
+                          style: _receiptLabelStyle(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    for (final item in items) ...[
+                      _ReceiptItemRow(item: item),
+                      const SizedBox(height: 9),
+                    ],
+                    if (items.isEmpty)
+                      Text(
+                        _tr('Sale item', 'Bidhaa ya mauzo'),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    const SizedBox(height: 3),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 12),
+                    if (subtotal > 0)
+                      _ReceiptAmountRow(
+                        label: _tr('Subtotal', 'Jumla ndogo'),
+                        amount: subtotal,
+                      ),
+                    if (discount > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(
+                        label: _tr('Discount', 'Punguzo'),
+                        amount: -discount,
+                      ),
+                    ],
+                    if (vat > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(label: 'VAT', amount: vat),
+                    ],
+                    const SizedBox(height: 10),
+                    _ReceiptAmountRow(
+                      label: _tr('TOTAL', 'JUMLA KUU'),
+                      amount: amount,
+                      prominent: true,
+                    ),
+                    const SizedBox(height: 7),
+                    _ReceiptAmountRow(
+                      label: _tr('Paid', 'Imelipwa'),
+                      amount: amountPaid,
+                    ),
+                    if (outstanding > 0) ...[
+                      const SizedBox(height: 5),
+                      _ReceiptAmountRow(
+                        label: _tr('Balance due', 'Baki'),
+                        amount: outstanding,
+                        valueColor: AppColors.error,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.navyPrimary),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      _tr(
+                        'Thank you for your business!',
+                        'Asante kwa kufanya biashara nasi!',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const _PerforatedLine(),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                _SalesScreenState._openReceiptActions(
+                                  context: context,
+                                  sale: saleData,
+                                  ref: ref,
+                                ),
+                            icon: const Icon(Icons.share_rounded, size: 16),
+                            label: Text(_tr('Share', 'Shiriki')),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.navyPrimary,
+                              side: const BorderSide(
+                                color: AppColors.navyPrimary,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            child: Text(_tr('Done', 'Maliza')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static TextStyle _receiptLabelStyle() => GoogleFonts.jetBrainsMono(
+    fontSize: 9,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textMuted,
+    letterSpacing: 0.8,
+  );
+}
+
+class _ReceiptMetaRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReceiptMetaRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 76,
+          child: Text(
+            label,
+            style: _PaperSaleReceiptNotice._receiptLabelStyle(),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptItemRow extends StatelessWidget {
+  final Map item;
+
+  const _ReceiptItemRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (item['name'] ?? item['productName'] ?? '-').toString();
+    final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+    final unitPrice = parseNumericAmount(item['unitPrice']);
+    final storedTotal = parseNumericAmount(item['total'] ?? item['lineTotal']);
+    final total = storedTotal > 0 ? storedTotal : unitPrice * qty;
+    final qtyText = qty == qty.roundToDouble()
+        ? qty.toInt().toString()
+        : qty.toStringAsFixed(1);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                '$qtyText × TSh ${_sNum(unitPrice)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'TSh ${_sNum(total)}',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptAmountRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final bool prominent;
+  final Color? valueColor;
+
+  const _ReceiptAmountRow({
+    required this.label,
+    required this.amount,
+    this.prominent = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final prefix = amount < 0 ? '-' : '';
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: prominent ? 13 : 10.5,
+              fontWeight: prominent ? FontWeight.w800 : FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        Text(
+          '${prefix}TSh ${_sNum(amount.abs())}',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: prominent ? 15 : 11,
+            fontWeight: prominent ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceiptPaperClipper extends CustomClipper<Path> {
+  const _ReceiptPaperClipper();
+
+  @override
+  Path getClip(Size size) {
+    const toothWidth = 12.0;
+    const toothDepth = 7.0;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height - toothDepth);
+    var x = size.width;
+    var down = false;
+    while (x > 0) {
+      x = (x - toothWidth / 2).clamp(0, size.width);
+      path.lineTo(x, down ? size.height - toothDepth : size.height);
+      down = !down;
+    }
+    return path
+      ..lineTo(0, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _SaleSuccessNotice extends StatelessWidget {
+  final Map<String, dynamic> saleData;
+  final WidgetRef ref;
+
+  const _SaleSuccessNotice({required this.saleData, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = parseNumericAmount(saleData['amount']);
+    final amountPaid = parseNumericAmount(saleData['amountPaid']);
+    final outstanding = (amount - amountPaid).clamp(0.0, amount);
+    final invoiceNo = (saleData['invoiceNumber'] ?? '').toString();
+    final rawCustomer = (saleData['customerName'] ?? '').toString().trim();
+    final customerName = rawCustomer.isEmpty
+        ? _tr('Walk-in', 'Mteja wa kawaida')
+        : rawCustomer;
+    final status = (saleData['status'] ?? 'paid').toString();
+    final items = (saleData['items'] as List?)?.whereType<Map>().toList() ?? [];
+    final itemCount = items.fold<int>(
+      0,
+      (total, item) =>
+          total +
+          parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1).round(),
+    );
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Center(
+          child: Material(
+            color: Colors.white,
+            elevation: 18,
+            shadowColor: AppColors.navyPrimary.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(24),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 390),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(22, 20, 12, 19),
+                      color: AppColors.navyPrimary,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: const BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 27,
+                            ),
+                          ),
+                          const SizedBox(width: 13),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _tr('Sale successful', 'Mauzo yamefanikiwa'),
+                                  style: GoogleFonts.dmSans(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'TSh ${_sNum(amount)}',
+                                  style: GoogleFonts.dmSans(
+                                    color: Colors.white,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            tooltip: _tr('Close', 'Funga'),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _SuccessNoticeDetail(
+                                  label: _tr('Invoice', 'Ankara'),
+                                  value: invoiceNo,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _SuccessNoticeDetail(
+                                  label: _tr('Customer', 'Mteja'),
+                                  value: customerName,
+                                  alignEnd: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          const Divider(height: 1, color: AppColors.border),
+                          const SizedBox(height: 13),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 19,
+                                color: AppColors.tealAccent,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _tr(
+                                    '$itemCount item${itemCount == 1 ? '' : 's'} sold',
+                                    'Bidhaa $itemCount ${itemCount == 1 ? 'imeuzwa' : 'zimeuzwa'}',
+                                  ),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              _SuccessStatusBadge(status),
+                            ],
+                          ),
+                          if (outstanding > 0) ...[
+                            const SizedBox(height: 12),
+                            _SuccessTotalRow(
+                              label: _tr('Balance Due', 'Baki'),
+                              value: 'TSh ${_sNum(outstanding)}',
+                              valueColor: AppColors.error,
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _SalesScreenState._openReceiptActions(
+                                        context: context,
+                                        sale: saleData,
+                                        ref: ref,
+                                      ),
+                                  icon: const Icon(
+                                    Icons.share_rounded,
+                                    size: 17,
+                                  ),
+                                  label: Text(_tr('Receipt', 'Risiti')),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.tealAccent,
+                                    side: const BorderSide(
+                                      color: AppColors.tealAccent,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(13),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: AppColors.navyPrimary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(13),
+                                    ),
+                                  ),
+                                  child: Text(_tr('Done', 'Maliza')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuccessNoticeDetail extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool alignEnd;
+
+  const _SuccessNoticeDetail({
+    required this.label,
+    required this.value,
+    this.alignEnd = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.navyPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _TicketReceiptCard extends StatelessWidget {
   final String invoiceNo;

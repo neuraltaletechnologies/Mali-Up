@@ -10,6 +10,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
@@ -38,6 +39,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   String _reason = '';
   bool _restockAll = true;
   bool _saving = false;
+  String? _errorMsg;
   _ResolutionType _resolution = _ResolutionType.refundCash;
   // Exchange: product picked from inventory search
   String _exchangeProductId   = '';
@@ -108,7 +110,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
     // + balances) — online-only for now.
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _errorMsg = null;
+    });
 
     try {
       final scope = await resolveSalesScope(ref);
@@ -275,60 +280,83 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    setState(() => _errorMsg = msg);
   }
 
   // ── UI ────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.navyPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _tr('Sales Return', 'Kurudisha Bidhaaa'),
-          style: GoogleFonts.dmSans(
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-              color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 22),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: FadeTransition(
+    final invoiceNumber =
+        (widget.originalInvoice['invoiceNumber'] ??
+                widget.originalInvoice['id'] ??
+                '')
+            .toString();
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      clipBehavior: Clip.antiAlias,
+      child: FadeTransition(
         opacity: _fadeAnim,
         child: Column(
           children: [
+            const SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _tr('Return products', 'Rudisha bidhaa'),
+                          style: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                        if (invoiceNumber.isNotEmpty)
+                          Text(
+                            invoiceNumber,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    color: AppColors.textMuted,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _saving ? null : () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  12,
+                  16,
+                  MediaQuery.viewInsetsOf(context).bottom + 16,
+                ),
                 children: [
-                    _InvoiceSummaryCard(
-                      invoice: widget.originalInvoice),
-                  const SizedBox(height: 16),
                   _SectionHeader(
-                    _tr('Select Items to Return',
-                        'Chagua Bidhaaa za Kurudisha')),
-                  const SizedBox(height: 8),
+                    _tr('Products', 'Bidhaa'),
+                  ),
+                  const SizedBox(height: 6),
                   if (_lines.isEmpty)
                     _EmptyItems()
                   else
                     ..._lines.asMap().entries.map((e) {
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: _ReturnItemCard(
                           line: e.value,
                           onToggle: (v) =>
@@ -338,12 +366,12 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                         ),
                       );
                     }),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
                   _RestockToggle(
                     value: _restockAll,
                     onChanged: (v) => setState(() => _restockAll = v),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   _ResolutionPicker(
                     value: _resolution,
                     onChanged: (v) => setState(() => _resolution = v),
@@ -361,14 +389,18 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                       }),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   _ReasonField(
                     controller: _reasonCtrl,
                     onChanged: (v) => _reason = v,
                   ),
-                  const SizedBox(height: 16),
-                  if (_hasSelection) _CreditSummary(amount: _creditAmount),
-                  const SizedBox(height: 80),
+                  if (_errorMsg != null) ...[
+                    const SizedBox(height: 8),
+                    ValidationBanner(
+                      message: _errorMsg,
+                      onDismiss: () => setState(() => _errorMsg = null),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -425,233 +457,6 @@ class _ReturnLine {
 // ─────────────────────────────────────────────────────────────────────────────
 // Widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _InvoiceSummaryCard extends StatelessWidget {
-  final Map<String, dynamic> invoice;
-
-  const _InvoiceSummaryCard({required this.invoice});
-
-  @override
-  Widget build(BuildContext context) {
-    final number = invoice['invoiceNumber']?.toString() ??
-        invoice['id']?.toString() ?? '—';
-    final customer =
-        invoice['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-    final total = parseNumericAmount(invoice['totalAmount']);
-    final status = invoice['status']?.toString().toLowerCase() ?? 'posted';
-    final itemCount = invoice['lineItems'] is List
-        ? (invoice['lineItems'] as List).length
-        : 0;
-    final invoiceDate = _readInvoiceDate(invoice['invoiceDate']) ??
-        _readInvoiceDate(invoice['createdAt']);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          number,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary,
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _tr('ORIG', 'ASILI'),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      customer,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusChip(status: status),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMeta(
-                  label: _tr('Date', 'Tarehe'),
-                  value: invoiceDate == null ? '-' : _fmt(invoiceDate),
-                  icon: Icons.calendar_today_rounded,
-                ),
-              ),
-              Expanded(
-                child: _SummaryMeta(
-                  label: _tr('Items', 'Bidhaa'),
-                  value: '$itemCount',
-                  icon: Icons.inventory_2_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.border),
-          SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                'TZS ${_fmtNum(total)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Spacer(),
-              Text(
-                _tr('Source invoice', 'Ankara chanzo'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String status;
-
-  const _StatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final normalized = status.toLowerCase();
-    final isPaid = normalized == 'paid';
-    final isCancelled = normalized == 'cancelled';
-    final isDraft = normalized == 'draft';
-    final color = isPaid
-        ? AppColors.success
-        : isCancelled
-            ? AppColors.error
-            : isDraft
-                ? AppColors.warning
-                : AppColors.tealAccent;
-    final label = isPaid
-        ? _tr('Paid', 'Imelipwa')
-        : isCancelled
-            ? _tr('Cancelled', 'Imefutwa')
-            : isDraft
-                ? _tr('Draft', 'Rasimu')
-                : _tr('Posted', 'Imechapishwa');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.dmSans(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
-          letterSpacing: 0.2,
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryMeta extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _SummaryMeta({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 11, color: AppColors.textMuted),
-            SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 10,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 3),
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   final String text;
@@ -720,13 +525,13 @@ class _ReturnItemCard extends StatelessWidget {
                   top: Radius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                    horizontal: 10, vertical: 8),
                 child: Row(
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         color: line.selected
                             ? AppColors.navyPrimary
@@ -744,12 +549,12 @@ class _ReturnItemCard extends StatelessWidget {
                               size: 14, color: Colors.white)
                           : null,
                     ),
-                    SizedBox(width: 12),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         line.productName,
                         style: GoogleFonts.dmSans(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary),
                       ),
@@ -768,12 +573,12 @@ class _ReturnItemCard extends StatelessWidget {
               Divider(height: 1, color: AppColors.border),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                    horizontal: 10, vertical: 6),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
-                        _tr('Return quantity:', 'Idadi ya kurudisha:'),
+                        _tr('Quantity', 'Idadi'),
                         style: GoogleFonts.dmSans(
                             fontSize: 13,
                             color: AppColors.textSecondary),
@@ -784,7 +589,7 @@ class _ReturnItemCard extends StatelessWidget {
                       max: line.originalQty,
                       onChanged: onQtyChange,
                     ),
-                    SizedBox(width: 16),
+                    SizedBox(width: 10),
                     Text(
                       'TZS ${_fmtNum(line.returnTotal)}',
                       style: GoogleFonts.jetBrainsMono(
@@ -886,36 +691,17 @@ class _RestockToggle extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.tealAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: const Icon(Icons.inventory_rounded,
-                size: 18, color: AppColors.tealAccent),
-          ),
-          SizedBox(width: 12),
+          const Icon(Icons.inventory_2_outlined,
+              size: 18, color: AppColors.tealAccent),
+          SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Add back to inventory', 'Ongeza tena kwenye hifadhi'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  _tr('Restores stock for returned items',
-                      'Inarudisha bidhaa kwa bidhaaa zilizorudishwa'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12, color: AppColors.textMuted),
-                ),
-              ],
+            child: Text(
+              _tr('Return to inventory', 'Rudisha kwenye stoo'),
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
           Switch.adaptive(
@@ -960,7 +746,7 @@ class _ReasonField extends StatelessWidget {
           child: TextField(
             controller: controller,
             onChanged: onChanged,
-            maxLines: 3,
+            maxLines: 2,
             decoration: InputDecoration(
               hintText: _tr(
                   'e.g. Damaged goods, wrong item delivered, customer changed mind…',
@@ -968,65 +754,12 @@ class _ReasonField extends StatelessWidget {
               hintStyle: GoogleFonts.dmSans(
                   fontSize: 13, color: AppColors.textMuted),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(14),
+              contentPadding: const EdgeInsets.all(10),
             ),
             style: GoogleFonts.dmSans(fontSize: 14),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CreditSummary extends StatelessWidget {
-  final double amount;
-
-  const _CreditSummary({required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.error.withValues(alpha: 0.08),
-            AppColors.error.withValues(alpha: 0.04),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          const Icon(Icons.credit_score_rounded,
-              color: AppColors.error, size: 22),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Credit Note Value', 'Thamani ya Nota ya Mkopo'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12, color: AppColors.error),
-                ),
-                Text(
-                  _tr('Customer will be credited this amount',
-                      'Mteja atapewa mkopo wa kiasi hiki'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'TZS ${_fmtNum(amount)}',
-            style: GoogleFonts.dmSerifDisplay(
-                fontSize: 20, color: AppColors.error),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1048,7 +781,7 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+          16, 8, 16, MediaQuery.of(context).padding.bottom + 8),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.border)),
@@ -1085,7 +818,7 @@ class _BottomBar extends StatelessWidget {
                     fontSize: 13, color: AppColors.textMuted),
               ),
             ),
-          SizedBox(width: 12),
+          SizedBox(width: 10),
           FilledButton.icon(
             onPressed: (saving || !hasSelection) ? null : onSave,
             icon: saving
@@ -1104,7 +837,7 @@ class _BottomBar extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
               padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 14),
+                  horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -1126,20 +859,6 @@ String _fmtNum(double v) {
     buf.write(s[i]);
   }
   return buf.toString();
-}
-
-DateTime? _readInvoiceDate(dynamic value) {
-  if (value is Timestamp) return value.toDate();
-  if (value is DateTime) return value;
-  if (value is String) return DateTime.tryParse(value);
-  return null;
-}
-
-String _fmt(DateTime date) {
-  final d = date.day.toString().padLeft(2, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final y = date.year.toString();
-  return '$d/$m/$y';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1164,7 +883,7 @@ class _ResolutionPicker extends StatelessWidget {
             color: AppColors.textSecondary, letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(child: _ResolutionOption(
@@ -1206,7 +925,7 @@ class _ResolutionOption extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           color: selected ? AppColors.tealAccent : Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -1215,10 +934,11 @@ class _ResolutionOption extends StatelessWidget {
             width: selected ? 1.5 : 1,
           ),
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 20, color: selected ? Colors.white : AppColors.textMuted),
-            SizedBox(height: 4),
+            SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.dmSans(

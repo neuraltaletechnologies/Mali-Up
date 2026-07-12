@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -1036,6 +1037,9 @@ class _ManageBusinessesScreenState
           selectedBusinessId: resolvedId,
         );
       }
+
+      // Let the dashboard Hero card (and any other cached views) know to refresh.
+      BusinessProfileService.notifyUpdated();
 
       return true;
     } on FirebaseException catch (e) {

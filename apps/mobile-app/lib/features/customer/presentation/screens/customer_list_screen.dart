@@ -2033,11 +2033,13 @@ class _CustomerInfoSheet extends ConsumerWidget {
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        final rootNavigator =
+                            Navigator.of(context, rootNavigator: true);
                         Navigator.of(context).pop();
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              CustomerDetailScreen(customer: live),
-                        ));
+                        showCustomerDetailSheet(
+                          rootNavigator.context,
+                          customer: live,
+                        );
                       },
                       icon: Icon(Icons.person_rounded, size: 18),
                       label: Text(

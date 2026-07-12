@@ -43,6 +43,7 @@ class AppColors {
   static const Color errorBg   = Color(0xFFFEE2E2);
   static const Color warning   = Color(0xFFD97706);
   static const Color warningBg = Color(0xFFFEF3C7);
+  static const Color warningText = Color(0xFF92400E);
   static const Color info      = tealAccent;
   static const Color infoBg    = Color(0xFFE0F2FE);
 

@@ -12,6 +12,7 @@ class DebtPaymentsTable extends Table {
   TextColumn get method => text().withDefault(const Constant('cash'))();
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get recordedBy => text().withDefault(const Constant(''))();
+  TextColumn get accountId => text().withDefault(const Constant(''))();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();

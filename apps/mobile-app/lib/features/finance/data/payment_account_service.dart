@@ -81,3 +81,39 @@ Future<void> depositSaleIntoMethodAccount(
     unawaited(Sentry.captureException(e, stackTrace: st));
   }
 }
+
+/// Moves money into or out of a specific cash account — the generic sibling
+/// of [depositSaleIntoMethodAccount] for callers that already hold a
+/// concrete [CashAccount] (picked via a payment-account chooser) instead of
+/// a fixed method string, e.g. custom accounts, expenses, and debt
+/// repayments. Same best-effort contract: never throws, reports to Sentry.
+Future<void> moveMoneyForAccount(
+  WidgetRef ref, {
+  required String accountId,
+  required double amount,
+  required bool isDeposit,
+  required String description,
+  String reference = '',
+  String createdBy = '',
+}) async {
+  if (amount <= 0 || accountId.isEmpty) return;
+  try {
+    final today = DateTime.now();
+    final dateStr = '${today.year}'
+        '-${today.month.toString().padLeft(2, '0')}'
+        '-${today.day.toString().padLeft(2, '0')}';
+    await ref.read(cashRepositoryProvider).addTransaction(CashTransaction(
+          id: '',
+          type: isDeposit ? 'deposit' : 'withdrawal',
+          amount: amount,
+          toAccountId: isDeposit ? accountId : '',
+          fromAccountId: isDeposit ? '' : accountId,
+          description: description,
+          date: dateStr,
+          reference: reference,
+          createdBy: createdBy,
+        ));
+  } catch (e, st) {
+    unawaited(Sentry.captureException(e, stackTrace: st));
+  }
+}

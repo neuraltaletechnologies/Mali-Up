@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
 import 'add_expense_screen.dart';
@@ -233,7 +234,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   }
 
   void _openEdit() async {
-    final result = await Navigator.of(context).push(MaterialPageRoute(
+    final result = await Navigator.of(context).push(AppMotion.taskRoute(
       builder: (_) => AddExpenseScreen(expenseToEdit: _expense),
     ));
     if (result != null && mounted) Navigator.of(context).pop(result);

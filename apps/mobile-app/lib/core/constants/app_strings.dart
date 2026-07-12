@@ -151,7 +151,7 @@ class AppStrings {
   static const String goodAfternoonSw = 'Habari za mchana';
   static const String goodEveningSw = 'Habari za jioni';
   static const String goodNightSw = 'Usiku mwema';
-  static const String goodMidnightSw = 'Usiku wa manane mwema';
+  static const String goodMidnightSw = 'Usiku mwema';
 
   static const String businessToday = "Here's what's happening in your business today";
   static const String businessTodaySw = 'Haya ndiyo yanayoendelea kwenye biashara yako leo';

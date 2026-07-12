@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +16,7 @@ import '../../core/services/plan_service.dart';
 import '../../core/services/version_gate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_motion.dart';
 import '../../config/routing.dart';
 import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
@@ -45,6 +45,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   final _planActivationWatcher = _PlanActivationWatcher();
   String _currentBusinessName = '';
   late final VoidCallback _versionGateListener;
+  // slotPosition (0..2) -> catalog key of the screen assigned to that nav
+  // slot. Empty until loaded from SharedPreferences; missing entries fall
+  // back to _defaultSlotOrder.
+  Map<int, String> _navSlotOverrides = {};
 
   @override
   void initState() {
@@ -65,6 +69,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (mounted) setState(() {});
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+    _loadNavSlotOverrides();
     _liveActivity.initialize();
     // The version-gate fetch kicked off in main.dart may still be in flight
     // when this shell first mounts, so listen for the result as well as
@@ -73,13 +78,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (mounted) _maybeShowUpdateBanner();
     };
     VersionGateService.statusNotifier.addListener(_versionGateListener);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowUpdateBanner());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowUpdateBanner(),
+    );
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
     VersionGateService.statusNotifier.removeListener(_versionGateListener);
+    _removeNavPickOverlay();
+    _navPickHighlightIndex.dispose();
     _liveActivity.dispose();
     super.dispose();
   }
@@ -314,7 +323,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _switchingDialogOpen = true;
     final label = businessName == null
         ? _tr('Switching business…', 'Inabadilisha biashara…')
-        : _tr('Switching to $businessName…', 'Inabadilisha kwenda $businessName…');
+        : _tr(
+            'Switching to $businessName…',
+            'Inabadilisha kwenda $businessName…',
+          );
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -426,34 +438,30 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     TeamMember? member,
     PlanStatus? planStatus,
   }) async {
+    final reduceMotion = AppMotion.reduceMotion(context);
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: _tr('Close navigation menu', 'Funga menyu ya urambazaji'),
       barrierColor: AppColors.overlay,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: reduceMotion ? Duration.zero : AppMotion.quick,
       transitionBuilder: (context, animation, secondaryAnimation, child) {
+        if (reduceMotion) return child;
         final curved = CurvedAnimation(
           parent: animation,
-          curve: Curves.easeOutCubic,
+          curve: AppMotion.enterCurve,
+          reverseCurve: AppMotion.exitCurve,
         );
         final fade = Tween<double>(begin: 0, end: 1).animate(curved);
-        return BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 10 * fade.value,
-            sigmaY: 10 * fade.value,
-          ),
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(-1, 0),
-              end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(opacity: fade, child: child),
-          ),
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(-0.12, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: fade, child: child),
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final isDashboard = _isSelected(location, AppRouter.dashboardPath);
         return Align(
           alignment: Alignment.centerLeft,
           child: SafeArea(
@@ -463,12 +471,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 topRight: Radius.circular(24),
                 bottomRight: Radius.circular(24),
               ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: RepaintBoundary(
                 child: Container(
                   width: MediaQuery.of(dialogContext).size.width * 0.82,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.94),
+                    color: Colors.white.withValues(alpha: 0.98),
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
@@ -516,7 +523,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                           color: Colors.white.withValues(
                                             alpha: 0.16,
                                           ),
-                                          width: 1,
                                         ),
                                       ),
                                       child: Center(
@@ -589,8 +595,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                     icon: Icons.stars_rounded,
                                     label: planStatus != null
                                         ? (_isSwahili
-                                            ? planStatus.tierLabelSw
-                                            : planStatus.tierLabel)
+                                              ? planStatus.tierLabelSw
+                                              : planStatus.tierLabel)
                                         : _tr('Starter', 'Bure'),
                                   )
                                 else if (member != null)
@@ -608,33 +614,52 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                           children: [
+                            _DrawerItemLight(
+                              icon: Icons.dashboard_rounded,
+                              iconColor: AppColors.secondary,
+                              label: _tr('Dashboard', 'Dashibodi'),
+                              semanticsLabel: _tr(
+                                'Dashboard',
+                                'Dashibodi, muhtasari wa biashara',
+                              ),
+                              selected: _isSelected(
+                                location,
+                                AppRouter.dashboardPath,
+                              ),
+                              onTap: () => _closeNavigationPanelThenNavigate(
+                                dialogContext,
+                                context,
+                                AppRouter.dashboardPath,
+                              ),
+                            ),
                             if (ps.canViewSales ||
                                 ps.canViewInventory ||
                                 ps.canViewCustomers)
-                            if (ps.canViewSales)
-                              _DrawerItemLight(
-                                icon: Icons.receipt_long_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('Tuma ankara', 'Tuma ankara'),
-                                semanticsLabel: _tr(
-                                  'Sales and invoices',
-                                  'Tuma ankara, mauzo na ankara',
+                              if (ps.canViewSales)
+                                _DrawerItemLight(
+                                  icon: Icons.receipt_long_rounded,
+                                  iconColor: AppColors.secondary,
+                                  label: _tr('Sales', 'Tuma ankara'),
+                                  semanticsLabel: _tr(
+                                    'Sales and invoices',
+                                    'Tuma ankara, mauzo na ankara',
+                                  ),
+                                  selected: _isSelected(
+                                    location,
+                                    AppRouter.salesPath,
+                                  ),
+                                  onTap: () =>
+                                      _closeNavigationPanelThenNavigate(
+                                        dialogContext,
+                                        context,
+                                        AppRouter.salesPath,
+                                      ),
                                 ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.salesPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.salesPath,
-                                ),
-                              ),
                             if (ps.canViewInventory)
                               _DrawerItemLight(
                                 icon: Icons.inventory_2_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
+                                label: _tr('My Stock', 'Bidhaa zangu'),
                                 semanticsLabel: _tr(
                                   'My stock and inventory',
                                   'Bidhaa zangu, usimamizi wa bidhaaa',
@@ -653,7 +678,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.people_alt_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Wateja wangu', 'Wateja wangu'),
+                                label: _tr('My Customers', 'Wateja wangu'),
                                 semanticsLabel: _tr(
                                   'My customers',
                                   'Wateja wangu, usimamizi wa wateja',
@@ -679,7 +704,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.account_balance_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Madeni', 'Madeni'),
+                                label: _tr('Debts', 'Madeni'),
                                 semanticsLabel: _tr(
                                   'Debt tracking',
                                   'Madeni, ufuatiliaji wa madeni',
@@ -698,7 +723,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.payments_outlined,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Gharama zangu', 'Gharama zangu'),
+                                label: _tr('My Expenses', 'Gharama zangu'),
                                 semanticsLabel: _tr(
                                   'My expenses',
                                   'Gharama zangu, usimamizi wa matumizi',
@@ -717,10 +742,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.account_balance_wallet_outlined,
                                 iconColor: AppColors.secondary,
-                                label: _tr(
-                                  'Mtiririko wa Fedha',
-                                  'Mtiririko wa Fedha',
-                                ),
+                                label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
                                 semanticsLabel: _tr(
                                   'Cash flow and accounts',
                                   'Mtiririko wa fedha na akaunti',
@@ -740,7 +762,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 icon: Icons.bar_chart_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr(
-                                  'Ripoti za Fedha',
+                                  'Financial Reports',
                                   'Ripoti za Fedha',
                                 ),
                                 semanticsLabel: _tr(
@@ -786,7 +808,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 icon: Icons.storefront_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr(
-                                  'Simamia Biashara',
+                                  'Manage Businesses',
                                   'Simamia Biashara',
                                 ),
                                 semanticsLabel: _tr(
@@ -806,7 +828,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.settings_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Mipangilio', 'Mipangilio'),
+                                label: _tr('Settings', 'Mipangilio'),
                                 semanticsLabel: _tr(
                                   'App settings',
                                   'Mipangilio ya programu',
@@ -846,16 +868,18 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     return index >= 0 ? index : 0;
   }
 
-  List<_NavDestination> _buildNavDestinations(PermissionService ps) {
+  static const _homeKey = 'home';
+  // Default occupants of the 3 customizable slots, in order, before the
+  // user long-presses to swap any of them out.
+  static const _defaultSlotOrder = ['sales', 'inventory', 'customers'];
+
+  /// Every screen the current role is allowed to see, available to be
+  /// assigned to a nav slot. Order here is the order shown in the picker.
+  List<_NavDestination> _fullNavCatalog(PermissionService ps) {
     return [
-      _NavDestination(
-        route: AppRouter.dashboardPath,
-        label: _tr('Home', 'Nyumbani'),
-        icon: Icons.grid_view_outlined,
-        activeIcon: Icons.grid_view_rounded,
-      ),
       if (ps.canViewSales)
         _NavDestination(
+          key: 'sales',
           route: AppRouter.salesPath,
           label: _tr('Invoices', 'Ankara'),
           icon: Icons.receipt_outlined,
@@ -863,6 +887,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ),
       if (ps.canViewInventory)
         _NavDestination(
+          key: 'inventory',
           route: AppRouter.inventoryPath,
           label: _tr('Stock', 'Bidhaa'),
           icon: Icons.inventory_2_outlined,
@@ -870,12 +895,331 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ),
       if (ps.canViewCustomers)
         _NavDestination(
+          key: 'customers',
           route: AppRouter.crmPath,
           label: _tr('Clients', 'Wateja'),
           icon: Icons.people_outline_rounded,
           activeIcon: Icons.people_rounded,
         ),
+      if (ps.canViewDebt)
+        _NavDestination(
+          key: 'debt',
+          route: AppRouter.debtPath,
+          label: _tr('Debt', 'Madeni'),
+          icon: Icons.account_balance_outlined,
+          activeIcon: Icons.account_balance_rounded,
+        ),
+      if (ps.canManageExpenses)
+        _NavDestination(
+          key: 'expenses',
+          route: AppRouter.expensesPath,
+          label: _tr('Expenses', 'Gharama'),
+          icon: Icons.payments_outlined,
+          activeIcon: Icons.payments_rounded,
+        ),
+      if (ps.canViewCashFlow)
+        _NavDestination(
+          key: 'cashflow',
+          route: AppRouter.cashFlowPath,
+          label: _tr('Cash Flow', 'Mtiririko'),
+          icon: Icons.account_balance_wallet_outlined,
+          activeIcon: Icons.account_balance_wallet_rounded,
+        ),
+      if (ps.canViewFinancialReports)
+        _NavDestination(
+          key: 'reports',
+          route: AppRouter.reportsPath,
+          label: _tr('Reports', 'Ripoti'),
+          icon: Icons.bar_chart_outlined,
+          activeIcon: Icons.bar_chart_rounded,
+        ),
     ];
+  }
+
+  List<_NavDestination> _buildNavDestinations(PermissionService ps) {
+    final catalog = _fullNavCatalog(ps);
+    final catalogByKey = {for (final d in catalog) d.key: d};
+
+    final slots = <_NavDestination>[];
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      final overrideKey = _navSlotOverrides[i];
+      final resolvedKey =
+          (overrideKey != null && catalogByKey.containsKey(overrideKey))
+          ? overrideKey
+          : _defaultSlotOrder[i];
+      final entry = catalogByKey[resolvedKey];
+      // Skip if the resolved screen isn't permitted, or is already used by
+      // an earlier slot (guards against a stale override colliding with a
+      // freshly-granted default).
+      if (entry == null || slots.any((s) => s.key == entry.key)) continue;
+      slots.add(entry.withSlotPosition(i));
+    }
+
+    return [
+      _NavDestination(
+        key: _homeKey,
+        route: AppRouter.dashboardPath,
+        label: _tr('Home', 'Nyumbani'),
+        icon: Icons.grid_view_outlined,
+        activeIcon: Icons.grid_view_rounded,
+      ),
+      ...slots,
+    ];
+  }
+
+  Future<void> _loadNavSlotOverrides() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loaded = <int, String>{};
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      final value = prefs.getString('nav_slot_override_$i');
+      if (value != null) loaded[i] = value;
+    }
+    if (!mounted) return;
+    setState(() => _navSlotOverrides = loaded);
+  }
+
+  /// Assigns [newKey] to [slotPosition]. If [newKey] already occupies a
+  /// different slot, the two slots swap so no icon is ever duplicated.
+  Future<void> _assignNavSlot(int slotPosition, String newKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final updated = Map<int, String>.from(_navSlotOverrides);
+
+    String keyAt(int i) =>
+        updated[i] ??
+        (i < _defaultSlotOrder.length ? _defaultSlotOrder[i] : '');
+    final currentKeyAtSlot = keyAt(slotPosition);
+
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      if (i == slotPosition) continue;
+      if (keyAt(i) == newKey) {
+        updated[i] = currentKeyAtSlot;
+        await prefs.setString('nav_slot_override_$i', currentKeyAtSlot);
+      }
+    }
+    updated[slotPosition] = newKey;
+    await prefs.setString('nav_slot_override_$slotPosition', newKey);
+
+    if (!mounted) return;
+    setState(() => _navSlotOverrides = updated);
+  }
+
+  // ── Hold-and-drag nav slot picker ───────────────────────────────────────
+  // Long-press a customizable icon, then without lifting the finger drag
+  // upward through a strip of alternate screens that fans up from it
+  // (dragging sideways or releasing without moving up cancels — same idea
+  // as a slide-to-cancel voice-note recorder). One continuous gesture, no
+  // second tap, no sheet.
+  static const double _navPickItemHeight = 46;
+  static const double _navPickStripWidth = 76;
+  static const double _navPickCancelDx = 56;
+  static const double _navPickCircleSize = 28;
+  static const double _navPickCircleSizeSelected = 34;
+  // How far the finger must drag up past the origin before the nearest
+  // (index 0) option starts highlighting, so the strip clears the held
+  // icon and its label first.
+  static const double _navPickOriginClearance = 20;
+  // One per customizable slot — pins the picker overlay to that exact
+  // icon's on-screen position via CompositedTransformFollower, which is
+  // immune to the manual-coordinate-math bugs an absolute Y calculation
+  // is prone to (SafeArea, extendBody, status bar, etc.).
+  final List<LayerLink> _navSlotLayerLinks = List.generate(
+    3,
+    (_) => LayerLink(),
+  );
+
+  List<_NavDestination> _navPickCatalog = [];
+  int? _navPickSlotPosition;
+  String? _navPickCurrentKey;
+  double _navPickOriginX = 0;
+  double _navPickOriginY = 0;
+  OverlayEntry? _navPickOverlayEntry;
+  bool _navPickWasCancelled = false;
+  final ValueNotifier<int> _navPickHighlightIndex = ValueNotifier<int>(-1);
+
+  void _startNavPick(
+    BuildContext context,
+    PermissionService ps,
+    _NavDestination destination,
+    Offset globalPosition,
+  ) {
+    final slotPosition = destination.slotPosition;
+    if (slotPosition == null) return;
+    // Only offer screens that are not already visible in the bottom bar.
+    // This keeps the picker short and prevents the current/other slot icons
+    // from being presented as if they were new choices.
+    final occupiedKeys = _buildNavDestinations(ps).map((d) => d.key).toSet();
+    final catalog = _fullNavCatalog(
+      ps,
+    ).where((candidate) => !occupiedKeys.contains(candidate.key)).toList();
+    if (catalog.isEmpty) return;
+    HapticFeedback.mediumImpact();
+
+    _navPickCatalog = catalog;
+    _navPickSlotPosition = slotPosition;
+    _navPickCurrentKey = destination.key;
+    _navPickOriginX = globalPosition.dx;
+    _navPickOriginY = globalPosition.dy;
+    _navPickWasCancelled = false;
+    _navPickHighlightIndex.value = -1;
+
+    _navPickOverlayEntry = OverlayEntry(builder: _buildNavPickOverlay);
+    Overlay.of(context, rootOverlay: true).insert(_navPickOverlayEntry!);
+  }
+
+  void _updateNavPick(Offset globalPosition) {
+    if (_navPickOverlayEntry == null || _navPickSlotPosition == null) return;
+    final dx = (globalPosition.dx - _navPickOriginX).abs();
+    // How far up the finger has dragged relative to where the long-press
+    // started — self-contained, so it can't be thrown off by whatever
+    // coordinate space globalPosition happens to be reported in.
+    final draggedUp = _navPickOriginY - globalPosition.dy;
+    // Crossing the horizontal threshold cancels the whole gesture. Moving
+    // back over the strip must not accidentally assign a destination.
+    if (dx > _navPickCancelDx) {
+      _navPickWasCancelled = true;
+    }
+    var nextIndex = -1;
+    if (!_navPickWasCancelled && draggedUp > _navPickOriginClearance) {
+      final distanceIntoStrip = draggedUp - _navPickOriginClearance;
+      nextIndex = (distanceIntoStrip / _navPickItemHeight).floor().clamp(
+        0,
+        _navPickCatalog.length - 1,
+      );
+    }
+    if (nextIndex != _navPickHighlightIndex.value) {
+      // Entering an option gets a tick; cancelling or returning to the dead
+      // zone stays quiet.
+      if (nextIndex >= 0) HapticFeedback.selectionClick();
+      _navPickHighlightIndex.value = nextIndex;
+    }
+  }
+
+  void _endNavPick() {
+    final slotPosition = _navPickSlotPosition;
+    final index = _navPickHighlightIndex.value;
+    final catalog = _navPickCatalog;
+    final currentKey = _navPickCurrentKey;
+    final wasCancelled = _navPickWasCancelled;
+    _removeNavPickOverlay();
+    if (wasCancelled ||
+        slotPosition == null ||
+        index < 0 ||
+        index >= catalog.length) {
+      return;
+    }
+    final chosen = catalog[index];
+    if (chosen.key == currentKey) return;
+    _assignNavSlot(slotPosition, chosen.key);
+  }
+
+  void _cancelNavPick() => _removeNavPickOverlay();
+
+  void _removeNavPickOverlay() {
+    _navPickOverlayEntry?.remove();
+    _navPickOverlayEntry = null;
+    _navPickSlotPosition = null;
+    _navPickCatalog = [];
+    _navPickWasCancelled = false;
+  }
+
+  // Transparent overlay: only the floating destination icons and labels are
+  // painted above the held navbar slot; there is no strip or page scrim.
+  Widget _buildNavPickOverlay(BuildContext overlayContext) {
+    final slotPosition = _navPickSlotPosition;
+    if (slotPosition == null) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: CompositedTransformFollower(
+          link: _navSlotLayerLinks[slotPosition],
+          targetAnchor: Alignment.topCenter,
+          followerAnchor: Alignment.bottomCenter,
+          offset: const Offset(0, -14),
+          showWhenUnlinked: false,
+          child: SizedBox(
+            width: _navPickStripWidth,
+            child: ValueListenableBuilder<int>(
+              valueListenable: _navPickHighlightIndex,
+              builder: (_, highlighted, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                // Rendered top-to-bottom in the strip, but index 0 (the
+                // catalog entry nearest the held icon) is the *last* child so
+                // it sits at the bottom, nearest the finger's starting point.
+                children: List.generate(_navPickCatalog.length, (i) {
+                  final catalogIndex = _navPickCatalog.length - 1 - i;
+                  final destination = _navPickCatalog[catalogIndex];
+                  final isSelected = catalogIndex == highlighted;
+                  final isCurrent = destination.key == _navPickCurrentKey;
+                  final circleSize = isSelected
+                      ? _navPickCircleSizeSelected
+                      : _navPickCircleSize;
+                  return SizedBox(
+                    height: _navPickItemHeight,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          curve: Curves.easeOut,
+                          width: circleSize,
+                          height: circleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected
+                                ? AppColors.yellowBrand
+                                : AppColors.navyPrimary,
+                            border: isCurrent
+                                ? Border.all(color: Colors.white, width: 2)
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.28),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            destination.activeIcon,
+                            size: isSelected ? 18 : 14,
+                            color: isSelected
+                                ? AppColors.navyPrimary
+                                : Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 140),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 9,
+                            height: 1,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.tealAccent
+                                : Colors.white,
+                            shadows: const [
+                              Shadow(color: Colors.black54, blurRadius: 6),
+                            ],
+                          ),
+                          child: Text(
+                            destination.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   static bool _isSelected(String location, String route) {
@@ -967,7 +1311,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       final status = next.valueOrNull;
       if (status == null) return;
       _planActivationWatcher.checkAndUpdate(status.tier).then((previousTier) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         // No baseline yet (first load on this device) — just seed it.
         if (previousTier == null) return;
         // Only celebrate genuine upgrades, not no-ops or expiry downgrades.
@@ -1113,17 +1457,36 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           ),
                         ],
                       ),
-                      clipBehavior: Clip.none,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: List.generate(destinations.length, (index) {
                           final destination = destinations[index];
                           final isSelected = index == currentIndex;
+                          final isCustomizable =
+                              destination.slotPosition != null;
                           return _buildBottomNavItem(
                             context,
                             destination,
                             isSelected,
                             index,
+                            onLongPressStart: !isCustomizable
+                                ? null
+                                : (details) => _startNavPick(
+                                    context,
+                                    ps,
+                                    destination,
+                                    details.globalPosition,
+                                  ),
+                            onLongPressMoveUpdate: !isCustomizable
+                                ? null
+                                : (details) =>
+                                      _updateNavPick(details.globalPosition),
+                            onLongPressEnd: !isCustomizable
+                                ? null
+                                : (_) => _endNavPick(),
+                            onLongPressCancel: !isCustomizable
+                                ? null
+                                : _cancelNavPick,
                           );
                         }),
                       ),
@@ -1142,10 +1505,19 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     BuildContext context,
     _NavDestination destination,
     bool isSelected,
-    int index,
-  ) {
-    return GestureDetector(
+    int index, {
+    GestureLongPressStartCallback? onLongPressStart,
+    GestureLongPressMoveUpdateCallback? onLongPressMoveUpdate,
+    GestureLongPressEndCallback? onLongPressEnd,
+    VoidCallback? onLongPressCancel,
+  }) {
+    final reduceMotion = AppMotion.reduceMotion(context);
+    final navItem = GestureDetector(
       onTap: () => context.go(destination.route),
+      onLongPressStart: onLongPressStart,
+      onLongPressMoveUpdate: onLongPressMoveUpdate,
+      onLongPressEnd: onLongPressEnd,
+      onLongPressCancel: onLongPressCancel,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 64,
@@ -1157,9 +1529,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
+                  duration: reduceMotion ? Duration.zero : AppMotion.quick,
+                  transitionBuilder: (child, animation) => reduceMotion
+                      ? child
+                      : ScaleTransition(scale: animation, child: child),
                   child: Icon(
                     isSelected ? destination.activeIcon : destination.icon,
                     key: ValueKey<bool>(isSelected),
@@ -1169,7 +1542,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 ),
                 const SizedBox(height: 3),
                 AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
+                  duration: reduceMotion ? Duration.zero : AppMotion.quick,
                   style: GoogleFonts.dmSans(
                     color: isSelected ? AppColors.yellowBrand : Colors.white54,
                     fontSize: 10,
@@ -1211,6 +1584,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           ],
         ),
       ),
+    );
+
+    final slotPosition = destination.slotPosition;
+    if (slotPosition == null) return navItem;
+    return CompositedTransformTarget(
+      link: _navSlotLayerLinks[slotPosition],
+      child: navItem,
     );
   }
 }
@@ -1262,17 +1642,32 @@ class _PlanActivationWatcher {
 }
 
 class _NavDestination {
+  final String key;
   final String route;
   final String label;
   final IconData icon;
   final IconData activeIcon;
+  // Which of the 3 customizable nav slots this occupies; null for Home,
+  // which is fixed and not long-press-editable.
+  final int? slotPosition;
 
   const _NavDestination({
+    required this.key,
     required this.route,
     required this.label,
     required this.icon,
     required this.activeIcon,
+    this.slotPosition,
   });
+
+  _NavDestination withSlotPosition(int position) => _NavDestination(
+    key: key,
+    route: route,
+    label: label,
+    icon: icon,
+    activeIcon: activeIcon,
+    slotPosition: position,
+  );
 }
 
 class _FinanceContextSwitcher extends StatelessWidget {
@@ -1355,7 +1750,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
@@ -1481,9 +1876,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
                   size: 16,
                   color: AppColors.primary,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 130),
+                  constraints: const BoxConstraints(maxWidth: 130),
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
@@ -1560,7 +1955,7 @@ class _HeaderTag extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.85)),
-          SizedBox(width: 5),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.dmSans(
@@ -1653,7 +2048,7 @@ class _DrawerItemLight extends StatelessWidget {
                       color: selected ? Colors.white : AppColors.secondary,
                     ),
                   ),
-                  SizedBox(width: 13),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Text(
                       label,
@@ -1696,7 +2091,7 @@ class _DrawerSectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
       child: Row(
         children: [
-          Expanded(child: Divider(height: 1, color: AppColors.border)),
+          const Expanded(child: Divider(height: 1, color: AppColors.border)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(

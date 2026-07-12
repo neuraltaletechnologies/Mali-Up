@@ -19,14 +19,13 @@ import '../../domain/payment_method_accounts.dart';
 import '../widgets/activate_account_sheet.dart';
 import '../widgets/add_account_dialog.dart';
 import '../widgets/add_transaction_dialog.dart';
+import '../widgets/delete_account_dialog.dart';
 import 'account_detail_screen.dart';
 import 'cash_flow_statement_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 final _numFmt = NumberFormat('#,###', 'en_US');
-String _fmtAmt(double v) =>
-    '${v < 0 ? '-' : ''}TZS ${_numFmt.format(v.abs())}';
 String _fmtCompact(double v) {
   final sign = v < 0 ? '-' : '';
   final a = v.abs();
@@ -69,10 +68,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                _OverviewTab(),
-                _StatementTab(),
-              ],
+              children: const [_OverviewTab(), _StatementTab()],
             ),
           ),
         ],
@@ -97,7 +93,8 @@ class _CashFlowDarkHeader extends ConsumerWidget {
     final outflow = ref.watch(monthlyOutflowProvider);
     final month = ref.watch(cfMonthProvider);
     final monthNotifier = ref.read(cfMonthProvider.notifier);
-    final isCurrentMonth = month.year == DateTime.now().year &&
+    final isCurrentMonth =
+        month.year == DateTime.now().year &&
         month.month == DateTime.now().month;
 
     Future<void> onAddAccount() async {
@@ -131,7 +128,12 @@ class _CashFlowDarkHeader extends ConsumerWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            _pillHalf + 16,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -154,17 +156,21 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                     color: Colors.white12,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.chevron_left_rounded,
-                      color: Colors.white70, size: 20),
+                  child: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               Text(
                 DateFormat.yMMM().format(month),
                 style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white70),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
+                ),
               ),
               const SizedBox(width: 6),
               GestureDetector(
@@ -176,10 +182,11 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                     color: Colors.white12,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.chevron_right_rounded,
-                      color:
-                          isCurrentMonth ? Colors.white24 : Colors.white70,
-                      size: 20),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isCurrentMonth ? Colors.white24 : Colors.white70,
+                    size: 20,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -266,9 +273,13 @@ class _CashFlowTabBar extends StatelessWidget {
           TabBar(
             controller: tabController,
             labelStyle: GoogleFonts.dmSans(
-                fontSize: 13, fontWeight: FontWeight.w700),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
             unselectedLabelStyle: GoogleFonts.dmSans(
-                fontSize: 13, fontWeight: FontWeight.w500),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
             labelColor: AppColors.navyPrimary,
             unselectedLabelColor: AppColors.textMuted,
             indicatorColor: AppColors.navyPrimary,
@@ -338,34 +349,81 @@ class _PillDivider extends StatelessWidget {
 
 // ── FAB ───────────────────────────────────────────────────────────────────────
 
-class _CashFlowFab extends ConsumerWidget {
+class _CashFlowFab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CashFlowFab> createState() => _CashFlowFabState();
+}
+
+class _CashFlowFabState extends ConsumerState<_CashFlowFab> {
+  bool _isOpening = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Start resolving the plan as soon as the page is shown. Previously this
+    // subscription only started after the tap, so the first tap could appear
+    // to do nothing while Firestore (and its offline timeout) was consulted.
+    final planAsync = ref.watch(planStatusProvider);
+
     Future<void> onTap() async {
-      final plan = await ref.read(planStatusProvider.future);
-      if (!context.mounted) return;
-      if (!plan.limits.cashFlow) {
-        await showUpgradeSheet(
+      if (_isOpening) return;
+      setState(() => _isOpening = true);
+
+      try {
+        final plan =
+            planAsync.valueOrNull ?? await ref.read(planStatusProvider.future);
+        if (!context.mounted) return;
+        if (plan == null) {
+          throw StateError('Plan status completed without a value');
+        }
+        if (!plan.limits.cashFlow) {
+          await showUpgradeSheet(
+            context,
+            currentStatus: plan,
+            featureKey: PlanFeatureKey.cashFlow,
+            triggerReason: _tr(
+              'Required a Growth or Business plan.',
+              'Unahitaji mpango wa Growth au Business.',
+            ),
+          );
+          return;
+        }
+        if (!context.mounted) return;
+        await showAppSheet<void>(
           context,
-          currentStatus: plan,
-          featureKey: PlanFeatureKey.cashFlow,
-          triggerReason: _tr(
-            'Required a Growth or Business plan.',
-            'unahitaji mpango wa Growth au Business.',
-          ),
+          builder: (_) => const AddTransactionDialog(),
         );
-        return;
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _tr(
+                  'Could not check your plan. Please try again.',
+                  'Imeshindikana kuangalia mpango wako. Jaribu tena.',
+                ),
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isOpening = false);
       }
-      if (!context.mounted) return;
-      await showAppSheet(context, builder: (_) => const AddTransactionDialog());
     }
 
     return FloatingActionButton.extended(
-      onPressed: onTap,
+      onPressed: _isOpening ? null : onTap,
       backgroundColor: AppColors.yellowBrand,
       foregroundColor: AppColors.navyPrimary,
       elevation: 3,
-      icon: Icon(Icons.swap_horiz_rounded, size: 20),
+      icon: _isOpening
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: AppColors.navyPrimary,
+              ),
+            )
+          : const Icon(Icons.swap_horiz_rounded, size: 20),
       label: Text(
         _tr('Add Transaction', 'Ongeza Muamala'),
         style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -408,8 +466,9 @@ class _OverviewTab extends ConsumerWidget {
                 // prompts. Custom accounts follow.
                 final byId = {for (final a in accounts) a.id: a};
                 final custom = accounts
-                    .where((a) =>
-                        !PaymentMethodAccounts.isMethodAccountId(a.id))
+                    .where(
+                      (a) => !PaymentMethodAccounts.isMethodAccountId(a.id),
+                    )
                     .toList();
                 final specs = PaymentMethodAccounts.specs;
 
@@ -442,8 +501,7 @@ class _OverviewTab extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              AccountDetailScreen(account: account),
+                          builder: (_) => AccountDetailScreen(account: account),
                         ),
                       ),
                     );
@@ -456,10 +514,14 @@ class _OverviewTab extends ConsumerWidget {
               ),
               error: (_, _) => Center(
                 child: Text(
-                  _tr('Unable to load accounts.',
-                      'Imeshindikana kupakia akaunti.'),
+                  _tr(
+                    'Unable to load accounts.',
+                    'Imeshindikana kupakia akaunti.',
+                  ),
                   style: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.textMuted),
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
             ),
@@ -483,7 +545,9 @@ class _OverviewTab extends ConsumerWidget {
             EmptyState(
               icon: Icons.swap_horiz_rounded,
               title: _tr(
-                  'No transactions this month', 'Hakuna miamala mwezi huu'),
+                'No transactions this month',
+                'Hakuna miamala mwezi huu',
+              ),
               subtitle: _tr(
                 'Record a deposit or withdrawal to see it here.',
                 'Rekodi amana au kutoa ili ione hapa.',
@@ -583,7 +647,9 @@ class _StatementTab extends ConsumerWidget {
                     Text(
                       monthLabel,
                       style: GoogleFonts.dmSans(
-                          color: Colors.white60, fontSize: 12),
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
                     ),
                     SizedBox(height: 4),
                     Text(
@@ -617,13 +683,13 @@ class _StatementTab extends ConsumerWidget {
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
 
-class _AccountCard extends StatelessWidget {
+class _AccountCard extends ConsumerWidget {
   final CashAccount account;
   final VoidCallback onTap;
   const _AccountCard({required this.account, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -650,8 +716,47 @@ class _AccountCard extends StatelessWidget {
                   color: AppColors.textMuted,
                   size: 16,
                 ),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.textMuted, size: 14),
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(28, 28),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  tooltip: _tr('Account actions', 'Vitendo vya akaunti'),
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppColors.textMuted,
+                    size: 17,
+                  ),
+                  onSelected: (value) async {
+                    if (value == 'delete') {
+                      await confirmAndDeleteCashAccount(context, ref, account);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.error,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            _tr('Delete account', 'Futa akaunti'),
+                            style: GoogleFonts.dmSans(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const Spacer(),
@@ -690,8 +795,7 @@ class _ActivateMethodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name =
-        spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en');
+    final name = spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en');
     return GestureDetector(
       onTap: () => showAppSheet(
         context,
@@ -712,8 +816,11 @@ class _ActivateMethodCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(spec.icon, color: AppColors.textMuted, size: 16),
-                const Icon(Icons.lock_outline,
-                    color: AppColors.warning, size: 14),
+                const Icon(
+                  Icons.lock_outline,
+                  color: AppColors.warning,
+                  size: 14,
+                ),
               ],
             ),
             const Spacer(),
@@ -729,8 +836,7 @@ class _ActivateMethodCard extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
@@ -774,20 +880,24 @@ class _TxnListTile extends StatelessWidget {
     final color = txn.isTransfer
         ? AppColors.tealAccent
         : txn.isDeposit
-            ? AppColors.success
-            : AppColors.error;
+        ? AppColors.success
+        : AppColors.error;
     final icon = txn.isTransfer
         ? Icons.swap_horiz_rounded
         : txn.isDeposit
-            ? Icons.south_west_rounded
-            : Icons.north_east_rounded;
-    final prefix = txn.isTransfer ? '' : txn.isDeposit ? '+' : '-';
+        ? Icons.south_west_rounded
+        : Icons.north_east_rounded;
+    final prefix = txn.isTransfer
+        ? ''
+        : txn.isDeposit
+        ? '+'
+        : '-';
 
     final subtitle = txn.isTransfer
         ? '${_accountName(txn.fromAccountId)} → ${_accountName(txn.toAccountId)}'
         : txn.isDeposit
-            ? '${_tr('To', 'Kwa')}: ${_accountName(txn.toAccountId)}'
-            : '${_tr('From', 'Kutoka')}: ${_accountName(txn.fromAccountId)}';
+        ? '${_tr('To', 'Kwa')}: ${_accountName(txn.toAccountId)}'
+        : '${_tr('From', 'Kutoka')}: ${_accountName(txn.fromAccountId)}';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -826,7 +936,9 @@ class _TxnListTile extends StatelessWidget {
                 Text(
                   '$subtitle • ${txn.date}',
                   style: GoogleFonts.dmSans(
-                      color: AppColors.textMuted, fontSize: 11),
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -898,14 +1010,16 @@ class _ActivityCard extends StatelessWidget {
                 Row(
                   children: [
                     _MiniStat(
-                        label: _tr('In', 'Ndani'),
-                        value: data.inflow,
-                        color: AppColors.success),
+                      label: _tr('In', 'Ndani'),
+                      value: data.inflow,
+                      color: AppColors.success,
+                    ),
                     const SizedBox(width: 12),
                     _MiniStat(
-                        label: _tr('Out', 'Nje'),
-                        value: data.outflow,
-                        color: AppColors.error),
+                      label: _tr('Out', 'Nje'),
+                      value: data.outflow,
+                      color: AppColors.error,
+                    ),
                   ],
                 ),
               ],
@@ -929,20 +1043,27 @@ class _MiniStat extends StatelessWidget {
   final String label;
   final double value;
   final Color color;
-  const _MiniStat(
-      {required this.label, required this.value, required this.color});
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text('$label: ',
-            style:
-                GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
+        Text(
+          '$label: ',
+          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+        ),
         Text(
           _fmtCompact(value),
           style: GoogleFonts.dmSans(
-              fontSize: 10, color: color, fontWeight: FontWeight.w600),
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );

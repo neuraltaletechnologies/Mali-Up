@@ -1,6 +1,19 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Providers } from './providers'
 import './globals.css'
+
+// Sets the `dark` class on <html> before hydration so the theme toggle in
+// components/theme-provider.tsx never causes a flash of the wrong theme.
+const SET_THEME_SCRIPT = `
+(function () {
+  try {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  } catch (e) {}
+})();
+`
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.com'
 
@@ -86,6 +99,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        <Script id="set-theme" strategy="beforeInteractive">
+          {SET_THEME_SCRIPT}
+        </Script>
       </head>
       <body>
         <Providers>{children}</Providers>
