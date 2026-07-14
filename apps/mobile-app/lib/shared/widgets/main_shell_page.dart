@@ -20,6 +20,7 @@ import '../../core/theme/app_motion.dart';
 import '../../config/routing.dart';
 import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
+import '../../core/services/business_profile_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
@@ -380,43 +381,48 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
     if (user == null) return null;
-    final fs = FirebaseFirestore.instance;
+    try {
+      final fs = FirebaseFirestore.instance;
 
-    final userSnap = await fs
-        .collection('users')
-        .doc(user.uid)
-        .get(const GetOptions());
-    final profile = userSnap.data();
-    if (profile == null) return null;
+      final userSnap = await fs
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions());
+      final profile = userSnap.data();
+      if (profile == null) return null;
 
-    final isTeamMember = profile['isTeamMember'] == true;
+      final isTeamMember = profile['isTeamMember'] == true;
 
-    if (isTeamMember) {
-      // Team members belong to one business — load it directly.
-      final bizId = (profile['businessId'] as String?)?.trim() ?? '';
-      if (bizId.isNotEmpty) {
+      if (isTeamMember) {
+        // Team members belong to one business — load it directly.
+        final bizId = (profile['businessId'] as String?)?.trim() ?? '';
+        if (bizId.isNotEmpty) {
+          final bizSnap = await fs
+              .collection('businesses')
+              .doc(bizId)
+              .get(const GetOptions());
+          if (bizSnap.exists) {
+            profile['businesses'] = [
+              {'id': bizId, ...?bizSnap.data()},
+            ];
+          }
+        }
+      } else {
+        // Owners — load all their businesses from the businesses collection.
         final bizSnap = await fs
             .collection('businesses')
-            .doc(bizId)
+            .where('ownerUid', isEqualTo: user.uid)
             .get(const GetOptions());
-        if (bizSnap.exists) {
-          profile['businesses'] = [
-            {'id': bizId, ...?bizSnap.data()},
-          ];
-        }
+        profile['businesses'] = bizSnap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList();
       }
-    } else {
-      // Owners — load all their businesses from the businesses collection.
-      final bizSnap = await fs
-          .collection('businesses')
-          .where('ownerUid', isEqualTo: user.uid)
-          .get(const GetOptions());
-      profile['businesses'] = bizSnap.docs
-          .map((d) => {'id': d.id, ...d.data()})
-          .toList();
-    }
 
-    return profile;
+      await BusinessProfileService.cacheProfile(user.uid, profile);
+      return profile;
+    } catch (_) {
+      return BusinessProfileService.loadCachedProfile(user.uid);
+    }
   }
 
   static Future<void> _closeNavigationPanelThenNavigate(

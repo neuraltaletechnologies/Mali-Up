@@ -1,10 +1,11 @@
-import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import 'plan_request_service.dart';
 
@@ -118,6 +119,28 @@ class PlanLimits {
     );
   }
 
+  Map<String, dynamic> toCacheJson() => {
+        'monthlyInvoices': monthlyInvoices,
+        'maxUsers': maxUsers,
+        'maxBusinesses': maxBusinesses,
+        'maxCustomers': maxCustomers,
+        'pricePerCycle': pricePerCycle,
+        'cycleMonths': cycleMonths,
+        'fullReports': fullReports,
+        'mpesaImport': mpesaImport,
+        'smsReminders': smsReminders,
+        'multiLocation': multiLocation,
+        'apiAccess': apiAccess,
+        'allExports': allExports,
+        'prioritySupport': prioritySupport,
+        'customIntegrations': customIntegrations,
+        'whiteLabel': whiteLabel,
+        'dedicatedOnboarding': dedicatedOnboarding,
+        'cashFlow': cashFlow,
+        'expenseTracking': expenseTracking,
+        'manualDebt': manualDebt,
+      };
+
   int get pricePerMonth =>
       pricePerCycle > 0 && cycleMonths > 0
           ? (pricePerCycle / cycleMonths).round()
@@ -213,14 +236,63 @@ typedef PlanDefinitions = Map<PlanTier, PlanLimits>;
 
 final _db = FirebaseFirestore.instance;
 
+/// Keeps the last plan catalog received from the admin-managed Firestore
+/// document. The comparison page can therefore show the real configured
+/// prices, limits, and features during an offline launch instead of silently
+/// reverting to stale compile-time defaults.
+class PlanDefinitionsCache {
+  static const _key = 'plan_definitions_v1';
+
+  static Future<void> save(PlanDefinitions definitions) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _key,
+        jsonEncode({
+          for (final tier in PlanTier.values)
+            tier.name: (definitions[tier] ?? _fallbackLimits[tier]!)
+                .toCacheJson(),
+        }),
+      );
+    } catch (_) {
+      // A cache failure must never prevent the live catalog from loading.
+    }
+  }
+
+  static Future<PlanDefinitions?> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = prefs.getString(_key);
+      if (encoded == null || encoded.isEmpty) return null;
+      final decoded = jsonDecode(encoded);
+      if (decoded is! Map) return null;
+
+      final result = Map<PlanTier, PlanLimits>.from(_fallbackLimits);
+      for (final tier in PlanTier.values) {
+        final raw = decoded[tier.name];
+        if (raw is Map) {
+          result[tier] = PlanLimits.fromFirestore(
+            Map<String, dynamic>.from(raw),
+            _fallbackLimits[tier]!,
+          );
+        }
+      }
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
 Future<PlanDefinitions> _fetchPlanDefinitions() async {
+  final cached = await PlanDefinitionsCache.load();
   try {
     final snap = await _db
         .collection('platform_config')
         .doc('plans')
         .get();
 
-    if (!snap.exists) return Map.from(_fallbackLimits);
+    if (!snap.exists) return cached ?? Map.from(_fallbackLimits);
 
     final data = snap.data() ?? {};
     final result = Map<PlanTier, PlanLimits>.from(_fallbackLimits);
@@ -230,9 +302,10 @@ Future<PlanDefinitions> _fetchPlanDefinitions() async {
         result[tier] = PlanLimits.fromFirestore(raw, _fallbackLimits[tier]!);
       }
     }
+    await PlanDefinitionsCache.save(result);
     return result;
   } catch (_) {
-    return Map.from(_fallbackLimits);
+    return cached ?? Map.from(_fallbackLimits);
   }
 }
 
@@ -316,10 +389,93 @@ class PlanStatus {
 // PlanService
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Persists the last plan status successfully verified with Firestore.
+/// Firestore persistence is disabled app-wide, so this small, user-scoped
+/// cache keeps paid entitlements available during an offline launch.
+class PlanStatusCache {
+  static const _keyPrefix = 'verified_plan_status_v1_';
+
+  static String _key(String uid) => '$_keyPrefix$uid';
+
+  static String _usageMonth(DateTime value) =>
+      '${value.year}-${value.month.toString().padLeft(2, '0')}';
+
+  static Future<void> save(String uid, PlanStatus status) async {
+    if (uid.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _key(uid),
+        jsonEncode({
+          'tier': status.tier.name,
+          'invoicesUsedThisMonth': status.invoicesUsedThisMonth,
+          'usageMonth': _usageMonth(DateTime.now()),
+          if (status.expiresAt != null)
+            'expiresAt': status.expiresAt!.millisecondsSinceEpoch,
+          if (status.overrideLimits != null)
+            'overrideLimits': status.overrideLimits!.toCacheJson(),
+        }),
+      );
+    } catch (_) {
+      // Entitlement refresh remains authoritative even if local persistence
+      // is temporarily unavailable.
+    }
+  }
+
+  static Future<PlanStatus?> load(
+    String uid, {
+    PlanDefinitions? definitions,
+  }) async {
+    if (uid.isEmpty) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key(uid));
+    if (raw == null || raw.isEmpty) return null;
+
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final storedTier = PlanTierX.fromString(data['tier'] as String?);
+      final expiresMs = (data['expiresAt'] as num?)?.toInt();
+      final expiresAt = expiresMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(expiresMs);
+      final tier = storedTier != PlanTier.starter &&
+              expiresAt != null &&
+              expiresAt.isBefore(DateTime.now())
+          ? PlanTier.starter
+          : storedTier;
+
+      final invoiceCount = data['usageMonth'] == _usageMonth(DateTime.now())
+          ? ((data['invoicesUsedThisMonth'] as num?)?.toInt() ?? 0)
+          : 0;
+
+      PlanLimits? overrideLimits;
+      final overrideRaw = data['overrideLimits'];
+      if (tier == PlanTier.enterprise && overrideRaw is Map) {
+        overrideLimits = PlanLimits.fromFirestore(
+          Map<String, dynamic>.from(overrideRaw),
+          limitsFor(tier, definitions),
+        );
+      }
+
+      return PlanStatus(
+        tier: tier,
+        invoicesUsedThisMonth: invoiceCount,
+        expiresAt: expiresAt,
+        definitions: definitions,
+        overrideLimits: overrideLimits,
+      );
+    } catch (_) {
+      await prefs.remove(_key(uid));
+      return null;
+    }
+  }
+}
+
 class PlanService {
   static Future<PlanStatus> _statusFromUserData(
     Map<String, dynamic> data, {
     PlanDefinitions? defs,
+    int fallbackInvoiceCount = 0,
   }) async {
     final tier = PlanTierX.fromString(data['plan'] as String?);
 
@@ -350,21 +506,26 @@ class PlanService {
     // Counted for whichever tier actually has a finite cap (admin-editable
     // per tier, not just Starter) — always scoped to the single active
     // business, never summed across a user's other businesses.
-    int invoiceCount = 0;
+    var invoiceCount = fallbackInvoiceCount;
     if ((overrideLimits ?? limitsFor(effectiveTier, defs)).monthlyInvoices != -1) {
       final selectedBusinessId =
           (data['selectedBusinessId'] as String?)?.trim() ?? '';
       if (selectedBusinessId.isNotEmpty) {
-        final now = DateTime.now();
-        final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-        final snap = await _db
-            .collection('businesses')
-            .doc(selectedBusinessId)
-            .collection('sales_invoices')
-            .where('createdAt', isGreaterThanOrEqualTo: monthStart)
-            .count()
-            .get();
-        invoiceCount = snap.count ?? 0;
+        try {
+          final now = DateTime.now();
+          final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
+          final snap = await _db
+              .collection('businesses')
+              .doc(selectedBusinessId)
+              .collection('sales_invoices')
+              .where('createdAt', isGreaterThanOrEqualTo: monthStart)
+              .count()
+              .get();
+          invoiceCount = snap.count ?? 0;
+        } catch (_) {
+          // A usage-count failure must not downgrade an otherwise valid paid
+          // package. Keep the last server-verified monthly count instead.
+        }
       }
     }
 
@@ -384,32 +545,56 @@ class PlanService {
           tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
 
+    final cached = await PlanStatusCache.load(user.uid, definitions: defs);
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
-      return _statusFromUserData(doc.data() ?? {}, defs: defs);
+      final status = await _statusFromUserData(
+        doc.data() ?? {},
+        defs: defs,
+        fallbackInvoiceCount: cached?.invoicesUsedThisMonth ?? 0,
+      );
+      await PlanStatusCache.save(user.uid, status);
+      return status;
     } catch (_) {
-      return PlanStatus(
-          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
+      return cached ??
+          PlanStatus(
+            tier: PlanTier.starter,
+            invoicesUsedThisMonth: 0,
+            definitions: defs,
+          );
     }
   }
 
   /// Live plan status — re-derived whenever the user's Firestore doc changes,
   /// so an admin approving a plan request reflects in the app immediately.
-  static Stream<PlanStatus> watchStatus({PlanDefinitions? defs}) {
+  static Stream<PlanStatus> watchStatus({PlanDefinitions? defs}) async* {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Stream.value(PlanStatus(
-          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs));
+      yield PlanStatus(
+        tier: PlanTier.starter,
+        invoicesUsedThisMonth: 0,
+        definitions: defs,
+      );
+      return;
     }
 
-    return _db.collection('users').doc(user.uid).snapshots().asyncMap((doc) async {
+    final cached = await PlanStatusCache.load(user.uid, definitions: defs);
+    await for (final doc in _db.collection('users').doc(user.uid).snapshots()) {
+      // An offline listener can emit an empty cache snapshot even though
+      // Firestore persistence is disabled. It is not authoritative.
+      if (doc.metadata.isFromCache && !doc.exists) continue;
       try {
-        return await _statusFromUserData(doc.data() ?? {}, defs: defs);
+        final status = await _statusFromUserData(
+          doc.data() ?? {},
+          defs: defs,
+          fallbackInvoiceCount: cached?.invoicesUsedThisMonth ?? 0,
+        );
+        await PlanStatusCache.save(user.uid, status);
+        yield status;
       } catch (_) {
-        return PlanStatus(
-            tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
+        if (cached != null) yield cached;
       }
-    });
+    }
   }
 
   /// Activate a paid tier for [months] months (admin-side only, kept for completeness).
@@ -434,21 +619,19 @@ class PlanService {
 /// Full plan status with dynamic limits baked in. Live — updates automatically
 /// when an admin approves/activates a plan change in Firestore.
 ///
-/// Both awaits below are bounded: Firestore persistence is deliberately
-/// disabled app-wide, so a `.get()`/`.snapshots()` with no connectivity would
-/// otherwise never emit and every `await plan.future` call site (the cash
-/// flow, debt, team, expense and sales "add" buttons) would hang forever with
-/// no error shown. Falling back to Starter after a short timeout keeps those
-/// buttons responsive offline; live updates still take over once a snapshot
-/// arrives.
-///
-/// The fallback only guards the *first* value: `Stream.timeout` resets its
-/// clock on every event it forwards (including ones it injects itself), so
-/// using it directly on the whole live stream re-fired every 6s of Firestore
-/// silence — which is the steady state once subscribed — and kept clobbering
-/// a real paid tier with Starter. Racing just the initial event against a
-/// timer avoids that.
+/// Emits immediately from the last server-verified local entitlement. Offline
+/// entry points such as Add Sale can therefore open without waiting for
+/// Firestore. A first-time user without a cache gets the Starter fallback
+/// immediately while the live server listener starts in the background.
 final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final initialCached = await PlanStatusCache.load(uid);
+  yield initialCached ??
+      const PlanStatus(
+        tier: PlanTier.starter,
+        invoicesUsedThisMonth: 0,
+      );
+
   PlanDefinitions? defs;
   try {
     defs = await ref.watch(planDefinitionsProvider.future).timeout(
@@ -458,39 +641,7 @@ final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
     defs = null;
   }
 
-  final fallback = PlanStatus(
-    tier: PlanTier.starter,
-    invoicesUsedThisMonth: 0,
-    definitions: defs,
-  );
-
-  final controller = StreamController<PlanStatus>();
-  var receivedFirst = false;
-  final timer = Timer(const Duration(seconds: 6), () {
-    if (!receivedFirst) controller.add(fallback);
-  });
-  final sub = PlanService.watchStatus(defs: defs).listen(
-    (status) {
-      receivedFirst = true;
-      timer.cancel();
-      controller.add(status);
-    },
-    onError: (Object e, StackTrace st) {
-      if (!receivedFirst) {
-        receivedFirst = true;
-        timer.cancel();
-        controller.add(fallback);
-      }
-    },
-    onDone: controller.close,
-  );
-  ref.onDispose(() {
-    timer.cancel();
-    unawaited(sub.cancel());
-    controller.close();
-  });
-
-  yield* controller.stream;
+  yield* PlanService.watchStatus(defs: defs);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

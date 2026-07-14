@@ -484,8 +484,8 @@ class StatusChip extends StatelessWidget {
 //   EmptyState(
 //     icon: Icons.receipt_long_outlined,
 //     title: 'No sales yet',
-//     subtitle: 'Tap New Sale to record your first transaction.',
-//     actionLabel: 'New Sale',   // optional
+//     subtitle: 'Tap Add Sale to record your first transaction.',
+//     actionLabel: 'Add Sale',   // optional
 //     onAction: () { ... },      // optional
 //   )
 // ─────────────────────────────────────────────────────────────────────────────

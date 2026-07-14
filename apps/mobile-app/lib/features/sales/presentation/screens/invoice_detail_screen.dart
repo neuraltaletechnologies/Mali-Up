@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
@@ -24,6 +23,7 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
+import '../../services/receipt_pdf_service.dart';
 import 'create_invoice_screen.dart';
 import 'sales_return_screen.dart';
 
@@ -104,8 +104,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   String get _customerName =>
       _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-  String get _customerPhone => _inv['customerPhone']?.toString() ?? '';
-
   DateTime? get _invoiceDate =>
       readTimestamp(_inv['invoiceDate'] ?? _inv['createdAt']);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
@@ -414,56 +412,36 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  void _shareWhatsApp() async {
-    final text = Uri.encodeComponent(_buildShareText());
-    final phone = normalizeWhatsAppPhone(_customerPhone);
-    // No usable customer number → share-picker link instead of a direct chat.
-    final url = phone.isEmpty
-        ? 'https://wa.me/?text=$text'
-        : 'https://wa.me/$phone?text=$text';
+  Future<void> _sharePdf({String? customerEmail}) async {
     try {
-      final ok = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: scope.userUid,
+        businessId: scope.businessId,
       );
-      if (!ok) throw Exception('no handler');
+      await ReceiptPdfService.share(
+        sale: _inv,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        customerEmail: customerEmail,
+      );
       _offerMarkSent();
     } catch (_) {
       _showSnack(
         _tr(
-          'Could not open WhatsApp. Make sure it is installed.',
-          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+          'Could not create the receipt PDF. Please try again.',
+          'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
         ),
       );
     }
   }
 
-  void _shareEmail() async {
-    // Email clients don't render WhatsApp markdown — strip it.
-    final text = _buildShareText().replaceAll(RegExp(r'[*_]'), '');
-    final subject = Uri.encodeComponent(
-      _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'),
-    );
-    final body = Uri.encodeComponent(text);
-    final customerEmail = (_inv['customerEmail'] ?? '').toString();
-    final to = customerEmail.isNotEmpty
-        ? Uri.encodeComponent(customerEmail)
-        : '';
-    try {
-      final ok = await launchUrl(
-        Uri.parse('mailto:$to?subject=$subject&body=$body'),
-      );
-      if (!ok) throw Exception('no handler');
-      _offerMarkSent();
-    } catch (_) {
-      _showSnack(
-        _tr(
-          'No email app found on this device.',
-          'Hakuna programu ya barua pepe kwenye kifaa hiki.',
-        ),
-      );
-    }
-  }
+  void _shareWhatsApp() => _sharePdf();
+
+  void _shareEmail() =>
+      _sharePdf(customerEmail: (_inv['customerEmail'] ?? '').toString());
 
   /// After sharing a draft invoice, offer to move it to 'sent' so the two
   /// steps don't silently drift apart. Quotations and non-drafts are skipped.
@@ -933,7 +911,7 @@ class _ShareRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ShareBtn(
-            label: 'WhatsApp',
+            label: 'WhatsApp PDF',
             icon: Icons.chat_rounded,
             color: const Color(0xFF25D366),
             onTap: onWhatsApp,
@@ -942,7 +920,7 @@ class _ShareRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _ShareBtn(
-            label: _tr('Email', 'Barua pepe'),
+            label: _tr('Email PDF', 'Barua PDF'),
             icon: Icons.email_rounded,
             color: AppColors.tealAccent,
             onTap: onEmail,

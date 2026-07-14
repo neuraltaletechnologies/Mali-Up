@@ -43,6 +43,7 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
+import '../../services/receipt_pdf_service.dart';
 import 'invoice_detail_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -324,7 +325,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   elevation: 3,
                   icon: Icon(Icons.add_rounded, size: 22),
                   label: Text(
-                    _tr('New Sale', 'Mauzo Mapya'),
+                    _tr('Add Sale', 'Ongeza Mauzo'),
                     style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -448,44 +449,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   // ── Receipt utilities ──────────────────────────────────────────────────────
-
-  static Future<Map<String, String>> _loadReceiptMeta({
-    required String uid,
-    required String ownerUid,
-    required String? businessId,
-  }) async {
-    final fs = FirebaseFirestore.instance;
-    String businessName = 'Business';
-    String printedBy = 'User';
-    try {
-      final doc = await fs.collection('users').doc(uid).get();
-      final data = doc.data();
-      printedBy =
-          ((data?['displayName'] ?? data?['name']) as String?)?.trim() ??
-          'User';
-      final list = data?['businesses'];
-      if (list is List && businessId != null) {
-        for (final b in list) {
-          if (b is Map &&
-              (b['id']?.toString() ?? '') == businessId &&
-              (b['name'] as String?)?.trim().isNotEmpty == true) {
-            businessName = (b['name'] as String).trim();
-            break;
-          }
-        }
-      }
-    } catch (_) {}
-    if (businessName == 'Business' &&
-        businessId != null &&
-        businessId.isNotEmpty) {
-      try {
-        final doc = await fs.collection('businesses').doc(businessId).get();
-        final n = (doc.data()?['businessName'] as String?)?.trim();
-        if (n != null && n.isNotEmpty) businessName = n;
-      } catch (_) {}
-    }
-    return {'businessName': businessName, 'printedBy': printedBy};
-  }
 
   static String _buildReceiptText({
     required Map<String, dynamic> sale,
@@ -624,9 +587,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }) async {
     final scope = await resolveSalesScope(ref);
     if (scope == null) return;
-    final meta = await _loadReceiptMeta(
+    final meta = await ReceiptPdfService.loadMeta(
       uid: scope.userUid,
-      ownerUid: scope.ownerUid,
       businessId: scope.businessId,
     );
     final receipt = _buildReceiptText(
@@ -634,6 +596,58 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       businessName: meta['businessName'] ?? 'Business',
       printedBy: meta['printedBy'] ?? 'User',
     );
+    final businessName = meta['businessName'] ?? 'Business';
+    final printedBy = meta['printedBy'] ?? 'User';
+
+    Future<void> sharePdf({String? customerEmail}) async {
+      try {
+        await ReceiptPdfService.share(
+          sale: sale,
+          businessName: businessName,
+          printedBy: printedBy,
+          isSwahili: LocalizationService.isSwahili,
+          customerEmail: customerEmail,
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not create the receipt PDF. Please try again.',
+                'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+              ),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    Future<void> printPdf() async {
+      try {
+        await ReceiptPdfService.print(
+          sale: sale,
+          businessName: businessName,
+          printedBy: printedBy,
+          isSwahili: LocalizationService.isSwahili,
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not open printing for this receipt.',
+                'Imeshindwa kufungua uchapishaji wa risiti hii.',
+              ),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
@@ -671,34 +685,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               _ReceiptAction(
                 icon: Icons.chat_rounded,
                 iconColor: const Color(0xFF25D366),
-                label: _tr('WhatsApp', 'WhatsApp'),
-                onTap: () async {
-                  final phone = normalizeWhatsAppPhone(
-                    (sale['customerPhone'] ?? '').toString(),
-                  );
-                  final url = phone.isEmpty
-                      ? 'https://wa.me/?text=${Uri.encodeComponent(receipt)}'
-                      : 'https://wa.me/$phone?text=${Uri.encodeComponent(receipt)}';
-                  await _launchShare(ctx, Uri.parse(url), external: true);
-                },
+                label: _tr('WhatsApp (PDF)', 'WhatsApp (PDF)'),
+                onTap: sharePdf,
               ),
               _ReceiptAction(
                 icon: Icons.email_outlined,
                 iconColor: AppColors.tealAccent,
-                label: _tr('Email', 'Barua pepe'),
-                onTap: () async {
-                  final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
-                  // Built by hand: Uri(queryParameters:) form-encodes spaces
-                  // as '+', which email clients render literally in the body.
-                  final subject = Uri.encodeComponent(
-                    'Invoice ${sale['invoiceNumber'] ?? ''}',
-                  );
-                  final body = Uri.encodeComponent(plain);
-                  await _launchShare(
-                    ctx,
-                    Uri.parse('mailto:?subject=$subject&body=$body'),
-                  );
-                },
+                label: _tr('Email (PDF)', 'Barua pepe (PDF)'),
+                onTap: () => sharePdf(
+                  customerEmail: (sale['customerEmail'] ?? '').toString(),
+                ),
               ),
               _ReceiptAction(
                 icon: Icons.sms_outlined,
@@ -711,6 +707,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                     Uri.parse('sms:?body=${Uri.encodeComponent(plain)}'),
                   );
                 },
+              ),
+              _ReceiptAction(
+                icon: Icons.print_outlined,
+                iconColor: AppColors.navyPrimary,
+                label: _tr('Print / Save PDF', 'Chapisha / Hifadhi PDF'),
+                onTap: printPdf,
               ),
               _ReceiptAction(
                 icon: Icons.copy_rounded,
@@ -1630,8 +1632,8 @@ class _EmptySalesState extends StatelessWidget {
         Icons.receipt_long_outlined,
         _tr('Your first sale is waiting!', 'Mauzo yako ya kwanza yanangoja!'),
         _tr(
-          'Tap New Sale to record a payment.',
-          'Bonyeza Mauzo Mapya kurekodi malipo.',
+          'Tap Add Sale to record a payment.',
+          'Bonyeza Ongeza Mauzo kurekodi malipo.',
         ),
       ),
     };
@@ -2390,6 +2392,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         if (_selectedCustomer != null) ...{
           'customerId': _selectedCustomer!.id,
           'customerPhone': _selectedCustomer!.phone,
+          if (_selectedCustomer!.email.isNotEmpty)
+            'customerEmail': _selectedCustomer!.email,
           'isOrganisation': _selectedCustomer!.isOrganisation,
           if (_selectedCustomer!.tinNumber.isNotEmpty)
             'customerTin': _selectedCustomer!.tinNumber,
@@ -2594,6 +2598,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     final saleReceipt = <String, dynamic>{
       'invoiceNumber': invoiceNumber,
       'customerName': customerName,
+      if (_selectedCustomer != null) ...{
+        'customerPhone': _selectedCustomer!.phone,
+        if (_selectedCustomer!.email.isNotEmpty)
+          'customerEmail': _selectedCustomer!.email,
+      },
       'items': itemsData,
       'subtotal': _subtotal,
       'discountAmount': _discountAmt,
@@ -2679,7 +2688,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         children: [
           Expanded(
             child: Text(
-              _tr('New Sale', 'Mauzo Mapya'),
+              _tr('Add Sale', 'Ongeza Mauzo'),
               style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
