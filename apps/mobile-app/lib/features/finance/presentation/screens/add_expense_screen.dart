@@ -213,8 +213,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Take photo', 'Piga picha'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(ImageSource.camera),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(
@@ -225,8 +224,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Choose from gallery', 'Chagua kutoka maktaba'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(ImageSource.gallery),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
             if (_receiptFile != null || _receiptUrl.isNotEmpty)
               ListTile(
@@ -504,10 +502,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final size = MediaQuery.sizeOf(context);
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: size.height * 0.95),
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
       child: Material(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
           top: false,
@@ -530,21 +528,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.border.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                    IconButton(
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      tooltip: _tr('Close', 'Funga'),
+                      visualDensity: VisualDensity.compact,
+                      color: AppColors.textMuted,
+                      icon: const Icon(Icons.close_rounded, size: 20),
                     ),
                   ],
                 ),
@@ -558,10 +549,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     _AmountSection(
                       controller: _amountCtrl,
                       onChanged: (_) {
-                        if (_errorField == _ExpenseErrorField.amount &&
-                            _errorMessage != null) {
-                          setState(() => _errorMessage = null);
-                        }
+                        setState(() {
+                          if (_errorField == _ExpenseErrorField.amount &&
+                              _errorMessage != null) {
+                            _errorMessage = null;
+                          }
+                        });
                       },
                     ),
                     _buildValidation(_ExpenseErrorField.amount),
@@ -780,6 +773,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               _BottomSaveBar(
                 saving: _saving,
                 submitForApproval: _submitForApproval,
+                amount: _amountCtrl.text,
                 onSave: _save,
               ),
             ],
@@ -1328,13 +1322,26 @@ class _SectionLabel extends StatelessWidget {
 class _BottomSaveBar extends StatelessWidget {
   final bool saving;
   final bool submitForApproval;
+  final String amount;
   final VoidCallback onSave;
 
   const _BottomSaveBar({
     required this.saving,
     required this.submitForApproval,
+    required this.amount,
     required this.onSave,
   });
+
+  String get _formattedAmount {
+    final value = double.tryParse(amount.trim()) ?? 0;
+    final digits = value.toStringAsFixed(0);
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) result.write(',');
+      result.write(digits[i]);
+    }
+    return result.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1344,56 +1351,89 @@ class _BottomSaveBar extends StatelessWidget {
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: saving ? null : onSave,
-          icon: saving
-              ? SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: submitForApproval
-                        ? AppColors.navyPrimary
-                        : Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Total expense', 'Jumla ya gharama'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
                   ),
-                )
-              : Icon(
-                  submitForApproval
-                      ? Icons.send_rounded
-                      : Icons.check_circle_rounded,
-                  size: 18,
                 ),
-          label: Text(
-            saving
-                ? _tr('Saving…', 'Inahifadhi…')
-                : submitForApproval
-                ? _tr('Submit for Approval', 'Wasilisha kwa Idhini')
-                : _tr('Save Expense', 'Hifadhi Gharama'),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+                Text(
+                  'TZS $_formattedAmount',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
             ),
           ),
-          style: FilledButton.styleFrom(
-            backgroundColor: submitForApproval
-                ? AppColors.warning
-                : AppColors.navyPrimary,
-            foregroundColor: submitForApproval
-                ? AppColors.navyPrimary
-                : Colors.white,
-            disabledBackgroundColor: AppColors.navyPrimary.withValues(
-              alpha: 0.65,
-            ),
-            disabledForegroundColor: submitForApproval
-                ? AppColors.navyPrimary
-                : Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 184,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: saving ? null : onSave,
+              icon: saving
+                  ? SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: submitForApproval
+                            ? AppColors.navyPrimary
+                            : Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      submitForApproval
+                          ? Icons.send_rounded
+                          : Icons.check_circle_rounded,
+                      size: 18,
+                    ),
+              label: Text(
+                saving
+                    ? _tr('Saving…', 'Inahifadhi…')
+                    : submitForApproval
+                    ? _tr('Submit', 'Wasilisha')
+                    : _tr('Save Expense', 'Hifadhi Gharama'),
+                maxLines: 1,
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: submitForApproval
+                    ? AppColors.warning
+                    : AppColors.navyPrimary,
+                foregroundColor: submitForApproval
+                    ? AppColors.navyPrimary
+                    : Colors.white,
+                disabledBackgroundColor: AppColors.navyPrimary.withValues(
+                  alpha: 0.65,
+                ),
+                disabledForegroundColor: submitForApproval
+                    ? AppColors.navyPrimary
+                    : Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

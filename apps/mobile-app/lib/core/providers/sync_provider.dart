@@ -22,8 +22,14 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       FirebaseAuth.instance.currentUser?.uid ??
       '';
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  final offlinePolicy = ref.read(offlinePolicyProvider);
 
-  final service = SyncService(db: db, uid: uid, businessId: bizId);
+  final service = SyncService(
+    db: db,
+    uid: uid,
+    businessId: bizId,
+    offlinePolicy: offlinePolicy,
+  );
 
   // Keep alive until the provider is disposed (widget tree torn down or
   // the uid/bizId invalidates it).
