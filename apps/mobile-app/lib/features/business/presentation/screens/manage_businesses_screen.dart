@@ -11,12 +11,14 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
@@ -81,6 +83,8 @@ class _ManageBusinessesScreenState
   /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
   /// admin-editable), not hardcoded.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final tier = ref.read(planStatusProvider).valueOrNull?.tier ??
         PlanTierX.fromString(profile?['plan'] as String?);
     final defs = ref.read(planDefinitionsProvider).valueOrNull;
@@ -232,23 +236,10 @@ class _ManageBusinessesScreenState
 
       final profile  = userSnap.data() ?? {};
       profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      await BusinessProfileService.cacheProfile(user.uid, profile);
       return profile;
     } catch (_) {
-      try {
-        final userSnap = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.cache));
-        final bizSnap = await _firestore
-            .collection('businesses')
-            .where('ownerUid', isEqualTo: user.uid)
-            .get(const GetOptions(source: Source.cache));
-        final profile = userSnap.data() ?? {};
-        profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-        return profile;
-      } catch (_) {
-        return null;
-      }
+      return BusinessProfileService.loadCachedProfile(user.uid);
     }
   }
 
@@ -310,6 +301,8 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile,
     Map<String, dynamic> business,
   ) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -372,6 +365,8 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile, {
     Map<String, dynamic>? business,
   }) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final isEditing = business != null;
     final businessId = business?['id'] as String?;
 
@@ -1071,6 +1066,8 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile,
     Map<String, dynamic> business,
   ) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final name = (business['name'] as String?)?.trim() ?? '';
     final category = (business['category'] as String?)?.trim() ?? '';
     final logoUrl = (business['logoUrl'] as String?)?.trim();
@@ -1228,22 +1225,25 @@ class _ManageBusinessesScreenState
             PlanTierX.fromString(profile?['plan'] as String?);
         final defs = ref.watch(planDefinitionsProvider).valueOrNull;
         final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
+        final isOnline = ref.watch(isOnlineProvider);
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          floatingActionButton: NavAwareFab(
-            child: FloatingActionButton.extended(
-              onPressed: () => _handleAddBusinessTap(profile),
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 3,
-              icon: const Icon(Icons.add_business_rounded, size: 20),
-              label: Text(
-                _tr('Add Business', 'Ongeza Biashara'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
+          floatingActionButton: isOnline
+              ? NavAwareFab(
+                  child: FloatingActionButton.extended(
+                    onPressed: () => _handleAddBusinessTap(profile),
+                    backgroundColor: AppColors.yellowBrand,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 3,
+                    icon: const Icon(Icons.add_business_rounded, size: 20),
+                    label: Text(
+                      _tr('Add Business', 'Ongeza Biashara'),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              : null,
           body: SmartSkeleton(
             isLoading: isLoading,
             hasExistingData: profile != null,
@@ -1266,6 +1266,7 @@ class _ManageBusinessesScreenState
                         }),
                       ),
                       const SizedBox(height: _BusinessDarkHeader._pillHalf + 8),
+                      if (!isOnline) const _OfflineBusinessBanner(),
                       Expanded(
                         child: businesses.isEmpty
                             ? const _BusinessEmptyState()
@@ -1277,8 +1278,11 @@ class _ManageBusinessesScreenState
                                   isActive:
                                       businesses[i]['id'] == selectedBusinessId,
                                   isLast: i == businesses.length - 1,
-                                  onTap: () => _openBusinessActionsSheet(
-                                      profile, businesses[i]),
+                                  isReadOnly: !isOnline,
+                                  onTap: isOnline
+                                      ? () => _openBusinessActionsSheet(
+                                          profile, businesses[i])
+                                      : null,
                                 ),
                               ),
                       ),
@@ -1531,16 +1535,61 @@ class _PillDivider extends StatelessWidget {
 
 // ─── Business row (flat list-card style, mirrors CustomerListScreen) ─────────
 
+class _OfflineBusinessBanner extends StatelessWidget {
+  const _OfflineBusinessBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppColors.warning,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _tr(
+                'Offline: businesses are available to view, but changes are disabled.',
+                'Nje ya mtandao: biashara zinaweza kutazamwa, lakini mabadiliko yamezuiwa.',
+              ),
+              style: GoogleFonts.dmSans(
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BusinessRow extends StatelessWidget {
   final Map<String, dynamic> business;
   final bool isActive;
   final bool isLast;
-  final VoidCallback onTap;
+  final bool isReadOnly;
+  final VoidCallback? onTap;
 
   const _BusinessRow({
     required this.business,
     required this.isActive,
     required this.isLast,
+    required this.isReadOnly,
     required this.onTap,
   });
 
@@ -1668,8 +1717,13 @@ class _BusinessRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted, size: 18),
+                Icon(
+                  isReadOnly
+                      ? Icons.lock_outline_rounded
+                      : Icons.chevron_right_rounded,
+                  color: AppColors.textMuted,
+                  size: 18,
+                ),
               ],
             ),
             if (!isLast)
@@ -2256,4 +2310,3 @@ class _LogoInitial extends StatelessWidget {
     );
   }
 }
-
