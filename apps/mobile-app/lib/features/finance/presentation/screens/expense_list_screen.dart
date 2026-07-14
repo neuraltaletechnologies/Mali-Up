@@ -30,39 +30,39 @@ extension _CatX on _Cat {
   String get key => name;
 
   String get label => switch (this) {
-        _Cat.rent => _tr('Rent', 'Kodi'),
-        _Cat.utilities => _tr('Utilities', 'Huduma'),
-        _Cat.salaries => _tr('Salaries', 'Mishahara'),
-        _Cat.transport => _tr('Transport', 'Usafiri'),
-        _Cat.marketing => _tr('Marketing', 'Masoko'),
-        _Cat.supplies => _tr('Supplies', 'Vifaa'),
-        _Cat.other => _tr('Other', 'Nyingine'),
-      };
+    _Cat.rent => _tr('Rent', 'Kodi'),
+    _Cat.utilities => _tr('Utilities', 'Huduma'),
+    _Cat.salaries => _tr('Salaries', 'Mishahara'),
+    _Cat.transport => _tr('Transport', 'Usafiri'),
+    _Cat.marketing => _tr('Marketing', 'Masoko'),
+    _Cat.supplies => _tr('Supplies', 'Vifaa'),
+    _Cat.other => _tr('Other', 'Nyingine'),
+  };
 
   IconData get icon => switch (this) {
-        _Cat.rent => Icons.home_rounded,
-        _Cat.utilities => Icons.bolt_rounded,
-        _Cat.salaries => Icons.people_rounded,
-        _Cat.transport => Icons.local_shipping_rounded,
-        _Cat.marketing => Icons.campaign_rounded,
-        _Cat.supplies => Icons.inventory_2_rounded,
-        _Cat.other => Icons.more_horiz_rounded,
-      };
+    _Cat.rent => Icons.home_rounded,
+    _Cat.utilities => Icons.bolt_rounded,
+    _Cat.salaries => Icons.people_rounded,
+    _Cat.transport => Icons.local_shipping_rounded,
+    _Cat.marketing => Icons.campaign_rounded,
+    _Cat.supplies => Icons.inventory_2_rounded,
+    _Cat.other => Icons.more_horiz_rounded,
+  };
 
   Color get color => switch (this) {
-        _Cat.rent => AppColors.navyPrimary,
-        _Cat.utilities => AppColors.tealAccent,
-        _Cat.salaries => AppColors.success,
-        _Cat.transport => AppColors.warning,
-        _Cat.marketing => const Color(0xFF7C3AED),
-        _Cat.supplies => const Color(0xFFB45309),
-        _Cat.other => AppColors.textMuted,
-      };
+    _Cat.rent => AppColors.navyPrimary,
+    _Cat.utilities => AppColors.tealAccent,
+    _Cat.salaries => AppColors.success,
+    _Cat.transport => AppColors.warning,
+    _Cat.marketing => const Color(0xFF7C3AED),
+    _Cat.supplies => const Color(0xFFB45309),
+    _Cat.other => AppColors.textMuted,
+  };
 
   static _Cat fromKey(String key) => _Cat.values.firstWhere(
-        (c) => c.key == key.toLowerCase(),
-        orElse: () => _Cat.other,
-      );
+    (c) => c.key == key.toLowerCase(),
+    orElse: () => _Cat.other,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,9 +81,9 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
   void _prevMonth() {
     final cur = ref.read(selectedMonthProvider);
-    ref.read(selectedMonthProvider.notifier).setMonth(
-          DateTime(cur.year, cur.month - 1),
-        );
+    ref
+        .read(selectedMonthProvider.notifier)
+        .setMonth(DateTime(cur.year, cur.month - 1));
   }
 
   void _nextMonth() {
@@ -110,14 +110,17 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
     await showAppSheet(
       context,
+      maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: edit),
     );
   }
 
-  void _openDetail(Expense expense) {
-    Navigator.of(context).push(MaterialPageRoute(
+  Future<void> _openDetail(Expense expense) async {
+    await showAppSheet<Map<String, dynamic>>(
+      context,
+      maxHeightFactor: 0.92,
       builder: (_) => ExpenseDetailScreen(expense: expense),
-    ));
+    );
   }
 
   @override
@@ -131,8 +134,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     final withReceipt = expenses.where((e) => e.receiptUrl.isNotEmpty).length;
 
     final now = DateTime.now();
-    final canGoNext = DateTime(month.year, month.month + 1)
-        .isBefore(DateTime(now.year, now.month + 1));
+    final canGoNext = DateTime(
+      month.year,
+      month.month + 1,
+    ).isBefore(DateTime(now.year, now.month + 1));
 
     final filtered = _filterCat == null
         ? expenses
@@ -175,30 +180,33 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             child: isLoading
                 ? const SkeletonList(itemCount: 6)
                 : filtered.isEmpty
-                    ? EmptyState(
-                        icon: Icons.receipt_outlined,
-                        title: _filterCat == null
-                            ? _tr('No expenses this month',
-                                'Hakuna matumizi mwezi huu')
-                            : _tr('No ${_filterCat!.label} expenses',
-                                'Hakuna matumizi ya ${_filterCat!.label}'),
-                        subtitle: _tr(
-                          'Tap + to log a purchase or bill.',
-                          'Bonyeza + kurekodi ununuzi au bili.',
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 120),
-                        itemCount: filtered.length,
-                        itemBuilder: (ctx, i) => _ExpenseCard(
-                          expense: filtered[i],
-                          isLast: i == filtered.length - 1,
-                          onTap: () => _openDetail(filtered[i]),
-                          onEdit: () => _openAdd(edit: filtered[i]),
-                          onDelete: () =>
-                              _deleteExpense(ctx, filtered[i]),
-                        ),
-                      ),
+                ? EmptyState(
+                    icon: Icons.receipt_outlined,
+                    title: _filterCat == null
+                        ? _tr(
+                            'No expenses this month',
+                            'Hakuna matumizi mwezi huu',
+                          )
+                        : _tr(
+                            'No ${_filterCat!.label} expenses',
+                            'Hakuna matumizi ya ${_filterCat!.label}',
+                          ),
+                    subtitle: _tr(
+                      'Tap + to log a purchase or bill.',
+                      'Bonyeza + kurekodi ununuzi au bili.',
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 120),
+                    itemCount: filtered.length,
+                    itemBuilder: (ctx, i) => _ExpenseCard(
+                      expense: filtered[i],
+                      isLast: i == filtered.length - 1,
+                      onTap: () => _openDetail(filtered[i]),
+                      onEdit: () => _openAdd(edit: filtered[i]),
+                      onDelete: () => _deleteExpense(ctx, filtered[i]),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -210,8 +218,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('Delete Expense?', 'Futa Gharama?'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+        title: Text(
+          _tr('Delete Expense?', 'Futa Gharama?'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
         content: Text(
           _tr('This cannot be undone.', 'Hii haiwezi kutenduliwa.'),
           style: GoogleFonts.dmSans(),
@@ -219,14 +229,18 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_tr('Cancel', 'Ghairi'),
-                style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+            child: Text(
+              _tr('Cancel', 'Ghairi'),
+              style: GoogleFonts.dmSans(color: AppColors.textMuted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: Text(_tr('Delete', 'Futa'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+            child: Text(
+              _tr('Delete', 'Futa'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -239,15 +253,20 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
           .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'expenses')
+            uid: user.uid,
+            context: ctx,
+            childCollection: 'expenses',
+          )
           .doc(expense.id)
           .delete();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Expense deleted', 'Gharama imefutwa')),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_tr('Expense deleted', 'Gharama imefutwa')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (_) {}
   }
@@ -294,7 +313,12 @@ class _ExpenseDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            _pillHalf + 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -321,17 +345,21 @@ class _ExpenseDarkHeader extends StatelessWidget {
                         color: Colors.white12,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.chevron_left_rounded,
-                          color: Colors.white70, size: 22),
+                      child: const Icon(
+                        Icons.chevron_left_rounded,
+                        color: Colors.white70,
+                        size: 22,
+                      ),
                     ),
                   ),
                   SizedBox(width: 8),
                   Text(
                     _monthLabel(month),
                     style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white70),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
@@ -343,9 +371,11 @@ class _ExpenseDarkHeader extends StatelessWidget {
                         color: Colors.white12,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.chevron_right_rounded,
-                          color: canGoNext ? Colors.white70 : Colors.white24,
-                          size: 22),
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        color: canGoNext ? Colors.white70 : Colors.white24,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ],
@@ -431,13 +461,15 @@ class _CategoryPills extends StatelessWidget {
                   color: AppColors.navyPrimary,
                   onTap: () => onSelect(null),
                 ),
-                ..._Cat.values.map((cat) => _Pill(
-                      label: cat.label,
-                      icon: cat.icon,
-                      active: selected == cat,
-                      color: cat.color,
-                      onTap: () => onSelect(selected == cat ? null : cat),
-                    )),
+                ..._Cat.values.map(
+                  (cat) => _Pill(
+                    label: cat.label,
+                    icon: cat.icon,
+                    active: selected == cat,
+                    color: cat.color,
+                    onTap: () => onSelect(selected == cat ? null : cat),
+                  ),
+                ),
               ],
             ),
           ),
@@ -487,9 +519,10 @@ class _Pill extends StatelessWidget {
               Text(
                 label,
                 style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : AppColors.textMuted),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: active ? Colors.white : AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -533,22 +566,22 @@ class _ExpenseCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           child: Column(
             children: [
               Row(
                 children: [
                   // Category icon
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: cat.color.withValues(alpha: 0.10),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(cat.icon, size: 20, color: cat.color),
+                    child: Icon(cat.icon, size: 17, color: cat.color),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   // Details
                   Expanded(
                     child: Column(
@@ -562,75 +595,96 @@ class _ExpenseCard extends StatelessWidget {
                                     ? expense.note
                                     : cat.label,
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: isRejected
-                                        ? AppColors.error
-                                        : AppColors.textPrimary),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isRejected
+                                      ? AppColors.error
+                                      : AppColors.textPrimary,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Row(
                           children: [
-                            Text(
-                              cat.label,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12, color: AppColors.textMuted),
+                            Flexible(
+                              child: Text(
+                                cat.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
                             ),
                             SizedBox(width: 6),
-                            Text('·',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    color: AppColors.textDisabled)),
+                            Text(
+                              '·',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: AppColors.textDisabled,
+                              ),
+                            ),
                             SizedBox(width: 6),
                             Text(
                               _fmtDate(expense.date),
                               style: GoogleFonts.dmSans(
-                                  fontSize: 12, color: AppColors.textMuted),
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
                             ),
                             if (expense.receiptUrl.isNotEmpty) ...[
                               const SizedBox(width: 6),
-                              const Icon(Icons.receipt_rounded,
-                                  size: 11, color: AppColors.tealAccent),
+                              const Icon(
+                                Icons.receipt_rounded,
+                                size: 11,
+                                color: AppColors.tealAccent,
+                              ),
                             ],
                             if (isPending) ...[
                               const SizedBox(width: 6),
                               _StatusBadge(
-                                  label: _tr('Pending', 'Inasubiri'),
-                                  color: AppColors.warning),
+                                label: _tr('Pending', 'Inasubiri'),
+                                color: AppColors.warning,
+                              ),
                             ],
                             if (isRejected) ...[
                               const SizedBox(width: 6),
                               _StatusBadge(
-                                  label: _tr('Rejected', 'Imekataliwa'),
-                                  color: AppColors.error),
+                                label: _tr('Rejected', 'Imekataliwa'),
+                                color: AppColors.error,
+                              ),
                             ],
                           ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   // Amount
                   Text(
                     'TZS ${_fmtNum(amount)}',
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isRejected
-                            ? AppColors.error
-                            : AppColors.navyPrimary),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isRejected
+                          ? AppColors.error
+                          : AppColors.navyPrimary,
+                    ),
                   ),
                 ],
               ),
               if (!isLast)
                 const Padding(
-                  padding: EdgeInsets.only(top: 13, left: 60),
+                  padding: EdgeInsets.only(top: 8, left: 46),
                   child: Divider(
-                      height: 1, color: AppColors.border, thickness: 0.8),
+                    height: 1,
+                    color: AppColors.border,
+                    thickness: 0.8,
+                  ),
                 ),
             ],
           ),
@@ -658,7 +712,10 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.dmSans(
-            fontSize: 9, fontWeight: FontWeight.w700, color: color),
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
@@ -672,8 +729,11 @@ class _PillStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _PillStat(
-      {required this.label, required this.value, required this.color});
+  const _PillStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -683,15 +743,19 @@ class _PillStat extends StatelessWidget {
         Text(
           value,
           style: GoogleFonts.dmSans(
-              fontSize: 13, fontWeight: FontWeight.w800, color: color),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
         SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textMuted,
+          ),
         ),
       ],
     );
@@ -739,8 +803,18 @@ String _fmtDate(String iso) {
 
 String _monthLabel(DateTime d) {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   return '${months[d.month - 1]} ${d.year}';
 }

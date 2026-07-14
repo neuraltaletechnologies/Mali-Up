@@ -326,8 +326,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
         onCreateReturn: () => _openSelectSaleForReturn(ctx),
-        onCreateManufactured: () =>
-            _openProductFormWithType(ctx, ProductType.manufactured),
         onOpenCatalog: () => _openCatalogSheet(ctx),
       ),
     );
@@ -353,13 +351,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           );
         },
       ),
-    );
-  }
-
-  void _openProductFormWithType(BuildContext ctx, ProductType type) {
-    showAppSheet<void>(
-      ctx,
-      builder: (_) => _ProductFormSheet(initialType: type),
     );
   }
 
@@ -3152,14 +3143,8 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existingItem;
   final String? existingId;
   final VoidCallback? onDone;
-  final ProductType? initialType;
 
-  const _ProductFormSheet({
-    this.existingItem,
-    this.existingId,
-    this.onDone,
-    this.initialType,
-  });
+  const _ProductFormSheet({this.existingItem, this.existingId, this.onDone});
 
   @override
   ConsumerState<_ProductFormSheet> createState() => _ProductFormSheetState();
@@ -3334,7 +3319,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             : yield_.toStringAsFixed(2);
       }
     } else {
-      _type = widget.initialType ?? ProductType.stock;
+      _type = ProductType.stock;
     }
     // Store original stock so edit flow can compute the delta for purchase deduction
     _originalStock = double.tryParse(_stockCtrl.text) ?? 0.0;
@@ -4191,20 +4176,22 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // ── Type pills (single row — stock / perishable / service only) ──
-                    // Return and Manufactured are entered via the choice sheet,
-                    // so once you're inside the form with those types the pills
-                    // are hidden and the type is fixed.
-                    if (!isReturn && !isManufactured)
+                    // Perishable stock is configured inside Stock alongside
+                    // its expiry date, rather than being a duplicate top-level
+                    // product type.
+                    if (!isReturn)
                       Row(
                         children: () {
                           const corePills = [
                             ProductType.stock,
-                            ProductType.perishable,
+                            ProductType.manufactured,
                             ProductType.service,
                           ];
                           final tiles = corePills.map((t) {
-                            final sel = t == _type;
+                            final sel = t == ProductType.stock
+                                ? _type == ProductType.stock ||
+                                      _type == ProductType.perishable
+                                : t == _type;
                             Color tileColor;
                             Color borderColor;
                             Color contentColor;
@@ -4225,7 +4212,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       _unit == 'pcs') {
                                     _unit = 'units';
                                   }
-                                  _type = t;
+                                  if (!(t == ProductType.stock &&
+                                      _type == ProductType.perishable)) {
+                                    _type = t;
+                                  }
                                 }),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
@@ -4244,7 +4234,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                         size: 15,
                                         color: contentColor,
                                       ),
-                                      SizedBox(height: 3),
+                                      const SizedBox(height: 3),
                                       Text(
                                         _typeName(t),
                                         textAlign: TextAlign.center,
@@ -4835,6 +4825,26 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
 
                       // ── Business-type-specific fields (not for returns) ────
+
+                      // Perishable is a Stock option kept beside the expiry
+                      // field instead of appearing as a separate top tab.
+                      if (!isReturn &&
+                          !isManufactured &&
+                          (_type == ProductType.stock ||
+                              _type == ProductType.perishable)) ...[
+                        _PerishableToggle(
+                          selected: _type == ProductType.perishable,
+                          onChanged: (selected) => setState(() {
+                            _type = selected
+                                ? ProductType.perishable
+                                : ProductType.stock;
+                            if (!selected && !config.showExpiryDate) {
+                              _expiryDate = null;
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
 
                       // Perishable products always require an expiry date;
                       // other product types follow the business configuration.
@@ -7055,6 +7065,88 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Perishable stock + expiry controls ────────────────────────────────────────
+
+class _PerishableToggle extends StatelessWidget {
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  const _PerishableToggle({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!selected),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.tealAccent.withValues(alpha: 0.08)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.tealAccent : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.tealAccent
+                    : AppColors.tealAccent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.eco_outlined,
+                size: 19,
+                color: selected ? Colors.white : AppColors.tealAccent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _tr('Perishable product', 'Bidhaa inayoharibika'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _tr(
+                      'Turn on to add an expiry date',
+                      'Washa ili kuweka tarehe ya mwisho',
+                    ),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch.adaptive(
+              value: selected,
+              onChanged: onChanged,
+              activeTrackColor: AppColors.tealAccent,
+            ),
+          ],
+        ),
       ),
     );
   }

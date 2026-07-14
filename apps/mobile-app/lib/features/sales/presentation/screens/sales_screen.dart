@@ -2292,10 +2292,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         updatedAt: now.toIso8601String(),
       );
 
-      // Offline: commit the sale to Drift + the sync queue instead of the
-      // Firestore batch (whose commit() would never resolve without a
-      // connection). SyncService pushes everything when connectivity returns.
-      if (!await OnlineGuard.isDeviceOnline()) {
+      // The active business is already cached locally. Commit through Drift +
+      // the sync queue whether online or offline; SyncService handles the
+      // Firestore write. This avoids maintaining a second direct-Firestore
+      // sale path with different permissions and failure behavior.
+      final localBusinessId =
+          ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+      if (localBusinessId.isNotEmpty) {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) throw Exception('Not logged in');
 
@@ -2352,6 +2355,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             createdBy: user.uid,
           );
         }
+
+        // Online sessions can start pushing immediately. This is intentionally
+        // unawaited: the local transaction is the successful sale commit.
+        unawaited(ref.read(syncServiceProvider).syncNow());
 
         await _showQuickSaleReceipt(
           invoiceNumber: invoiceNumber,

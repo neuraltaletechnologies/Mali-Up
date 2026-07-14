@@ -7,7 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_motion.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
 import 'add_expense_screen.dart';
@@ -18,53 +19,45 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // Category meta (mirrors expense_list_screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum _Cat {
-  rent,
-  utilities,
-  salaries,
-  transport,
-  marketing,
-  supplies,
-  other,
-}
+enum _Cat { rent, utilities, salaries, transport, marketing, supplies, other }
 
 extension _CatX on _Cat {
   String get key => name;
 
   String get label => switch (this) {
-        _Cat.rent => _tr('Rent', 'Kodi'),
-        _Cat.utilities => _tr('Utilities', 'Huduma'),
-        _Cat.salaries => _tr('Salaries', 'Mishahara'),
-        _Cat.transport => _tr('Transport', 'Usafiri'),
-        _Cat.marketing => _tr('Marketing', 'Masoko'),
-        _Cat.supplies => _tr('Supplies', 'Vifaa'),
-        _Cat.other => _tr('Other', 'Nyingine'),
-      };
+    _Cat.rent => _tr('Rent', 'Kodi'),
+    _Cat.utilities => _tr('Utilities', 'Huduma'),
+    _Cat.salaries => _tr('Salaries', 'Mishahara'),
+    _Cat.transport => _tr('Transport', 'Usafiri'),
+    _Cat.marketing => _tr('Marketing', 'Masoko'),
+    _Cat.supplies => _tr('Supplies', 'Vifaa'),
+    _Cat.other => _tr('Other', 'Nyingine'),
+  };
 
   IconData get icon => switch (this) {
-        _Cat.rent => Icons.home_rounded,
-        _Cat.utilities => Icons.bolt_rounded,
-        _Cat.salaries => Icons.people_rounded,
-        _Cat.transport => Icons.local_shipping_rounded,
-        _Cat.marketing => Icons.campaign_rounded,
-        _Cat.supplies => Icons.inventory_2_rounded,
-        _Cat.other => Icons.more_horiz_rounded,
-      };
+    _Cat.rent => Icons.home_rounded,
+    _Cat.utilities => Icons.bolt_rounded,
+    _Cat.salaries => Icons.people_rounded,
+    _Cat.transport => Icons.local_shipping_rounded,
+    _Cat.marketing => Icons.campaign_rounded,
+    _Cat.supplies => Icons.inventory_2_rounded,
+    _Cat.other => Icons.more_horiz_rounded,
+  };
 
   Color get color => switch (this) {
-        _Cat.rent => AppColors.navyPrimary,
-        _Cat.utilities => AppColors.tealAccent,
-        _Cat.salaries => AppColors.success,
-        _Cat.transport => AppColors.warning,
-        _Cat.marketing => const Color(0xFF7C3AED),
-        _Cat.supplies => const Color(0xFFB45309),
-        _Cat.other => AppColors.textMuted,
-      };
+    _Cat.rent => AppColors.navyPrimary,
+    _Cat.utilities => AppColors.tealAccent,
+    _Cat.salaries => AppColors.success,
+    _Cat.transport => AppColors.warning,
+    _Cat.marketing => const Color(0xFF7C3AED),
+    _Cat.supplies => const Color(0xFFB45309),
+    _Cat.other => AppColors.textMuted,
+  };
 
   static _Cat fromKey(String key) => _Cat.values.firstWhere(
-        (c) => c.key == key.toLowerCase(),
-        orElse: () => _Cat.other,
-      );
+    (c) => c.key == key.toLowerCase(),
+    orElse: () => _Cat.other,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,19 +95,24 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
           .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'expenses')
+            uid: user.uid,
+            context: ctx,
+            childCollection: 'expenses',
+          )
           .doc(_expense.id)
           .update({
-        'status': 'approved',
-        'approvedBy': user.uid,
-        'approvedAt': FieldValue.serverTimestamp(),
-      });
+            'status': 'approved',
+            'approvedBy': user.uid,
+            'approvedAt': FieldValue.serverTimestamp(),
+          });
       setState(() {
         _expense = _expense.copyWith(status: 'approved', approvedBy: user.uid);
         _actionLoading = false;
       });
-      _showSnack(_tr('Expense approved', 'Gharama imekubaliwa'),
-          AppColors.success);
+      _showSnack(
+        _tr('Expense approved', 'Gharama imekubaliwa'),
+        AppColors.success,
+      );
     } catch (_) {
       setState(() => _actionLoading = false);
     }
@@ -131,20 +129,25 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
           .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'expenses')
+            uid: user.uid,
+            context: ctx,
+            childCollection: 'expenses',
+          )
           .doc(_expense.id)
           .update({
-        'status': 'rejected',
-        'rejectionReason': reason,
-        'rejectedBy': user.uid,
-        'rejectedAt': FieldValue.serverTimestamp(),
-      });
+            'status': 'rejected',
+            'rejectionReason': reason,
+            'rejectedBy': user.uid,
+            'rejectedAt': FieldValue.serverTimestamp(),
+          });
       setState(() {
         _expense = _expense.copyWith(status: 'rejected');
         _actionLoading = false;
       });
-      _showSnack(_tr('Expense rejected', 'Gharama imekataliwa'),
-          AppColors.error);
+      _showSnack(
+        _tr('Expense rejected', 'Gharama imekataliwa'),
+        AppColors.error,
+      );
     } catch (_) {
       setState(() => _actionLoading = false);
     }
@@ -156,8 +159,10 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('Reject Expense', 'Kataa Gharama'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+        title: Text(
+          _tr('Reject Expense', 'Kataa Gharama'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -165,25 +170,27 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
           decoration: InputDecoration(
             hintText: _tr('Reason (optional)', 'Sababu (hiari)'),
             hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
           style: GoogleFonts.dmSans(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(_tr('Cancel', 'Ghairi'),
-                style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+            child: Text(
+              _tr('Cancel', 'Ghairi'),
+              style: GoogleFonts.dmSans(color: AppColors.textMuted),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
             style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            child: Text(_tr('Reject', 'Kataa'),
-                style: GoogleFonts.dmSans()),
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(_tr('Reject', 'Kataa'), style: GoogleFonts.dmSans()),
           ),
         ],
       ),
@@ -194,10 +201,11 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('Delete Expense?', 'Futa Gharama?'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          _tr('Delete Expense?', 'Futa Gharama?'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
         content: Text(
           _tr('This cannot be undone.', 'Hii haiwezi kutenduliwa.'),
           style: GoogleFonts.dmSans(),
@@ -205,14 +213,18 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_tr('Cancel', 'Ghairi'),
-                style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+            child: Text(
+              _tr('Cancel', 'Ghairi'),
+              style: GoogleFonts.dmSans(color: AppColors.textMuted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: Text(_tr('Delete', 'Futa'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+            child: Text(
+              _tr('Delete', 'Futa'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -225,7 +237,10 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
           .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'expenses')
+            uid: user.uid,
+            context: ctx,
+            childCollection: 'expenses',
+          )
           .doc(_expense.id)
           .delete();
       // ignore: use_build_context_synchronously
@@ -234,28 +249,33 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   }
 
   void _openEdit() async {
-    final result = await Navigator.of(context).push(AppMotion.taskRoute(
+    final result = await showAppSheet<Map<String, dynamic>>(
+      context,
+      maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: _expense),
-    ));
+    );
     if (result != null && mounted) Navigator.of(context).pop(result);
   }
 
   void _viewReceipt() {
     if (_expense.receiptUrl.isEmpty) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _FullReceiptScreen(url: _expense.receiptUrl),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullReceiptScreen(url: _expense.receiptUrl),
+      ),
+    );
   }
 
   void _showSnack(String msg, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
@@ -266,70 +286,275 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     final amount = double.tryParse(_expense.amount) ?? 0;
     final isPending = _expense.status == 'pending';
     final isRejected = _expense.status == 'rejected';
-    final isApproved = _expense.status == 'approved';
     final hasReceipt = _expense.receiptUrl.isNotEmpty;
+    final statusColor = isPending
+        ? AppColors.warning
+        : isRejected
+        ? AppColors.error
+        : AppColors.success;
+    final statusIcon = isPending
+        ? Icons.schedule_rounded
+        : isRejected
+        ? Icons.cancel_rounded
+        : Icons.check_circle_rounded;
+    final statusLabel = isPending
+        ? _tr('Pending', 'Inasubiri')
+        : isRejected
+        ? _tr('Rejected', 'Imekataliwa')
+        : _tr('Approved', 'Imekubaliwa');
+    final title = _expense.note.trim().isNotEmpty
+        ? _expense.note.trim()
+        : cat.label;
+    final size = MediaQuery.sizeOf(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(cat, hasReceipt),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Hero amount card
-                  _HeroCard(
-                    cat: cat,
-                    amount: amount,
-                    status: _expense.status,
-                    isPending: isPending,
-                    isRejected: isRejected,
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    MediaQuery.viewInsetsOf(context).bottom + 24,
                   ),
-                  const SizedBox(height: 16),
-
-                  // Details card
-                  _DetailsCard(expense: _expense, cat: cat),
-                  const SizedBox(height: 16),
-
-                  // Receipt card (if available)
-                  if (hasReceipt) ...[
-                    _ReceiptPreviewCard(
-                      url: _expense.receiptUrl,
-                      onView: _viewReceipt,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Approval card (if pending)
-                  if (isPending) ...[
-                    _ApprovalCard(
-                      loading: _actionLoading,
-                      onApprove: _approve,
-                      onReject: _reject,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Actions card
-                  _ActionsCard(
-                    isRejected: isRejected,
-                    isApproved: isApproved,
-                    onEdit: _openEdit,
-                    onDelete: _delete,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: cat.color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(cat.icon, size: 20, color: cat.color),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.navyPrimary,
+                                    height: 1.15,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  cat.label,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(statusIcon, size: 12, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusLabel,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 12,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _fmtDate(_expense.date),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          if (_expense.recipient.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '·',
+                              style: GoogleFonts.dmSans(
+                                color: AppColors.textDisabled,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.person_outline_rounded,
+                              size: 13,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                _expense.recipient,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'TZS ${_fmtNum(amount)}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: AppColors.border),
+                      const SizedBox(height: 16),
+                      _SheetSectionLabel(
+                        _tr('Expense details', 'Maelezo ya gharama'),
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailsCard(expense: _expense, cat: cat),
+                      if (hasReceipt) ...[
+                        const SizedBox(height: 16),
+                        _SheetSectionLabel(_tr('Receipt', 'Risiti')),
+                        const SizedBox(height: 8),
+                        _ReceiptPreviewCard(
+                          url: _expense.receiptUrl,
+                          onView: _viewReceipt,
+                        ),
+                      ],
+                      if (isPending) ...[
+                        const SizedBox(height: 16),
+                        _ApprovalCard(
+                          loading: _actionLoading,
+                          onApprove: _approve,
+                          onReject: _reject,
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
-            ),
+              Container(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  10,
+                  16,
+                  MediaQuery.paddingOf(context).bottom + 10,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x120D1B3E),
+                      blurRadius: 18,
+                      offset: Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    SizedBox.square(
+                      dimension: 48,
+                      child: OutlinedButton(
+                        onPressed: _delete,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: _openEdit,
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          label: Text(
+                            _tr('Edit Expense', 'Hariri Gharama'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
+  // Kept for the optional full-screen presentation used by older deep links.
+  // ignore: unused_element
   Widget _buildSliverAppBar(_Cat cat, bool hasReceipt) {
     return SliverAppBar(
       expandedHeight: hasReceipt ? 220 : 160,
@@ -378,10 +603,7 @@ class _GradientBackground extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            cat.color.withValues(alpha: 0.6),
-          ],
+          colors: [AppColors.navyPrimary, cat.color.withValues(alpha: 0.6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -405,8 +627,7 @@ class _ReceiptHeroBackground extends StatelessWidget {
   final String url;
   final VoidCallback onTap;
 
-  const _ReceiptHeroBackground(
-      {required this.url, required this.onTap});
+  const _ReceiptHeroBackground({required this.url, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -423,8 +644,11 @@ class _ReceiptHeroBackground extends StatelessWidget {
               return Container(
                 color: AppColors.navyPrimary,
                 child: const Center(
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2)),
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
               );
             },
           ),
@@ -444,8 +668,7 @@ class _ReceiptHeroBackground extends StatelessWidget {
             bottom: 16,
             right: 16,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
@@ -453,15 +676,19 @@ class _ReceiptHeroBackground extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.zoom_out_map_rounded,
-                      size: 13, color: Colors.white),
+                  const Icon(
+                    Icons.zoom_out_map_rounded,
+                    size: 13,
+                    color: Colors.white,
+                  ),
                   SizedBox(width: 5),
                   Text(
                     _tr('View receipt', 'Angalia risiti'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ],
               ),
@@ -477,6 +704,27 @@ class _ReceiptHeroBackground extends StatelessWidget {
 // Content cards
 // ─────────────────────────────────────────────────────────────────────────────
 
+class _SheetSectionLabel extends StatelessWidget {
+  final String text;
+
+  const _SheetSectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.dmSans(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textMuted,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+}
+
+// Kept with the legacy full-screen presentation above.
+// ignore: unused_element
 class _HeroCard extends StatelessWidget {
   final _Cat cat;
   final double amount;
@@ -497,8 +745,8 @@ class _HeroCard extends StatelessWidget {
     final statusColor = isPending
         ? AppColors.warning
         : isRejected
-            ? AppColors.error
-            : AppColors.success;
+        ? AppColors.error
+        : AppColors.success;
     final statusLabel = switch (status) {
       'approved' => _tr('Approved', 'Imekubaliwa'),
       'pending' => _tr('Pending Approval', 'Inasubiri Idhini'),
@@ -509,10 +757,7 @@ class _HeroCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            cat.color.withValues(alpha: 0.5),
-          ],
+          colors: [AppColors.navyPrimary, cat.color.withValues(alpha: 0.5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -538,36 +783,39 @@ class _HeroCard extends StatelessWidget {
                 Text(
                   cat.label,
                   style: GoogleFonts.dmSans(
-                      fontSize: 13, color: Colors.white70),
+                    fontSize: 13,
+                    color: Colors.white70,
+                  ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'TZS ${_fmtNum(amount)}',
                   style: GoogleFonts.dmSerifDisplay(
-                      fontSize: 28, color: Colors.white),
+                    fontSize: 28,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: statusColor.withValues(alpha: 0.4)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.4)),
             ),
             child: Text(
               statusLabel,
               style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isPending
-                      ? const Color(0xFFFDE68A)
-                      : isRejected
-                          ? const Color(0xFFFC8181)
-                          : const Color(0xFF86EFAC)),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isPending
+                    ? const Color(0xFFFDE68A)
+                    : isRejected
+                    ? const Color(0xFFFC8181)
+                    : const Color(0xFF86EFAC),
+              ),
             ),
           ),
         ],
@@ -672,14 +920,21 @@ class _DetailRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10, color: AppColors.textMuted)),
-                Text(value,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: valueColor ?? AppColors.textPrimary)),
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: valueColor ?? AppColors.textPrimary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -716,13 +971,19 @@ class _ReceiptPreviewCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               clipBehavior: Clip.hardEdge,
-              child: Image.network(url, fit: BoxFit.cover,
-                  loadingBuilder: (_, child, progress) {
-                if (progress == null) return child;
-                return const Center(
+              child: Image.network(
+                url,
+                fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(
                     child: CircularProgressIndicator(
-                        color: AppColors.navyPrimary, strokeWidth: 2));
-              }),
+                      color: AppColors.navyPrimary,
+                      strokeWidth: 2,
+                    ),
+                  );
+                },
+              ),
             ),
             SizedBox(width: 14),
             Expanded(
@@ -732,22 +993,23 @@ class _ReceiptPreviewCard extends StatelessWidget {
                   Text(
                     _tr('Receipt attached', 'Risiti imeambatishwa'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    _tr('Tap to view full receipt',
-                        'Gusa kuona risiti kamili'),
+                    _tr('Tap to view full receipt', 'Gusa kuona risiti kamili'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 12, color: AppColors.textMuted),
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textMuted),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
         ),
       ),
@@ -780,25 +1042,32 @@ class _ApprovalCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.pending_actions_rounded,
-                  size: 18, color: AppColors.warning),
+              const Icon(
+                Icons.pending_actions_rounded,
+                size: 18,
+                color: AppColors.warning,
+              ),
               SizedBox(width: 8),
               Text(
                 _tr('Awaiting Approval', 'Inasubiri Idhini'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.warning),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.warning,
+                ),
               ),
             ],
           ),
           SizedBox(height: 6),
           Text(
             _tr(
-                'This expense was submitted for manager review. Approve or reject it below.',
-                'Gharama hii iliwasilishwa kwa mapitio ya meneja. Ikubali au ikatae hapa chini.'),
+              'This expense was submitted for manager review. Approve or reject it below.',
+              'Gharama hii iliwasilishwa kwa mapitio ya meneja. Ikubali au ikatae hapa chini.',
+            ),
             style: GoogleFonts.dmSans(
-                fontSize: 12, color: AppColors.textSecondary),
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           SizedBox(height: 14),
           Row(
@@ -807,16 +1076,17 @@ class _ApprovalCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: loading ? null : onReject,
                   icon: Icon(Icons.cancel_rounded, size: 16),
-                  label: Text(_tr('Reject', 'Kataa'),
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600)),
+                  label: Text(
+                    _tr('Reject', 'Kataa'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: const BorderSide(color: AppColors.error),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -828,18 +1098,21 @@ class _ApprovalCard extends StatelessWidget {
                       ? const SizedBox.square(
                           dimension: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_rounded,
-                          size: 16),
-                  label: Text(_tr('Approve', 'Kubali'),
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600)),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_rounded, size: 16),
+                  label: Text(
+                    _tr('Approve', 'Kubali'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.success,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -851,6 +1124,8 @@ class _ApprovalCard extends StatelessWidget {
   }
 }
 
+// Kept with the legacy full-screen presentation above.
+// ignore: unused_element
 class _ActionsCard extends StatelessWidget {
   final bool isRejected;
   final bool isApproved;
@@ -920,13 +1195,17 @@ class _ActionRow extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: color),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
             const Spacer(),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: color.withValues(alpha: 0.5)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: color.withValues(alpha: 0.5),
+            ),
           ],
         ),
       ),
@@ -950,13 +1229,15 @@ class _FullReceiptScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(_tr('Receipt', 'Risiti'),
-            style: GoogleFonts.dmSans(color: Colors.white)),
+        title: Text(
+          _tr('Receipt', 'Risiti'),
+          style: GoogleFonts.dmSans(color: Colors.white),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.open_in_new_rounded),
-            onPressed: () => launchUrl(Uri.parse(url),
-                mode: LaunchMode.externalApplication),
+            onPressed: () =>
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
             tooltip: _tr('Open in browser', 'Fungua kivinjari'),
           ),
         ],
@@ -971,7 +1252,9 @@ class _FullReceiptScreen extends StatelessWidget {
             loadingBuilder: (_, child, progress) {
               if (progress == null) return child;
               return const CircularProgressIndicator(
-                  color: Colors.white, strokeWidth: 2);
+                color: Colors.white,
+                strokeWidth: 2,
+              );
             },
           ),
         ),
@@ -993,14 +1276,21 @@ class _PayMethodLabel {
   static _PayMethodLabel fromKey(String key) {
     return switch (key) {
       'mpesa' => const _PayMethodLabel(
-          label: 'M-Pesa', icon: Icons.phone_android_rounded),
+        label: 'M-Pesa',
+        icon: Icons.phone_android_rounded,
+      ),
       'bank' => _PayMethodLabel(
-          label: _tr('Bank Transfer', 'Benki'),
-          icon: Icons.account_balance_rounded),
+        label: _tr('Bank Transfer', 'Benki'),
+        icon: Icons.account_balance_rounded,
+      ),
       'card' => _PayMethodLabel(
-          label: _tr('Card', 'Kadi'), icon: Icons.credit_card_rounded),
+        label: _tr('Card', 'Kadi'),
+        icon: Icons.credit_card_rounded,
+      ),
       _ => _PayMethodLabel(
-          label: _tr('Cash', 'Taslimu'), icon: Icons.payments_rounded),
+        label: _tr('Cash', 'Taslimu'),
+        icon: Icons.payments_rounded,
+      ),
     };
   }
 }
