@@ -2548,7 +2548,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     required String statusStr,
     required DateTime now,
   }) async {
-    SentryMetricsService.salesCreated(amount: _grandTotal, status: statusStr);
+    // Record the feature event only. Financial amounts must never be sent to
+    // analytics or crash-reporting providers.
+    SentryMetricsService.salesCreated(status: statusStr);
 
     // Build a plain data map for the receipt popup — no server timestamps,
     // just the values we already have in memory.

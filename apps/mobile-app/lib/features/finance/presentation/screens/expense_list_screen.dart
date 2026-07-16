@@ -15,6 +15,9 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
+import '../../domain/models/expense_category.dart';
+import '../expense_category_style.dart';
+import '../widgets/manage_expense_categories_sheet.dart';
 import 'add_expense_screen.dart';
 import 'expense_detail_screen.dart';
 
@@ -23,47 +26,6 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ─────────────────────────────────────────────────────────────────────────────
 // Category meta
 // ─────────────────────────────────────────────────────────────────────────────
-
-enum _Cat { rent, utilities, salaries, transport, marketing, supplies, other }
-
-extension _CatX on _Cat {
-  String get key => name;
-
-  String get label => switch (this) {
-    _Cat.rent => _tr('Rent', 'Kodi'),
-    _Cat.utilities => _tr('Utilities', 'Huduma'),
-    _Cat.salaries => _tr('Salaries', 'Mishahara'),
-    _Cat.transport => _tr('Transport', 'Usafiri'),
-    _Cat.marketing => _tr('Marketing', 'Masoko'),
-    _Cat.supplies => _tr('Supplies', 'Vifaa'),
-    _Cat.other => _tr('Other', 'Nyingine'),
-  };
-
-  IconData get icon => switch (this) {
-    _Cat.rent => Icons.home_rounded,
-    _Cat.utilities => Icons.bolt_rounded,
-    _Cat.salaries => Icons.people_rounded,
-    _Cat.transport => Icons.local_shipping_rounded,
-    _Cat.marketing => Icons.campaign_rounded,
-    _Cat.supplies => Icons.inventory_2_rounded,
-    _Cat.other => Icons.more_horiz_rounded,
-  };
-
-  Color get color => switch (this) {
-    _Cat.rent => AppColors.navyPrimary,
-    _Cat.utilities => AppColors.tealAccent,
-    _Cat.salaries => AppColors.success,
-    _Cat.transport => AppColors.warning,
-    _Cat.marketing => const Color(0xFF7C3AED),
-    _Cat.supplies => const Color(0xFFB45309),
-    _Cat.other => AppColors.textMuted,
-  };
-
-  static _Cat fromKey(String key) => _Cat.values.firstWhere(
-    (c) => c.key == key.toLowerCase(),
-    orElse: () => _Cat.other,
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -77,7 +39,7 @@ class ExpenseListScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
-  _Cat? _filterCat;
+  String? _filterCategoryKey;
 
   void _prevMonth() {
     final cur = ref.read(selectedMonthProvider);
@@ -123,12 +85,30 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     );
   }
 
+  Future<void> _openCategoryManager() async {
+    await showAppSheet<void>(
+      context,
+      maxHeightFactor: 0.88,
+      builder: (_) => const ManageExpenseCategoriesSheet(),
+    );
+    if (!mounted || _filterCategoryKey == null) return;
+    final categories =
+        ref.read(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
+    if (!categories.any((category) => category.key == _filterCategoryKey)) {
+      setState(() => _filterCategoryKey = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final month = ref.watch(selectedMonthProvider);
     final total = ref.watch(monthTotalSpendProvider);
     final expenses = ref.watch(expensesByMonthProvider);
     final isLoading = ref.watch(expenseListProvider).isLoading;
+    final categories =
+        ref.watch(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
 
     final withReceipt = expenses.where((e) => e.receiptUrl.isNotEmpty).length;
 
@@ -138,9 +118,15 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       month.month + 1,
     ).isBefore(DateTime(now.year, now.month + 1));
 
-    final filtered = _filterCat == null
+    final filtered = _filterCategoryKey == null
         ? expenses
-        : expenses.where((e) => e.category == _filterCat!.key).toList();
+        : expenses.where((e) => e.category == _filterCategoryKey).toList();
+    final selectedCategory = _filterCategoryKey == null
+        ? null
+        : categories.firstWhere(
+            (category) => category.key == _filterCategoryKey,
+            orElse: () => ExpenseCategory.fallback(_filterCategoryKey!),
+          );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -171,23 +157,25 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           const SizedBox(height: _ExpenseDarkHeader._pillHalf + 8),
           // Category filter pills
           _CategoryPills(
-            selected: _filterCat,
-            onSelect: (c) => setState(() => _filterCat = c),
+            categories: categories,
+            selectedKey: _filterCategoryKey,
+            onSelect: (key) => setState(() => _filterCategoryKey = key),
+            onManage: _openCategoryManager,
           ),
           Expanded(
             child: isLoading
-                ? const SkeletonList(itemCount: 6)
+                ? const ExpensePageSkeleton()
                 : filtered.isEmpty
                 ? EmptyState(
                     icon: Icons.receipt_outlined,
-                    title: _filterCat == null
+                    title: selectedCategory == null
                         ? _tr(
                             'No expenses this month',
                             'Hakuna matumizi mwezi huu',
                           )
                         : _tr(
-                            'No ${_filterCat!.label} expenses',
-                            'Hakuna matumizi ya ${_filterCat!.label}',
+                            'No ${selectedCategory.label} expenses',
+                            'Hakuna matumizi ya ${selectedCategory.label}',
                           ),
                     subtitle: _tr(
                       'Tap + to log a purchase or bill.',
@@ -199,6 +187,11 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (ctx, i) => _ExpenseCard(
                       expense: filtered[i],
+                      category: categories.firstWhere(
+                        (category) => category.key == filtered[i].category,
+                        orElse: () =>
+                            ExpenseCategory.fallback(filtered[i].category),
+                      ),
                       isLast: i == filtered.length - 1,
                       onTap: () => _openDetail(filtered[i]),
                       onEdit: () => _openAdd(edit: filtered[i]),
@@ -432,10 +425,17 @@ class _ExpenseDarkHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CategoryPills extends StatelessWidget {
-  final _Cat? selected;
-  final ValueChanged<_Cat?> onSelect;
+  final List<ExpenseCategory> categories;
+  final String? selectedKey;
+  final ValueChanged<String?> onSelect;
+  final VoidCallback onManage;
 
-  const _CategoryPills({required this.selected, required this.onSelect});
+  const _CategoryPills({
+    required this.categories,
+    required this.selectedKey,
+    required this.onSelect,
+    required this.onManage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -451,18 +451,26 @@ class _CategoryPills extends StatelessWidget {
               children: [
                 _Pill(
                   label: _tr('All', 'Zote'),
-                  active: selected == null,
+                  active: selectedKey == null,
                   color: AppColors.navyPrimary,
                   onTap: () => onSelect(null),
                 ),
-                ..._Cat.values.map(
+                ...categories.map(
                   (cat) => _Pill(
                     label: cat.label,
                     icon: cat.icon,
-                    active: selected == cat,
+                    active: selectedKey == cat.key,
                     color: cat.color,
-                    onTap: () => onSelect(selected == cat ? null : cat),
+                    onTap: () =>
+                        onSelect(selectedKey == cat.key ? null : cat.key),
                   ),
+                ),
+                _Pill(
+                  label: _tr('Manage', 'Simamia'),
+                  icon: Icons.tune_rounded,
+                  active: false,
+                  color: AppColors.tealAccent,
+                  onTap: onManage,
                 ),
               ],
             ),
@@ -532,6 +540,7 @@ class _Pill extends StatelessWidget {
 
 class _ExpenseCard extends StatelessWidget {
   final Expense expense;
+  final ExpenseCategory category;
   final bool isLast;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -539,6 +548,7 @@ class _ExpenseCard extends StatelessWidget {
 
   const _ExpenseCard({
     required this.expense,
+    required this.category,
     required this.isLast,
     required this.onTap,
     required this.onEdit,
@@ -547,7 +557,7 @@ class _ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cat = _CatX.fromKey(expense.category);
+    final cat = category;
     final amount = double.tryParse(expense.amount) ?? 0;
 
     return ListSwipeCard(

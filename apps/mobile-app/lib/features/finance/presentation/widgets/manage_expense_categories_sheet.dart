@@ -44,10 +44,12 @@ class _ManageExpenseCategoriesSheetState
     final collection = ref.read(expenseCategoryCollectionProvider);
     if (name.isEmpty || collection == null || _saving) return;
     if (categories.any((c) => c.label.toLowerCase() == name.toLowerCase())) {
-      _showMessage(_t(
-        'That expense type already exists.',
-        'Aina hiyo ya matumizi tayari ipo.',
-      ));
+      _showMessage(
+        _t(
+          'That expense type already exists.',
+          'Aina hiyo ya matumizi tayari ipo.',
+        ),
+      );
       return;
     }
 
@@ -66,10 +68,12 @@ class _ManageExpenseCategoriesSheetState
       });
       _nameController.clear();
     } catch (_) {
-      _showMessage(_t(
-        'Could not add the expense type. Try again.',
-        'Imeshindwa kuongeza aina ya matumizi. Jaribu tena.',
-      ));
+      _showMessage(
+        _t(
+          'Could not add the expense type. Try again.',
+          'Imeshindwa kuongeza aina ya matumizi. Jaribu tena.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -80,10 +84,12 @@ class _ManageExpenseCategoriesSheetState
     List<ExpenseCategory> categories,
   ) async {
     if (categories.length <= 1) {
-      _showMessage(_t(
-        'Keep at least one expense type.',
-        'Baki na angalau aina moja ya matumizi.',
-      ));
+      _showMessage(
+        _t(
+          'Keep at least one expense type.',
+          'Baki na angalau aina moja ya matumizi.',
+        ),
+      );
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -128,10 +134,12 @@ class _ManageExpenseCategoriesSheetState
         await collection.doc(category.key).delete();
       }
     } catch (_) {
-      _showMessage(_t(
-        'Could not delete the expense type. Try again.',
-        'Imeshindwa kufuta aina ya matumizi. Jaribu tena.',
-      ));
+      _showMessage(
+        _t(
+          'Could not delete the expense type. Try again.',
+          'Imeshindwa kufuta aina ya matumizi. Jaribu tena.',
+        ),
+      );
     }
   }
 
@@ -145,10 +153,12 @@ class _ManageExpenseCategoriesSheetState
     try {
       await batch.commit();
     } catch (_) {
-      _showMessage(_t(
-        'Could not restore the defaults.',
-        'Imeshindwa kurejesha aina za kawaida.',
-      ));
+      _showMessage(
+        _t(
+          'Could not restore the defaults.',
+          'Imeshindwa kurejesha aina za kawaida.',
+        ),
+      );
     }
   }
 
@@ -161,7 +171,8 @@ class _ManageExpenseCategoriesSheetState
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(expenseCategoryListProvider).valueOrNull ??
+    final categories =
+        ref.watch(expenseCategoryListProvider).valueOrNull ??
         ExpenseCategory.defaults;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -226,7 +237,11 @@ class _ManageExpenseCategoriesSheetState
                           color: category.color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: Icon(category.icon, color: category.color, size: 19),
+                        child: Icon(
+                          category.icon,
+                          color: category.color,
+                          size: 19,
+                        ),
                       ),
                       title: Text(
                         category.label,
@@ -259,7 +274,10 @@ class _ManageExpenseCategoriesSheetState
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _add(categories),
                       decoration: InputDecoration(
-                        labelText: _t('New expense type', 'Aina mpya ya matumizi'),
+                        labelText: _t(
+                          'New expense type',
+                          'Aina mpya ya matumizi',
+                        ),
                         hintText: _t('e.g. Internet', 'mfano: Intaneti'),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

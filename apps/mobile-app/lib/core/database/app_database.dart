@@ -68,6 +68,28 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 10;
 
+  /// Removes account and business data cached on this device.
+  ///
+  /// The master catalogue is public reference data, so it is intentionally
+  /// retained. Child rows are deleted before their parents to satisfy the
+  /// invoice-item foreign key.
+  Future<void> clearAccountData() => transaction(() async {
+        await delete(invoiceItemsTable).go();
+        await delete(debtPaymentsTable).go();
+        await delete(cashTransactionsTable).go();
+        await delete(dailyReconciliationsTable).go();
+        await delete(syncQueueTable).go();
+        await delete(invoicesTable).go();
+        await delete(customersTable).go();
+        await delete(expensesTable).go();
+        await delete(inventoryTable).go();
+        await delete(debtsTable).go();
+        await delete(teamMembersTable).go();
+        await delete(cashAccountsTable).go();
+        await delete(businessSettingsTable).go();
+        await delete(userSettingsTable).go();
+      });
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {

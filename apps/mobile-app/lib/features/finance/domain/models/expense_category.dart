@@ -18,10 +18,7 @@ class ExpenseCategory {
   String labelFor(String language) =>
       language == 'sw' && nameSw.isNotEmpty ? nameSw : nameEn;
 
-  factory ExpenseCategory.fromFirestore(
-    String id,
-    Map<String, dynamic> data,
-  ) {
+  factory ExpenseCategory.fromFirestore(String id, Map<String, dynamic> data) {
     final name = (data['name'] as String?)?.trim() ?? '';
     return ExpenseCategory(
       key: id,

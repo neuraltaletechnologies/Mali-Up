@@ -19,8 +19,11 @@ import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../data/payment_account_service.dart';
 import '../../domain/models/expense.dart';
+import '../../domain/models/expense_category.dart';
 import '../../domain/models/recurring_expense_template.dart';
 import '../../domain/payment_method_accounts.dart';
+import '../expense_category_style.dart';
+import '../widgets/manage_expense_categories_sheet.dart';
 import '../widgets/payment_account_chips.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
@@ -32,47 +35,6 @@ enum _ExpenseErrorField { amount, payment, general }
 // ─────────────────────────────────────────────────────────────────────────────
 // Category meta (mirrors expense_list_screen)
 // ─────────────────────────────────────────────────────────────────────────────
-
-enum _Cat { rent, utilities, salaries, transport, marketing, supplies, other }
-
-extension _CatX on _Cat {
-  String get key => name;
-
-  String get label => switch (this) {
-    _Cat.rent => _tr('Rent', 'Kodi'),
-    _Cat.utilities => _tr('Utilities', 'Huduma'),
-    _Cat.salaries => _tr('Salaries', 'Mishahara'),
-    _Cat.transport => _tr('Transport', 'Usafiri'),
-    _Cat.marketing => _tr('Marketing', 'Masoko'),
-    _Cat.supplies => _tr('Supplies', 'Vifaa'),
-    _Cat.other => _tr('Other', 'Nyingine'),
-  };
-
-  IconData get icon => switch (this) {
-    _Cat.rent => Icons.home_rounded,
-    _Cat.utilities => Icons.bolt_rounded,
-    _Cat.salaries => Icons.people_rounded,
-    _Cat.transport => Icons.local_shipping_rounded,
-    _Cat.marketing => Icons.campaign_rounded,
-    _Cat.supplies => Icons.inventory_2_rounded,
-    _Cat.other => Icons.more_horiz_rounded,
-  };
-
-  Color get color => switch (this) {
-    _Cat.rent => AppColors.navyPrimary,
-    _Cat.utilities => AppColors.tealAccent,
-    _Cat.salaries => AppColors.success,
-    _Cat.transport => AppColors.warning,
-    _Cat.marketing => AppColors.purpleAccent,
-    _Cat.supplies => AppColors.warning,
-    _Cat.other => AppColors.textMuted,
-  };
-
-  static _Cat fromKey(String key) => _Cat.values.firstWhere(
-    (c) => c.key == key.toLowerCase(),
-    orElse: () => _Cat.other,
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -88,7 +50,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
 }
 
 class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
-  _Cat _cat = _Cat.other;
+  String _categoryKey = 'other';
   String? _selectedAccountId;
   DateTime _date = DateTime.now();
   String _receiptUrl = '';
@@ -115,7 +77,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (widget.expenseToEdit != null) {
       final e = widget.expenseToEdit!;
-      _cat = _CatX.fromKey(e.category);
+      _categoryKey = e.category;
       // Prefer the exact account recorded at save time (works for custom
       // accounts too); fall back to resolving a built-in from the legacy
       // method string for older expenses that predate this field.
@@ -129,6 +91,31 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _receiptUrl = e.receiptUrl;
       _isRecurring = e.isRecurring;
       _frequency = e.recurrenceType.isNotEmpty ? e.recurrenceType : 'monthly';
+    }
+  }
+
+  ExpenseCategory get _selectedCategory {
+    final categories =
+        ref.read(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
+    return categories.firstWhere(
+      (category) => category.key == _categoryKey,
+      orElse: () => ExpenseCategory.fallback(_categoryKey),
+    );
+  }
+
+  Future<void> _manageCategories() async {
+    await showAppSheet<void>(
+      context,
+      maxHeightFactor: 0.88,
+      builder: (_) => const ManageExpenseCategoriesSheet(),
+    );
+    if (!mounted) return;
+    final categories =
+        ref.read(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
+    if (!categories.any((category) => category.key == _categoryKey)) {
+      setState(() => _categoryKey = categories.first.key);
     }
   }
 
@@ -347,7 +334,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
       final data = <String, dynamic>{
-        'category': _cat.key,
+        'category': _categoryKey,
         'amount': amountStr,
         'date': dateStr,
         'note': _noteCtrl.text.trim(),
@@ -390,7 +377,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           isDeposit: false,
           description: _recipientCtrl.text.trim().isNotEmpty
               ? _recipientCtrl.text.trim()
-              : _cat.label,
+              : _selectedCategory.label,
           createdBy: user.uid,
         );
       }
@@ -413,8 +400,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   originalAmount: amount,
                   dueDate: dueDateStr,
                   note: _tr(
-                    'Expense: ${_cat.label}',
-                    'Matumizi: ${_cat.label}',
+                    'Expense: ${_selectedCategory.label}',
+                    'Matumizi: ${_selectedCategory.label}',
                   ),
                   createdBy: user.uid,
                   createdAt: DateTime.now().toIso8601String(),
@@ -467,7 +454,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       uid: uid,
       context: ctx,
       templateData: {
-        'category': _cat.key,
+        'category': _categoryKey,
         'note': _noteCtrl.text.trim(),
         'amount': _amountCtrl.text.trim(),
         'recipient': _recipientCtrl.text.trim(),
@@ -496,6 +483,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final size = MediaQuery.sizeOf(context);
+    final categories =
+        ref.watch(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: size.height * 0.92),
@@ -558,8 +548,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     _SectionLabel(_tr('Category', 'Kundi')),
                     const SizedBox(height: 10),
                     _CategoryGrid(
-                      selected: _cat,
-                      onSelect: (c) => setState(() => _cat = c),
+                      categories: categories,
+                      selectedKey: _categoryKey,
+                      onSelect: (key) => setState(() => _categoryKey = key),
+                      onManage: _manageCategories,
                     ),
                     const SizedBox(height: 20),
                     _SectionLabel(_tr('Date & Payment', 'Tarehe na Malipo')),
@@ -877,17 +869,24 @@ class _AmountSection extends StatelessWidget {
 }
 
 class _CategoryGrid extends StatelessWidget {
-  final _Cat selected;
-  final ValueChanged<_Cat> onSelect;
+  final List<ExpenseCategory> categories;
+  final String selectedKey;
+  final ValueChanged<String> onSelect;
+  final VoidCallback onManage;
 
-  const _CategoryGrid({required this.selected, required this.onSelect});
+  const _CategoryGrid({
+    required this.categories,
+    required this.selectedKey,
+    required this.onSelect,
+    required this.onManage,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _Cat.values.length,
+      itemCount: categories.length + 1,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         crossAxisSpacing: 6,
@@ -895,13 +894,46 @@ class _CategoryGrid extends StatelessWidget {
         mainAxisExtent: 50,
       ),
       itemBuilder: (context, index) {
-        final cat = _Cat.values[index];
-        final active = cat == selected;
-        final activeForeground = cat == _Cat.transport || cat == _Cat.supplies
+        if (index == categories.length) {
+          return InkWell(
+            onTap: onManage,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.tealAccent),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.tune_rounded,
+                    size: 15,
+                    color: AppColors.tealAccent,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _tr('Manage', 'Simamia'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        final cat = categories[index];
+        final active = cat.key == selectedKey;
+        final activeForeground =
+            ThemeData.estimateBrightnessForColor(cat.color) == Brightness.light
             ? AppColors.navyPrimary
             : Colors.white;
         return InkWell(
-          onTap: () => onSelect(cat),
+          onTap: () => onSelect(cat.key),
           borderRadius: BorderRadius.circular(10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
