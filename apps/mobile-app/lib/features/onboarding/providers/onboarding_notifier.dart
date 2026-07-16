@@ -288,7 +288,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        // Do not attach the Firebase UID to third-party diagnostics.
+        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: state.businessId,
           performedByUid: uid,
@@ -384,7 +385,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        // Do not attach the Firebase UID to third-party diagnostics.
+        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: state.businessId,
           performedByUid: uid,
@@ -476,7 +478,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       final bizId = await _service.saveAndCompleteNewUser(state);
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        // Do not attach the Firebase UID to third-party diagnostics.
+        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: bizId,
           performedByUid: uid,

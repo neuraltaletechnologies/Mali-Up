@@ -278,7 +278,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         'deleteAccountData',
         options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
       );
-      await callable.call<void>();
+      await callable.call<Map<String, dynamic>>();
 
       // Remote deletion succeeded. Remove account data cached on this device
       // before returning to onboarding.
