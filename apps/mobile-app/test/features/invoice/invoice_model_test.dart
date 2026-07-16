@@ -4,49 +4,54 @@ import 'package:mali_up/features/invoice/domain/models/invoice.dart';
 
 void main() {
   group('Invoice.fromFirestore', () {
-    test('parses a quick-sale document (amount/items keys, Timestamp dates)',
-        () {
-      final data = {
-        'invoiceNumber': 'INV-202606-0001',
-        'type': 'invoice',
-        'status': 'partial',
-        'customerName': 'John',
-        'customerPhone': '+255700000001',
-        'items': [
-          {
-            'name': 'Samsung A25',
-            'qty': 2,
-            'unitPrice': 250000,
-            'total': 500000,
-            'inventoryItemId': 'prod-1',
-          },
-        ],
-        'subtotal': 500000,
-        'discountAmount': 20000,
-        'vatAmount': 86400,
-        'amount': 566400,
-        'totalAmount': 566400,
-        'amountPaid': 200000,
-        'paymentMethod': 'mpesa',
-        'dueDate': Timestamp.fromDate(DateTime(2026, 7)),
-        'createdAt': Timestamp.fromDate(DateTime(2026, 6, 12)),
-      };
+    test(
+      'parses a quick-sale document (amount/items keys, Timestamp dates)',
+      () {
+        final data = {
+          'invoiceNumber': 'INV-202606-0001',
+          'type': 'invoice',
+          'status': 'partial',
+          'customerName': 'John',
+          'customerPhone': '+255700000001',
+          'items': [
+            {
+              'name': 'Samsung A25',
+              'qty': 2,
+              'unitPrice': 250000,
+              'total': 500000,
+              'inventoryItemId': 'prod-1',
+            },
+          ],
+          'subtotal': 500000,
+          'discountAmount': 20000,
+          'vatAmount': 86400,
+          'amount': 566400,
+          'totalAmount': 566400,
+          'amountPaid': 200000,
+          'paymentMethod': 'mpesa',
+          'createdBy': 'staff-user-1',
+          'dueDate': Timestamp.fromDate(DateTime(2026, 7)),
+          'createdAt': Timestamp.fromDate(DateTime(2026, 6, 12)),
+        };
 
-      final inv = Invoice.fromFirestore(data, 'abc');
+        final inv = Invoice.fromFirestore(data, 'abc');
 
-      expect(inv.total, 566400);
-      expect(inv.amountPaid, 200000);
-      expect(inv.outstanding, 366400);
-      expect(inv.tax, 86400);
-      expect(inv.discountAmount, 20000);
-      expect(inv.paymentMethod, 'mpesa');
-      expect(inv.status, 'partial');
-      expect(inv.dueDate, DateTime(2026, 7).toIso8601String());
-      expect(inv.items, hasLength(1));
-      expect(inv.items.first.name, 'Samsung A25');
-      expect(inv.items.first.quantity, 2);
-      expect(inv.items.first.id, 'prod-1');
-    });
+        expect(inv.total, 566400);
+        expect(inv.amountPaid, 200000);
+        expect(inv.outstanding, 366400);
+        expect(inv.tax, 86400);
+        expect(inv.discountAmount, 20000);
+        expect(inv.paymentMethod, 'mpesa');
+        expect(inv.status, 'partial');
+        expect(inv.createdBy, 'staff-user-1');
+        expect(inv.toFirestore()['createdBy'], 'staff-user-1');
+        expect(inv.dueDate, DateTime(2026, 7).toIso8601String());
+        expect(inv.items, hasLength(1));
+        expect(inv.items.first.name, 'Samsung A25');
+        expect(inv.items.first.quantity, 2);
+        expect(inv.items.first.id, 'prod-1');
+      },
+    );
 
     test('parses a full-invoice document (lineItems/totalAmount keys)', () {
       final data = {
