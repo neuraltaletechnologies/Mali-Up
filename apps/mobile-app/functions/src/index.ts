@@ -51,6 +51,38 @@ interface DecodedIntegrityPayload {
   };
 }
 
+interface DeleteAccountResponse {
+  deletedBusinesses: number;
+}
+
+/** Deletes every document returned by the supplied query. */
+async function deleteQuery(
+  query: FirebaseFirestore.Query,
+): Promise<void> {
+  const snapshot = await query.get();
+  if (snapshot.empty) return;
+
+  const writer = admin.firestore().bulkWriter();
+  for (const doc of snapshot.docs) {
+    writer.delete(doc.ref);
+  }
+  await writer.close();
+}
+
+/** Deletes files stored below each user-owned Storage prefix. */
+async function deleteUserFiles(uid: string): Promise<void> {
+  const bucket = admin.storage().bucket();
+  const prefixes = [
+    `businesses/${uid}/`,
+    `users/${uid}/`,
+    `documents/${uid}/`,
+    `receipts/${uid}/`,
+  ];
+  for (const prefix of prefixes) {
+    await bucket.deleteFiles({prefix});
+  }
+}
+
 /**
  * Decodes a Play Integrity standard-request token via the Play Integrity API
  * and returns the subset of verdict fields the app logs for visibility.
@@ -115,4 +147,71 @@ export const checkDeviceIntegrity = onCall<CheckDeviceIntegrityRequest>(
       appLicensingVerdict: payload.accountDetails?.appLicensingVerdict ?? null,
     };
   }
+);
+
+/**
+ * Permanently deletes the signed-in user's Mali Up account.
+ *
+ * Business owners lose every business they own, including all nested records.
+ * Team members lose their profile, invitation and staff-access records. Records
+ * inside a business owned by somebody else are retained by that business for
+ * bookkeeping and legal obligations, as disclosed in the privacy policy.
+ *
+ * The operation is intentionally idempotent: if a retry follows a partial
+ * network failure, missing documents and files are harmless. Firebase Auth is
+ * deleted last so the caller remains authorized until cleanup is complete.
+ */
+export const deleteAccountData = onCall<never>(
+  {region: "us-central1", timeoutSeconds: 540, memory: "512MiB"},
+  async (request): Promise<DeleteAccountResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const ownedBusinesses = await db
+        .collection("businesses")
+        .where("ownerUid", "==", uid)
+        .get();
+
+      for (const business of ownedBusinesses.docs) {
+        await db.recursiveDelete(business.ref);
+      }
+
+      // Remove access and request records that can exist outside an owned
+      // business. Single-field Firestore indexes cover each query.
+      await deleteQuery(
+        db.collectionGroup("staff").where("workerUid", "==", uid),
+      );
+      await deleteQuery(db.collection("pendingInvites").where("uid", "==", uid));
+      await deleteQuery(
+        db.collection("pendingInvites").where("ownerUid", "==", uid),
+      );
+      await deleteQuery(
+        db.collection("pendingInvites").where("invitedBy", "==", uid),
+      );
+      await deleteQuery(db.collection("plan_requests").where("uid", "==", uid));
+
+      await Promise.all([
+        db.recursiveDelete(db.collection("users").doc(uid)),
+        db.recursiveDelete(db.collection("workers").doc(uid)),
+        db.recursiveDelete(db.collection("business").doc(uid)),
+        db.recursiveDelete(db.collection("websiteRequests").doc(uid)),
+        deleteUserFiles(uid),
+      ]);
+
+      await admin.auth().deleteUser(uid);
+
+      return {deletedBusinesses: ownedBusinesses.size};
+    } catch (error) {
+      console.error("Account deletion failed", {uid, error});
+      throw new HttpsError(
+        "internal",
+        "Account deletion could not be completed. Please try again.",
+      );
+    }
+  },
 );

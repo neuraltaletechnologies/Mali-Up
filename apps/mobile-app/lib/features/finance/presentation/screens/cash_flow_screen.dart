@@ -4,13 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
-import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
-import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -98,21 +96,6 @@ class _CashFlowDarkHeader extends ConsumerWidget {
         month.month == DateTime.now().month;
 
     Future<void> onAddAccount() async {
-      final plan = await ref.read(planStatusProvider.future);
-      if (!context.mounted) return;
-      if (!plan.limits.cashFlow) {
-        await showUpgradeSheet(
-          context,
-          currentStatus: plan,
-          featureKey: PlanFeatureKey.cashFlow,
-          triggerReason: _tr(
-            'required a Growth or Business plan.',
-            'unahitaji mpango wa Growth au Business.',
-          ),
-        );
-        return;
-      }
-      if (!context.mounted) return;
       await showAppSheet(context, builder: (_) => const AddAccountDialog());
     }
 
@@ -349,81 +332,19 @@ class _PillDivider extends StatelessWidget {
 
 // ── FAB ───────────────────────────────────────────────────────────────────────
 
-class _CashFlowFab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_CashFlowFab> createState() => _CashFlowFabState();
-}
-
-class _CashFlowFabState extends ConsumerState<_CashFlowFab> {
-  bool _isOpening = false;
-
+class _CashFlowFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Start resolving the plan as soon as the page is shown. Previously this
-    // subscription only started after the tap, so the first tap could appear
-    // to do nothing while Firestore (and its offline timeout) was consulted.
-    final planAsync = ref.watch(planStatusProvider);
-
-    Future<void> onTap() async {
-      if (_isOpening) return;
-      setState(() => _isOpening = true);
-
-      try {
-        final plan =
-            planAsync.valueOrNull ?? await ref.read(planStatusProvider.future);
-        if (!context.mounted) return;
-        if (plan == null) {
-          throw StateError('Plan status completed without a value');
-        }
-        if (!plan.limits.cashFlow) {
-          await showUpgradeSheet(
-            context,
-            currentStatus: plan,
-            featureKey: PlanFeatureKey.cashFlow,
-            triggerReason: _tr(
-              'Required a Growth or Business plan.',
-              'Unahitaji mpango wa Growth au Business.',
-            ),
-          );
-          return;
-        }
-        if (!context.mounted) return;
-        await showAppSheet<void>(
-          context,
-          builder: (_) => const AddTransactionDialog(),
-        );
-      } catch (_) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _tr(
-                  'Could not check your plan. Please try again.',
-                  'Imeshindikana kuangalia mpango wako. Jaribu tena.',
-                ),
-              ),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isOpening = false);
-      }
-    }
-
     return FloatingActionButton.extended(
-      onPressed: _isOpening ? null : onTap,
+      onPressed: () => showAppSheet<void>(
+        context,
+        maxHeightFactor: 0.9,
+        builder: (_) => const AddTransactionDialog(),
+      ),
       backgroundColor: AppColors.yellowBrand,
       foregroundColor: AppColors.navyPrimary,
       elevation: 3,
-      icon: _isOpening
-          ? const SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                color: AppColors.navyPrimary,
-              ),
-            )
-          : const Icon(Icons.swap_horiz_rounded, size: 20),
+      icon: const Icon(Icons.swap_horiz_rounded, size: 20),
       label: Text(
         _tr('Add Transaction', 'Ongeza Muamala'),
         style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -446,14 +367,41 @@ class _OverviewTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Text(
-              _tr('My Accounts', 'Akaunti Zangu'),
-              style: GoogleFonts.dmSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
+          InkWell(
+            onTap: () => showAppSheet<void>(
+              context,
+              maxHeightFactor: 0.82,
+              builder: (_) => const _AccountsSheet(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('My Accounts', 'Akaunti Zangu'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _tr('Manage', 'Simamia'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    size: 18,
+                    color: AppColors.tealAccent,
+                  ),
+                ],
               ),
             ),
           ),
@@ -682,6 +630,208 @@ class _StatementTab extends ConsumerWidget {
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
+
+class _AccountsSheet extends ConsumerWidget {
+  const _AccountsSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accountsAsync = ref.watch(cashAccountListProvider);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('My Accounts', 'Akaunti Zangu'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => showAppSheet<void>(
+                      context,
+                      builder: (_) => const AddAccountDialog(),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.navyPrimary,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: Text(_tr('Add', 'Ongeza')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _tr(
+                    'View balances, activate payment channels, or add an account.',
+                    'Angalia salio, washa njia za malipo, au ongeza akaunti.',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: accountsAsync.when(
+                  loading: () => const SkeletonList(itemCount: 4),
+                  error: (_, _) => EmptyState(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: _tr(
+                      'Could not load accounts',
+                      'Imeshindikana kupakia akaunti',
+                    ),
+                    subtitle: _tr('Try again.', 'Jaribu tena.'),
+                  ),
+                  data: (accounts) {
+                    final byId = {
+                      for (final account in accounts) account.id: account,
+                    };
+                    final custom = accounts
+                        .where(
+                          (account) => !PaymentMethodAccounts.isMethodAccountId(
+                            account.id,
+                          ),
+                        )
+                        .toList();
+                    final entries =
+                        <({PaymentMethodSpec? spec, CashAccount? account})>[
+                          ...PaymentMethodAccounts.specs.map(
+                            (spec) =>
+                                (spec: spec, account: byId[spec.accountId]),
+                          ),
+                          ...custom.map(
+                            (account) => (spec: null, account: account),
+                          ),
+                        ];
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: entries.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AppColors.border),
+                      itemBuilder: (context, index) {
+                        final entry = entries[index];
+                        final account = entry.account;
+                        final spec = entry.spec;
+                        final name =
+                            account?.name ??
+                            spec!.nameFor(
+                              LocalizationService.isSwahili ? 'sw' : 'en',
+                            );
+                        final icon =
+                            spec?.icon ??
+                            switch (account!.type) {
+                              'Cash' => Icons.payments_outlined,
+                              'Bank' => Icons.account_balance_outlined,
+                              'Card' => Icons.credit_card_outlined,
+                              _ => Icons.smartphone_outlined,
+                            };
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color:
+                                  (account == null
+                                          ? AppColors.warning
+                                          : AppColors.tealAccent)
+                                      .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 19,
+                              color: account == null
+                                  ? AppColors.warning
+                                  : AppColors.tealAccent,
+                            ),
+                          ),
+                          title: Text(
+                            name,
+                            style: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            account == null
+                                ? _tr('Tap to activate', 'Gusa kuwasha')
+                                : account.type,
+                            style: GoogleFonts.dmSans(fontSize: 11),
+                          ),
+                          trailing: account == null
+                              ? const Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: AppColors.warning,
+                                  size: 18,
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _fmtCompact(account.balance),
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.navyPrimary,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ],
+                                ),
+                          onTap: () {
+                            if (account == null) {
+                              showAppSheet<void>(
+                                context,
+                                builder: (_) =>
+                                    ActivateAccountSheet(spec: spec!),
+                              );
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    AccountDetailScreen(account: account),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _AccountCard extends ConsumerWidget {
   final CashAccount account;

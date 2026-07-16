@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'data_export_screen.dart';
+import 'delete_account_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -278,13 +280,17 @@ class LegalComplianceScreen extends StatelessWidget {
               _ActionItem(
                 icon: Icons.download_rounded,
                 label: _tr('Export My Data', 'Hamisha Data Yangu'),
-                onTap: () => Navigator.pushNamed(context, '/data-export'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const DataExportScreen(),
+                )),
               ),
               _ActionItem(
                 icon: Icons.delete_forever_outlined,
                 label: _tr('Delete My Account', 'Futa Akaunti Yangu'),
                 labelColor: AppColors.error,
-                onTap: () => Navigator.pushNamed(context, '/delete-account'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const DeleteAccountScreen(),
+                )),
               ),
             ],
           ),
@@ -354,29 +360,37 @@ class LegalComplianceScreen extends StatelessWidget {
   String _privacySummary() => _tr(
         'Mali Up ("we", "our", "us") collects only the information necessary '
         'to provide business management services to you.\n\n'
-        '1. Data we collect: business transactions, customer names and phone numbers, '
-        'expense records, inventory data, and account credentials.\n\n'
+        '1. Data we collect: account details, business transactions, customer names and phone numbers, '
+        'expense records, inventory data, uploaded receipts and logos, and diagnostics.\n\n'
         '2. How we use it: to power Mali Up features, generate reports, '
         'and improve the app. We never sell your data.\n\n'
-        '3. Data storage: all data is stored on Google Cloud Platform in the '
-        'Africa region (Johannesburg, South Africa) with TLS 1.3 encryption.\n\n'
+        '3. Device access: camera access is used only when you scan a barcode or capture a receipt/logo. '
+        'Contacts access is requested only when you choose to import customers. Mali Up does not request '
+        'location, SMS, or call-log access.\n\n'
         '4. Your rights: you may export or delete all your data at any time '
         'from Settings → Legal & Compliance.\n\n'
-        '5. Third parties: we use Firebase (Google) for authentication and '
-        'database services. No financial data is shared with third-party analytics.\n\n'
+        '5. Service providers: Firebase and Google Cloud provide authentication, storage, database, and '
+        'security services. Sentry receives limited crash and performance diagnostics when configured. '
+        'Financial amounts are not sent to Sentry. Mali Up has no third-party AI integration.\n\n'
+        '6. Deletion: permanently delete your account in Settings, or visit '
+        'https://maliup.neuraltale.com/delete-account if you cannot sign in.\n\n'
         'For questions, contact: support@neuraltale.com',
         'Mali Up ("sisi", "yetu") inakusanya taarifa zinazohitajika tu '
         'kutoa huduma za usimamizi wa biashara kwako.\n\n'
-        '1. Data tunayokusanya: miamala ya biashara, majina na nambari za simu za wateja, '
-        'rekodi za gharama, data ya bidhaa, na vitambulisho vya akaunti.\n\n'
+        '1. Data tunayokusanya: taarifa za akaunti, miamala ya biashara, majina na nambari za simu za wateja, '
+        'rekodi za gharama, data ya bidhaa, risiti au nembo zilizopakiwa, na taarifa za hitilafu.\n\n'
         '2. Jinsi tunavyoitumia: kuendesha vipengele vya Mali Up, kuzalisha ripoti, '
         'na kuboresha programu. Hatuuzi data yako kamwe.\n\n'
-        '3. Uhifadhi wa data: data yote inahifadhiwa kwenye Google Cloud Platform katika eneo '
-        'la Afrika (Johannesburg, Afrika Kusini) kwa usimbaji fiche wa TLS 1.3.\n\n'
+        '3. Ufikiaji wa kifaa: kamera hutumika tu unapochanganua msimbo pau au kupiga picha ya risiti/nembo. '
+        'Ruhusa ya mawasiliano huombwa tu unapochagua kuingiza wateja. Mali Up haiombi ruhusa ya eneo, '
+        'SMS, wala kumbukumbu za simu.\n\n'
         '4. Haki zako: unaweza kuhamisha au kufuta data yako yote wakati wowote '
         'kutoka Mipangilio → Kisheria na Uzingatiaji.\n\n'
-        '5. Watu wa tatu: tunatumia Firebase (Google) kwa huduma za uthibitishaji na hifadhidata. '
-        'Hakuna data ya fedha inayoshirikiwa na uchanganuzi wa watu wengine.\n\n'
+        '5. Watoa huduma: Firebase na Google Cloud hutoa uthibitishaji, hifadhi, hifadhidata na usalama. '
+        'Sentry hupokea taarifa chache za hitilafu na utendaji inapowashwa. Kiasi cha fedha hakitumwi Sentry. '
+        'Mali Up haina muunganisho wa AI wa mtu mwingine.\n\n'
+        '6. Ufutaji: futa akaunti yako kabisa kwenye Mipangilio, au tembelea '
+        'https://maliup.neuraltale.com/delete-account usipoweza kuingia.\n\n'
         'Kwa maswali, wasiliana: support@neuraltale.com',
       );
 
