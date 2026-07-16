@@ -55,18 +55,13 @@ class SentryMetricsService {
     );
   }
 
-  static void salesCreated({required num amount, required String status}) {
+  static void salesCreated({required String status}) {
     count(
       'sales_created',
       1,
       attributes: {
         'status': SentryAttribute.string(status),
       },
-    );
-    gauge(
-      'sales_created_amount',
-      amount,
-      attributes: {'status': SentryAttribute.string(status)},
     );
   }
 

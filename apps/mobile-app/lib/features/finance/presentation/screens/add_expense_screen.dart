@@ -19,8 +19,11 @@ import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../data/payment_account_service.dart';
 import '../../domain/models/expense.dart';
+import '../../domain/models/expense_category.dart';
 import '../../domain/models/recurring_expense_template.dart';
 import '../../domain/payment_method_accounts.dart';
+import '../expense_category_style.dart';
+import '../widgets/manage_expense_categories_sheet.dart';
 import '../widgets/payment_account_chips.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
@@ -32,47 +35,6 @@ enum _ExpenseErrorField { amount, payment, general }
 // ─────────────────────────────────────────────────────────────────────────────
 // Category meta (mirrors expense_list_screen)
 // ─────────────────────────────────────────────────────────────────────────────
-
-enum _Cat { rent, utilities, salaries, transport, marketing, supplies, other }
-
-extension _CatX on _Cat {
-  String get key => name;
-
-  String get label => switch (this) {
-    _Cat.rent => _tr('Rent', 'Kodi'),
-    _Cat.utilities => _tr('Utilities', 'Huduma'),
-    _Cat.salaries => _tr('Salaries', 'Mishahara'),
-    _Cat.transport => _tr('Transport', 'Usafiri'),
-    _Cat.marketing => _tr('Marketing', 'Masoko'),
-    _Cat.supplies => _tr('Supplies', 'Vifaa'),
-    _Cat.other => _tr('Other', 'Nyingine'),
-  };
-
-  IconData get icon => switch (this) {
-    _Cat.rent => Icons.home_rounded,
-    _Cat.utilities => Icons.bolt_rounded,
-    _Cat.salaries => Icons.people_rounded,
-    _Cat.transport => Icons.local_shipping_rounded,
-    _Cat.marketing => Icons.campaign_rounded,
-    _Cat.supplies => Icons.inventory_2_rounded,
-    _Cat.other => Icons.more_horiz_rounded,
-  };
-
-  Color get color => switch (this) {
-    _Cat.rent => AppColors.navyPrimary,
-    _Cat.utilities => AppColors.tealAccent,
-    _Cat.salaries => AppColors.success,
-    _Cat.transport => AppColors.warning,
-    _Cat.marketing => AppColors.purpleAccent,
-    _Cat.supplies => AppColors.warning,
-    _Cat.other => AppColors.textMuted,
-  };
-
-  static _Cat fromKey(String key) => _Cat.values.firstWhere(
-    (c) => c.key == key.toLowerCase(),
-    orElse: () => _Cat.other,
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -88,14 +50,13 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
 }
 
 class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
-  _Cat _cat = _Cat.other;
+  String _categoryKey = 'other';
   String? _selectedAccountId;
   DateTime _date = DateTime.now();
   String _receiptUrl = '';
   File? _receiptFile;
   bool _isRecurring = false;
   String _frequency = 'monthly';
-  bool _submitForApproval = false;
   bool _saving = false;
   bool _uploadingReceipt = false;
   bool _isCreditPurchase = false;
@@ -116,7 +77,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (widget.expenseToEdit != null) {
       final e = widget.expenseToEdit!;
-      _cat = _CatX.fromKey(e.category);
+      _categoryKey = e.category;
       // Prefer the exact account recorded at save time (works for custom
       // accounts too); fall back to resolving a built-in from the legacy
       // method string for older expenses that predate this field.
@@ -130,7 +91,31 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _receiptUrl = e.receiptUrl;
       _isRecurring = e.isRecurring;
       _frequency = e.recurrenceType.isNotEmpty ? e.recurrenceType : 'monthly';
-      _submitForApproval = e.status == 'pending';
+    }
+  }
+
+  ExpenseCategory get _selectedCategory {
+    final categories =
+        ref.read(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
+    return categories.firstWhere(
+      (category) => category.key == _categoryKey,
+      orElse: () => ExpenseCategory.fallback(_categoryKey),
+    );
+  }
+
+  Future<void> _manageCategories() async {
+    await showAppSheet<void>(
+      context,
+      maxHeightFactor: 0.88,
+      builder: (_) => const ManageExpenseCategoriesSheet(),
+    );
+    if (!mounted) return;
+    final categories =
+        ref.read(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
+    if (!categories.any((category) => category.key == _categoryKey)) {
+      setState(() => _categoryKey = categories.first.key);
     }
   }
 
@@ -213,8 +198,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Take photo', 'Piga picha'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(ImageSource.camera),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(
@@ -225,8 +209,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 _tr('Choose from gallery', 'Chagua kutoka maktaba'),
                 style: GoogleFonts.dmSans(),
               ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(ImageSource.gallery),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
             if (_receiptFile != null || _receiptUrl.isNotEmpty)
               ListTile(
@@ -350,17 +333,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
-      final status = _submitForApproval ? 'pending' : 'approved';
-
       final data = <String, dynamic>{
-        'category': _cat.key,
+        'category': _categoryKey,
         'amount': amountStr,
         'date': dateStr,
         'note': _noteCtrl.text.trim(),
         'recipient': _recipientCtrl.text.trim(),
         'paymentMethod': paymentMethodValue,
         'paymentAccountId': account.id,
-        'status': status,
+        'status': 'approved',
         'createdBy': user.uid,
         'isRecurring': _isRecurring,
         if (_isRecurring) 'recurrenceType': _frequency,
@@ -396,7 +377,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           isDeposit: false,
           description: _recipientCtrl.text.trim().isNotEmpty
               ? _recipientCtrl.text.trim()
-              : _cat.label,
+              : _selectedCategory.label,
           createdBy: user.uid,
         );
       }
@@ -419,8 +400,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   originalAmount: amount,
                   dueDate: dueDateStr,
                   note: _tr(
-                    'Expense: ${_cat.label}',
-                    'Matumizi: ${_cat.label}',
+                    'Expense: ${_selectedCategory.label}',
+                    'Matumizi: ${_selectedCategory.label}',
                   ),
                   createdBy: user.uid,
                   createdAt: DateTime.now().toIso8601String(),
@@ -473,7 +454,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       uid: uid,
       context: ctx,
       templateData: {
-        'category': _cat.key,
+        'category': _categoryKey,
         'note': _noteCtrl.text.trim(),
         'amount': _amountCtrl.text.trim(),
         'recipient': _recipientCtrl.text.trim(),
@@ -502,12 +483,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final size = MediaQuery.sizeOf(context);
+    final categories =
+        ref.watch(expenseCategoryListProvider).valueOrNull ??
+        ExpenseCategory.defaults;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: size.height * 0.95),
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
       child: Material(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
           top: false,
@@ -530,21 +514,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.border.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                    IconButton(
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      tooltip: _tr('Close', 'Funga'),
+                      visualDensity: VisualDensity.compact,
+                      color: AppColors.textMuted,
+                      icon: const Icon(Icons.close_rounded, size: 20),
                     ),
                   ],
                 ),
@@ -558,10 +535,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     _AmountSection(
                       controller: _amountCtrl,
                       onChanged: (_) {
-                        if (_errorField == _ExpenseErrorField.amount &&
-                            _errorMessage != null) {
-                          setState(() => _errorMessage = null);
-                        }
+                        setState(() {
+                          if (_errorField == _ExpenseErrorField.amount &&
+                              _errorMessage != null) {
+                            _errorMessage = null;
+                          }
+                        });
                       },
                     ),
                     _buildValidation(_ExpenseErrorField.amount),
@@ -569,8 +548,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     _SectionLabel(_tr('Category', 'Kundi')),
                     const SizedBox(height: 10),
                     _CategoryGrid(
-                      selected: _cat,
-                      onSelect: (c) => setState(() => _cat = c),
+                      categories: categories,
+                      selectedKey: _categoryKey,
+                      onSelect: (key) => setState(() => _categoryKey = key),
+                      onManage: _manageCategories,
                     ),
                     const SizedBox(height: 20),
                     _SectionLabel(_tr('Date & Payment', 'Tarehe na Malipo')),
@@ -754,24 +735,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    _FieldCard(
-                      child: _ToggleRow(
-                        icon: Icons.approval_rounded,
-                        label: _tr(
-                          'Submit for approval',
-                          'Wasilisha kwa idhini',
-                        ),
-                        subtitle: _tr(
-                          'Expense will be held pending manager review',
-                          'Gharama itashikiliwa hadi meneja akubali',
-                        ),
-                        value: _submitForApproval,
-                        color: AppColors.warning,
-                        onChanged: (v) =>
-                            setState(() => _submitForApproval = v),
-                      ),
-                    ),
                     _buildValidation(_ExpenseErrorField.general),
                     const SizedBox(height: 16),
                   ],
@@ -779,7 +742,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               _BottomSaveBar(
                 saving: _saving,
-                submitForApproval: _submitForApproval,
+                amount: _amountCtrl.text,
                 onSave: _save,
               ),
             ],
@@ -906,17 +869,24 @@ class _AmountSection extends StatelessWidget {
 }
 
 class _CategoryGrid extends StatelessWidget {
-  final _Cat selected;
-  final ValueChanged<_Cat> onSelect;
+  final List<ExpenseCategory> categories;
+  final String selectedKey;
+  final ValueChanged<String> onSelect;
+  final VoidCallback onManage;
 
-  const _CategoryGrid({required this.selected, required this.onSelect});
+  const _CategoryGrid({
+    required this.categories,
+    required this.selectedKey,
+    required this.onSelect,
+    required this.onManage,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _Cat.values.length,
+      itemCount: categories.length + 1,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         crossAxisSpacing: 6,
@@ -924,13 +894,46 @@ class _CategoryGrid extends StatelessWidget {
         mainAxisExtent: 50,
       ),
       itemBuilder: (context, index) {
-        final cat = _Cat.values[index];
-        final active = cat == selected;
-        final activeForeground = cat == _Cat.transport || cat == _Cat.supplies
+        if (index == categories.length) {
+          return InkWell(
+            onTap: onManage,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.tealAccent),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.tune_rounded,
+                    size: 15,
+                    color: AppColors.tealAccent,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _tr('Manage', 'Simamia'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        final cat = categories[index];
+        final active = cat.key == selectedKey;
+        final activeForeground =
+            ThemeData.estimateBrightnessForColor(cat.color) == Brightness.light
             ? AppColors.navyPrimary
             : Colors.white;
         return InkWell(
-          onTap: () => onSelect(cat),
+          onTap: () => onSelect(cat.key),
           borderRadius: BorderRadius.circular(10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -1327,14 +1330,25 @@ class _SectionLabel extends StatelessWidget {
 
 class _BottomSaveBar extends StatelessWidget {
   final bool saving;
-  final bool submitForApproval;
+  final String amount;
   final VoidCallback onSave;
 
   const _BottomSaveBar({
     required this.saving,
-    required this.submitForApproval,
+    required this.amount,
     required this.onSave,
   });
+
+  String get _formattedAmount {
+    final value = double.tryParse(amount.trim()) ?? 0;
+    final digits = value.toStringAsFixed(0);
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) result.write(',');
+      result.write(digits[i]);
+    }
+    return result.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1344,56 +1358,74 @@ class _BottomSaveBar extends StatelessWidget {
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: saving ? null : onSave,
-          icon: saving
-              ? SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: submitForApproval
-                        ? AppColors.navyPrimary
-                        : Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Total expense', 'Jumla ya gharama'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
                   ),
-                )
-              : Icon(
-                  submitForApproval
-                      ? Icons.send_rounded
-                      : Icons.check_circle_rounded,
-                  size: 18,
                 ),
-          label: Text(
-            saving
-                ? _tr('Saving…', 'Inahifadhi…')
-                : submitForApproval
-                ? _tr('Submit for Approval', 'Wasilisha kwa Idhini')
-                : _tr('Save Expense', 'Hifadhi Gharama'),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+                Text(
+                  'TZS $_formattedAmount',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
             ),
           ),
-          style: FilledButton.styleFrom(
-            backgroundColor: submitForApproval
-                ? AppColors.warning
-                : AppColors.navyPrimary,
-            foregroundColor: submitForApproval
-                ? AppColors.navyPrimary
-                : Colors.white,
-            disabledBackgroundColor: AppColors.navyPrimary.withValues(
-              alpha: 0.65,
-            ),
-            disabledForegroundColor: submitForApproval
-                ? AppColors.navyPrimary
-                : Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 184,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: saving ? null : onSave,
+              icon: saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.check_circle_rounded, size: 18),
+              label: Text(
+                saving
+                    ? _tr('Saving…', 'Inahifadhi…')
+                    : _tr('Save Expense', 'Hifadhi Gharama'),
+                maxLines: 1,
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.navyPrimary.withValues(
+                  alpha: 0.65,
+                ),
+                disabledForegroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

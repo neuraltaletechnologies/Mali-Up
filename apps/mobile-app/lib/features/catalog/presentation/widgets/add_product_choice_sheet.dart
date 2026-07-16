@@ -10,14 +10,12 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 class AddProductChoiceSheet extends StatelessWidget {
   final VoidCallback onCreateCustom;
   final VoidCallback? onCreateReturn;
-  final VoidCallback? onCreateManufactured;
   final VoidCallback? onOpenCatalog;
 
   const AddProductChoiceSheet({
     super.key,
     required this.onCreateCustom,
     this.onCreateReturn,
-    this.onCreateManufactured,
     this.onOpenCatalog,
   });
 
@@ -62,16 +60,6 @@ class AddProductChoiceSheet extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               onCreateCustom();
-            },
-          ),
-          const SizedBox(height: 8),
-
-          _Tile(
-            icon: Icons.precision_manufacturing_outlined,
-            label: _tr('I Manufacture It', 'Ninatengeneza'),
-            onTap: () {
-              Navigator.of(context).pop();
-              onCreateManufactured?.call();
             },
           ),
           const SizedBox(height: 8),
@@ -129,18 +117,36 @@ class _Tile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
+                ),
               ),
             ),
             if (badge != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.yellowBrand, borderRadius: BorderRadius.circular(20)),
-                child: Text(badge!, style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.navyPrimary)),
+                decoration: BoxDecoration(
+                  color: AppColors.yellowBrand,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  badge!,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
               ),
               const SizedBox(width: 6),
             ],
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 18),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFFCBD5E1),
+              size: 18,
+            ),
           ],
         ),
       ),

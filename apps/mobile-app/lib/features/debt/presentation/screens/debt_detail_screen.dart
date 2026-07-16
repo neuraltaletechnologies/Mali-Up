@@ -37,16 +37,36 @@ String _fmtDate(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
 
 String _fmtDateShort(DateTime d) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${d.day} ${months[d.month - 1]}';
 }
@@ -81,7 +101,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     super.initState();
     _debt = widget.debt;
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -96,7 +118,6 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
 
   bool get _isReceivable => _debt.type == 'receivable';
   Color get _typeColor => _isReceivable ? AppColors.success : AppColors.error;
-
 
   Future<void> _refreshDebt() async {
     try {
@@ -113,8 +134,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   Future<void> _recordPayment() async {
     final result = await showAppSheet<bool>(
       context,
-      builder: (ctx) =>
-          _RecordPaymentSheet(debt: _debt, onSaved: _refreshDebt),
+      builder: (ctx) => _RecordPaymentSheet(debt: _debt, onSaved: _refreshDebt),
     );
     if (result == true) _refreshDebt();
   }
@@ -126,7 +146,11 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              _tr('No phone number on file.', 'Hakuna namba ya simu iliyohifadhiwa.')),
+            _tr(
+              'No phone number on file.',
+              'Hakuna namba ya simu iliyohifadhiwa.',
+            ),
+          ),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -148,8 +172,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
             '${_tr("Please arrange payment. Thank you.", "Tafadhali fanya malipo. Asante.")}',
           );
 
-    final uri =
-        Uri.parse('sms:${_debt.partyPhone}?body=$message');
+    final uri = Uri.parse('sms:${_debt.partyPhone}?body=$message');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
       // Persist reminder metadata through the offline-first write path.
@@ -162,9 +185,12 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_tr(
+            content: Text(
+              _tr(
                 'Could not open SMS app.',
-                'Imeshindwa kufungua programu ya SMS.')),
+                'Imeshindwa kufungua programu ya SMS.',
+              ),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -183,12 +209,15 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text(
             _tr('Write Off Debt', 'Andika Deni'),
             style: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -203,16 +232,22 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          color: AppColors.warning, size: 18),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.warning,
+                        size: 18,
+                      ),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _tr(
-                              'This marks the debt as uncollectable. The action is permanent.',
-                              'Hii itaashiria deni kama haliwezi kulipwa. Hatua hii haitabadilishwa.'),
+                            'This marks the debt as uncollectable. The action is permanent.',
+                            'Hii itaashiria deni kama haliwezi kulipwa. Hatua hii haitabadilishwa.',
+                          ),
                           style: GoogleFonts.dmSans(
-                              fontSize: 12, color: AppColors.warning),
+                            fontSize: 12,
+                            color: AppColors.warning,
+                          ),
                         ),
                       ),
                     ],
@@ -222,47 +257,60 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                 Text(
                   _tr('Reason', 'Sababu'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMuted),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: selectedReason,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                   ),
                   items: [
-                    _reasonItem('Customer dispute',
-                        'Mgogoro wa mteja'),
-                    _reasonItem('Customer insolvent',
-                        'Mteja hana uwezo wa kulipa'),
-                    _reasonItem('Small amount — not worth pursuing',
-                        'Kiasi kidogo — haifai kufuatilia'),
-                    _reasonItem('Agreed settlement',
-                        'Makubaliano ya malipo'),
+                    _reasonItem('Customer dispute', 'Mgogoro wa mteja'),
+                    _reasonItem(
+                      'Customer insolvent',
+                      'Mteja hana uwezo wa kulipa',
+                    ),
+                    _reasonItem(
+                      'Small amount — not worth pursuing',
+                      'Kiasi kidogo — haifai kufuatilia',
+                    ),
+                    _reasonItem('Agreed settlement', 'Makubaliano ya malipo'),
                     _reasonItem('Other', 'Nyingine'),
                   ],
                   onChanged: (v) => setDlg(() => selectedReason = v),
                   hint: Text(
                     _tr('Select reason…', 'Chagua sababu…'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 13, color: AppColors.textDisabled),
+                      fontSize: 13,
+                      color: AppColors.textDisabled,
+                    ),
                   ),
                 ),
                 SizedBox(height: 12),
                 TextField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
-                    hintText: _tr('Additional note (optional)',
-                        'Maelezo zaidi (hiari)'),
+                    hintText: _tr(
+                      'Additional note (optional)',
+                      'Maelezo zaidi (hiari)',
+                    ),
                     hintStyle: GoogleFonts.dmSans(
-                        fontSize: 13, color: AppColors.textDisabled),
+                      fontSize: 13,
+                      color: AppColors.textDisabled,
+                    ),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     contentPadding: const EdgeInsets.all(12),
                   ),
                   maxLines: 2,
@@ -273,8 +321,10 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(_tr('Cancel', 'Ghairi'),
-                  style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+              child: Text(
+                _tr('Cancel', 'Ghairi'),
+                style: GoogleFonts.dmSans(color: AppColors.textMuted),
+              ),
             ),
             FilledButton(
               onPressed: selectedReason == null
@@ -284,13 +334,17 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                       Navigator.of(ctx).pop();
                     },
               style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
+                backgroundColor: AppColors.error,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               child: Text(
                 _tr('Write Off', 'Andika'),
                 style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w700, color: Colors.white),
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -343,8 +397,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
         setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_tr('Write-off failed. Try again.',
-                'Imeshindwa. Jaribu tena.')),
+            content: Text(
+              _tr('Write-off failed. Try again.', 'Imeshindwa. Jaribu tena.'),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -355,8 +410,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   DropdownMenuItem<String> _reasonItem(String en, String sw) =>
       DropdownMenuItem(
         value: _tr(en, sw),
-        child: Text(_tr(en, sw),
-            style: GoogleFonts.dmSans(fontSize: 13)),
+        child: Text(_tr(en, sw), style: GoogleFonts.dmSans(fontSize: 13)),
       );
 
   // ── Edit / Delete ─────────────────────────────────────────────────────────
@@ -373,14 +427,16 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(_tr('Delete Entry', 'Futa Rekodi'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          _tr('Delete Entry', 'Futa Rekodi'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
         content: Text(
           _tr(
-              'This cannot be undone. All payment records will also be deleted.',
-              'Hii haiwezi kubadilishwa. Rekodi zote za malipo pia zitafutwa.'),
+            'This cannot be undone. All payment records will also be deleted.',
+            'Hii haiwezi kubadilishwa. Rekodi zote za malipo pia zitafutwa.',
+          ),
           style: GoogleFonts.dmSans(fontSize: 14),
         ),
         actions: [
@@ -391,11 +447,15 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            child: Text(_tr('Delete', 'Futa'),
-                style: GoogleFonts.dmSans(color: Colors.white)),
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              _tr('Delete', 'Futa'),
+              style: GoogleFonts.dmSans(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -415,8 +475,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
         setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                _tr('Delete failed.', 'Imeshindwa kufuta.')),
+            content: Text(_tr('Delete failed.', 'Imeshindwa kufuta.')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -428,35 +487,34 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: FadeTransition(
+    return Material(
+      color: AppColors.surface,
+      child: FadeTransition(
         opacity: _fadeAnim,
-        child: CustomScrollView(
-          slivers: [
-            _buildAppBar(),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                child: Column(
-                  children: [
-                    _HeroAmountCard(debt: _debt),
-                    const SizedBox(height: 14),
-                    _DetailInfoCard(debt: _debt),
-                    const SizedBox(height: 14),
-                    _PaymentHistoryCard(debt: _debt),
-                    const SizedBox(height: 14),
-                    _ActionsCard(
-                      debt: _debt,
-                      busy: _busy,
-                      onRecordPayment: _recordPayment,
-                      onSendSms: _sendSmsReminder,
-                      onWriteOff: _showWriteOffDialog,
-                      onEdit: _edit,
-                      onDelete: _delete,
-                    ),
-                  ],
-                ),
+        child: Column(
+          children: [
+            _buildSheetHeader(),
+            const Divider(height: 1, color: AppColors.border),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+                children: [
+                  _HeroAmountCard(debt: _debt),
+                  const SizedBox(height: 14),
+                  _DetailInfoCard(debt: _debt),
+                  const SizedBox(height: 14),
+                  _PaymentHistoryCard(debt: _debt),
+                  const SizedBox(height: 14),
+                  _ActionsCard(
+                    debt: _debt,
+                    busy: _busy,
+                    onRecordPayment: _recordPayment,
+                    onSendSms: _sendSmsReminder,
+                    onWriteOff: _showWriteOffDialog,
+                    onEdit: _edit,
+                    onDelete: _delete,
+                  ),
+                ],
               ),
             ),
           ],
@@ -465,88 +523,72 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     );
   }
 
-  SliverAppBar _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 170,
-      pinned: true,
-      backgroundColor: AppColors.navyPrimary,
-      foregroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Colors.white),
-          onPressed: _busy ? null : _edit,
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.pin,
-        titlePadding: const EdgeInsets.fromLTRB(56, 0, 56, 14),
-        title: Text(
-          _debt.partyName,
-          style: GoogleFonts.dmSans(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w700),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.navyPrimary, Color(0xFF003153)],
+  Widget _buildSheetHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: _typeColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _debt.partyName.isNotEmpty
+                  ? _debt.partyName[0].toUpperCase()
+                  : '?',
+              style: GoogleFonts.dmSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: _typeColor,
+              ),
             ),
           ),
-          child: Center(
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 36),
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: _typeColor.withValues(alpha: 0.25),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: _typeColor.withValues(alpha: 0.5), width: 2),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _debt.partyName.isNotEmpty
-                        ? _debt.partyName[0].toUpperCase()
-                        : '?',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white),
+                Text(
+                  _debt.partyName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _typeColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _typeColor.withValues(alpha: 0.4)),
-                  ),
-                  child: Text(
-                    _isReceivable
-                        ? _tr('RECEIVABLE', 'DAI')
-                        : _tr('PAYABLE', 'DENI'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _typeColor,
-                        letterSpacing: 0.8),
+                const SizedBox(height: 2),
+                Text(
+                  _isReceivable
+                      ? _tr('Receivable', 'Dai')
+                      : _tr('Payable', 'Deni'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _typeColor,
                   ),
                 ),
               ],
             ),
           ),
-        ),
+          IconButton(
+            tooltip: _tr('Edit', 'Hariri'),
+            onPressed: _busy ? null : _edit,
+            icon: const Icon(Icons.edit_outlined),
+            color: AppColors.navyPrimary,
+          ),
+          IconButton(
+            tooltip: _tr('Close', 'Funga'),
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close_rounded),
+            color: AppColors.textMuted,
+          ),
+        ],
       ),
     );
   }
@@ -559,13 +601,13 @@ class _HeroAmountCard extends StatelessWidget {
   const _HeroAmountCard({required this.debt});
 
   Color get _ageColor => switch (debt.agingBucket) {
-        'current' => AppColors.success,
-        '0-30' => AppColors.warning,
-        '31-60' => const Color(0xFFE07010),
-        '61-90' => const Color(0xFFDC4A26),
-        '90+' => AppColors.error,
-        _ => AppColors.textMuted,
-      };
+    'current' => AppColors.success,
+    '0-30' => AppColors.warning,
+    '31-60' => const Color(0xFFE07010),
+    '61-90' => const Color(0xFFDC4A26),
+    '90+' => AppColors.error,
+    _ => AppColors.textMuted,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -580,36 +622,32 @@ class _HeroAmountCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 8, offset: Offset(0, 2))
+            color: AppColors.shadowCard,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              _AmountColumn(
-                top: _tr('Original', 'Asili'),
+              _AmountPill(
+                label: _tr('Original', 'Asili'),
                 value: _fmtAmt(debt.originalAmount),
-                color: AppColors.textMuted,
+                color: AppColors.textSecondary,
               ),
-              Container(
-                  width: 1,
-                  height: 36,
-                  color: AppColors.border),
-              _AmountColumn(
-                top: _tr('Paid', 'Kilicholipwa'),
+              _AmountPill(
+                label: _tr('Paid', 'Kilicholipwa'),
                 value: _fmtAmt(debt.paidAmount),
                 color: AppColors.success,
               ),
-              Container(
-                  width: 1,
-                  height: 36,
-                  color: AppColors.border),
-              _AmountColumn(
-                top: _tr('Remaining', 'Kilichobaki'),
+              _AmountPill(
+                label: _tr('Remaining', 'Kilichobaki'),
                 value: _fmtAmt(debt.remainingAmount),
                 color: debt.isFullyPaid ? AppColors.success : AppColors.error,
-                large: true,
               ),
             ],
           ),
@@ -629,9 +667,10 @@ class _HeroAmountCard extends StatelessWidget {
               Text(
                 '$pct% ${_tr('paid', 'kimelipwa')}',
                 style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
               ),
               const Spacer(),
               if (debt.isFullyPaid)
@@ -650,38 +689,45 @@ class _HeroAmountCard extends StatelessWidget {
   }
 }
 
-class _AmountColumn extends StatelessWidget {
-  final String top;
+class _AmountPill extends StatelessWidget {
+  final String label;
   final String value;
   final Color color;
-  final bool large;
 
-  const _AmountColumn({
-    required this.top,
+  const _AmountPill({
+    required this.label,
     required this.value,
     required this.color,
-    this.large = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            top,
+            label,
             style: GoogleFonts.dmSans(
-                fontSize: 11, color: AppColors.textMuted),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(width: 5),
           Text(
             value,
             style: GoogleFonts.jetBrainsMono(
-              fontSize: large ? 14 : 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: color,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -761,16 +807,19 @@ class _InfoRow extends StatelessWidget {
               Text(
                 label,
                 style: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textMuted),
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
               ),
               Spacer(),
               Flexible(
                 child: Text(
                   value,
                   style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                   textAlign: TextAlign.right,
                 ),
               ),
@@ -810,25 +859,30 @@ class _PaymentHistoryCard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                const Icon(Icons.history_rounded,
-                    size: 16, color: AppColors.textMuted),
+                const Icon(
+                  Icons.history_rounded,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
                 SizedBox(width: 8),
                 Text(
                   _tr('Payment History', 'Historia ya Malipo'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Spacer(),
                 Text(
                   paymentsAsync.maybeWhen(
-                    data: (p) =>
-                        '${p.length} ${_tr('payments', 'malipo')}',
+                    data: (p) => '${p.length} ${_tr('payments', 'malipo')}',
                     orElse: () => '',
                   ),
                   style: GoogleFonts.dmSans(
-                      fontSize: 12, color: AppColors.textMuted),
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -838,22 +892,26 @@ class _PaymentHistoryCard extends ConsumerWidget {
             loading: () => const Padding(
               padding: EdgeInsets.all(24),
               child: Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.navyPrimary)),
+                child: CircularProgressIndicator(color: AppColors.navyPrimary),
+              ),
             ),
             error: (_, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
                 _tr('Could not load payments.', 'Imeshindwa kupakia malipo.'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 12, color: AppColors.textMuted),
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
               ),
             ),
             data: (payments) => payments.isEmpty
                 ? EmptyState(
                     icon: Icons.payments_outlined,
-                    title: _tr('No payments recorded yet',
-                        'Hakuna malipo yaliyorekodiwa bado'),
+                    title: _tr(
+                      'No payments recorded yet',
+                      'Hakuna malipo yaliyorekodiwa bado',
+                    ),
                     subtitle: _tr(
                       'Add a payment to start tracking repayments.',
                       'Ongeza malipo ili uanze kufuatilia marejesho.',
@@ -863,10 +921,12 @@ class _PaymentHistoryCard extends ConsumerWidget {
                     children: payments
                         .asMap()
                         .entries
-                        .map((e) => _PaymentTile(
-                              payment: e.value,
-                              isLast: e.key == payments.length - 1,
-                            ))
+                        .map(
+                          (e) => _PaymentTile(
+                            payment: e.value,
+                            isLast: e.key == payments.length - 1,
+                          ),
+                        )
                         .toList(),
                   ),
           ),
@@ -898,16 +958,14 @@ class _PaymentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        _methodColors[payment.method] ?? AppColors.textMuted;
+    final color = _methodColors[payment.method] ?? AppColors.textMuted;
     final icon = _methodIcons[payment.method] ?? Icons.payments_outlined;
     final date = DateTime.tryParse(payment.date);
 
     return Column(
       children: [
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               Container(
@@ -928,15 +986,18 @@ class _PaymentTile extends StatelessWidget {
                     Text(
                       payment.method.toUpperCase(),
                       style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: color),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
                     ),
                     if (payment.note.isNotEmpty)
                       Text(
                         payment.note,
                         style: GoogleFonts.dmSans(
-                            fontSize: 11, color: AppColors.textMuted),
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -949,15 +1010,18 @@ class _PaymentTile extends StatelessWidget {
                   Text(
                     _fmtAmt(payment.amount),
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success,
+                    ),
                   ),
                   if (date != null)
                     Text(
                       _fmtDateShort(date),
                       style: GoogleFonts.dmSans(
-                          fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                 ],
               ),
@@ -1093,12 +1157,17 @@ class _ActionRow extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: isDestructive ? AppColors.error : AppColors.textPrimary,
+                  color: isDestructive
+                      ? AppColors.error
+                      : AppColors.textPrimary,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: AppColors.textDisabled),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: AppColors.textDisabled,
+            ),
           ],
         ),
       ),
@@ -1111,9 +1180,9 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Divider(height: 1, color: AppColors.border),
-      );
+    padding: EdgeInsets.symmetric(horizontal: 16),
+    child: Divider(height: 1, color: AppColors.border),
+  );
 }
 
 // ── Record Payment Bottom Sheet ───────────────────────────────────────────────
@@ -1162,8 +1231,12 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     if (!_formKey.currentState!.validate()) return;
     final account = _selectedAccount;
     if (account == null) {
-      setState(() => _paymentError =
-          _tr('Select a payment account', 'Chagua akaunti ya malipo'));
+      setState(
+        () => _paymentError = _tr(
+          'Select a payment account',
+          'Chagua akaunti ya malipo',
+        ),
+      );
       return;
     }
     setState(() => _saving = true);
@@ -1173,8 +1246,10 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
       if (user == null) return;
       final repo = ref.read(debtRepositoryProvider);
 
-      final amount = double.tryParse(
-              _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+      final amount =
+          double.tryParse(
+            _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+          ) ??
           0;
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
@@ -1281,14 +1356,17 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             Text(
               '${_tr('Remaining balance', 'Salio linalobaki')}: ${_fmtAmt(remaining)}',
               style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 18),
 
@@ -1299,29 +1377,37 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               autofocus: true,
               style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary),
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
               decoration: InputDecoration(
                 prefixText: 'TZS  ',
                 prefixStyle: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500),
+                  fontSize: 15,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
                 hintText: '0',
                 hintStyle: GoogleFonts.jetBrainsMono(
-                    fontSize: 22,
-                    color: AppColors.textDisabled,
-                    fontWeight: FontWeight.w700),
+                  fontSize: 22,
+                  color: AppColors.textDisabled,
+                  fontWeight: FontWeight.w700,
+                ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(
-                      color: AppColors.navyPrimary, width: 1.5),
+                    color: AppColors.navyPrimary,
+                    width: 1.5,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -1330,8 +1416,10 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
                 final amt = double.tryParse(v) ?? 0;
                 if (amt <= 0) return _tr('Invalid amount', 'Kiasi si halali');
                 if (amt > remaining) {
-                  return _tr('Exceeds remaining balance',
-                      'Inazidi salio linalobaki');
+                  return _tr(
+                    'Exceeds remaining balance',
+                    'Inazidi salio linalobaki',
+                  );
                 }
                 return null;
               },
@@ -1342,9 +1430,10 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             Text(
               _tr('Payment Method', 'Njia ya Malipo'),
               style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 8),
             PaymentAccountChips(
@@ -1368,16 +1457,23 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               decoration: InputDecoration(
                 hintText: _tr('Note (optional)', 'Maelezo (hiari)'),
                 hintStyle: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textDisabled),
+                  fontSize: 13,
+                  color: AppColors.textDisabled,
+                ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(
-                      color: AppColors.navyPrimary, width: 1.5),
+                    color: AppColors.navyPrimary,
+                    width: 1.5,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               maxLines: 2,
               minLines: 1,
@@ -1398,24 +1494,29 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               child: FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  backgroundColor:
-                      _saving ? AppColors.border : AppColors.success,
+                  backgroundColor: _saving
+                      ? AppColors.border
+                      : AppColors.success,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: _saving
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         _tr('Record Payment', 'Rekodi Malipo'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
               ),
             ),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,6 +23,7 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
+import '../../services/receipt_pdf_service.dart';
 import 'create_invoice_screen.dart';
 import 'sales_return_screen.dart';
 
@@ -104,8 +104,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   String get _customerName =>
       _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-  String get _customerPhone => _inv['customerPhone']?.toString() ?? '';
-
   DateTime? get _invoiceDate =>
       readTimestamp(_inv['invoiceDate'] ?? _inv['createdAt']);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
@@ -414,52 +412,48 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  void _shareWhatsApp() async {
-    final text = Uri.encodeComponent(_buildShareText());
-    final phone = normalizeWhatsAppPhone(_customerPhone);
-    // No usable customer number → share-picker link instead of a direct chat.
-    final url = phone.isEmpty
-        ? 'https://wa.me/?text=$text'
-        : 'https://wa.me/$phone?text=$text';
+  Future<void> _sharePdf() async {
     try {
-      final ok = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: scope.userUid,
+        businessId: scope.businessId,
+        createdByUid: (_inv['createdBy'] ?? '').toString(),
       );
-      if (!ok) throw Exception('no handler');
+      await ReceiptPdfService.share(
+        sale: _inv,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
+      );
       _offerMarkSent();
     } catch (_) {
       _showSnack(
         _tr(
-          'Could not open WhatsApp. Make sure it is installed.',
-          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+          'Could not create the receipt PDF. Please try again.',
+          'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
         ),
       );
     }
   }
 
-  void _shareEmail() async {
-    // Email clients don't render WhatsApp markdown — strip it.
-    final text = _buildShareText().replaceAll(RegExp(r'[*_]'), '');
-    final subject = Uri.encodeComponent(
-      _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'),
-    );
-    final body = Uri.encodeComponent(text);
-    final customerEmail = (_inv['customerEmail'] ?? '').toString();
-    final to = customerEmail.isNotEmpty
-        ? Uri.encodeComponent(customerEmail)
-        : '';
+  Future<void> _shareSms() async {
+    final plain = _buildShareText().replaceAll(RegExp(r'\*|_'), '');
+    final phone = (_inv['customerPhone'] ?? '').toString().trim();
+    final uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(plain)}');
     try {
-      final ok = await launchUrl(
-        Uri.parse('mailto:$to?subject=$subject&body=$body'),
-      );
-      if (!ok) throw Exception('no handler');
-      _offerMarkSent();
+      final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      if (!opened) throw Exception('No SMS handler');
     } catch (_) {
       _showSnack(
         _tr(
-          'No email app found on this device.',
-          'Hakuna programu ya barua pepe kwenye kifaa hiki.',
+          'Could not open the SMS app.',
+          'Imeshindwa kufungua programu ya SMS.',
         ),
       );
     }
@@ -486,11 +480,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         ),
       ),
     );
-  }
-
-  void _copyText() {
-    Clipboard.setData(ClipboardData(text: _buildShareText()));
-    _showSnack(_tr('Copied to clipboard', 'Imenakiliwa'));
   }
 
   String _buildShareText() {
@@ -569,11 +558,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               outstanding: _outstanding,
             ),
             const SizedBox(height: 16),
-            _ShareRow(
-              onWhatsApp: _shareWhatsApp,
-              onEmail: _shareEmail,
-              onCopy: _copyText,
-            ),
+            _ShareRow(onSms: _shareSms, onPdf: _sharePdf),
             const SizedBox(height: 16),
             _LineItemsCard(items: _lineItems),
             const SizedBox(height: 16),
@@ -917,15 +902,10 @@ class _SummaryMeta extends StatelessWidget {
 // ── Share Row ─────────────────────────────────────────────────────────────────
 
 class _ShareRow extends StatelessWidget {
-  final VoidCallback onWhatsApp;
-  final VoidCallback onEmail;
-  final VoidCallback onCopy;
+  final VoidCallback onSms;
+  final VoidCallback onPdf;
 
-  const _ShareRow({
-    required this.onWhatsApp,
-    required this.onEmail,
-    required this.onCopy,
-  });
+  const _ShareRow({required this.onSms, required this.onPdf});
 
   @override
   Widget build(BuildContext context) {
@@ -933,28 +913,19 @@ class _ShareRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ShareBtn(
-            label: 'WhatsApp',
-            icon: Icons.chat_rounded,
-            color: const Color(0xFF25D366),
-            onTap: onWhatsApp,
+            label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
+            icon: Icons.sms_outlined,
+            color: AppColors.warning,
+            onTap: onSms,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _ShareBtn(
-            label: _tr('Email', 'Barua pepe'),
-            icon: Icons.email_rounded,
+            label: _tr('Share PDF', 'Shiriki PDF'),
+            icon: Icons.picture_as_pdf_outlined,
             color: AppColors.tealAccent,
-            onTap: onEmail,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ShareBtn(
-            label: _tr('Copy', 'Nakili'),
-            icon: Icons.copy_rounded,
-            color: AppColors.textSecondary,
-            onTap: onCopy,
+            onTap: onPdf,
           ),
         ),
       ],

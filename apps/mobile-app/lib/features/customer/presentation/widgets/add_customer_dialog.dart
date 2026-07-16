@@ -458,6 +458,36 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   }
 
   Future<void> _addFromContacts() async {
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(_tr(
+          'Import customers from contacts?',
+          'Ingiza wateja kutoka mawasiliano?',
+        )),
+        content: Text(_tr(
+          'Mali Up will read contact names and phone numbers so you can choose customers to import. '
+          'Only the contacts you select are saved to Mali Up and synced with your business account; '
+          'unselected contacts are not uploaded.',
+          'Mali Up itasoma majina na nambari za simu ili uchague wateja wa kuingiza. '
+          'Mawasiliano utakayochagua pekee ndiyo yatahifadhiwa Mali Up na kusawazishwa na akaunti ya biashara; '
+          'ambayo hujachagua hayatapakiwa.',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_tr('Not now', 'Sio sasa')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(_tr('Continue', 'Endelea')),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !mounted) return;
+
     setState(() => _isImportingContact = true);
 
     try {

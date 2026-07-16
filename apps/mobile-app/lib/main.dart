@@ -135,13 +135,13 @@ Future<void> main() async {
     await SentryFlutter.init(
       (options) {
         options.dsn = _sentryDsn;
-        options.tracesSampleRate = 1.0;
-        options.profilesSampleRate = 1.0; // ignore: experimental_member_use
-        options.replay.sessionSampleRate = 1.0;
-        options.replay.onErrorSampleRate = 1.0;
+        options.tracesSampleRate = 0.1;
+        options.profilesSampleRate = 0.0; // ignore: experimental_member_use
+        options.replay.sessionSampleRate = 0.0;
+        options.replay.onErrorSampleRate = 0.0;
         options.privacy.maskAllText = true;
         options.privacy.maskAllImages = true;
-        options.sendDefaultPii = true;
+        options.sendDefaultPii = false;
         options.debug = false;
         options.environment = _sentryEnvironment;
         if (_sentryRelease.isNotEmpty) {

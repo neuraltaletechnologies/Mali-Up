@@ -32,6 +32,7 @@ import '../database/app_database.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/daos/sync_queue_dao.dart';
 import 'conflict_resolver.dart';
+import 'offline_policy_notifier.dart';
 import 'sync_utils.dart';
 
 enum SyncState { idle, syncing, offline, error }
@@ -49,6 +50,7 @@ class SyncService extends ChangeNotifier {
 
   final String uid;
   final String businessId;
+  final OfflinePolicyNotifier? offlinePolicy;
 
   late final SyncQueueDao _queue;
   late final SettingsDao _settings;
@@ -86,6 +88,7 @@ class SyncService extends ChangeNotifier {
     required AppDatabase db,
     required this.uid,
     required this.businessId,
+    this.offlinePolicy,
   }) {
     _queue = db.syncQueueDao;
     _settings = db.settingsDao;
@@ -119,6 +122,7 @@ class SyncService extends ChangeNotifier {
       unawaited(syncNow());
     } else {
       _setState(SyncState.offline);
+      await _markOffline();
     }
 
     // Trigger a sync cycle each time connectivity returns.
@@ -131,13 +135,21 @@ class SyncService extends ChangeNotifier {
         unawaited(syncNow());
       } else {
         _setState(SyncState.offline);
-        final existing = await _settings.getUserSettings();
-        if (existing?.offlineSince == null) {
-          await _settings
-              .setOfflineSince(DateTime.now().millisecondsSinceEpoch);
-        }
+        await _markOffline();
       }
     });
+  }
+
+  Future<void> _markOffline() async {
+    final policy = offlinePolicy;
+    if (policy != null) {
+      await policy.markOffline();
+      return;
+    }
+    final existing = await _settings.getUserSettings();
+    if (existing?.offlineSince == null) {
+      await _settings.setOfflineSince(DateTime.now().millisecondsSinceEpoch);
+    }
   }
 
   void stop() {
@@ -163,7 +175,12 @@ class SyncService extends ChangeNotifier {
       await _pushQueue();
       await _pullRemoteChanges();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      await _settings.clearOfflineSince();
+      final policy = offlinePolicy;
+      if (policy != null) {
+        await policy.markOnline();
+      } else {
+        await _settings.clearOfflineSince();
+      }
       _lastSyncAt = DateTime.fromMillisecondsSinceEpoch(nowMs);
       _lastError = null;
       _setState(SyncState.idle);
