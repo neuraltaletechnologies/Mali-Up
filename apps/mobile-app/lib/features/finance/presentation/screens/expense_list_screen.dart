@@ -130,7 +130,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     final expenses = ref.watch(expensesByMonthProvider);
     final isLoading = ref.watch(expenseListProvider).isLoading;
 
-    final pendingCount = expenses.where((e) => e.status == 'pending').length;
     final withReceipt = expenses.where((e) => e.receiptUrl.isNotEmpty).length;
 
     final now = DateTime.now();
@@ -163,7 +162,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           _ExpenseDarkHeader(
             month: month,
             total: total,
-            pendingCount: pendingCount,
             withReceipt: withReceipt,
             expenseCount: expenses.length,
             onPrev: _prevMonth,
@@ -281,7 +279,6 @@ class _ExpenseDarkHeader extends StatelessWidget {
 
   final DateTime month;
   final double total;
-  final int pendingCount;
   final int withReceipt;
   final int expenseCount;
   final VoidCallback onPrev;
@@ -291,7 +288,6 @@ class _ExpenseDarkHeader extends StatelessWidget {
   const _ExpenseDarkHeader({
     required this.month,
     required this.total,
-    required this.pendingCount,
     required this.withReceipt,
     required this.expenseCount,
     required this.onPrev,
@@ -411,11 +407,9 @@ class _ExpenseDarkHeader extends StatelessWidget {
                   ),
                   const _PillDivider(),
                   _PillStat(
-                    label: _tr('Pending', 'Zinasubiri'),
-                    value: '$pendingCount',
-                    color: pendingCount > 0
-                        ? AppColors.warning
-                        : AppColors.success,
+                    label: _tr('Entries', 'Rekodi'),
+                    value: '$expenseCount',
+                    color: AppColors.navyPrimary,
                   ),
                   const _PillDivider(),
                   _PillStat(
@@ -555,8 +549,6 @@ class _ExpenseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cat = _CatX.fromKey(expense.category);
     final amount = double.tryParse(expense.amount) ?? 0;
-    final isPending = expense.status == 'pending';
-    final isRejected = expense.status == 'rejected';
 
     return ListSwipeCard(
       itemKey: ValueKey(expense.id),
@@ -597,9 +589,7 @@ class _ExpenseCard extends StatelessWidget {
                                 style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isRejected
-                                      ? AppColors.error
-                                      : AppColors.textPrimary,
+                                  color: AppColors.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -644,20 +634,6 @@ class _ExpenseCard extends StatelessWidget {
                                 color: AppColors.tealAccent,
                               ),
                             ],
-                            if (isPending) ...[
-                              const SizedBox(width: 6),
-                              _StatusBadge(
-                                label: _tr('Pending', 'Inasubiri'),
-                                color: AppColors.warning,
-                              ),
-                            ],
-                            if (isRejected) ...[
-                              const SizedBox(width: 6),
-                              _StatusBadge(
-                                label: _tr('Rejected', 'Imekataliwa'),
-                                color: AppColors.error,
-                              ),
-                            ],
                           ],
                         ),
                       ],
@@ -670,9 +646,7 @@ class _ExpenseCard extends StatelessWidget {
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: isRejected
-                          ? AppColors.error
-                          : AppColors.navyPrimary,
+                      color: AppColors.navyPrimary,
                     ),
                   ),
                 ],
@@ -688,33 +662,6 @@ class _ExpenseCard extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _StatusBadge({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.dmSans(
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          color: color,
         ),
       ),
     );

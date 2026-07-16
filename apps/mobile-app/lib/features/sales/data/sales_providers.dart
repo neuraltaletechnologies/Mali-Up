@@ -16,37 +16,38 @@ import '../../rbac/data/rbac_providers.dart';
 
 final salesInvoiceListProvider =
     Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  return ref.watch(invoicesProvider).whenData(
-        (invoices) => invoices.map(_invoiceToMap).toList(),
-      );
-});
+      return ref
+          .watch(invoicesProvider)
+          .whenData((invoices) => invoices.map(_invoiceToMap).toList());
+    });
 
 Map<String, dynamic> _invoiceToMap(Invoice inv) => {
-      'id': inv.id,
-      'customerId': inv.customerId,
-      'customerName': inv.customerName,
-      'customerPhone': inv.customerPhone,
-      'invoiceNumber': inv.invoiceNumber,
-      'date': inv.date,
-      'dueDate': inv.dueDate,
-      'status': inv.status,
-      'paymentStatus': inv.status,
-      'type': inv.type,
-      'subtotal': inv.subtotal,
-      'discountAmount': inv.discountAmount,
-      'tax': inv.tax,
-      'vatAmount': inv.tax,
-      'total': inv.total,
-      'totalAmount': inv.total,
-      'amount': inv.total,
-      'amountPaid': inv.amountPaid,
-      'paymentMethod': inv.paymentMethod,
-      'items': inv.items.map((i) => i.toFirestore()).toList(),
-      'note': inv.note,
-      'notes': inv.note,
-      'createdAt': inv.createdAt,
-      'updatedAt': inv.updatedAt,
-    };
+  'id': inv.id,
+  'customerId': inv.customerId,
+  'customerName': inv.customerName,
+  'customerPhone': inv.customerPhone,
+  'invoiceNumber': inv.invoiceNumber,
+  'date': inv.date,
+  'dueDate': inv.dueDate,
+  'status': inv.status,
+  'paymentStatus': inv.status,
+  'type': inv.type,
+  'subtotal': inv.subtotal,
+  'discountAmount': inv.discountAmount,
+  'tax': inv.tax,
+  'vatAmount': inv.tax,
+  'total': inv.total,
+  'totalAmount': inv.total,
+  'amount': inv.total,
+  'amountPaid': inv.amountPaid,
+  'paymentMethod': inv.paymentMethod,
+  'items': inv.items.map((i) => i.toFirestore()).toList(),
+  'note': inv.note,
+  'notes': inv.note,
+  'createdBy': inv.createdBy,
+  'createdAt': inv.createdAt,
+  'updatedAt': inv.updatedAt,
+};
 
 // ── Tenant scoping ────────────────────────────────────────────────────────────
 
@@ -107,10 +108,7 @@ double readInvoiceTotal(Map<String, dynamic> item) {
 double parseNumericAmount(Object? value) {
   if (value == null) return 0;
   if (value is num) return value.toDouble();
-  final cleaned = value
-      .toString()
-      .replaceAll(RegExp(r'[^0-9.\-]'), '')
-      .trim();
+  final cleaned = value.toString().replaceAll(RegExp(r'[^0-9.\-]'), '').trim();
   return double.tryParse(cleaned) ?? 0;
 }
 

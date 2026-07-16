@@ -164,6 +164,7 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
   PlanTier.growth: PlanLimits(
     monthlyInvoices: -1,
     maxUsers: 3,
+    maxBusinesses: 1,
     pricePerCycle: 30000,
     fullReports: true,
     mpesaImport: true,

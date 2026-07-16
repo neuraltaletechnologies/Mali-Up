@@ -8,6 +8,7 @@ import '../../customer/data/customer_providers.dart';
 import '../domain/models/budget.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/expense.dart';
+import '../domain/models/expense_category.dart';
 import '../domain/models/recurring_expense_template.dart';
 import 'mappers/expense_mapper.dart';
 import 'repositories/sync_cash_repository.dart';
@@ -24,6 +25,53 @@ class _SelectedMonthNotifier extends Notifier<DateTime> {
 final selectedMonthProvider = NotifierProvider<_SelectedMonthNotifier, DateTime>(
   _SelectedMonthNotifier.new,
 );
+
+// Business-scoped expense categories. Defaults are available immediately;
+// Firestore only stores custom categories and hidden-default overrides.
+final expenseCategoryListProvider = StreamProvider<List<ExpenseCategory>>((ref) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  yield ExpenseCategory.defaults;
+  if (user == null || businessId.isEmpty) return;
+
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  final collection = repo.scopeCollection(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(businessId),
+    childCollection: 'expense_categories',
+  );
+
+  await for (final snapshot in collection.snapshots()) {
+    final hiddenDefaults = <String>{};
+    final custom = <ExpenseCategory>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['isHidden'] == true) {
+        hiddenDefaults.add(doc.id);
+      } else {
+        final category = ExpenseCategory.fromFirestore(doc.id, data);
+        if (category.nameEn.isNotEmpty) custom.add(category);
+      }
+    }
+    custom.sort((a, b) => a.nameEn.toLowerCase().compareTo(b.nameEn.toLowerCase()));
+    yield [
+      ...ExpenseCategory.defaults.where((c) => !hiddenDefaults.contains(c.key)),
+      ...custom,
+    ];
+  }
+});
+
+final expenseCategoryCollectionProvider =
+    Provider<CollectionReference<Map<String, dynamic>>?>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (user == null || businessId.isEmpty) return null;
+  return ref.read(contextFirestoreRepositoryProvider).scopeCollection(
+        uid: user.uid,
+        context: ResolvedFinanceContext.business(businessId),
+        childCollection: 'expense_categories',
+      );
+});
 
 // ── Expense streams ───────────────────────────────────────────────────────────
 

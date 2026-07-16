@@ -34,9 +34,19 @@ String _fmtDate(String iso) {
 }
 
 String _monthShort(int m) => const [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ][m - 1];
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+][m - 1];
 
 // ── Sort options ──────────────────────────────────────────────────────────────
 
@@ -44,12 +54,12 @@ enum _DebtSort { nameAz, nameZa, amountHigh, amountLow, dueDateAsc }
 
 extension _DebtSortX on _DebtSort {
   String get label => switch (this) {
-        _DebtSort.nameAz => _tr('Name A–Z', 'Jina A–Z'),
-        _DebtSort.nameZa => _tr('Name Z–A', 'Jina Z–A'),
-        _DebtSort.amountHigh => _tr('Amount ↑', 'Kiasi ↑'),
-        _DebtSort.amountLow => _tr('Amount ↓', 'Kiasi ↓'),
-        _DebtSort.dueDateAsc => _tr('Due Date', 'Tarehe ya Mwisho'),
-      };
+    _DebtSort.nameAz => _tr('Name A–Z', 'Jina A–Z'),
+    _DebtSort.nameZa => _tr('Name Z–A', 'Jina Z–A'),
+    _DebtSort.amountHigh => _tr('Amount ↑', 'Kiasi ↑'),
+    _DebtSort.amountLow => _tr('Amount ↓', 'Kiasi ↓'),
+    _DebtSort.dueDateAsc => _tr('Due Date', 'Tarehe ya Mwisho'),
+  };
 }
 
 // ── Filter helper ─────────────────────────────────────────────────────────────
@@ -67,9 +77,10 @@ List<Debt> _applyDebtFilters(
   final q = query.trim().toLowerCase();
   if (q.isNotEmpty) {
     list = list
-        .where((d) =>
-            d.partyName.toLowerCase().contains(q) ||
-            d.partyPhone.contains(q))
+        .where(
+          (d) =>
+              d.partyName.toLowerCase().contains(q) || d.partyPhone.contains(q),
+        )
         .toList();
   }
   list = List.from(list);
@@ -89,13 +100,13 @@ List<Debt> _applyDebtFilters(
 }
 
 String _bucketLabel(String bucket) => switch (bucket) {
-      'current' => _tr('Current', 'Sasa'),
-      '0-30' => '0–30 days',
-      '31-60' => '31–60 days',
-      '61-90' => '61–90 days',
-      '90+' => '90+ days',
-      _ => bucket,
-    };
+  'current' => _tr('Current', 'Sasa'),
+  '0-30' => '0–30 days',
+  '31-60' => '31–60 days',
+  '61-90' => '61–90 days',
+  '90+' => '90+ days',
+  _ => bucket,
+};
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -152,17 +163,22 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
     if (!mounted) return;
     await showAppSheet<void>(
       context,
-      builder: (_) => AddDebtScreen(
-        initialIsReceivable: isReceivable,
-        debtToEdit: edit,
-      ),
+      builder: (_) =>
+          AddDebtScreen(initialIsReceivable: isReceivable, debtToEdit: edit),
     );
   }
 
-  void _openDetail(Debt debt) {
-    Navigator.of(context).push(MaterialPageRoute(
+  Future<void> _openDetail(Debt debt) async {
+    await showAppSheet<Object?>(
+      context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      maxHeightFactor: 0.92,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => DebtDetailScreen(debt: debt),
-    ));
+    );
   }
 
   void _openFilterSheet() {
@@ -221,11 +237,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
                   filterBucket: _filterBucket,
                   sort: _sort,
                 ),
-                _PayablesTab(
-                  onTap: _openDetail,
-                  query: _query,
-                  sort: _sort,
-                ),
+                _PayablesTab(onTap: _openDetail, query: _query, sort: _sort),
               ],
             ),
           ),
@@ -292,7 +304,12 @@ class _DebtDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            _pillHalf + 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -400,7 +417,9 @@ class _DebtDarkHeader extends StatelessWidget {
                                 color: AppColors.yellowBrand,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: AppColors.navyPrimary, width: 1.5),
+                                  color: AppColors.navyPrimary,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -422,24 +441,34 @@ class _DebtDarkHeader extends StatelessWidget {
                             autofocus: true,
                             onChanged: onSearchChanged,
                             style: GoogleFonts.dmSans(
-                                fontSize: 14, color: Colors.white),
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
                             decoration: InputDecoration(
                               hintText: _tr(
                                 'Search by name or phone…',
                                 'Tafuta kwa jina au simu…',
                               ),
                               hintStyle: GoogleFonts.dmSans(
-                                  fontSize: 14, color: Colors.white38),
-                              prefixIcon: const Icon(Icons.search_rounded,
-                                  size: 18, color: Colors.white54),
+                                fontSize: 14,
+                                color: Colors.white38,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: Colors.white54,
+                              ),
                               suffixIcon: query.isNotEmpty
                                   ? GestureDetector(
                                       onTap: () {
                                         searchCtrl.clear();
                                         onSearchChanged('');
                                       },
-                                      child: const Icon(Icons.close_rounded,
-                                          size: 16, color: Colors.white54),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                        color: Colors.white54,
+                                      ),
                                     )
                                   : null,
                               filled: true,
@@ -451,13 +480,16 @@ class _DebtDarkHeader extends StatelessWidget {
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Colors.white24),
+                                borderSide: const BorderSide(
+                                  color: Colors.white24,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                    color: AppColors.yellowBrand, width: 1.5),
+                                  color: AppColors.yellowBrand,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -528,10 +560,14 @@ class _DebtTabBar extends StatelessWidget {
         children: [
           TabBar(
             controller: tabController,
-            labelStyle:
-                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
-            unselectedLabelStyle:
-                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
+            labelStyle: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelStyle: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
             labelColor: AppColors.navyPrimary,
             unselectedLabelColor: AppColors.textMuted,
             indicatorColor: AppColors.navyPrimary,
@@ -575,10 +611,7 @@ class _PillStat extends StatelessWidget {
         ),
         Text(
           label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            color: AppColors.textMuted,
-          ),
+          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
         ),
       ],
     );
@@ -630,8 +663,11 @@ class _ActiveFilterChip extends StatelessWidget {
                 const SizedBox(width: 5),
                 GestureDetector(
                   onTap: onRemove,
-                  child: const Icon(Icons.close_rounded,
-                      size: 13, color: Colors.white70),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 13,
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
@@ -679,8 +715,10 @@ class _ReceivablesTab extends ConsumerWidget {
                   ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
                   : _tr("You're all settled up!", 'Umesawazishwa kikamilifu!'),
               subtitle: query.isNotEmpty
-                  ? _tr('Try a different search term.',
-                      'Jaribu neno tofauti la kutafuta.')
+                  ? _tr(
+                      'Try a different search term.',
+                      'Jaribu neno tofauti la kutafuta.',
+                    )
                   : _tr(
                       'No outstanding amounts owed to you right now.',
                       'Hakuna kiasi kinachokudaiwa kwa sasa.',
@@ -752,8 +790,10 @@ class _PayablesTab extends ConsumerWidget {
               ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
               : _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
           subtitle: query.isNotEmpty
-              ? _tr('Try a different search term.',
-                  'Jaribu neno tofauti la kutafuta.')
+              ? _tr(
+                  'Try a different search term.',
+                  'Jaribu neno tofauti la kutafuta.',
+                )
               : _tr(
                   'All your supplier payments are up to date.',
                   'Malipo yote ya wasambazaji yamekamilika.',
@@ -764,10 +804,10 @@ class _PayablesTab extends ConsumerWidget {
       final lastDebt = upcoming.isNotEmpty
           ? upcoming.last
           : dueSoon.isNotEmpty
-              ? dueSoon.last
-              : overdue.isNotEmpty
-                  ? overdue.last
-                  : null;
+          ? dueSoon.last
+          : overdue.isNotEmpty
+          ? overdue.last
+          : null;
       final lastDebtId = lastDebt?.id;
 
       body = KeyedSubtree(
@@ -784,16 +824,18 @@ class _PayablesTab extends ConsumerWidget {
                       color: AppColors.error,
                       count: overdue.length,
                     ),
-                    ...overdue.map((d) => ListSwipeCard(
-                          itemKey: ValueKey(d.id),
-                          onEdit: () => onTap(d),
-                          onDelete: () => _deleteDebt(context, ref, d),
-                          child: _DebtCard(
-                            debt: d,
-                            isLast: d.id == lastDebtId,
-                            onTap: () => onTap(d),
-                          ),
-                        )),
+                    ...overdue.map(
+                      (d) => ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(
+                          debt: d,
+                          isLast: d.id == lastDebtId,
+                          onTap: () => onTap(d),
+                        ),
+                      ),
+                    ),
                   ],
                   if (dueSoon.isNotEmpty) ...[
                     _SectionHeader(
@@ -801,16 +843,18 @@ class _PayablesTab extends ConsumerWidget {
                       color: AppColors.warning,
                       count: dueSoon.length,
                     ),
-                    ...dueSoon.map((d) => ListSwipeCard(
-                          itemKey: ValueKey(d.id),
-                          onEdit: () => onTap(d),
-                          onDelete: () => _deleteDebt(context, ref, d),
-                          child: _DebtCard(
-                            debt: d,
-                            isLast: d.id == lastDebtId,
-                            onTap: () => onTap(d),
-                          ),
-                        )),
+                    ...dueSoon.map(
+                      (d) => ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(
+                          debt: d,
+                          isLast: d.id == lastDebtId,
+                          onTap: () => onTap(d),
+                        ),
+                      ),
+                    ),
                   ],
                   if (upcoming.isNotEmpty) ...[
                     _SectionHeader(
@@ -818,16 +862,18 @@ class _PayablesTab extends ConsumerWidget {
                       color: AppColors.textMuted,
                       count: upcoming.length,
                     ),
-                    ...upcoming.map((d) => ListSwipeCard(
-                          itemKey: ValueKey(d.id),
-                          onEdit: () => onTap(d),
-                          onDelete: () => _deleteDebt(context, ref, d),
-                          child: _DebtCard(
-                            debt: d,
-                            isLast: d.id == lastDebtId,
-                            onTap: () => onTap(d),
-                          ),
-                        )),
+                    ...upcoming.map(
+                      (d) => ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(
+                          debt: d,
+                          isLast: d.id == lastDebtId,
+                          onTap: () => onTap(d),
+                        ),
+                      ),
+                    ),
                   ],
                 ]),
               ),
@@ -855,12 +901,16 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     context: context,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(_tr('Delete Entry', 'Futa Rekodi'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-      content: Text(_tr(
-        'This cannot be undone. All payment records will also be deleted.',
-        'Haiwezi kurejeshwa. Rekodi zote za malipo pia zitafutwa.',
-      )),
+      title: Text(
+        _tr('Delete Entry', 'Futa Rekodi'),
+        style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      ),
+      content: Text(
+        _tr(
+          'This cannot be undone. All payment records will also be deleted.',
+          'Haiwezi kurejeshwa. Rekodi zote za malipo pia zitafutwa.',
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
@@ -882,13 +932,17 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     await adjustCustomerBalanceForDebtChange(ref, before: debt);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr(
-          'Could not delete entry. Please try again.',
-          'Imeshindwa kufuta rekodi. Jaribu tena.',
-        )),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            _tr(
+              'Could not delete entry. Please try again.',
+              'Imeshindwa kufuta rekodi. Jaribu tena.',
+            ),
+          ),
+        ),
+      );
     }
   }
 }
@@ -909,20 +963,19 @@ class _DebtCard extends StatelessWidget {
   });
 
   Color get _ageColor => switch (debt.agingBucket) {
-        'current' => AppColors.success,
-        '0-30' => AppColors.warning,
-        '31-60' => const Color(0xFFE07010),
-        '61-90' => const Color(0xFFDC4A26),
-        '90+' => AppColors.error,
-        _ => AppColors.textMuted,
-      };
+    'current' => AppColors.success,
+    '0-30' => AppColors.warning,
+    '31-60' => const Color(0xFFE07010),
+    '61-90' => const Color(0xFFDC4A26),
+    '90+' => AppColors.error,
+    _ => AppColors.textMuted,
+  };
 
   @override
   Widget build(BuildContext context) {
     final isReceivable = debt.type == 'receivable';
     final daysOver = debt.daysOverdue;
-    final avatarColor =
-        isReceivable ? AppColors.success : AppColors.error;
+    final avatarColor = isReceivable ? AppColors.success : AppColors.error;
 
     return InkWell(
       onTap: onTap,
@@ -998,7 +1051,9 @@ class _DebtCard extends StatelessWidget {
                     SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: _ageColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
@@ -1017,8 +1072,11 @@ class _DebtCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded,
-                    size: 16, color: AppColors.textDisabled),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: AppColors.textDisabled,
+                ),
               ],
             ),
             if (!isLast)
@@ -1076,9 +1134,9 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
   }
 
   void _reset() => setState(() {
-        _bucket = null;
-        _sort = _DebtSort.nameAz;
-      });
+    _bucket = null;
+    _sort = _DebtSort.nameAz;
+  });
 
   void _apply() {
     widget.onApply(_bucket, _sort);
@@ -1132,11 +1190,13 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
                 spacing: 8,
                 runSpacing: 8,
                 children: _DebtSort.values
-                    .map((s) => _FilterChip(
-                          label: s.label,
-                          selected: _sort == s,
-                          onTap: () => setState(() => _sort = s),
-                        ))
+                    .map(
+                      (s) => _FilterChip(
+                        label: s.label,
+                        selected: _sort == s,
+                        onTap: () => setState(() => _sort = s),
+                      ),
+                    )
                     .toList(),
               ),
               const SizedBox(height: 20),
@@ -1151,12 +1211,15 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
                     selected: _bucket == null,
                     onTap: () => setState(() => _bucket = null),
                   ),
-                  ..._buckets.map((b) => _FilterChip(
-                        label: b.label,
-                        selected: _bucket == b.key,
-                        onTap: () => setState(
-                            () => _bucket = _bucket == b.key ? null : b.key),
-                      )),
+                  ..._buckets.map(
+                    (b) => _FilterChip(
+                      label: b.label,
+                      selected: _bucket == b.key,
+                      onTap: () => setState(
+                        () => _bucket = _bucket == b.key ? null : b.key,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 24),
@@ -1169,13 +1232,16 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
                     backgroundColor: AppColors.navyPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                   child: Text(
                     _tr('Apply', 'Tumia'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 15, fontWeight: FontWeight.w700),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -1209,8 +1275,11 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

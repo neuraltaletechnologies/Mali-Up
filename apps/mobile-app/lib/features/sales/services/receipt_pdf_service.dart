@@ -1,6 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -23,10 +24,46 @@ abstract final class ReceiptPdfService {
   static Future<Map<String, String>> loadMeta({
     required String uid,
     required String? businessId,
+    String? createdByUid,
   }) async {
     final firestore = FirebaseFirestore.instance;
     var businessName = 'Business';
     var printedBy = 'User';
+    var businessPhone = '';
+    var businessEmail = '';
+    var businessAddress = '';
+    var businessLogoUrl = '';
+    final creatorUid = (createdByUid ?? '').trim().isNotEmpty
+        ? createdByUid!.trim()
+        : uid;
+
+    void readBusiness(Map business) {
+      final name = (business['businessName'] ?? business['name'])
+          ?.toString()
+          .trim();
+      if (name != null && name.isNotEmpty) businessName = name;
+      businessPhone = (business['phone'] ?? business['businessPhone'] ?? '')
+          .toString()
+          .trim();
+      businessEmail = (business['email'] ?? business['businessEmail'] ?? '')
+          .toString()
+          .trim();
+      businessLogoUrl = (business['logoUrl'] ?? '').toString().trim();
+      final district = (business['district'] ?? '').toString().trim();
+      final city = (business['city'] ?? business['placeOfBusiness'] ?? '')
+          .toString()
+          .trim();
+      businessAddress = [
+        district,
+        city,
+      ].where((part) => part.isNotEmpty).join(', ');
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser?.uid == creatorUid) {
+      final authName = currentUser?.displayName?.trim() ?? '';
+      if (authName.isNotEmpty) printedBy = authName;
+    }
     final cachedProfile = await BusinessProfileService.loadCachedProfile(uid);
     final cachedBusinesses = cachedProfile?['businesses'];
     if (cachedBusinesses is List && businessId != null) {
@@ -34,16 +71,20 @@ abstract final class ReceiptPdfService {
         if (business is! Map || business['id']?.toString() != businessId) {
           continue;
         }
-        final name = (business['businessName'] ?? business['name'])
-            ?.toString()
-            .trim();
-        if (name != null && name.isNotEmpty) businessName = name;
+        readBusiness(business);
         break;
       }
     }
     try {
       if (!await OnlineGuard.isDeviceOnline()) {
-        return {'businessName': businessName, 'printedBy': printedBy};
+        return {
+          'businessName': businessName,
+          'printedBy': printedBy,
+          'businessPhone': businessPhone,
+          'businessEmail': businessEmail,
+          'businessAddress': businessAddress,
+          'businessLogoUrl': businessLogoUrl,
+        };
       }
     } catch (_) {
       // If connectivity cannot be determined, use the bounded reads below.
@@ -51,14 +92,23 @@ abstract final class ReceiptPdfService {
     try {
       final userDoc = await firestore
           .collection('users')
-          .doc(uid)
+          .doc(creatorUid)
           .get()
           .timeout(const Duration(seconds: 3));
       final data = userDoc.data();
-      printedBy =
-          ((data?['displayName'] ?? data?['name']) as String?)?.trim() ??
-          'User';
-      final businesses = data?['businesses'];
+      final firstName = (data?['firstName'] ?? '').toString().trim();
+      final lastName = (data?['lastName'] ?? '').toString().trim();
+      final fullName = [
+        firstName,
+        lastName,
+      ].where((part) => part.isNotEmpty).join(' ');
+      final storedName = (data?['displayName'] ?? data?['name'] ?? fullName)
+          .toString()
+          .trim();
+      if (storedName.isNotEmpty) printedBy = storedName;
+
+      // Older owner profiles embedded businesses in the user document.
+      final businesses = creatorUid == uid ? (data?['businesses']) : null;
       if (businesses is List && businessId != null) {
         for (final business in businesses) {
           final name =
@@ -71,7 +121,7 @@ abstract final class ReceiptPdfService {
               business['id']?.toString() == businessId &&
               name != null &&
               name.isNotEmpty) {
-            businessName = name;
+            readBusiness(business);
             break;
           }
         }
@@ -79,22 +129,27 @@ abstract final class ReceiptPdfService {
     } catch (_) {
       // The business document fallback below can still supply the receipt name.
     }
-    if (businessName == 'Business' &&
-        businessId != null &&
-        businessId.isNotEmpty) {
+    if (businessId != null && businessId.isNotEmpty) {
       try {
         final businessDoc = await firestore
             .collection('businesses')
             .doc(businessId)
             .get()
             .timeout(const Duration(seconds: 3));
-        final name = (businessDoc.data()?['businessName'] as String?)?.trim();
-        if (name != null && name.isNotEmpty) businessName = name;
+        final data = businessDoc.data();
+        if (data != null) readBusiness(data);
       } catch (_) {
         // A generic label is preferable to blocking an offline PDF receipt.
       }
     }
-    return {'businessName': businessName, 'printedBy': printedBy};
+    return {
+      'businessName': businessName,
+      'printedBy': printedBy,
+      'businessPhone': businessPhone,
+      'businessEmail': businessEmail,
+      'businessAddress': businessAddress,
+      'businessLogoUrl': businessLogoUrl,
+    };
   }
 
   static Future<Uint8List> build({
@@ -102,6 +157,10 @@ abstract final class ReceiptPdfService {
     required String businessName,
     required String printedBy,
     required bool isSwahili,
+    String businessPhone = '',
+    String businessEmail = '',
+    String businessAddress = '',
+    String businessLogoUrl = '',
   }) async {
     String t(String en, String sw) => isSwahili ? sw : en;
 
@@ -172,6 +231,10 @@ abstract final class ReceiptPdfService {
     );
     final paymentReference = (sale['mpesaRef'] ?? '').toString().trim();
     final notes = (sale['notes'] ?? '').toString().trim();
+    final businessLogo = await _networkImage(businessLogoUrl);
+    final maliUpLogo = await _assetImage(
+      'assets/branding/mali_up_wordmark.png',
+    );
 
     final document = pw.Document(
       title: '$documentTitle $invoiceNumber',
@@ -180,8 +243,8 @@ abstract final class ReceiptPdfService {
     );
     document.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
+        pageFormat: PdfPageFormat.a5,
+        margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 24),
         theme: pw.ThemeData.withFont(
           base: pw.Font.helvetica(),
           bold: pw.Font.helveticaBold(),
@@ -194,9 +257,24 @@ abstract final class ReceiptPdfService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                'Powered by Mali Up',
-                style: const pw.TextStyle(fontSize: 8, color: _muted),
+              pw.Row(
+                children: [
+                  pw.Text(
+                    '${t("Powered by", "Imetengenezwa na")} ',
+                    style: const pw.TextStyle(fontSize: 7, color: _muted),
+                  ),
+                  if (maliUpLogo != null)
+                    pw.Image(maliUpLogo, width: 22, height: 22)
+                  else
+                    pw.Text(
+                      'Mali Up',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        color: _navy,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                ],
               ),
               pw.Text(
                 '${t("Page", "Ukurasa")} ${context.pageNumber}/${context.pagesCount}',
@@ -207,7 +285,7 @@ abstract final class ReceiptPdfService {
         ),
         build: (_) => [
           pw.Container(
-            padding: const pw.EdgeInsets.all(20),
+            padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
               color: _navy,
               borderRadius: pw.BorderRadius.circular(10),
@@ -216,21 +294,32 @@ abstract final class ReceiptPdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Container(
-                  width: 42,
-                  height: 42,
+                  width: 48,
+                  height: 48,
                   alignment: pw.Alignment.center,
                   decoration: pw.BoxDecoration(
                     color: _yellow,
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
-                  child: pw.Text(
-                    'MU',
-                    style: pw.TextStyle(
-                      color: _navy,
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
+                  child: businessLogo != null
+                      ? pw.ClipRRect(
+                          horizontalRadius: 8,
+                          verticalRadius: 8,
+                          child: pw.Image(
+                            businessLogo,
+                            width: 48,
+                            height: 48,
+                            fit: pw.BoxFit.cover,
+                          ),
+                        )
+                      : pw.Text(
+                          _businessInitial(businessName),
+                          style: pw.TextStyle(
+                            color: _navy,
+                            fontSize: 17,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
                 ),
                 pw.SizedBox(width: 14),
                 pw.Expanded(
@@ -238,7 +327,9 @@ abstract final class ReceiptPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        businessName.isEmpty ? 'Business' : businessName,
+                        businessName.isEmpty || businessName == 'Business'
+                            ? t('Business', 'Biashara')
+                            : businessName,
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 18,
@@ -254,15 +345,23 @@ abstract final class ReceiptPdfService {
                           letterSpacing: 1.1,
                         ),
                       ),
+                      if (businessAddress.isNotEmpty ||
+                          businessPhone.isNotEmpty ||
+                          businessEmail.isNotEmpty) ...[
+                        pw.SizedBox(height: 5),
+                        pw.Text(
+                          [
+                            businessAddress,
+                            businessPhone,
+                            businessEmail,
+                          ].where((value) => value.isNotEmpty).join('  |  '),
+                          style: const pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 7.5,
+                          ),
+                        ),
+                      ],
                     ],
-                  ),
-                ),
-                pw.Text(
-                  invoiceNumber,
-                  style: pw.TextStyle(
-                    color: PdfColors.white,
-                    fontSize: 11,
-                    fontWeight: pw.FontWeight.bold,
                   ),
                 ),
               ],
@@ -278,12 +377,12 @@ abstract final class ReceiptPdfService {
                   if (customerPhone.isNotEmpty) customerPhone,
                 ]),
               ),
-              pw.SizedBox(width: 24),
+              pw.SizedBox(width: 18),
               pw.Expanded(
                 child: _infoBlock(t('RECEIPT DETAILS', 'TAARIFA ZA RISITI'), [
-                  '${t("Number", "Namba")}: $invoiceNumber',
+                  '${t("Receipt no.", "Namba ya risiti")}: $invoiceNumber',
                   if (createdAt != null)
-                    '${t("Date", "Tarehe")}: ${_formatDate(createdAt)}',
+                    '${t("Date", "Tarehe")}: ${_formatDateTime(createdAt)}',
                   if (dueDate != null && !isQuotation)
                     '${t("Due", "Mwisho")}: ${_formatDate(dueDate)}',
                 ]),
@@ -373,9 +472,9 @@ abstract final class ReceiptPdfService {
                   ],
                 ),
               ),
-              pw.SizedBox(width: 30),
+              pw.SizedBox(width: 18),
               pw.SizedBox(
-                width: 220,
+                width: 170,
                 child: pw.Column(
                   children: [
                     _totalRow(t('Subtotal', 'Jumla ndogo'), subtotal),
@@ -415,7 +514,7 @@ abstract final class ReceiptPdfService {
               border: pw.Border.all(color: _line),
             ),
             child: pw.Text(
-              '${t("Prepared by", "Imeandaliwa na")}: ${printedBy.isEmpty ? "User" : printedBy}',
+              '${t("Recorded by", "Imerekodiwa na")}: ${printedBy.isEmpty || printedBy == "User" ? t("User", "Mtumiaji") : printedBy}',
               style: const pw.TextStyle(fontSize: 9, color: _muted),
             ),
           ),
@@ -431,6 +530,10 @@ abstract final class ReceiptPdfService {
     required String businessName,
     required String printedBy,
     required bool isSwahili,
+    String businessPhone = '',
+    String businessEmail = '',
+    String businessAddress = '',
+    String businessLogoUrl = '',
     String? customerEmail,
   }) async {
     final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
@@ -440,6 +543,10 @@ abstract final class ReceiptPdfService {
       businessName: businessName,
       printedBy: printedBy,
       isSwahili: isSwahili,
+      businessPhone: businessPhone,
+      businessEmail: businessEmail,
+      businessAddress: businessAddress,
+      businessLogoUrl: businessLogoUrl,
     );
     final email = customerEmail?.trim() ?? '';
     return Printing.sharePdf(
@@ -448,9 +555,11 @@ abstract final class ReceiptPdfService {
       subject: isSwahili
           ? 'Risiti $invoiceNumber kutoka $businessName'
           : 'Receipt $invoiceNumber from $businessName',
-      body: isSwahili
-          ? 'Risiti yako imeambatishwa kama PDF.'
-          : 'Your receipt is attached as a PDF.',
+      body: _shareBody(
+        isSwahili: isSwahili,
+        businessPhone: businessPhone,
+        businessEmail: businessEmail,
+      ),
       emails: email.isEmpty ? null : [email],
     );
   }
@@ -460,6 +569,10 @@ abstract final class ReceiptPdfService {
     required String businessName,
     required String printedBy,
     required bool isSwahili,
+    String businessPhone = '',
+    String businessEmail = '',
+    String businessAddress = '',
+    String businessLogoUrl = '',
   }) {
     final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
         .toString();
@@ -470,6 +583,10 @@ abstract final class ReceiptPdfService {
         businessName: businessName,
         printedBy: printedBy,
         isSwahili: isSwahili,
+        businessPhone: businessPhone,
+        businessEmail: businessEmail,
+        businessAddress: businessAddress,
+        businessLogoUrl: businessLogoUrl,
       ),
     );
   }
@@ -480,6 +597,52 @@ abstract final class ReceiptPdfService {
         .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
     return 'receipt_${safe.isEmpty ? "sale" : safe}.pdf';
+  }
+
+  static Future<pw.MemoryImage?> _assetImage(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      return pw.MemoryImage(data.buffer.asUint8List());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<pw.MemoryImage?> _networkImage(String url) async {
+    final value = url.trim();
+    if (value.isEmpty) return null;
+    try {
+      final response = await http
+          .get(Uri.parse(value))
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode < 200 || response.statusCode >= 300) return null;
+      return pw.MemoryImage(response.bodyBytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _businessInitial(String businessName) {
+    final value = businessName.trim();
+    return value.isEmpty ? 'B' : value.substring(0, 1).toUpperCase();
+  }
+
+  static String _shareBody({
+    required bool isSwahili,
+    required String businessPhone,
+    required String businessEmail,
+  }) {
+    final contact = [
+      businessPhone.trim(),
+      businessEmail.trim(),
+    ].where((value) => value.isNotEmpty).join(' / ');
+    final message = isSwahili
+        ? 'Risiti yako imeambatishwa kama PDF.'
+        : 'Your receipt is attached as a PDF.';
+    if (contact.isEmpty) return message;
+    return isSwahili
+        ? '$message Mawasiliano ya biashara: $contact'
+        : '$message Business contact: $contact';
   }
 
   static pw.Widget _infoBlock(String title, List<String> lines) => pw.Column(
@@ -580,6 +743,9 @@ abstract final class ReceiptPdfService {
 
   static String _formatDate(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+
+  static String _formatDateTime(DateTime value) =>
+      '${_formatDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
   static String _quantity(double value) => value == value.roundToDouble()
       ? value.toInt().toString()

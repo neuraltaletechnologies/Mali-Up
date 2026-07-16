@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
@@ -23,19 +24,18 @@ class TeamMemberSetupScreen extends ConsumerStatefulWidget {
       _TeamMemberSetupScreenState();
 }
 
-class _TeamMemberSetupScreenState
-    extends ConsumerState<TeamMemberSetupScreen>
+class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
     with SingleTickerProviderStateMixin {
   bool _showPinSetup = false;
 
-  final _emailCtrl   = TextEditingController();
-  final _pinCtrl     = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _pinCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _pinFocus    = FocusNode();
+  final _pinFocus = FocusNode();
   final _confirmFocus = FocusNode();
   bool _onConfirmStep = false;
-  bool _emailHasError   = false;
-  bool _pinHasError     = false;
+  bool _emailHasError = false;
+  bool _pinHasError = false;
   bool _confirmHasError = false;
 
   late final AnimationController _animCtrl;
@@ -46,11 +46,14 @@ class _TeamMemberSetupScreenState
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -77,10 +80,8 @@ class _TeamMemberSetupScreenState
 
     final confirmed = await showAppSheet<bool>(
       context,
-      builder: (_) => _StartFreshWarningSheet(
-        sw: sw,
-        businessName: businessName,
-      ),
+      builder: (_) =>
+          _StartFreshWarningSheet(sw: sw, businessName: businessName),
     );
 
     if (confirmed == true && mounted) {
@@ -91,23 +92,41 @@ class _TeamMemberSetupScreenState
 
   void _advanceToConfirm() {
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final emailErr = OnboardingValidator.validateEmail(_emailCtrl.text,
-        isSwahili: sw, optional: false);
-    if (emailErr != null) { setState(() => _emailHasError = true); return; }
+    final emailErr = OnboardingValidator.validateEmail(
+      _emailCtrl.text,
+      isSwahili: sw,
+      optional: false,
+    );
+    if (emailErr != null) {
+      setState(() => _emailHasError = true);
+      return;
+    }
     final err = OnboardingValidator.validatePin(_pinCtrl.text, isSwahili: sw);
-    if (err != null) { setState(() => _pinHasError = true); return; }
-    setState(() { _emailHasError = false; _pinHasError = false; _onConfirmStep = true; });
-    ref.read(onboardingNotifierProvider.notifier).setEmail(_emailCtrl.text.trim());
+    if (err != null) {
+      setState(() => _pinHasError = true);
+      return;
+    }
+    setState(() {
+      _emailHasError = false;
+      _pinHasError = false;
+      _onConfirmStep = true;
+    });
+    ref
+        .read(onboardingNotifierProvider.notifier)
+        .setEmail(_emailCtrl.text.trim());
     Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) FocusScope.of(context).requestFocus(_confirmFocus);
     });
   }
 
   Future<void> _savePin() async {
-    if (!ref.read(isOnlineProvider)) return;
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final err =
-        OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
+    final err = OnboardingValidator.validatePin(
+      _confirmCtrl.text,
+      isSwahili: sw,
+    );
     if (err != null || _confirmCtrl.text != _pinCtrl.text) {
       setState(() => _confirmHasError = true);
       return;
@@ -126,7 +145,10 @@ class _TeamMemberSetupScreenState
     if (_showPinSetup && _onConfirmStep) {
       return () {
         _confirmCtrl.clear();
-        setState(() { _onConfirmStep = false; _confirmHasError = false; });
+        setState(() {
+          _onConfirmStep = false;
+          _confirmHasError = false;
+        });
         Future.delayed(const Duration(milliseconds: 80), () {
           if (mounted) FocusScope.of(context).requestFocus(_pinFocus);
         });
@@ -147,9 +169,11 @@ class _TeamMemberSetupScreenState
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(sw
-              ? 'Hatukuweza kufungua WhatsApp sasa.'
-              : 'We could not open WhatsApp right now.'),
+          content: Text(
+            sw
+                ? 'Hatukuweza kufungua WhatsApp sasa.'
+                : 'We could not open WhatsApp right now.',
+          ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
@@ -245,8 +269,7 @@ class _TeamMemberSetupScreenState
                 clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(
                   color: AppColors.background,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black12,
@@ -267,8 +290,7 @@ class _TeamMemberSetupScreenState
                       child: SingleChildScrollView(
                         controller: scrollController,
                         physics: const ClampingScrollPhysics(),
-                        padding:
-                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -292,15 +314,15 @@ class _TeamMemberSetupScreenState
                               switchOutCurve: Curves.easeIn,
                               transitionBuilder: (child, animation) =>
                                   FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.08, 0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              ),
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.08, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
                               child: _showPinSetup
                                   ? _PinSetupBody(
                                       key: ValueKey('pin_$_onConfirmStep'),
@@ -319,7 +341,9 @@ class _TeamMemberSetupScreenState
                                       errorMessage: state.errorMessage,
                                       onEmailChanged: (_) {
                                         if (_emailHasError) {
-                                          setState(() => _emailHasError = false);
+                                          setState(
+                                            () => _emailHasError = false,
+                                          );
                                         }
                                       },
                                       onPinChanged: (_) {
@@ -330,7 +354,8 @@ class _TeamMemberSetupScreenState
                                       onConfirmChanged: (_) {
                                         if (_confirmHasError) {
                                           setState(
-                                              () => _confirmHasError = false);
+                                            () => _confirmHasError = false,
+                                          );
                                         }
                                       },
                                       onPinComplete: _advanceToConfirm,
@@ -444,8 +469,11 @@ class _InvitationBody extends StatelessWidget {
                       color: AppColors.yellowBrand,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.storefront_rounded,
-                        color: AppColors.navyPrimary, size: 22),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: AppColors.navyPrimary,
+                      size: 22,
+                    ),
                   ),
                   SizedBox(width: 14),
                   Expanded(
@@ -482,8 +510,11 @@ class _InvitationBody extends StatelessWidget {
                 SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.badge_outlined,
-                        size: 16, color: Colors.white54),
+                    const Icon(
+                      Icons.badge_outlined,
+                      size: 16,
+                      color: Colors.white54,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       sw ? 'Jukumu lako: ' : 'Your role: ',
@@ -495,7 +526,9 @@ class _InvitationBody extends StatelessWidget {
                     Flexible(
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.yellowBrand,
                           borderRadius: BorderRadius.circular(99),
@@ -522,8 +555,11 @@ class _InvitationBody extends StatelessWidget {
                 SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline_rounded,
-                        size: 16, color: Colors.white54),
+                    const Icon(
+                      Icons.person_outline_rounded,
+                      size: 16,
+                      color: Colors.white54,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       sw ? 'Jina lako: ' : 'Your name: ',
@@ -547,7 +583,6 @@ class _InvitationBody extends StatelessWidget {
                   ],
                 ),
               ],
-
             ],
           ),
         ),
@@ -708,11 +743,11 @@ class _PinSetupBody extends StatelessWidget {
         Text(
           isConfirm
               ? (sw
-                  ? 'Ingiza tena PIN yako ili ithibitishwe.'
-                  : 'Enter your PIN once more to confirm.')
+                    ? 'Ingiza tena PIN yako ili ithibitishwe.'
+                    : 'Enter your PIN once more to confirm.')
               : (sw
-                  ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kuingia.'
-                  : 'Create a 4-digit PIN to access your account.'),
+                    ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kuingia.'
+                    : 'Create a 4-digit PIN to access your account.'),
           style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textMuted,
@@ -728,16 +763,20 @@ class _PinSetupBody extends StatelessWidget {
             hint: sw ? 'jina@mfano.com' : 'you@example.com',
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            prefix: const Icon(Icons.alternate_email_rounded,
-                size: 18, color: AppColors.textMuted),
+            prefix: const Icon(
+              Icons.alternate_email_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
             onChanged: onEmailChanged,
           ),
           if (emailHasError) ...[
             const SizedBox(height: 12),
             OnboardingErrorBanner(
-                message: sw
-                    ? 'Ingiza anwani sahihi ya barua pepe.'
-                    : 'Enter a valid email address.'),
+              message: sw
+                  ? 'Ingiza anwani sahihi ya barua pepe.'
+                  : 'Enter a valid email address.',
+            ),
           ],
           const SizedBox(height: 12),
         ],
@@ -772,9 +811,10 @@ class _PinSetupBody extends StatelessWidget {
         if (pinHasError && !isConfirm) ...[
           const SizedBox(height: 16),
           OnboardingErrorBanner(
-              message: sw
-                  ? 'PIN lazima iwe tarakimu 4.'
-                  : 'PIN must be 4 digits.'),
+            message: sw
+                ? 'PIN lazima iwe tarakimu 4.'
+                : 'PIN must be 4 digits.',
+          ),
         ],
         if (confirmHasError && isConfirm) ...[
           const SizedBox(height: 16),
@@ -802,10 +842,10 @@ class _PinSetupBody extends StatelessWidget {
           height: 52,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isConfirm ? AppColors.navyPrimary : AppColors.primary,
-              foregroundColor:
-                  isConfirm ? Colors.white : AppColors.navyPrimary,
+              backgroundColor: isConfirm
+                  ? AppColors.navyPrimary
+                  : AppColors.primary,
+              foregroundColor: isConfirm ? Colors.white : AppColors.navyPrimary,
               elevation: 4,
               shadowColor: isConfirm
                   ? AppColors.navyPrimary.withValues(alpha: 0.3)
@@ -815,7 +855,7 @@ class _PinSetupBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: (isLoading || (isConfirm && !isOnline))
+            onPressed: isLoading
                 ? null
                 : (isConfirm ? onConfirmSubmit : onPinSubmit),
             child: isLoading
@@ -858,13 +898,17 @@ class _TeamOfflineBanner extends StatelessWidget {
         color: const Color(0xFFFFF3CD),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.wifi_off_rounded,
-              size: 18, color: Color(0xFF856404)),
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 18,
+            color: Color(0xFF856404),
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -887,10 +931,7 @@ class _TeamOfflineBanner extends StatelessWidget {
 // ── "Start fresh" security warning sheet ──────────────────────────────────────
 
 class _StartFreshWarningSheet extends StatefulWidget {
-  const _StartFreshWarningSheet({
-    required this.sw,
-    required this.businessName,
-  });
+  const _StartFreshWarningSheet({required this.sw, required this.businessName});
 
   final bool sw;
   final String businessName;
@@ -944,8 +985,11 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
               color: AppColors.warningBg,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.warning_amber_rounded,
-                color: AppColors.warning, size: 28),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 28,
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -966,13 +1010,13 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
           Text(
             sw
                 ? 'Nambari hii ilipewa mwaliko kujiunga na '
-                    '${businessName.isNotEmpty ? businessName : "biashara hii"}. '
-                    'Kuanzisha akaunti mpya kutaunda wasifu tofauti — '
-                    'mwaliko utabaki wazi ukitaka kuudai baadaye.'
+                      '${businessName.isNotEmpty ? businessName : "biashara hii"}. '
+                      'Kuanzisha akaunti mpya kutaunda wasifu tofauti — '
+                      'mwaliko utabaki wazi ukitaka kuudai baadaye.'
                 : 'This number has a pending invitation to join '
-                    '${businessName.isNotEmpty ? businessName : "a business"}. '
-                    'Creating a new account will build a separate profile — '
-                    'the invitation stays open if you want to claim it later.',
+                      '${businessName.isNotEmpty ? businessName : "a business"}. '
+                      'Creating a new account will build a separate profile — '
+                      'the invitation stays open if you want to claim it later.',
             style: GoogleFonts.dmSans(
               fontSize: 14,
               color: AppColors.textMuted,
@@ -989,11 +1033,11 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
               children: [
                 Checkbox(
                   value: _understood,
-                  onChanged: (v) =>
-                      setState(() => _understood = v ?? false),
+                  onChanged: (v) => setState(() => _understood = v ?? false),
                   activeColor: AppColors.navyPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4)),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -1023,23 +1067,26 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed:
-                  _understood ? () => Navigator.of(context).pop(true) : null,
+              onPressed: _understood
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navyPrimary,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    AppColors.navyPrimary.withValues(alpha: 0.35),
+                disabledBackgroundColor: AppColors.navyPrimary.withValues(
+                  alpha: 0.35,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
               child: Text(
-                sw
-                    ? 'Ndiyo, anza akaunti mpya'
-                    : 'Yes, create a new account',
+                sw ? 'Ndiyo, anza akaunti mpya' : 'Yes, create a new account',
                 style: GoogleFonts.dmSans(
-                    fontSize: 15, fontWeight: FontWeight.w700),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),

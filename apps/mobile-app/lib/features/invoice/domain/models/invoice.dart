@@ -8,7 +8,8 @@ class Invoice {
   final String invoiceNumber;
   final String date;
   final String dueDate;
-  final String status; // 'paid', 'partial', 'unpaid', 'sent', 'draft', 'overdue', 'cancelled'
+  final String
+  status; // 'paid', 'partial', 'unpaid', 'sent', 'draft', 'overdue', 'cancelled'
   final String type; // 'invoice' | 'quotation'
   final double subtotal;
   final double discountAmount;
@@ -22,6 +23,7 @@ class Invoice {
   final String paymentAccountId;
   final List<InvoiceItem> items;
   final String note;
+  final String createdBy;
   final String createdAt;
   final String updatedAt;
 
@@ -44,6 +46,7 @@ class Invoice {
     this.paymentAccountId = '',
     required this.items,
     this.note = '',
+    this.createdBy = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -73,20 +76,22 @@ class Invoice {
 
   factory Invoice.fromFirestore(Map<String, dynamic> data, String id) {
     // Quick sales write 'items'; the full invoice editor writes 'lineItems'.
-    final rawItems = (data['items'] is List && (data['items'] as List).isNotEmpty)
+    final rawItems =
+        (data['items'] is List && (data['items'] as List).isNotEmpty)
         ? data['items'] as List
         : (data['lineItems'] as List? ?? const []);
     final itemsList = rawItems
         .whereType<Map>()
-        .map((item) =>
-            InvoiceItem.fromFirestore(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => InvoiceItem.fromFirestore(Map<String, dynamic>.from(item)),
+        )
         .toList();
 
     final total = data['total'] != null
         ? _readNum(data['total'])
         : (data['totalAmount'] != null
-            ? _readNum(data['totalAmount'])
-            : _readNum(data['amount']));
+              ? _readNum(data['totalAmount'])
+              : _readNum(data['amount']));
 
     return Invoice(
       id: id,
@@ -100,13 +105,16 @@ class Invoice {
       type: (data['type'] ?? 'invoice').toString(),
       subtotal: _readNum(data['subtotal']),
       discountAmount: _readNum(data['discountAmount']),
-      tax: data['tax'] != null ? _readNum(data['tax']) : _readNum(data['vatAmount']),
+      tax: data['tax'] != null
+          ? _readNum(data['tax'])
+          : _readNum(data['vatAmount']),
       total: total,
       amountPaid: _readNum(data['amountPaid']),
       paymentMethod: (data['paymentMethod'] ?? '').toString(),
       paymentAccountId: (data['paymentAccountId'] ?? '').toString(),
       items: itemsList,
       note: (data['note'] ?? data['notes'] ?? '').toString(),
+      createdBy: (data['createdBy'] ?? '').toString(),
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
@@ -134,6 +142,7 @@ class Invoice {
       if (paymentAccountId.isNotEmpty) 'paymentAccountId': paymentAccountId,
       'items': items.map((item) => item.toFirestore()).toList(),
       'note': note,
+      if (createdBy.isNotEmpty) 'createdBy': createdBy,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -158,6 +167,7 @@ class Invoice {
     String? paymentAccountId,
     List<InvoiceItem>? items,
     String? note,
+    String? createdBy,
     String? createdAt,
     String? updatedAt,
   }) {
@@ -180,6 +190,7 @@ class Invoice {
       paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       items: items ?? this.items,
       note: note ?? this.note,
+      createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -217,8 +228,8 @@ class InvoiceItem {
     final total = data['total'] != null
         ? Invoice._readNum(data['total'])
         : (data['lineTotal'] != null
-            ? Invoice._readNum(data['lineTotal'])
-            : qty * unitPrice);
+              ? Invoice._readNum(data['lineTotal'])
+              : qty * unitPrice);
     return InvoiceItem(
       id: (data['id'] ?? data['productId'] ?? data['inventoryItemId'] ?? '')
           .toString(),

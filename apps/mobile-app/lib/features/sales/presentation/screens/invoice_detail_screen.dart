@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
@@ -412,20 +412,24 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  Future<void> _sharePdf({String? customerEmail}) async {
+  Future<void> _sharePdf() async {
     try {
       final scope = await resolveSalesScope(ref);
       if (scope == null) return;
       final meta = await ReceiptPdfService.loadMeta(
         uid: scope.userUid,
         businessId: scope.businessId,
+        createdByUid: (_inv['createdBy'] ?? '').toString(),
       );
       await ReceiptPdfService.share(
         sale: _inv,
         businessName: meta['businessName'] ?? 'Business',
         printedBy: meta['printedBy'] ?? 'User',
         isSwahili: LocalizationService.isSwahili,
-        customerEmail: customerEmail,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
       );
       _offerMarkSent();
     } catch (_) {
@@ -438,10 +442,22 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  void _shareWhatsApp() => _sharePdf();
-
-  void _shareEmail() =>
-      _sharePdf(customerEmail: (_inv['customerEmail'] ?? '').toString());
+  Future<void> _shareSms() async {
+    final plain = _buildShareText().replaceAll(RegExp(r'\*|_'), '');
+    final phone = (_inv['customerPhone'] ?? '').toString().trim();
+    final uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(plain)}');
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      if (!opened) throw Exception('No SMS handler');
+    } catch (_) {
+      _showSnack(
+        _tr(
+          'Could not open the SMS app.',
+          'Imeshindwa kufungua programu ya SMS.',
+        ),
+      );
+    }
+  }
 
   /// After sharing a draft invoice, offer to move it to 'sent' so the two
   /// steps don't silently drift apart. Quotations and non-drafts are skipped.
@@ -464,11 +480,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         ),
       ),
     );
-  }
-
-  void _copyText() {
-    Clipboard.setData(ClipboardData(text: _buildShareText()));
-    _showSnack(_tr('Copied to clipboard', 'Imenakiliwa'));
   }
 
   String _buildShareText() {
@@ -547,11 +558,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               outstanding: _outstanding,
             ),
             const SizedBox(height: 16),
-            _ShareRow(
-              onWhatsApp: _shareWhatsApp,
-              onEmail: _shareEmail,
-              onCopy: _copyText,
-            ),
+            _ShareRow(onSms: _shareSms, onPdf: _sharePdf),
             const SizedBox(height: 16),
             _LineItemsCard(items: _lineItems),
             const SizedBox(height: 16),
@@ -895,15 +902,10 @@ class _SummaryMeta extends StatelessWidget {
 // ── Share Row ─────────────────────────────────────────────────────────────────
 
 class _ShareRow extends StatelessWidget {
-  final VoidCallback onWhatsApp;
-  final VoidCallback onEmail;
-  final VoidCallback onCopy;
+  final VoidCallback onSms;
+  final VoidCallback onPdf;
 
-  const _ShareRow({
-    required this.onWhatsApp,
-    required this.onEmail,
-    required this.onCopy,
-  });
+  const _ShareRow({required this.onSms, required this.onPdf});
 
   @override
   Widget build(BuildContext context) {
@@ -911,28 +913,19 @@ class _ShareRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ShareBtn(
-            label: 'WhatsApp PDF',
-            icon: Icons.chat_rounded,
-            color: const Color(0xFF25D366),
-            onTap: onWhatsApp,
+            label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
+            icon: Icons.sms_outlined,
+            color: AppColors.warning,
+            onTap: onSms,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _ShareBtn(
-            label: _tr('Email PDF', 'Barua PDF'),
-            icon: Icons.email_rounded,
+            label: _tr('Share PDF', 'Shiriki PDF'),
+            icon: Icons.picture_as_pdf_outlined,
             color: AppColors.tealAccent,
-            onTap: onEmail,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ShareBtn(
-            label: _tr('Copy', 'Nakili'),
-            icon: Icons.copy_rounded,
-            color: AppColors.textSecondary,
-            onTap: onCopy,
+            onTap: onPdf,
           ),
         ),
       ],

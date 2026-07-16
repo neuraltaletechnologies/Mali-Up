@@ -95,7 +95,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   File? _receiptFile;
   bool _isRecurring = false;
   String _frequency = 'monthly';
-  bool _submitForApproval = false;
   bool _saving = false;
   bool _uploadingReceipt = false;
   bool _isCreditPurchase = false;
@@ -130,7 +129,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _receiptUrl = e.receiptUrl;
       _isRecurring = e.isRecurring;
       _frequency = e.recurrenceType.isNotEmpty ? e.recurrenceType : 'monthly';
-      _submitForApproval = e.status == 'pending';
     }
   }
 
@@ -348,8 +346,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
-      final status = _submitForApproval ? 'pending' : 'approved';
-
       final data = <String, dynamic>{
         'category': _cat.key,
         'amount': amountStr,
@@ -358,7 +354,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         'recipient': _recipientCtrl.text.trim(),
         'paymentMethod': paymentMethodValue,
         'paymentAccountId': account.id,
-        'status': status,
+        'status': 'approved',
         'createdBy': user.uid,
         'isRecurring': _isRecurring,
         if (_isRecurring) 'recurrenceType': _frequency,
@@ -747,24 +743,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    _FieldCard(
-                      child: _ToggleRow(
-                        icon: Icons.approval_rounded,
-                        label: _tr(
-                          'Submit for approval',
-                          'Wasilisha kwa idhini',
-                        ),
-                        subtitle: _tr(
-                          'Expense will be held pending manager review',
-                          'Gharama itashikiliwa hadi meneja akubali',
-                        ),
-                        value: _submitForApproval,
-                        color: AppColors.warning,
-                        onChanged: (v) =>
-                            setState(() => _submitForApproval = v),
-                      ),
-                    ),
                     _buildValidation(_ExpenseErrorField.general),
                     const SizedBox(height: 16),
                   ],
@@ -772,7 +750,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               _BottomSaveBar(
                 saving: _saving,
-                submitForApproval: _submitForApproval,
                 amount: _amountCtrl.text,
                 onSave: _save,
               ),
@@ -1321,13 +1298,11 @@ class _SectionLabel extends StatelessWidget {
 
 class _BottomSaveBar extends StatelessWidget {
   final bool saving;
-  final bool submitForApproval;
   final String amount;
   final VoidCallback onSave;
 
   const _BottomSaveBar({
     required this.saving,
-    required this.submitForApproval,
     required this.amount,
     required this.onSave,
   });
@@ -1386,26 +1361,17 @@ class _BottomSaveBar extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: saving ? null : onSave,
               icon: saving
-                  ? SizedBox.square(
+                  ? const SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: submitForApproval
-                            ? AppColors.navyPrimary
-                            : Colors.white,
+                        color: Colors.white,
                       ),
                     )
-                  : Icon(
-                      submitForApproval
-                          ? Icons.send_rounded
-                          : Icons.check_circle_rounded,
-                      size: 18,
-                    ),
+                  : const Icon(Icons.check_circle_rounded, size: 18),
               label: Text(
                 saving
                     ? _tr('Saving…', 'Inahifadhi…')
-                    : submitForApproval
-                    ? _tr('Submit', 'Wasilisha')
                     : _tr('Save Expense', 'Hifadhi Gharama'),
                 maxLines: 1,
                 style: GoogleFonts.dmSans(
@@ -1414,18 +1380,12 @@ class _BottomSaveBar extends StatelessWidget {
                 ),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: submitForApproval
-                    ? AppColors.warning
-                    : AppColors.navyPrimary,
-                foregroundColor: submitForApproval
-                    ? AppColors.navyPrimary
-                    : Colors.white,
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: Colors.white,
                 disabledBackgroundColor: AppColors.navyPrimary.withValues(
                   alpha: 0.65,
                 ),
-                disabledForegroundColor: submitForApproval
-                    ? AppColors.navyPrimary
-                    : Colors.white,
+                disabledForegroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(13),
