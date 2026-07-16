@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/shimmer.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -456,9 +457,17 @@ class _OverviewTab extends ConsumerWidget {
                   },
                 );
               },
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: SkeletonList(itemCount: 3),
+              loading: () => ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: 3,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (_, _) => const ShimmerBox(
+                  width: 150,
+                  height: 104,
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
               ),
               error: (_, _) => Center(
                 child: Text(
