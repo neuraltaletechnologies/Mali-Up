@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,125 +75,11 @@ class ExpenseDetailScreen extends ConsumerStatefulWidget {
 
 class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   late Expense _expense;
-  bool _actionLoading = false;
 
   @override
   void initState() {
     super.initState();
     _expense = widget.expense;
-  }
-
-  // ── Approval actions ─────────────────────────────────────────────────────────
-
-  Future<void> _approve() async {
-    setState(() => _actionLoading = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-            uid: user.uid,
-            context: ctx,
-            childCollection: 'expenses',
-          )
-          .doc(_expense.id)
-          .update({
-            'status': 'approved',
-            'approvedBy': user.uid,
-            'approvedAt': FieldValue.serverTimestamp(),
-          });
-      setState(() {
-        _expense = _expense.copyWith(status: 'approved', approvedBy: user.uid);
-        _actionLoading = false;
-      });
-      _showSnack(
-        _tr('Expense approved', 'Gharama imekubaliwa'),
-        AppColors.success,
-      );
-    } catch (_) {
-      setState(() => _actionLoading = false);
-    }
-  }
-
-  Future<void> _reject() async {
-    final reason = await _showRejectDialog();
-    if (reason == null) return;
-    setState(() => _actionLoading = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-            uid: user.uid,
-            context: ctx,
-            childCollection: 'expenses',
-          )
-          .doc(_expense.id)
-          .update({
-            'status': 'rejected',
-            'rejectionReason': reason,
-            'rejectedBy': user.uid,
-            'rejectedAt': FieldValue.serverTimestamp(),
-          });
-      setState(() {
-        _expense = _expense.copyWith(status: 'rejected');
-        _actionLoading = false;
-      });
-      _showSnack(
-        _tr('Expense rejected', 'Gharama imekataliwa'),
-        AppColors.error,
-      );
-    } catch (_) {
-      setState(() => _actionLoading = false);
-    }
-  }
-
-  Future<String?> _showRejectDialog() async {
-    final ctrl = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          _tr('Reject Expense', 'Kataa Gharama'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLines: 2,
-          decoration: InputDecoration(
-            hintText: _tr('Reason (optional)', 'Sababu (hiari)'),
-            hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          style: GoogleFonts.dmSans(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              _tr('Cancel', 'Ghairi'),
-              style: GoogleFonts.dmSans(color: AppColors.textMuted),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(_tr('Reject', 'Kataa'), style: GoogleFonts.dmSans()),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _delete() async {
@@ -266,42 +151,13 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     );
   }
 
-  void _showSnack(String msg, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
   // ── UI ──────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final cat = _CatX.fromKey(_expense.category);
     final amount = double.tryParse(_expense.amount) ?? 0;
-    final isPending = _expense.status == 'pending';
-    final isRejected = _expense.status == 'rejected';
     final hasReceipt = _expense.receiptUrl.isNotEmpty;
-    final statusColor = isPending
-        ? AppColors.warning
-        : isRejected
-        ? AppColors.error
-        : AppColors.success;
-    final statusIcon = isPending
-        ? Icons.schedule_rounded
-        : isRejected
-        ? Icons.cancel_rounded
-        : Icons.check_circle_rounded;
-    final statusLabel = isPending
-        ? _tr('Pending', 'Inasubiri')
-        : isRejected
-        ? _tr('Rejected', 'Imekataliwa')
-        : _tr('Approved', 'Imekubaliwa');
     final title = _expense.note.trim().isNotEmpty
         ? _expense.note.trim()
         : cat.label;
@@ -364,32 +220,6 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
                                   style: GoogleFonts.dmSans(
                                     fontSize: 12,
                                     color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(statusIcon, size: 12, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  statusLabel,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: statusColor,
                                   ),
                                 ),
                               ],
@@ -467,14 +297,6 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
                         _ReceiptPreviewCard(
                           url: _expense.receiptUrl,
                           onView: _viewReceipt,
-                        ),
-                      ],
-                      if (isPending) ...[
-                        const SizedBox(height: 16),
-                        _ApprovalCard(
-                          loading: _actionLoading,
-                          onApprove: _approve,
-                          onReject: _reject,
                         ),
                       ],
                     ],
@@ -723,107 +545,6 @@ class _SheetSectionLabel extends StatelessWidget {
   }
 }
 
-// Kept with the legacy full-screen presentation above.
-// ignore: unused_element
-class _HeroCard extends StatelessWidget {
-  final _Cat cat;
-  final double amount;
-  final String status;
-  final bool isPending;
-  final bool isRejected;
-
-  const _HeroCard({
-    required this.cat,
-    required this.amount,
-    required this.status,
-    required this.isPending,
-    required this.isRejected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = isPending
-        ? AppColors.warning
-        : isRejected
-        ? AppColors.error
-        : AppColors.success;
-    final statusLabel = switch (status) {
-      'approved' => _tr('Approved', 'Imekubaliwa'),
-      'pending' => _tr('Pending Approval', 'Inasubiri Idhini'),
-      'rejected' => _tr('Rejected', 'Imekataliwa'),
-      _ => status,
-    };
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.navyPrimary, cat.color.withValues(alpha: 0.5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(cat.icon, size: 26, color: Colors.white),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  cat.label,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    color: Colors.white70,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'TZS ${_fmtNum(amount)}',
-                  style: GoogleFonts.dmSerifDisplay(
-                    fontSize: 28,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-            ),
-            child: Text(
-              statusLabel,
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isPending
-                    ? const Color(0xFFFDE68A)
-                    : isRejected
-                    ? const Color(0xFFFC8181)
-                    : const Color(0xFF86EFAC),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DetailsCard extends StatelessWidget {
   final Expense expense;
   final _Cat cat;
@@ -878,15 +599,6 @@ class _DetailsCard extends StatelessWidget {
                   ? _tr('Every week', 'Kila wiki')
                   : _tr('Every month', 'Kila mwezi'),
               valueColor: AppColors.tealAccent,
-            ),
-          ],
-          if (expense.approvedBy.isNotEmpty) ...[
-            const Divider(height: 1, color: AppColors.border),
-            _DetailRow(
-              icon: Icons.verified_rounded,
-              label: _tr('Approved by', 'Imekubaliwa na'),
-              value: expense.approvedBy,
-              valueColor: AppColors.success,
             ),
           ],
         ],
@@ -1012,113 +724,6 @@ class _ReceiptPreviewCard extends StatelessWidget {
             const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ApprovalCard extends StatelessWidget {
-  final bool loading;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
-
-  const _ApprovalCard({
-    required this.loading,
-    required this.onApprove,
-    required this.onReject,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.warningBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.pending_actions_rounded,
-                size: 18,
-                color: AppColors.warning,
-              ),
-              SizedBox(width: 8),
-              Text(
-                _tr('Awaiting Approval', 'Inasubiri Idhini'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.warning,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 6),
-          Text(
-            _tr(
-              'This expense was submitted for manager review. Approve or reject it below.',
-              'Gharama hii iliwasilishwa kwa mapitio ya meneja. Ikubali au ikatae hapa chini.',
-            ),
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: loading ? null : onReject,
-                  icon: Icon(Icons.cancel_rounded, size: 16),
-                  label: Text(
-                    _tr('Reject', 'Kataa'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: loading ? null : onApprove,
-                  icon: loading
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check_circle_rounded, size: 16),
-                  label: Text(
-                    _tr('Approve', 'Kubali'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

@@ -77,6 +77,8 @@ class BusinessProfileService {
       'placeOfBusiness',
       'district',
       'phone',
+      'email',
+      'businessEmail',
       'logoUrl',
       'workingHours',
       'facebook',

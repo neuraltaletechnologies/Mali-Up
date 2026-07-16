@@ -44,6 +44,7 @@ import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import '../../services/receipt_pdf_service.dart';
+import '../../services/invoice_number_generator.dart';
 import 'invoice_detail_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -590,6 +591,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final meta = await ReceiptPdfService.loadMeta(
       uid: scope.userUid,
       businessId: scope.businessId,
+      createdByUid: (sale['createdBy'] ?? '').toString(),
     );
     final receipt = _buildReceiptText(
       sale: sale,
@@ -599,14 +601,17 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final businessName = meta['businessName'] ?? 'Business';
     final printedBy = meta['printedBy'] ?? 'User';
 
-    Future<void> sharePdf({String? customerEmail}) async {
+    Future<void> sharePdf() async {
       try {
         await ReceiptPdfService.share(
           sale: sale,
           businessName: businessName,
           printedBy: printedBy,
           isSwahili: LocalizationService.isSwahili,
-          customerEmail: customerEmail,
+          businessPhone: meta['businessPhone'] ?? '',
+          businessEmail: meta['businessEmail'] ?? '',
+          businessAddress: meta['businessAddress'] ?? '',
+          businessLogoUrl: meta['businessLogoUrl'] ?? '',
         );
       } catch (_) {
         if (!context.mounted) return;
@@ -616,30 +621,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               _tr(
                 'Could not create the receipt PDF. Please try again.',
                 'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
-              ),
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-
-    Future<void> printPdf() async {
-      try {
-        await ReceiptPdfService.print(
-          sale: sale,
-          businessName: businessName,
-          printedBy: printedBy,
-          isSwahili: LocalizationService.isSwahili,
-        );
-      } catch (_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not open printing for this receipt.',
-                'Imeshindwa kufungua uchapishaji wa risiti hii.',
               ),
             ),
             behavior: SnackBarBehavior.floating,
@@ -683,23 +664,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               const Divider(height: 20, color: AppColors.border),
               _ReceiptAction(
-                icon: Icons.chat_rounded,
-                iconColor: const Color(0xFF25D366),
-                label: _tr('WhatsApp (PDF)', 'WhatsApp (PDF)'),
-                onTap: sharePdf,
-              ),
-              _ReceiptAction(
-                icon: Icons.email_outlined,
-                iconColor: AppColors.tealAccent,
-                label: _tr('Email (PDF)', 'Barua pepe (PDF)'),
-                onTap: () => sharePdf(
-                  customerEmail: (sale['customerEmail'] ?? '').toString(),
-                ),
-              ),
-              _ReceiptAction(
                 icon: Icons.sms_outlined,
                 iconColor: AppColors.warning,
-                label: _tr('SMS', 'SMS'),
+                label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
                 onTap: () async {
                   final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
                   await _launchShare(
@@ -709,26 +676,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 },
               ),
               _ReceiptAction(
-                icon: Icons.print_outlined,
-                iconColor: AppColors.navyPrimary,
-                label: _tr('Print / Save PDF', 'Chapisha / Hifadhi PDF'),
-                onTap: printPdf,
-              ),
-              _ReceiptAction(
-                icon: Icons.copy_rounded,
-                iconColor: AppColors.textSecondary,
-                label: _tr('Copy Text', 'Nakili Maandishi'),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: receipt));
-                  if (!ctx.mounted) return;
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_tr('Copied.', 'Imenakiliwa.')),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                icon: Icons.picture_as_pdf_outlined,
+                iconColor: AppColors.tealAccent,
+                label: _tr('Share PDF', 'Shiriki PDF'),
+                onTap: sharePdf,
               ),
             ],
           ),
@@ -2220,8 +2171,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     try {
       final now = DateTime.now();
       final invoiceId = const Uuid().v4();
-      final invoiceNumber =
-          'INV-${now.year}${now.month.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
+      final invoiceNumber = InvoiceNumberGenerator.create(now: now);
       final statusStr = payStatus == _PayStatus.paid
           ? 'paid'
           : payStatus == _PayStatus.partial
@@ -2266,6 +2216,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           )
           .toList();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not logged in');
       final invoiceObj = Invoice(
         id: invoiceId,
         customerId: _selectedCustomer?.id ?? '',
@@ -2288,6 +2240,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             : '',
         items: invoiceItems,
         note: notes,
+        createdBy: user.uid,
         createdAt: now.toIso8601String(),
         updatedAt: now.toIso8601String(),
       );
@@ -2299,9 +2252,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final localBusinessId =
           ref.read(currentBusinessIdProvider).valueOrNull ?? '';
       if (localBusinessId.isNotEmpty) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) throw Exception('Not logged in');
-
         await ref.read(invoiceRepositoryProvider).save(invoiceObj);
 
         // Stock deductions as deltas so concurrent sessions compose on push.
@@ -2621,6 +2571,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       if (payStatus != _PayStatus.unpaid) 'paymentMethod': _paymentMethodValue,
       if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
       'status': statusStr,
+      'createdBy': FirebaseAuth.instance.currentUser?.uid ?? '',
       'createdAt': now,
     };
 

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -24,9 +25,9 @@ class SecuritySetupScreen extends ConsumerStatefulWidget {
 
 class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     with SingleTickerProviderStateMixin {
-  final _pinCtrl     = TextEditingController();
+  final _pinCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _pinFocus    = FocusNode();
+  final _pinFocus = FocusNode();
   final _confirmFocus = FocusNode();
 
   bool _showConfirm = false;
@@ -41,11 +42,14 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
     final s = ref.read(onboardingNotifierProvider);
@@ -80,10 +84,13 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
   }
 
   Future<void> _submitConfirm() async {
-    if (!ref.read(isOnlineProvider)) return;
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final err =
-        OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
+    final err = OnboardingValidator.validatePin(
+      _confirmCtrl.text,
+      isSwahili: sw,
+    );
     if (err != null || _confirmCtrl.text != _pinCtrl.text) {
       setState(() => _confirmHasError = true);
       return;
@@ -121,9 +128,11 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(sw
-              ? 'Hatukuweza kufungua WhatsApp sasa.'
-              : 'We could not open WhatsApp right now.'),
+          content: Text(
+            sw
+                ? 'Hatukuweza kufungua WhatsApp sasa.'
+                : 'We could not open WhatsApp right now.',
+          ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
@@ -169,8 +178,9 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    onPressed:
-                        _showConfirm ? _backToPin : () => context.go(AppRoutes.business),
+                    onPressed: _showConfirm
+                        ? _backToPin
+                        : () => context.go(AppRoutes.business),
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.white,
@@ -219,8 +229,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(
                   color: AppColors.background,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black12,
@@ -241,8 +250,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                       child: SingleChildScrollView(
                         controller: scrollController,
                         physics: const ClampingScrollPhysics(),
-                        padding:
-                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -266,15 +274,15 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                               switchOutCurve: Curves.easeIn,
                               transitionBuilder: (child, animation) =>
                                   FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.08, 0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              ),
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.08, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
                               child: _showConfirm
                                   ? _ConfirmPinBody(
                                       key: const ValueKey('confirm'),
@@ -288,7 +296,8 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                                       onChanged: (_) {
                                         if (_confirmHasError) {
                                           setState(
-                                              () => _confirmHasError = false);
+                                            () => _confirmHasError = false,
+                                          );
                                         }
                                       },
                                       onComplete: _submitConfirm,
@@ -555,7 +564,7 @@ class _ConfirmPinBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: (isLoading || !isOnline) ? null : onSubmit,
+            onPressed: isLoading ? null : onSubmit,
             child: isLoading
                 ? const SizedBox(
                     width: 22,
@@ -594,13 +603,17 @@ class _OnboardingOfflineBanner extends StatelessWidget {
         color: const Color(0xFFFFF3CD),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.wifi_off_rounded,
-              size: 18, color: Color(0xFF856404)),
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 18,
+            color: Color(0xFF856404),
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Column(

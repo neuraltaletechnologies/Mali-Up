@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('fallback Growth plan is limited to one business', () {
+    expect(limitsFor(PlanTier.growth).maxBusinesses, 1);
+  });
+
   test('keeps admin-managed plan definitions available offline', () async {
     SharedPreferences.setMockInitialValues({});
     final definitions = <PlanTier, PlanLimits>{

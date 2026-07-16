@@ -26,6 +26,7 @@ import '../../../invoice/domain/models/invoice.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/sales_providers.dart';
+import '../../services/invoice_number_generator.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -59,15 +60,14 @@ class _LineItem {
     int? qty,
     double? discount,
     String? unit,
-  }) =>
-      _LineItem(
-        productId: productId ?? this.productId,
-        productName: productName ?? this.productName,
-        unitPrice: unitPrice ?? this.unitPrice,
-        qty: qty ?? this.qty,
-        discount: discount ?? this.discount,
-        unit: unit ?? this.unit,
-      );
+  }) => _LineItem(
+    productId: productId ?? this.productId,
+    productName: productName ?? this.productName,
+    unitPrice: unitPrice ?? this.unitPrice,
+    qty: qty ?? this.qty,
+    discount: discount ?? this.discount,
+    unit: unit ?? this.unit,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,7 +119,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     super.initState();
     _isQuotation = widget.isQuotation;
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 280));
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
 
@@ -144,8 +146,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     _globalDiscount = parseNumericAmount(data['discountAmount']);
     _notes = data['notes']?.toString() ?? '';
     _notesCtrl.text = _notes;
-    _discountCtrl.text =
-        _globalDiscount > 0 ? _globalDiscount.toStringAsFixed(0) : '';
+    _discountCtrl.text = _globalDiscount > 0
+        ? _globalDiscount.toStringAsFixed(0)
+        : '';
 
     // Restore customer + dates — otherwise saving an edit silently wipes them.
     final customerId = (data['customerId'] ?? '').toString();
@@ -158,8 +161,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       );
     }
     _invoiceDate =
-        readTimestamp(data['invoiceDate'] ?? data['createdAt'] ?? data['date']) ??
-            _invoiceDate;
+        readTimestamp(
+          data['invoiceDate'] ?? data['createdAt'] ?? data['date'],
+        ) ??
+        _invoiceDate;
     _dueDate = readTimestamp(data['dueDate']);
 
     final pmRaw = (data['paymentMethod'] ?? '').toString().toLowerCase();
@@ -178,26 +183,27 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     }
 
     // Quick sales store 'items'; the full editor stores 'lineItems'.
-    final lineItems = (data['lineItems'] is List &&
-            (data['lineItems'] as List).isNotEmpty)
+    final lineItems =
+        (data['lineItems'] is List && (data['lineItems'] as List).isNotEmpty)
         ? data['lineItems'] as List
         : data['items'];
     if (lineItems is List && lineItems.isNotEmpty) {
       _items.clear();
       for (final raw in lineItems) {
         if (raw is Map) {
-          _items.add(_LineItem(
-            productId: (raw['productId'] ?? raw['inventoryItemId'] ?? '')
-                .toString(),
-            productName:
-                (raw['productName'] ?? raw['name'] ?? '').toString(),
-            unitPrice: parseNumericAmount(raw['unitPrice']),
-            qty: ((raw['qty'] ?? raw['quantity']) is num)
-                ? ((raw['qty'] ?? raw['quantity']) as num).toInt()
-                : 1,
-            discount: parseNumericAmount(raw['lineDiscount']),
-            unit: raw['unit']?.toString() ?? '',
-          ));
+          _items.add(
+            _LineItem(
+              productId: (raw['productId'] ?? raw['inventoryItemId'] ?? '')
+                  .toString(),
+              productName: (raw['productName'] ?? raw['name'] ?? '').toString(),
+              unitPrice: parseNumericAmount(raw['unitPrice']),
+              qty: ((raw['qty'] ?? raw['quantity']) is num)
+                  ? ((raw['qty'] ?? raw['quantity']) as num).toInt()
+                  : 1,
+              discount: parseNumericAmount(raw['lineDiscount']),
+              unit: raw['unit']?.toString() ?? '',
+            ),
+          );
         }
       }
     }
@@ -214,10 +220,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       (_subtotal - _effectiveDiscount + _vatAmount).clamp(0.0, double.infinity);
 
   String _invoiceNumber() {
-    final now = DateTime.now();
-    final prefix = _isQuotation ? 'QUO' : 'INV';
-    final rand = (now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0');
-    return '$prefix-${now.year}${now.month.toString().padLeft(2, '0')}-$rand';
+    return InvoiceNumberGenerator.create(isQuotation: _isQuotation);
   }
 
   // ── Save ────────────────────────────────────────────────────────────────────
@@ -238,10 +241,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         !_isQuotation &&
         _isCredit &&
         (_customer == null || _customer!.id.isEmpty)) {
-      _showSnack(_tr(
-        'Please select a customer before recording a credit sale.',
-        'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
-      ));
+      _showSnack(
+        _tr(
+          'Please select a customer before recording a credit sale.',
+          'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
+        ),
+      );
       return;
     }
     // Enforce credit limit: block the sale if the customer's outstanding
@@ -254,10 +259,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       final projectedBalance = _customer!.balanceAmount + _grandTotal;
       if (projectedBalance > _customer!.creditLimit) {
         final available = _customer!.availableCredit;
-        _showSnack(_tr(
-          'Credit limit exceeded. ${_customer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
-          'Kikomo cha mkopo kimezidiwa. ${_customer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
-        ));
+        _showSnack(
+          _tr(
+            'Credit limit exceeded. ${_customer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
+            'Kikomo cha mkopo kimezidiwa. ${_customer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
+          ),
+        );
         return;
       }
     }
@@ -266,17 +273,20 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     // confirmation. Re-saving an already-confirmed invoice must NOT deduct
     // stock again or duplicate the receivable.
     final isEdit = widget.invoiceToEdit != null;
-    final previousStatus =
-        (widget.invoiceToEdit?['status'] ?? '').toString().toLowerCase();
+    final previousStatus = (widget.invoiceToEdit?['status'] ?? '')
+        .toString()
+        .toLowerCase();
     final wasConfirmed =
         isEdit && previousStatus.isNotEmpty && previousStatus != 'draft';
     final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
 
     if (confirmingNow && !_isCredit && _selectedAccountId == null) {
-      setState(() => _paymentError = _tr(
-        'Select an activated payment account',
-        'Chagua akaunti ya malipo iliyowashwa',
-      ));
+      setState(
+        () => _paymentError = _tr(
+          'Select an activated payment account',
+          'Chagua akaunti ya malipo iliyowashwa',
+        ),
+      );
       return;
     }
 
@@ -321,12 +331,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final role = ref.read(currentUserRoleProvider);
       final col = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'sales_invoices',
+      );
 
-      final invNumber = widget.invoiceToEdit?['invoiceNumber'] as String? ??
-          _invoiceNumber();
+      final invNumber =
+          widget.invoiceToEdit?['invoiceNumber'] as String? ?? _invoiceNumber();
 
       final status = asDraft
           ? 'draft'
@@ -339,8 +350,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       CashAccount? selectedAccount;
       String paymentMethodValue = _isCredit ? 'credit' : '';
       if (!_isCredit && _selectedAccountId != null) {
-        selectedAccount =
-            await ref.read(cashRepositoryProvider).getAccountById(_selectedAccountId!);
+        selectedAccount = await ref
+            .read(cashRepositoryProvider)
+            .getAccountById(_selectedAccountId!);
         if (selectedAccount != null) {
           paymentMethodValue = switch (selectedAccount.id) {
             PaymentMethodAccounts.cashId => 'cash',
@@ -370,15 +382,17 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       final lineItemsData = _items
           .where((i) => i.productName.trim().isNotEmpty)
-          .map((i) => {
-                'productId': i.productId,
-                'productName': i.productName,
-                'unitPrice': i.unitPrice,
-                'qty': i.qty,
-                'lineDiscount': i.discount,
-                'unit': i.unit,
-                'lineTotal': i.lineTotal,
-              })
+          .map(
+            (i) => {
+              'productId': i.productId,
+              'productName': i.productName,
+              'unitPrice': i.unitPrice,
+              'qty': i.qty,
+              'lineDiscount': i.discount,
+              'unit': i.unit,
+              'lineTotal': i.lineTotal,
+            },
+          )
           .toList();
 
       final payload = <String, dynamic>{
@@ -399,8 +413,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'paymentMethod': paymentMethodValue,
         'paymentAccountId': selectedAccount?.id ?? '',
         // Settled methods are fully paid on confirmation; credit starts at 0.
-        if (confirmingNow)
-          'amountPaid': _isCredit ? 0 : _grandTotal,
+        if (confirmingNow) 'amountPaid': _isCredit ? 0 : _grandTotal,
         if (selectedAccount?.id == PaymentMethodAccounts.mpesaId &&
             _mpesaRef.isNotEmpty)
           'mpesaReference': _mpesaRef,
@@ -442,24 +455,23 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       if (confirmingNow) {
         final invCol = repo.scopeCollection(
-            uid: scope.ownerUid,
-            context: scope.context,
-            childCollection: 'inventory_items');
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'inventory_items',
+        );
         for (final item in stockLines) {
-          batch.set(
-              invCol.doc(item.productId),
-              {
-                'currentStock': FieldValue.increment(-item.qty),
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true));
+          batch.set(invCol.doc(item.productId), {
+            'currentStock': FieldValue.increment(-item.qty),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         }
 
         if (_isCredit && _customer != null) {
           final recCol = repo.scopeCollection(
-              uid: scope.ownerUid,
-              context: scope.context,
-              childCollection: 'receivables');
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'receivables',
+          );
           batch.set(recCol.doc(), {
             'invoiceId': docRef.id,
             'saleId': docRef.id,
@@ -478,17 +490,15 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           // Increment the customer's outstanding balance so the credit-limit
           // check on future sales uses the correct value.
           final customersRef = repo.scopeCollection(
-              uid: scope.ownerUid,
-              context: scope.context,
-              childCollection: 'customers');
-          batch.set(
-              customersRef.doc(_customer!.id),
-              {
-                'balance': FieldValue.increment(_grandTotal),
-                'lastTransactionDate': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true));
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'customers',
+          );
+          batch.set(customersRef.doc(_customer!.id), {
+            'balance': FieldValue.increment(_grandTotal),
+            'lastTransactionDate': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         }
       }
 
@@ -501,8 +511,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         try {
           final db = ref.read(appDatabaseProvider);
           for (final item in stockLines) {
-            await db.inventoryDao
-                .applyCommittedDelta(item.productId, -item.qty.toDouble());
+            await db.inventoryDao.applyCommittedDelta(
+              item.productId,
+              -item.qty.toDouble(),
+            );
           }
         } catch (_) {}
       }
@@ -524,23 +536,27 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         final dueStr = _dueDate != null
             ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}'
             : DateTime.now()
-                .add(const Duration(days: 30))
-                .toIso8601String()
-                .split('T')
-                .first;
-        await ref.read(debtRepositoryProvider).save(Debt(
-          id: '',
-          partyName: _customer!.name,
-          partyPhone: _customer!.phone,
-          partyId: _customer!.id,
-          type: 'receivable',
-          originalAmount: _grandTotal,
-          dueDate: dueStr,
-          invoiceRef: invNumber,
-          note: _notes,
-          createdBy: scope.userUid,
-          createdAt: DateTime.now().toIso8601String(),
-        ));
+                  .add(const Duration(days: 30))
+                  .toIso8601String()
+                  .split('T')
+                  .first;
+        await ref
+            .read(debtRepositoryProvider)
+            .save(
+              Debt(
+                id: '',
+                partyName: _customer!.name,
+                partyPhone: _customer!.phone,
+                partyId: _customer!.id,
+                type: 'receivable',
+                originalAmount: _grandTotal,
+                dueDate: dueStr,
+                invoiceRef: invNumber,
+                note: _notes,
+                createdBy: scope.userUid,
+                createdAt: DateTime.now().toIso8601String(),
+              ),
+            );
       }
 
       // Mirror the invoice into Drift immediately so the sales list and the
@@ -580,10 +596,14 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                 ),
           ],
           note: _notes,
+          createdBy: isEdit
+              ? (widget.invoiceToEdit?['createdBy'] ?? scope.userUid).toString()
+              : scope.userUid,
           createdAt: isEdit
-              ? (readTimestamp(widget.invoiceToEdit?['createdAt'])
-                      ?.toIso8601String() ??
-                  nowIso)
+              ? (readTimestamp(
+                      widget.invoiceToEdit?['createdAt'],
+                    )?.toIso8601String() ??
+                    nowIso)
               : nowIso,
           updatedAt: nowIso,
         ),
@@ -598,38 +618,46 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           accountId: selectedAccount.id,
           amount: _grandTotal,
           isDeposit: true,
-          description:
-              LocalizationService.tr(en: 'Sale $invNumber', sw: 'Mauzo $invNumber'),
+          description: LocalizationService.tr(
+            en: 'Sale $invNumber',
+            sw: 'Mauzo $invNumber',
+          ),
           reference: invNumber,
           createdBy: scope.userUid,
         );
       }
 
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: role,
-        action: isEdit
-            ? AuditLogService.invoiceEdited
-            : AuditLogService.saleCreated,
-        invoiceId: docRef.id,
-        invoiceNumber: invNumber,
-        amount: _grandTotal,
-        details: status,
-      ));
+      unawaited(
+        AuditLogService().logSaleAction(
+          ownerUid: scope.ownerUid,
+          businessId: scope.businessId,
+          performedByUid: scope.userUid,
+          performedByRole: role,
+          action: isEdit
+              ? AuditLogService.invoiceEdited
+              : AuditLogService.saleCreated,
+          invoiceId: docRef.id,
+          invoiceNumber: invNumber,
+          amount: _grandTotal,
+          details: status,
+        ),
+      );
       unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (mounted) {
         if (confirmingNow && _isCredit && _customer != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_tr(
-              'Receivable added for ${_customer!.name} – check Debts',
-              'Dai limeongezwa kwa ${_customer!.name} – angalia Madeni',
-            )),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _tr(
+                  'Receivable added for ${_customer!.name} – check Debts',
+                  'Dai limeongezwa kwa ${_customer!.name} – angalia Madeni',
+                ),
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
         Navigator.of(context).pop({'saved': true, 'id': docRef.id});
       }
@@ -664,8 +692,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
             Expanded(
               child: ListView(
                 controller: _scrollCtrl,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 children: [
                   _TypeToggle(
                     isQuotation: _isQuotation,
@@ -682,8 +712,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                       _DateRow(
                         invoiceDate: _invoiceDate,
                         dueDate: _dueDate,
-                        onInvoiceDate: (d) =>
-                            setState(() => _invoiceDate = d),
+                        onInvoiceDate: (d) => setState(() => _invoiceDate = d),
                         onDueDate: (d) => setState(() => _dueDate = d),
                       ),
                     ],
@@ -691,12 +720,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   const SizedBox(height: 16),
                   _ItemsSection(
                     items: _items,
-                    onAdd: () =>
-                        setState(() => _items.add(_LineItem())),
-                    onRemove: (i) =>
-                        setState(() => _items.removeAt(i)),
-                    onUpdate: (i, item) =>
-                        setState(() => _items[i] = item),
+                    onAdd: () => setState(() => _items.add(_LineItem())),
+                    onRemove: (i) => setState(() => _items.removeAt(i)),
+                    onUpdate: (i, item) => setState(() => _items[i] = item),
                   ),
                   const SizedBox(height: 16),
                   _SectionCard(
@@ -704,8 +730,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                       _DiscountRow(
                         controller: _discountCtrl,
                         onChanged: (v) => setState(
-                            () => _globalDiscount =
-                                double.tryParse(v) ?? 0),
+                          () => _globalDiscount = double.tryParse(v) ?? 0,
+                        ),
                       ),
                       const _Divider(),
                       _VatToggle(
@@ -743,8 +769,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     errorMessage: _paymentError,
                     onActivationRequired: (message) =>
                         setState(() => _paymentError = message),
-                    onDismissError: () =>
-                        setState(() => _paymentError = null),
+                    onDismissError: () => setState(() => _paymentError = null),
                   ),
                   const SizedBox(height: 16),
                   _NotesField(
@@ -771,8 +796,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     final title = widget.invoiceToEdit != null
         ? _tr('Edit Invoice', 'Hariri Ankara')
         : _isQuotation
-            ? _tr('New Quotation', 'Nukuu Mpya')
-            : _tr('New Invoice', 'Ankara Mpya');
+        ? _tr('New Quotation', 'Nukuu Mpya')
+        : _tr('New Invoice', 'Ankara Mpya');
 
     return AppBar(
       backgroundColor: AppColors.navyPrimary,
@@ -781,9 +806,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       title: Text(
         title,
         style: GoogleFonts.dmSans(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white),
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+          color: Colors.white,
+        ),
       ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -837,11 +863,12 @@ class _Tab extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  const _Tab(
-      {required this.label,
-      required this.icon,
-      required this.active,
-      required this.onTap});
+  const _Tab({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -850,8 +877,7 @@ class _Tab extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding:
-              const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: active ? AppColors.navyPrimary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -859,9 +885,11 @@ class _Tab extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 16,
-                  color: active ? Colors.white : AppColors.textMuted),
+              Icon(
+                icon,
+                size: 16,
+                color: active ? Colors.white : AppColors.textMuted,
+              ),
               SizedBox(width: 6),
               Text(
                 label,
@@ -908,8 +936,6 @@ class _Divider extends StatelessWidget {
       const Divider(height: 1, thickness: 1, color: AppColors.border);
 }
 
-
-
 // ── Date Row ─────────────────────────────────────────────────────────────────
 
 class _DateRow extends StatelessWidget {
@@ -925,8 +951,11 @@ class _DateRow extends StatelessWidget {
     required this.onDueDate,
   });
 
-  Future<void> _pick(BuildContext context, DateTime initial,
-      ValueChanged<DateTime> cb) async {
+  Future<void> _pick(
+    BuildContext context,
+    DateTime initial,
+    ValueChanged<DateTime> cb,
+  ) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -991,8 +1020,7 @@ class _DateChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(10),
@@ -1001,30 +1029,34 @@ class _DateChip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: GoogleFonts.dmSans(
-                    fontSize: 10,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3)),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
             SizedBox(height: 3),
             Row(
               children: [
-                Icon(Icons.calendar_today_rounded,
-                    size: 12,
-                    color: optional
-                        ? AppColors.textMuted
-                        : AppColors.navyPrimary),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 12,
+                  color: optional ? AppColors.textMuted : AppColors.navyPrimary,
+                ),
                 SizedBox(width: 5),
                 Flexible(
                   child: Text(
                     value,
                     style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: optional
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: optional
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1067,19 +1099,25 @@ class _ItemsSection extends ConsumerWidget {
             Text(
               _tr('Items', 'Bidhaaa'),
               style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.5),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.5,
+              ),
             ),
             TextButton.icon(
               onPressed: onAdd,
               icon: Icon(Icons.add_circle_rounded, size: 16),
-              label: Text(_tr('Add Item', 'Ongeza'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+              label: Text(
+                _tr('Add Item', 'Ongeza'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: TextButton.styleFrom(
-                  foregroundColor: AppColors.navyPrimary),
+                foregroundColor: AppColors.navyPrimary,
+              ),
             ),
           ],
         ),
@@ -1136,15 +1174,16 @@ class _LineItemCardState extends State<_LineItemCard> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.item.productName);
     _priceCtrl = TextEditingController(
-        text: widget.item.unitPrice > 0
-            ? widget.item.unitPrice.toStringAsFixed(0)
-            : '');
-    _qtyCtrl =
-        TextEditingController(text: widget.item.qty.toString());
+      text: widget.item.unitPrice > 0
+          ? widget.item.unitPrice.toStringAsFixed(0)
+          : '',
+    );
+    _qtyCtrl = TextEditingController(text: widget.item.qty.toString());
     _lineDiscCtrl = TextEditingController(
-        text: widget.item.discount > 0
-            ? widget.item.discount.toStringAsFixed(0)
-            : '');
+      text: widget.item.discount > 0
+          ? widget.item.discount.toStringAsFixed(0)
+          : '',
+    );
   }
 
   @override
@@ -1166,11 +1205,15 @@ class _LineItemCardState extends State<_LineItemCard> {
     }
     setState(() {
       _filtered = widget.inventory
-          .where((inv) =>
-              (inv['name'] ?? '').toString().toLowerCase().contains(
-                  q.toLowerCase()) ||
-              (inv['sku'] ?? '').toString().toLowerCase().contains(
-                  q.toLowerCase()))
+          .where(
+            (inv) =>
+                (inv['name'] ?? '').toString().toLowerCase().contains(
+                  q.toLowerCase(),
+                ) ||
+                (inv['sku'] ?? '').toString().toLowerCase().contains(
+                  q.toLowerCase(),
+                ),
+          )
           .take(6)
           .toList();
       _showSuggestions = _filtered.isNotEmpty;
@@ -1186,8 +1229,7 @@ class _LineItemCardState extends State<_LineItemCard> {
       unit: inv['unit']?.toString() ?? '',
     );
     _nameCtrl.text = updated.productName;
-    _priceCtrl.text =
-        price > 0 ? price.toStringAsFixed(0) : '';
+    _priceCtrl.text = price > 0 ? price.toStringAsFixed(0) : '';
     setState(() => _showSuggestions = false);
     widget.onUpdate(updated);
   }
@@ -1211,9 +1253,10 @@ class _LineItemCardState extends State<_LineItemCard> {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard,
-              blurRadius: 6,
-              offset: Offset(0, 1)),
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Column(
@@ -1235,9 +1278,10 @@ class _LineItemCardState extends State<_LineItemCard> {
                     child: Text(
                       '${widget.index + 1}',
                       style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -1248,17 +1292,21 @@ class _LineItemCardState extends State<_LineItemCard> {
                         ? _tr('New Item', 'Bidhaaa Mpya')
                         : widget.item.productName,
                     style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (widget.canRemove)
                   GestureDetector(
                     onTap: widget.onRemove,
-                    child: const Icon(Icons.close_rounded,
-                        size: 18, color: AppColors.error),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
                   ),
               ],
             ),
@@ -1281,17 +1329,13 @@ class _LineItemCardState extends State<_LineItemCard> {
                   },
                 ),
                 if (_showSuggestions)
-                  _SuggestionList(
-                    items: _filtered,
-                    onTap: _selectInventory,
-                  ),
+                  _SuggestionList(items: _filtered, onTap: _selectInventory),
               ],
             ),
           ),
           const SizedBox(height: 10),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
                 Expanded(
@@ -1339,14 +1383,17 @@ class _LineItemCardState extends State<_LineItemCard> {
                 Text(
                   _tr('Line Total', 'Jumla ya Mstari'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 12, color: AppColors.textMuted),
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 Text(
                   'TZS ${_fmtNum(widget.item.lineTotal)}',
                   style: GoogleFonts.jetBrainsMono(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
               ],
             ),
@@ -1373,122 +1420,142 @@ class _SuggestionList extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard,
-              blurRadius: 12,
-              offset: Offset(0, 3)),
+            color: AppColors.shadowCard,
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
-        children: items.asMap().entries.map((e) {
-          final isLast = e.key == items.length - 1;
-          final inv = e.value;
-          final price = parseNumericAmount(
-              inv['sellingPrice'] ?? inv['unitPrice']);
-          final stock = parseStock(inv['currentStock'] ?? inv['stock']);
-          final isOut  = stock <= 0;
-          final isLow  = !isOut && stock <= parseStock(inv['reorderPoint'] ?? 5);
-          final productType = (inv['productType'] as String?) ?? '';
-          final isService    = productType == 'service';
-          final category = (inv['category'] as String?) ?? '';
-          final stockColor = isService
-              ? AppColors.tealAccent
-              : isOut
-                  ? AppColors.error
-                  : isLow
-                      ? AppColors.warning
-                      : AppColors.success;
+          children: items.asMap().entries.map((e) {
+            final isLast = e.key == items.length - 1;
+            final inv = e.value;
+            final price = parseNumericAmount(
+              inv['sellingPrice'] ?? inv['unitPrice'],
+            );
+            final stock = parseStock(inv['currentStock'] ?? inv['stock']);
+            final isOut = stock <= 0;
+            final isLow =
+                !isOut && stock <= parseStock(inv['reorderPoint'] ?? 5);
+            final productType = (inv['productType'] as String?) ?? '';
+            final isService = productType == 'service';
+            final category = (inv['category'] as String?) ?? '';
+            final stockColor = isService
+                ? AppColors.tealAccent
+                : isOut
+                ? AppColors.error
+                : isLow
+                ? AppColors.warning
+                : AppColors.success;
 
-          return Column(children: [
-          InkWell(
-            onTap: isOut ? null : () => onTap(inv),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  // Inventory-style tinted icon
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: stockColor.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
+            return Column(
+              children: [
+                InkWell(
+                  onTap: isOut ? null : () => onTap(inv),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                    child: Icon(
-                      isService
-                          ? Icons.design_services_rounded
-                          : Icons.inventory_2_outlined,
-                      size: 18,
-                      color: stockColor,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          inv['name']?.toString() ?? '',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13, fontWeight: FontWeight.w700,
-                              color: AppColors.navyPrimary),
-                        ),
-                        if (category.isNotEmpty) ...[
-                          SizedBox(height: 2),
-                          Text(category,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11, color: AppColors.textMuted)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'TZS ${_fmtNum(price)}',
-                        style: GoogleFonts.jetBrainsMono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary),
-                      ),
-                      if (!isService) ...[
-                        SizedBox(height: 3),
+                        // Inventory-style tinted icon
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: stockColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                                color: stockColor.withValues(alpha: 0.3)),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Text(
-                            isOut
-                                ? _tr('Out', 'Imekwisha')
-                                : '$stock ${_tr("left", "zimebaki")}',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: stockColor),
+                          child: Icon(
+                            isService
+                                ? Icons.design_services_rounded
+                                : Icons.inventory_2_outlined,
+                            size: 18,
+                            color: stockColor,
                           ),
                         ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                inv['name']?.toString() ?? '',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navyPrimary,
+                                ),
+                              ),
+                              if (category.isNotEmpty) ...[
+                                SizedBox(height: 2),
+                                Text(
+                                  category,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'TZS ${_fmtNum(price)}',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                            if (!isService) ...[
+                              SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: stockColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: stockColor.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  isOut
+                                      ? _tr('Out', 'Imekwisha')
+                                      : '$stock ${_tr("left", "zimebaki")}',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: stockColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          if (!isLast)
-            const Divider(
-                height: 1,
-                indent: 14,
-                endIndent: 14,
-                color: AppColors.border),
-          ]);
-        }).toList(),
+                ),
+                if (!isLast)
+                  const Divider(
+                    height: 1,
+                    indent: 14,
+                    endIndent: 14,
+                    color: AppColors.border,
+                  ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -1501,8 +1568,7 @@ class _DiscountRow extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
 
-  const _DiscountRow(
-      {required this.controller, required this.onChanged});
+  const _DiscountRow({required this.controller, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1510,35 +1576,44 @@ class _DiscountRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          const Icon(Icons.local_offer_rounded,
-              size: 18, color: AppColors.warning),
+          const Icon(
+            Icons.local_offer_rounded,
+            size: 18,
+            color: AppColors.warning,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(
               _tr('Invoice Discount', 'Punguzo la Ankara'),
               style: GoogleFonts.dmSans(
-                  fontSize: 14, fontWeight: FontWeight.w500),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           SizedBox(
             width: 120,
             child: TextField(
               controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(
-                    RegExp(r'^\d*\.?\d*'))
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
               textAlign: TextAlign.right,
               onChanged: onChanged,
               style: GoogleFonts.jetBrainsMono(
-                  fontSize: 14, fontWeight: FontWeight.w600),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
               decoration: InputDecoration(
                 hintText: '0',
                 prefixText: 'TZS ',
                 prefixStyle: GoogleFonts.dmSans(
-                    fontSize: 12, color: AppColors.textMuted),
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
                 isDense: true,
                 filled: true,
                 fillColor: AppColors.surfaceVariant,
@@ -1547,7 +1622,9 @@ class _DiscountRow extends StatelessWidget {
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 8),
+                  horizontal: 10,
+                  vertical: 8,
+                ),
               ),
             ),
           ),
@@ -1569,8 +1646,11 @@ class _VatToggle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.receipt_rounded,
-              size: 18, color: AppColors.tealAccent),
+          const Icon(
+            Icons.receipt_rounded,
+            size: 18,
+            color: AppColors.tealAccent,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1579,13 +1659,19 @@ class _VatToggle extends StatelessWidget {
                 Text(
                   _tr('Add VAT (18%)', 'Ongeza VAT (18%)'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w500),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
-                  _tr('Tanzanian statutory rate',
-                      'Kiwango cha kisheria Tanzania'),
+                  _tr(
+                    'Tanzanian statutory rate',
+                    'Kiwango cha kisheria Tanzania',
+                  ),
                   style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -1667,15 +1753,18 @@ class _TotalsCard extends StatelessWidget {
               Text(
                 _tr('TOTAL', 'JUMLA'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white70,
-                    letterSpacing: 1),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white70,
+                  letterSpacing: 1,
+                ),
               ),
               Text(
                 'TZS ${_fmtNum(grandTotal)}',
                 style: GoogleFonts.dmSerifDisplay(
-                    fontSize: 24, color: Colors.white),
+                  fontSize: 24,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1703,20 +1792,24 @@ class _TotalRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: GoogleFonts.dmSans(
-                fontSize: 13,
-                color: light ? Colors.white60 : AppColors.textSecondary)),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            color: light ? Colors.white60 : AppColors.textSecondary,
+          ),
+        ),
         Text(
           '${isDiscount ? '-' : ''}TZS ${_fmtNum(amount.abs())}',
           style: GoogleFonts.jetBrainsMono(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDiscount
-                  ? const Color(0xFF86EFAC)
-                  : light
-                      ? Colors.white70
-                      : AppColors.textPrimary),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isDiscount
+                ? const Color(0xFF86EFAC)
+                : light
+                ? Colors.white70
+                : AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -1764,10 +1857,11 @@ class _PaymentSection extends ConsumerWidget {
         Text(
           _tr('Payment Method', 'Njia ya Malipo'),
           style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.5),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
         ),
         const SizedBox(height: 8),
         PaymentAccountChips(
@@ -1779,31 +1873,31 @@ class _PaymentSection extends ConsumerWidget {
           onSelectCredit: onCredit,
           onActivationRequired: onActivationRequired,
         ),
-        ValidationBanner(
-          message: errorMessage,
-          onDismiss: onDismissError,
-        ),
-        if (!isCredit && selectedAccountId == PaymentMethodAccounts.mpesaId) ...[
+        ValidationBanner(message: errorMessage, onDismiss: onDismissError),
+        if (!isCredit &&
+            selectedAccountId == PaymentMethodAccounts.mpesaId) ...[
           SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border)),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: TextField(
               controller: mpesaCtrl,
               onChanged: onMpesaRef,
               decoration: InputDecoration.collapsed(
                 hintText: _tr(
-                    'M-Pesa reference (e.g. SBF5XXXXXX)',
-                    'Nambari ya M-Pesa (mfano SBF5XXXXXX)'),
+                  'M-Pesa reference (e.g. SBF5XXXXXX)',
+                  'Nambari ya M-Pesa (mfano SBF5XXXXXX)',
+                ),
                 hintStyle: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textMuted),
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
               ),
-              style:
-                  GoogleFonts.jetBrainsMono(fontSize: 13),
+              style: GoogleFonts.jetBrainsMono(fontSize: 13),
             ),
           ),
         ],
@@ -1818,8 +1912,7 @@ class _NotesField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
 
-  const _NotesField(
-      {required this.controller, required this.onChanged});
+  const _NotesField({required this.controller, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1829,10 +1922,11 @@ class _NotesField extends StatelessWidget {
         Text(
           _tr('Notes', 'Maelezo'),
           style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.5),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
         ),
         SizedBox(height: 8),
         Container(
@@ -1847,10 +1941,13 @@ class _NotesField extends StatelessWidget {
             maxLines: 3,
             decoration: InputDecoration(
               hintText: _tr(
-                  'Terms, delivery notes, or thank-you message…',
-                  'Masharti, maelezo ya utoaji, au ujumbe wa shukrani…'),
+                'Terms, delivery notes, or thank-you message…',
+                'Masharti, maelezo ya utoaji, au ujumbe wa shukrani…',
+              ),
               hintStyle: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(14),
             ),
@@ -1881,7 +1978,11 @@ class _BottomActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.border)),
@@ -1892,15 +1993,20 @@ class _BottomActions extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: saving ? null : onDraft,
               icon: Icon(Icons.save_outlined, size: 16),
-              label: Text(_tr('Save Draft', 'Hifadhi Rasimu'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600)),
+              label: Text(
+                _tr('Save Draft', 'Hifadhi Rasimu'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.navyPrimary,
                 side: const BorderSide(color: AppColors.navyPrimary),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -1913,26 +2019,33 @@ class _BottomActions extends StatelessWidget {
                   ? const SizedBox.square(
                       dimension: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : Icon(
                       isQuotation
                           ? Icons.send_rounded
                           : Icons.check_circle_rounded,
-                      size: 16),
+                      size: 16,
+                    ),
               label: Text(
                 saving
                     ? _tr('Saving…', 'Inahifadhi…')
                     : isQuotation
-                        ? _tr('Send Quotation', 'Tuma Nukuu')
-                        : _tr('Finalize Invoice', 'Kamilisha Ankara'),
+                    ? _tr('Send Quotation', 'Tuma Nukuu')
+                    : _tr('Finalize Invoice', 'Kamilisha Ankara'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w600),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.navyPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -1954,10 +2067,11 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textMuted,
-          letterSpacing: 0.3),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+        letterSpacing: 0.3,
+      ),
     );
   }
 }
@@ -1994,8 +2108,10 @@ class _OutlineField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         prefixText: prefix != null ? '$prefix ' : null,
-        prefixStyle:
-            GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+        prefixStyle: GoogleFonts.dmSans(
+          fontSize: 12,
+          color: AppColors.textMuted,
+        ),
         isDense: true,
         filled: true,
         fillColor: AppColors.surfaceVariant,
@@ -2006,10 +2122,14 @@ class _OutlineField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(
-              color: AppColors.navyPrimary, width: 1.5),
+            color: AppColors.navyPrimary,
+            width: 1.5,
+          ),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
       ),
     );
   }
@@ -2043,7 +2163,9 @@ class _QtyField extends StatelessWidget {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textAlign: TextAlign.center,
             style: GoogleFonts.jetBrainsMono(
-                fontSize: 14, fontWeight: FontWeight.w700),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
             decoration: InputDecoration(
               isDense: true,
               filled: true,
@@ -2087,8 +2209,7 @@ class _QtyBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border),
         ),
-        child:
-            Icon(icon, size: 16, color: AppColors.navyPrimary),
+        child: Icon(icon, size: 16, color: AppColors.navyPrimary),
       ),
     );
   }

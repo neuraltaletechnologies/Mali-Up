@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -37,11 +38,14 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -53,14 +57,12 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   }
 
   void _showForgotPin(BuildContext ctx, bool sw) {
-    showAppSheet<void>(
-      ctx,
-      builder: (_) => _ForgotPinSheet(sw: sw),
-    );
+    showAppSheet<void>(ctx, builder: (_) => _ForgotPinSheet(sw: sw));
   }
 
   Future<void> _submit() async {
-    if (!ref.read(isOnlineProvider)) return;
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final pin = _pinCtrl.text.trim();
     final isSwahili = ref.read(onboardingNotifierProvider).isSwahili;
     final err = OnboardingValidator.validatePin(pin, isSwahili: isSwahili);
@@ -90,9 +92,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(sw
-              ? 'Hatukuweza kufungua WhatsApp sasa.'
-              : 'We could not open WhatsApp right now.'),
+          content: Text(
+            sw
+                ? 'Hatukuweza kufungua WhatsApp sasa.'
+                : 'We could not open WhatsApp right now.',
+          ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
@@ -109,7 +113,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     // Keep showing the loading indicator after loginWithPin() completes while
     // the RBAC providers are settling (Firestore snap in-flight).  Once both
     // isComplete and permissionsLoaded are true, the router redirects to /.
-    final isLoading = state.isLoading || (state.isComplete && !permissionsLoaded);
+    final isLoading =
+        state.isLoading || (state.isComplete && !permissionsLoaded);
     final isOnline = ref.watch(isOnlineProvider);
     final sw = state.isSwahili;
     final name = state.firstName.isNotEmpty ? state.firstName : '';
@@ -210,8 +215,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                 clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(
                   color: AppColors.background,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black12,
@@ -232,8 +236,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                       child: SingleChildScrollView(
                         controller: scrollController,
                         physics: const ClampingScrollPhysics(),
-                        padding:
-                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -254,11 +257,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               child: Text(
                                 name.isNotEmpty
                                     ? (sw
-                                        ? 'Karibu tena, $name 👋'
-                                        : 'Welcome back, $name 👋')
+                                          ? 'Karibu tena, $name 👋'
+                                          : 'Welcome back, $name 👋')
                                     : (sw
-                                        ? 'Karibu tena 👋'
-                                        : 'Welcome back 👋'),
+                                          ? 'Karibu tena 👋'
+                                          : 'Welcome back 👋'),
                                 textAlign: TextAlign.center,
                                 style: headingStyle,
                               ),
@@ -322,7 +325,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                             // Error
                             if (state.errorMessage != null) ...[
                               OnboardingErrorBanner(
-                                  message: state.errorMessage!),
+                                message: state.errorMessage!,
+                              ),
                               const SizedBox(height: 16),
                             ],
 
@@ -341,16 +345,15 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: AppColors.navyPrimary,
                                   elevation: 4,
-                                  shadowColor:
-                                      AppColors.primary.withValues(alpha: 0.3),
+                                  shadowColor: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   minimumSize: const Size.fromHeight(52),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed: (isLoading || !isOnline)
-                                    ? null
-                                    : _submit,
+                                onPressed: isLoading ? null : _submit,
                                 child: isLoading
                                     ? const SizedBox(
                                         width: 22,
@@ -439,8 +442,9 @@ class _BusinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        businessName.trim().isNotEmpty ? businessName.trim()[0].toUpperCase() : 'M';
+    final initial = businessName.trim().isNotEmpty
+        ? businessName.trim()[0].toUpperCase()
+        : 'M';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -495,18 +499,18 @@ class _BusinessCard extends StatelessWidget {
                           color: AppColors.tealAccent,
                         ),
                       if (role.isNotEmpty)
-                        _CardBadge(
-                          label: role,
-                          color: AppColors.navySecondary,
-                        ),
+                        _CardBadge(label: role, color: AppColors.navySecondary),
                     ],
                   ),
                 ],
               ],
             ),
           ),
-          const Icon(Icons.verified_rounded,
-              color: AppColors.success, size: 18),
+          const Icon(
+            Icons.verified_rounded,
+            color: AppColors.success,
+            size: 18,
+          ),
         ],
       ),
     );
@@ -577,14 +581,25 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   String? _sentTo;
 
   Future<void> _sendRecovery() async {
-    setState(() { _isSending = true; _noEmail = false; });
-    final email =
-        await ref.read(onboardingNotifierProvider.notifier).sendPinRecovery();
+    setState(() {
+      _isSending = true;
+      _noEmail = false;
+    });
+    final email = await ref
+        .read(onboardingNotifierProvider.notifier)
+        .sendPinRecovery();
     if (!mounted) return;
     if (email != null) {
-      setState(() { _isSending = false; _sent = true; _sentTo = email; });
+      setState(() {
+        _isSending = false;
+        _sent = true;
+        _sentTo = email;
+      });
     } else {
-      setState(() { _isSending = false; _noEmail = true; });
+      setState(() {
+        _isSending = false;
+        _noEmail = true;
+      });
     }
   }
 
@@ -606,7 +621,9 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.fromLTRB(
-        24, 20, 24,
+        24,
+        20,
+        24,
         MediaQuery.of(context).viewInsets.bottom + 40,
       ),
       child: Column(
@@ -618,21 +635,27 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
 
           // Icon
           Container(
-            width: 52, height: 52,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: AppColors.navyPrimary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.lock_reset_rounded,
-                color: AppColors.navyPrimary, size: 28),
+            child: const Icon(
+              Icons.lock_reset_rounded,
+              color: AppColors.navyPrimary,
+              size: 28,
+            ),
           ),
           const SizedBox(height: 20),
 
           Text(
             sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
             style: GoogleFonts.dmSans(
-              fontSize: 22, fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary, letterSpacing: -0.3,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 10),
@@ -641,11 +664,13 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
             Text(
               sw
                   ? 'Tutakutumia maelekezo ya kurejesha PIN yako '
-                    'kwenye barua pepe uliyosajili.'
+                        'kwenye barua pepe uliyosajili.'
                   : 'We\'ll send recovery instructions to your registered email '
-                    'so you can reset your PIN.',
+                        'so you can reset your PIN.',
               style: GoogleFonts.dmSans(
-                fontSize: 14, color: AppColors.textMuted, height: 1.55,
+                fontSize: 14,
+                color: AppColors.textMuted,
+                height: 1.55,
               ),
             ),
             SizedBox(height: 8),
@@ -655,22 +680,28 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 color: AppColors.infoBg,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: AppColors.tealAccent.withValues(alpha: 0.3)),
+                  color: AppColors.tealAccent.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: AppColors.tealAccent, size: 18),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.tealAccent,
+                    size: 18,
+                  ),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       sw
                           ? 'Baada ya kupokea barua pepe, fuata kiungo '
-                            'kuweka nenosiri jipya na PIN yako mpya.'
+                                'kuweka nenosiri jipya na PIN yako mpya.'
                           : 'After receiving the email, follow the link '
-                            'to set a new password and restore your access.',
+                                'to set a new password and restore your access.',
                       style: GoogleFonts.dmSans(
-                        fontSize: 12, color: AppColors.tealAccent, height: 1.4,
+                        fontSize: 12,
+                        color: AppColors.tealAccent,
+                        height: 1.4,
                       ),
                     ),
                   ),
@@ -679,28 +710,36 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
             ),
             SizedBox(height: 28),
             SizedBox(
-              width: double.infinity, height: 52,
+              width: double.infinity,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _isSending ? null : _sendRecovery,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.navyPrimary,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      AppColors.navyPrimary.withValues(alpha: 0.5),
+                  disabledBackgroundColor: AppColors.navyPrimary.withValues(
+                    alpha: 0.5,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 0,
                 ),
                 child: _isSending
                     ? const SizedBox(
-                        width: 20, height: 20,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2.5, color: Colors.white),
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
                       )
                     : Text(
                         sw ? 'Tuma Maelekezo' : 'Send Recovery Link',
                         style: GoogleFonts.dmSans(
-                            fontSize: 15, fontWeight: FontWeight.w700),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
               ),
             ),
@@ -712,17 +751,22 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 color: const Color(0xFFFFF3CD),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+                  color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+                ),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.email_outlined,
-                      color: Color(0xFF856404), size: 40),
+                  const Icon(
+                    Icons.email_outlined,
+                    color: Color(0xFF856404),
+                    size: 40,
+                  ),
                   SizedBox(height: 12),
                   Text(
                     sw ? 'Barua pepe haijapatikana' : 'No email on file',
                     style: GoogleFonts.dmSans(
-                      fontSize: 16, fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
                       color: Color(0xFF856404),
                     ),
                   ),
@@ -730,12 +774,14 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   Text(
                     sw
                         ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. '
-                          'Tafadhali wasiliana na msaada wa Mali Up kupitia WhatsApp.'
+                              'Tafadhali wasiliana na msaada wa Mali Up kupitia WhatsApp.'
                         : 'No email address is registered for this account. '
-                          'Please contact Mali Up support via WhatsApp for help.',
+                              'Please contact Mali Up support via WhatsApp for help.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.dmSans(
-                      fontSize: 13, color: Color(0xFF856404), height: 1.5,
+                      fontSize: 13,
+                      color: Color(0xFF856404),
+                      height: 1.5,
                     ),
                   ),
                 ],
@@ -749,7 +795,8 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 child: Text(
                   sw ? 'Funga' : 'Close',
                   style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.navyPrimary,
                   ),
                 ),
@@ -762,18 +809,23 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
               decoration: BoxDecoration(
                 color: AppColors.successBg,
                 borderRadius: BorderRadius.circular(16),
-                border:
-                    Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppColors.success, size: 40),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 40,
+                  ),
                   SizedBox(height: 12),
                   Text(
                     sw ? 'Imetumwa! ✓' : 'Sent! ✓',
                     style: GoogleFonts.dmSans(
-                      fontSize: 18, fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.success,
                     ),
                   ),
@@ -781,12 +833,14 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   Text(
                     sw
                         ? 'Maelekezo yametumwa kwenda ${_maskEmail(_sentTo!)}. '
-                          'Angalia barua pepe yako na ufuate hatua zilizotolewa.'
+                              'Angalia barua pepe yako na ufuate hatua zilizotolewa.'
                         : 'Recovery instructions sent to ${_maskEmail(_sentTo!)}. '
-                          'Check your email and follow the steps provided.',
+                              'Check your email and follow the steps provided.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.success, height: 1.5,
+                      fontSize: 13,
+                      color: AppColors.success,
+                      height: 1.5,
                     ),
                   ),
                 ],
@@ -800,7 +854,8 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 child: Text(
                   sw ? 'Sawa, nimepokea' : 'Got it, close',
                   style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.navyPrimary,
                   ),
                 ),
@@ -825,13 +880,17 @@ class _PinLoginOfflineBanner extends StatelessWidget {
         color: const Color(0xFFFFF3CD),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.wifi_off_rounded,
-              size: 18, color: Color(0xFF856404)),
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 18,
+            color: Color(0xFF856404),
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(

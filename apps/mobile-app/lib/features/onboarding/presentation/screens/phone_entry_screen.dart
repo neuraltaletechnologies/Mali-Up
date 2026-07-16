@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -124,10 +125,14 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
     // Pre-fill any saved phone
@@ -160,8 +165,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   }
 
   Future<void> _submit() async {
-    final isOnline = ref.read(isOnlineProvider);
-    if (!isOnline) return; // offline banner already visible; silently ignore taps
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     if (!_formKey.currentState!.validate()) return;
 
     final local = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
@@ -199,7 +204,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final picked = await showAppSheet<_Country>(
       context,
-      builder: (_) => _CountryPickerSheet(countries: _kCountries, isSwahili: sw),
+      builder: (_) =>
+          _CountryPickerSheet(countries: _kCountries, isSwahili: sw),
     );
     if (picked != null && mounted) {
       setState(() => _country = picked);
@@ -378,9 +384,11 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                               // Title
                               Center(
                                 child: Text(
-                                  OnboardingStrings.s(sw,
-                                      en: OnboardingStrings.phoneTitleEn,
-                                      sw: OnboardingStrings.phoneTitleSw),
+                                  OnboardingStrings.s(
+                                    sw,
+                                    en: OnboardingStrings.phoneTitleEn,
+                                    sw: OnboardingStrings.phoneTitleSw,
+                                  ),
                                   textAlign: TextAlign.center,
                                   style: headingStyle,
                                 ),
@@ -390,9 +398,11 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                               // Subtitle
                               Center(
                                 child: Text(
-                                  OnboardingStrings.s(sw,
-                                      en: OnboardingStrings.phoneSubEn,
-                                      sw: OnboardingStrings.phoneSubSw),
+                                  OnboardingStrings.s(
+                                    sw,
+                                    en: OnboardingStrings.phoneSubEn,
+                                    sw: OnboardingStrings.phoneSubSw,
+                                  ),
                                   textAlign: TextAlign.center,
                                   style: subtitleStyle,
                                 ),
@@ -413,16 +423,23 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                               SizedBox(height: 8),
                               Row(
                                 children: [
-                                  const Icon(Icons.lock_outline_rounded,
-                                      size: 12, color: AppColors.textMuted),
+                                  const Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: 12,
+                                    color: AppColors.textMuted,
+                                  ),
                                   SizedBox(width: 5),
                                   Flexible(
                                     child: Text(
-                                      OnboardingStrings.s(sw,
-                                          en: OnboardingStrings.phoneHelperEn,
-                                          sw: OnboardingStrings.phoneHelperSw),
+                                      OnboardingStrings.s(
+                                        sw,
+                                        en: OnboardingStrings.phoneHelperEn,
+                                        sw: OnboardingStrings.phoneHelperSw,
+                                      ),
                                       style: GoogleFonts.dmSans(
-                                          fontSize: 12, color: AppColors.textMuted),
+                                        fontSize: 12,
+                                        color: AppColors.textMuted,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -438,7 +455,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                               // Error banner
                               if (state.errorMessage != null) ...[
                                 OnboardingErrorBanner(
-                                    message: state.errorMessage!),
+                                  message: state.errorMessage!,
+                                ),
                                 const SizedBox(height: 16),
                               ],
 
@@ -451,16 +469,15 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                     backgroundColor: AppColors.primary,
                                     foregroundColor: AppColors.navyPrimary,
                                     elevation: 4,
-                                    shadowColor: AppColors.primary
-                                        .withValues(alpha: 0.3),
+                                    shadowColor: AppColors.primary.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     minimumSize: const Size.fromHeight(52),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  onPressed: (state.isLoading || !isOnline)
-                                      ? null
-                                      : _submit,
+                                  onPressed: state.isLoading ? null : _submit,
                                   child: state.isLoading
                                       ? const SizedBox(
                                           width: 22,
@@ -471,11 +488,13 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                           ),
                                         )
                                       : Text(
-                                          OnboardingStrings.s(sw,
-                                              en: OnboardingStrings
-                                                  .phoneSendCtaEn,
-                                              sw: OnboardingStrings
-                                                  .phoneSendCtaSw),
+                                          OnboardingStrings.s(
+                                            sw,
+                                            en: OnboardingStrings
+                                                .phoneSendCtaEn,
+                                            sw: OnboardingStrings
+                                                .phoneSendCtaSw,
+                                          ),
                                           style: GoogleFonts.dmSans(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 16,
@@ -563,15 +582,14 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
               style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: _focused
-                    ? AppColors.navyPrimary
-                    : AppColors.textMuted,
+                color: _focused ? AppColors.navyPrimary : AppColors.textMuted,
                 letterSpacing: 0.6,
               ),
               child: Text(
                 (widget.isSwahili
-                    ? OnboardingStrings.phoneLabelSw
-                    : OnboardingStrings.phoneLabelEn).toUpperCase(),
+                        ? OnboardingStrings.phoneLabelSw
+                        : OnboardingStrings.phoneLabelEn)
+                    .toUpperCase(),
               ),
             ),
             const SizedBox(height: 6),
@@ -586,8 +604,8 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                   color: _error != null
                       ? AppColors.error
                       : _focused
-                          ? AppColors.navyPrimary
-                          : AppColors.border,
+                      ? AppColors.navyPrimary
+                      : AppColors.border,
                   width: _focused || _error != null ? 1.5 : 1.0,
                 ),
               ),
@@ -595,11 +613,13 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                 children: [
                   // Country code selector
                   GestureDetector(
-                        onTap: widget.enabled ? widget.onCountryTap : null,
+                    onTap: widget.enabled ? widget.onCountryTap : null,
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 15),
+                        horizontal: 14,
+                        vertical: 15,
+                      ),
                       decoration: BoxDecoration(
                         border: Border(
                           right: BorderSide(
@@ -647,7 +667,8 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                       autofocus: true,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9\s\-\(\)]')),
+                          RegExp(r'[0-9\s\-\(\)]'),
+                        ),
                       ],
                       onFieldSubmitted: widget.onFieldSubmitted,
                       onChanged: (_) {
@@ -666,7 +687,9 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                         ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 15),
+                          horizontal: 14,
+                          vertical: 15,
+                        ),
                       ),
                     ),
                   ),
@@ -679,14 +702,19 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
               SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded,
-                      size: 13, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 13,
+                    color: AppColors.error,
+                  ),
                   SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       _error!,
                       style: GoogleFonts.dmSans(
-                          fontSize: 12, color: AppColors.error),
+                        fontSize: 12,
+                        color: AppColors.error,
+                      ),
                     ),
                   ),
                 ],
@@ -734,11 +762,13 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
       _filtered = q.isEmpty
           ? widget.countries
           : widget.countries
-              .where((c) =>
-                  c.name.toLowerCase().contains(q) ||
-                  c.dial.contains(q) ||
-                  c.code.toLowerCase().contains(q))
-              .toList();
+                .where(
+                  (c) =>
+                      c.name.toLowerCase().contains(q) ||
+                      c.dial.contains(q) ||
+                      c.code.toLowerCase().contains(q),
+                )
+                .toList();
     });
   }
 
@@ -804,16 +834,23 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                   color: AppColors.navyPrimary,
                 ),
                 decoration: InputDecoration(
-                  hintText: widget.isSwahili ? 'Tafuta nchi au nambari…' : 'Search country or code…',
+                  hintText: widget.isSwahili
+                      ? 'Tafuta nchi au nambari…'
+                      : 'Search country or code…',
                   hintStyle: GoogleFonts.dmSans(
                     fontSize: 14,
                     color: AppColors.textDisabled,
                   ),
-                  prefixIcon: const Icon(Icons.search_rounded,
-                      size: 18, color: AppColors.textMuted),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                   border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -894,12 +931,18 @@ class _OfflineBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF3CD),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 18, color: Color(0xFF856404)),
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 18,
+            color: Color(0xFF856404),
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Column(
