@@ -3536,9 +3536,12 @@ class _ActivityTab extends ConsumerWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 60),
+      padding: const EdgeInsets.only(bottom: 60),
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const Padding(
+        padding: EdgeInsets.only(left: 58, right: 16),
+        child: Divider(height: 1, color: AppColors.border, thickness: 0.8),
+      ),
       itemBuilder: (_, i) => _ActivityTile(
         entry: items[i],
         showFinancials: showFinancials,
@@ -3576,18 +3579,10 @@ class _ActivityTile extends StatelessWidget {
         ? Icons.payments_rounded
         : Icons.shopping_bag_rounded;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1)),
-        ],
-      ),
+    return ColoredBox(
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
             Container(

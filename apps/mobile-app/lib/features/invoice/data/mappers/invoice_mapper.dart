@@ -30,10 +30,13 @@ abstract final class InvoiceMapper {
       paymentAccountId: row.paymentAccountId,
       items: items.map(_itemFromRow).toList(),
       note: row.note,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt)
-          .toIso8601String(),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt)
-          .toIso8601String(),
+      createdBy: row.createdBy,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row.createdAt,
+      ).toIso8601String(),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        row.updatedAt,
+      ).toIso8601String(),
     );
   }
 
@@ -78,6 +81,7 @@ abstract final class InvoiceMapper {
       paymentMethod: Value(invoice.paymentMethod),
       paymentAccountId: Value(invoice.paymentAccountId),
       note: Value(invoice.note),
+      createdBy: Value(invoice.createdBy),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
       serverUpdatedAt: Value(serverUpdatedAt),

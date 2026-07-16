@@ -369,6 +369,26 @@ service cloud.firestore {
         allow create: if isSignedIn() && isBusinessOwner(bizId);
       }
 
+      match /expense_categories/{categoryId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']);
+        allow create, update: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']) &&
+          request.resource.data.keys().hasOnly([
+            'name', 'nameEn', 'nameSw', 'iconKey', 'colorValue',
+            'isBuiltIn', 'isHidden', 'createdAt', 'updatedAt'
+          ]) &&
+          (!request.resource.data.keys().hasAny(['name']) ||
+            (request.resource.data.name is string &&
+              request.resource.data.name.size() > 0 &&
+              request.resource.data.name.size() <= 100)) &&
+          (!request.resource.data.keys().hasAny(['nameEn']) ||
+            (request.resource.data.nameEn is string &&
+              request.resource.data.nameEn.size() <= 100)) &&
+          (!request.resource.data.keys().hasAny(['nameSw']) ||
+            (request.resource.data.nameSw is string &&
+              request.resource.data.nameSw.size() <= 100));
+        allow delete: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']);
+      }
+
       // ── Cash accounts & budgets ────────────────────────────────────────────
       match /cash_accounts/{accountId} {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);

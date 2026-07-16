@@ -43,6 +43,8 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
+import '../../services/receipt_pdf_service.dart';
+import '../../services/invoice_number_generator.dart';
 import 'invoice_detail_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -324,7 +326,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   elevation: 3,
                   icon: Icon(Icons.add_rounded, size: 22),
                   label: Text(
-                    _tr('New Sale', 'Mauzo Mapya'),
+                    _tr('Add Sale', 'Ongeza Mauzo'),
                     style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -448,44 +450,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   // ── Receipt utilities ──────────────────────────────────────────────────────
-
-  static Future<Map<String, String>> _loadReceiptMeta({
-    required String uid,
-    required String ownerUid,
-    required String? businessId,
-  }) async {
-    final fs = FirebaseFirestore.instance;
-    String businessName = 'Business';
-    String printedBy = 'User';
-    try {
-      final doc = await fs.collection('users').doc(uid).get();
-      final data = doc.data();
-      printedBy =
-          ((data?['displayName'] ?? data?['name']) as String?)?.trim() ??
-          'User';
-      final list = data?['businesses'];
-      if (list is List && businessId != null) {
-        for (final b in list) {
-          if (b is Map &&
-              (b['id']?.toString() ?? '') == businessId &&
-              (b['name'] as String?)?.trim().isNotEmpty == true) {
-            businessName = (b['name'] as String).trim();
-            break;
-          }
-        }
-      }
-    } catch (_) {}
-    if (businessName == 'Business' &&
-        businessId != null &&
-        businessId.isNotEmpty) {
-      try {
-        final doc = await fs.collection('businesses').doc(businessId).get();
-        final n = (doc.data()?['businessName'] as String?)?.trim();
-        if (n != null && n.isNotEmpty) businessName = n;
-      } catch (_) {}
-    }
-    return {'businessName': businessName, 'printedBy': printedBy};
-  }
 
   static String _buildReceiptText({
     required Map<String, dynamic> sale,
@@ -624,16 +588,47 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }) async {
     final scope = await resolveSalesScope(ref);
     if (scope == null) return;
-    final meta = await _loadReceiptMeta(
+    final meta = await ReceiptPdfService.loadMeta(
       uid: scope.userUid,
-      ownerUid: scope.ownerUid,
       businessId: scope.businessId,
+      createdByUid: (sale['createdBy'] ?? '').toString(),
     );
     final receipt = _buildReceiptText(
       sale: sale,
       businessName: meta['businessName'] ?? 'Business',
       printedBy: meta['printedBy'] ?? 'User',
     );
+    final businessName = meta['businessName'] ?? 'Business';
+    final printedBy = meta['printedBy'] ?? 'User';
+
+    Future<void> sharePdf() async {
+      try {
+        await ReceiptPdfService.share(
+          sale: sale,
+          businessName: businessName,
+          printedBy: printedBy,
+          isSwahili: LocalizationService.isSwahili,
+          businessPhone: meta['businessPhone'] ?? '',
+          businessEmail: meta['businessEmail'] ?? '',
+          businessAddress: meta['businessAddress'] ?? '',
+          businessLogoUrl: meta['businessLogoUrl'] ?? '',
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not create the receipt PDF. Please try again.',
+                'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+              ),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
@@ -669,41 +664,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               const Divider(height: 20, color: AppColors.border),
               _ReceiptAction(
-                icon: Icons.chat_rounded,
-                iconColor: const Color(0xFF25D366),
-                label: _tr('WhatsApp', 'WhatsApp'),
-                onTap: () async {
-                  final phone = normalizeWhatsAppPhone(
-                    (sale['customerPhone'] ?? '').toString(),
-                  );
-                  final url = phone.isEmpty
-                      ? 'https://wa.me/?text=${Uri.encodeComponent(receipt)}'
-                      : 'https://wa.me/$phone?text=${Uri.encodeComponent(receipt)}';
-                  await _launchShare(ctx, Uri.parse(url), external: true);
-                },
-              ),
-              _ReceiptAction(
-                icon: Icons.email_outlined,
-                iconColor: AppColors.tealAccent,
-                label: _tr('Email', 'Barua pepe'),
-                onTap: () async {
-                  final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
-                  // Built by hand: Uri(queryParameters:) form-encodes spaces
-                  // as '+', which email clients render literally in the body.
-                  final subject = Uri.encodeComponent(
-                    'Invoice ${sale['invoiceNumber'] ?? ''}',
-                  );
-                  final body = Uri.encodeComponent(plain);
-                  await _launchShare(
-                    ctx,
-                    Uri.parse('mailto:?subject=$subject&body=$body'),
-                  );
-                },
-              ),
-              _ReceiptAction(
                 icon: Icons.sms_outlined,
                 iconColor: AppColors.warning,
-                label: _tr('SMS', 'SMS'),
+                label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
                 onTap: () async {
                   final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
                   await _launchShare(
@@ -713,20 +676,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 },
               ),
               _ReceiptAction(
-                icon: Icons.copy_rounded,
-                iconColor: AppColors.textSecondary,
-                label: _tr('Copy Text', 'Nakili Maandishi'),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: receipt));
-                  if (!ctx.mounted) return;
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_tr('Copied.', 'Imenakiliwa.')),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                icon: Icons.picture_as_pdf_outlined,
+                iconColor: AppColors.tealAccent,
+                label: _tr('Share PDF', 'Shiriki PDF'),
+                onTap: sharePdf,
               ),
             ],
           ),
@@ -1630,8 +1583,8 @@ class _EmptySalesState extends StatelessWidget {
         Icons.receipt_long_outlined,
         _tr('Your first sale is waiting!', 'Mauzo yako ya kwanza yanangoja!'),
         _tr(
-          'Tap New Sale to record a payment.',
-          'Bonyeza Mauzo Mapya kurekodi malipo.',
+          'Tap Add Sale to record a payment.',
+          'Bonyeza Ongeza Mauzo kurekodi malipo.',
         ),
       ),
     };
@@ -2218,8 +2171,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     try {
       final now = DateTime.now();
       final invoiceId = const Uuid().v4();
-      final invoiceNumber =
-          'INV-${now.year}${now.month.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
+      final invoiceNumber = InvoiceNumberGenerator.create(now: now);
       final statusStr = payStatus == _PayStatus.paid
           ? 'paid'
           : payStatus == _PayStatus.partial
@@ -2264,6 +2216,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           )
           .toList();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not logged in');
       final invoiceObj = Invoice(
         id: invoiceId,
         customerId: _selectedCustomer?.id ?? '',
@@ -2286,17 +2240,18 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             : '',
         items: invoiceItems,
         note: notes,
+        createdBy: user.uid,
         createdAt: now.toIso8601String(),
         updatedAt: now.toIso8601String(),
       );
 
-      // Offline: commit the sale to Drift + the sync queue instead of the
-      // Firestore batch (whose commit() would never resolve without a
-      // connection). SyncService pushes everything when connectivity returns.
-      if (!await OnlineGuard.isDeviceOnline()) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) throw Exception('Not logged in');
-
+      // The active business is already cached locally. Commit through Drift +
+      // the sync queue whether online or offline; SyncService handles the
+      // Firestore write. This avoids maintaining a second direct-Firestore
+      // sale path with different permissions and failure behavior.
+      final localBusinessId =
+          ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+      if (localBusinessId.isNotEmpty) {
         await ref.read(invoiceRepositoryProvider).save(invoiceObj);
 
         // Stock deductions as deltas so concurrent sessions compose on push.
@@ -2351,6 +2306,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           );
         }
 
+        // Online sessions can start pushing immediately. This is intentionally
+        // unawaited: the local transaction is the successful sale commit.
+        unawaited(ref.read(syncServiceProvider).syncNow());
+
         await _showQuickSaleReceipt(
           invoiceNumber: invoiceNumber,
           customerName: customerName,
@@ -2390,6 +2349,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         if (_selectedCustomer != null) ...{
           'customerId': _selectedCustomer!.id,
           'customerPhone': _selectedCustomer!.phone,
+          if (_selectedCustomer!.email.isNotEmpty)
+            'customerEmail': _selectedCustomer!.email,
           'isOrganisation': _selectedCustomer!.isOrganisation,
           if (_selectedCustomer!.tinNumber.isNotEmpty)
             'customerTin': _selectedCustomer!.tinNumber,
@@ -2587,13 +2548,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     required String statusStr,
     required DateTime now,
   }) async {
-    SentryMetricsService.salesCreated(amount: _grandTotal, status: statusStr);
+    // Record the feature event only. Financial amounts must never be sent to
+    // analytics or crash-reporting providers.
+    SentryMetricsService.salesCreated(status: statusStr);
 
     // Build a plain data map for the receipt popup — no server timestamps,
     // just the values we already have in memory.
     final saleReceipt = <String, dynamic>{
       'invoiceNumber': invoiceNumber,
       'customerName': customerName,
+      if (_selectedCustomer != null) ...{
+        'customerPhone': _selectedCustomer!.phone,
+        if (_selectedCustomer!.email.isNotEmpty)
+          'customerEmail': _selectedCustomer!.email,
+      },
       'items': itemsData,
       'subtotal': _subtotal,
       'discountAmount': _discountAmt,
@@ -2605,6 +2573,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       if (payStatus != _PayStatus.unpaid) 'paymentMethod': _paymentMethodValue,
       if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
       'status': statusStr,
+      'createdBy': FirebaseAuth.instance.currentUser?.uid ?? '',
       'createdAt': now,
     };
 
@@ -2679,7 +2648,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         children: [
           Expanded(
             child: Text(
-              _tr('New Sale', 'Mauzo Mapya'),
+              _tr('Add Sale', 'Ongeza Mauzo'),
               style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,

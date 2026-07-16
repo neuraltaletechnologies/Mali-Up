@@ -11,12 +11,14 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
@@ -25,6 +27,13 @@ import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+int _businessLimitFor(PlanTier tier, PlanDefinitions? definitions) {
+  // Multiple businesses are a Business/Enterprise feature. Keep this rule
+  // deterministic even before remote plan definitions finish loading.
+  if (tier == PlanTier.starter || tier == PlanTier.growth) return 1;
+  return limitsFor(tier, definitions).maxBusinesses;
+}
 
 class ManageBusinessesScreen extends ConsumerStatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -41,8 +50,10 @@ class _ManageBusinessesScreenState
   final _searchCtrl = TextEditingController();
   bool _searchExpanded = false;
 
-  List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
-  List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
+  List<Map<String, dynamic>> _businessTypes =
+      LookupService.defaultBusinessTypes;
+  List<Map<String, String>> _tanzaniaCities =
+      LookupService.defaultTanzaniaCities;
   Map<String, List<String>> _districts = LookupService.defaultDistricts;
 
   @override
@@ -81,18 +92,21 @@ class _ManageBusinessesScreenState
   /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
   /// admin-editable), not hardcoded.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
-    final tier = ref.read(planStatusProvider).valueOrNull?.tier ??
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+    final tier =
+        ref.read(planStatusProvider).valueOrNull?.tier ??
         PlanTierX.fromString(profile?['plan'] as String?);
     final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
+    final maxBusinesses = _businessLimitFor(tier, defs);
     final currentCount = _businessesFromProfile(profile).length;
     if (maxBusinesses != -1 && currentCount >= maxBusinesses) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
         triggerReason: _tr(
-          'Managing multiple businesses is available on Growth, Business, and Enterprise plans.',
-          'Usimamizi wa biashara nyingi unapatikana kwenye mipango ya Growth, Business, na Enterprise.',
+          'Multiple businesses are available on Business and Enterprise plans.',
+          'Biashara nyingi zinapatikana kwenye mipango ya Business na Enterprise.',
         ),
       );
       return;
@@ -106,7 +120,8 @@ class _ManageBusinessesScreenState
     final dot = path.lastIndexOf('.');
     if (dot <= -1 || dot >= path.length - 1) return '.jpg';
     final ext = path.substring(dot).toLowerCase();
-    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp') return ext;
+    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp')
+      return ext;
     return '.jpg';
   }
 
@@ -172,7 +187,9 @@ class _ManageBusinessesScreenState
       if (projectId.isNotEmpty) '$projectId.firebasestorage.app',
     };
     for (final bucket in fallbackBuckets) {
-      attempts.add(MapEntry(bucket, FirebaseStorage.instanceFor(bucket: 'gs://$bucket')));
+      attempts.add(
+        MapEntry(bucket, FirebaseStorage.instanceFor(bucket: 'gs://$bucket')),
+      );
     }
 
     FirebaseException? lastFirebaseError;
@@ -187,12 +204,15 @@ class _ManageBusinessesScreenState
           throw FirebaseException(
             plugin: 'firebase_storage',
             code: 'upload-failed',
-            message: 'Upload did not complete successfully (state: ${snapshot.state})',
+            message:
+                'Upload did not complete successfully (state: ${snapshot.state})',
           );
         }
       } on FirebaseException catch (e) {
         lastFirebaseError = e;
-        debugPrint('Logo upload failed on ${attempt.key}: code=${e.code}, message=${e.message}');
+        debugPrint(
+          'Logo upload failed on ${attempt.key}: code=${e.code}, message=${e.message}',
+        );
         if (!_isBucketResolutionError(e)) rethrow;
       } catch (e, st) {
         debugPrint('Unexpected upload error on ${attempt.key}: $e\n$st');
@@ -228,61 +248,63 @@ class _ManageBusinessesScreenState
             .get(const GetOptions()),
       ]);
       final userSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
-      final bizSnap  = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final bizSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
 
-      final profile  = userSnap.data() ?? {};
-      profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final profile = userSnap.data() ?? {};
+      profile['businesses'] = bizSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+      await BusinessProfileService.cacheProfile(user.uid, profile);
       return profile;
     } catch (_) {
-      try {
-        final userSnap = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.cache));
-        final bizSnap = await _firestore
-            .collection('businesses')
-            .where('ownerUid', isEqualTo: user.uid)
-            .get(const GetOptions(source: Source.cache));
-        final profile = userSnap.data() ?? {};
-        profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-        return profile;
-      } catch (_) {
-        return null;
-      }
+      return BusinessProfileService.loadCachedProfile(user.uid);
     }
   }
 
-  List<Map<String, dynamic>> _businessesFromProfile(Map<String, dynamic>? profile) {
+  List<Map<String, dynamic>> _businessesFromProfile(
+    Map<String, dynamic>? profile,
+  ) {
     final raw = profile?['businesses'];
     if (raw is! List) return const [];
     return raw
         .whereType<Map>()
-        .map((entry) => <String, dynamic>{
-              'id': (entry['id'] as String?)?.trim() ?? '',
-              'name': ((entry['businessName'] as String?)?.trim().isNotEmpty == true
-                  ? entry['businessName'] as String
-                  : (entry['name'] as String?)?.trim()) ?? '',
-              'category': ((entry['businessCategory'] as String?)?.trim().isNotEmpty == true
-                  ? entry['businessCategory'] as String
-                  : (entry['category'] as String?)?.trim()) ?? '',
-              'placeOfBusiness': (entry['city'] as String?)?.trim() ??
-                  (entry['placeOfBusiness'] as String?)?.trim() ?? '',
-              'district': (entry['district'] as String?)?.trim() ?? '',
-              'phone': (entry['phone'] as String?)?.trim() ?? '',
-              'logoUrl': (entry['logoUrl'] as String?)?.trim() ?? '',
-              'workingHours': (entry['workingHours'] as String?)?.trim() ?? '',
-              'facebook': (entry['facebook'] as String?)?.trim() ?? '',
-              'instagram': (entry['instagram'] as String?)?.trim() ?? '',
-              'tiktok': (entry['tiktok'] as String?)?.trim() ?? '',
-              'websiteUrl': ((entry['websiteUrl'] as String?)?.trim().isNotEmpty == true
-                  ? entry['websiteUrl'] as String
-                  : (entry['website'] as String?)?.trim()) ?? '',
-              'hasWebsite': (entry['hasWebsite'] as bool?) ?? false,
-              'websiteInterest': (entry['websiteInterest'] as bool?) ?? false,
-              'website': (entry['website'] as String?)?.trim() ?? '',
-              'x': (entry['x'] as String?)?.trim() ?? '',
-              'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
-            })
+        .map(
+          (entry) => <String, dynamic>{
+            'id': (entry['id'] as String?)?.trim() ?? '',
+            'name':
+                ((entry['businessName'] as String?)?.trim().isNotEmpty == true
+                    ? entry['businessName'] as String
+                    : (entry['name'] as String?)?.trim()) ??
+                '',
+            'category':
+                ((entry['businessCategory'] as String?)?.trim().isNotEmpty ==
+                        true
+                    ? entry['businessCategory'] as String
+                    : (entry['category'] as String?)?.trim()) ??
+                '',
+            'placeOfBusiness':
+                (entry['city'] as String?)?.trim() ??
+                (entry['placeOfBusiness'] as String?)?.trim() ??
+                '',
+            'district': (entry['district'] as String?)?.trim() ?? '',
+            'phone': (entry['phone'] as String?)?.trim() ?? '',
+            'logoUrl': (entry['logoUrl'] as String?)?.trim() ?? '',
+            'workingHours': (entry['workingHours'] as String?)?.trim() ?? '',
+            'facebook': (entry['facebook'] as String?)?.trim() ?? '',
+            'instagram': (entry['instagram'] as String?)?.trim() ?? '',
+            'tiktok': (entry['tiktok'] as String?)?.trim() ?? '',
+            'websiteUrl':
+                ((entry['websiteUrl'] as String?)?.trim().isNotEmpty == true
+                    ? entry['websiteUrl'] as String
+                    : (entry['website'] as String?)?.trim()) ??
+                '',
+            'hasWebsite': (entry['hasWebsite'] as bool?) ?? false,
+            'websiteInterest': (entry['websiteInterest'] as bool?) ?? false,
+            'website': (entry['website'] as String?)?.trim() ?? '',
+            'x': (entry['x'] as String?)?.trim() ?? '',
+            'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
+          },
+        )
         .where((entry) => (entry['id'] as String).isNotEmpty)
         .toList();
   }
@@ -310,6 +332,8 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile,
     Map<String, dynamic> business,
   ) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -318,10 +342,12 @@ class _ManageBusinessesScreenState
       context: context,
       builder: (c) => AlertDialog(
         title: Text(_tr('Delete business?', 'Futa biashara?')),
-        content: Text(_tr(
-          'This will remove the business from your profile. Any data stored under it will remain in Firestore unless cleaned up separately.',
-          'Hii itaiondoa biashara kwenye wasifu wako. Taarifa zake zitaendelea kuwepo Firestore hadi zisafishwe tofauti.',
-        )),
+        content: Text(
+          _tr(
+            'This will remove the business from your profile. Any data stored under it will remain in Firestore unless cleaned up separately.',
+            'Hii itaiondoa biashara kwenye wasifu wako. Taarifa zake zitaendelea kuwepo Firestore hadi zisafishwe tofauti.',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(c).pop(false),
@@ -348,7 +374,10 @@ class _ManageBusinessesScreenState
 
     await Future.wait([
       _firestore.collection('businesses').doc(businessId).delete(),
-      _persistSelectedBusiness(userId: user.uid, selectedBusinessId: newActiveId),
+      _persistSelectedBusiness(
+        userId: user.uid,
+        selectedBusinessId: newActiveId,
+      ),
     ]);
 
     if (!mounted) return;
@@ -372,78 +401,108 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile, {
     Map<String, dynamic>? business,
   }) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final isEditing = business != null;
     final businessId = business?['id'] as String?;
 
-    final nameCtrl    = TextEditingController(text: (business?['name'] as String?) ?? '');
-    final websiteCtrl = TextEditingController(text: (business?['websiteUrl'] as String?) ?? '');
+    final nameCtrl = TextEditingController(
+      text: (business?['name'] as String?) ?? '',
+    );
+    final websiteCtrl = TextEditingController(
+      text: (business?['websiteUrl'] as String?) ?? '',
+    );
 
     String selectedType = () {
       final stored = (business?['category'] as String?) ?? '';
-      return _businessTypes.any((t) => t['value'] == stored) ? stored : (_businessTypes.isNotEmpty ? _businessTypes.first['value'] as String : 'retail');
+      return _businessTypes.any((t) => t['value'] == stored)
+          ? stored
+          : (_businessTypes.isNotEmpty
+                ? _businessTypes.first['value'] as String
+                : 'retail');
     }();
     String? selectedCity = (business?['placeOfBusiness'] as String?)?.trim();
-    if (selectedCity != null && !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
+    if (selectedCity != null &&
+        !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
       selectedCity = null;
     }
     String? selectedDistrict = (business?['district'] as String?)?.trim();
-    if (selectedDistrict != null && (selectedCity == null || !(_districts[selectedCity] ?? []).contains(selectedDistrict))) {
+    if (selectedDistrict != null &&
+        (selectedCity == null ||
+            !(_districts[selectedCity] ?? []).contains(selectedDistrict))) {
       selectedDistrict = null;
     }
 
-    File?  pickedLogoFile;
-    final  existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
+    File? pickedLogoFile;
+    final existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
 
     final result = await showAppSheet<bool>(
       context,
       builder: (sheetCtx) {
-        bool   localSaving     = false;
-        bool   websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
+        bool localSaving = false;
+        bool websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
 
         return StatefulBuilder(
           builder: (dlgCtx, setS) {
             final currentName = nameCtrl.text.trim();
-            final initial     = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
+            final initial = currentName.isNotEmpty
+                ? currentName[0].toUpperCase()
+                : 'B';
 
-            InputDecoration fieldDeco({required String label, String? hint, required IconData icon}) =>
-                InputDecoration(
-                  labelText: label,
-                  hintText: hint,
-                  prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: AppColors.navyPrimary.withValues(alpha: 0.4),
-                      width: 1.5,
-                    ),
-                  ),
-                  labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                );
+            InputDecoration fieldDeco({
+              required String label,
+              String? hint,
+              required IconData icon,
+            }) => InputDecoration(
+              labelText: label,
+              hintText: hint,
+              prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              labelStyle: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            );
 
             return Container(
               decoration: const BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
                 ],
               ),
               child: SafeArea(
                 top: false,
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
-                    24, 20, 24,
+                    24,
+                    20,
+                    24,
                     MediaQuery.viewInsetsOf(dlgCtx).bottom + 24,
                   ),
                   child: Column(
@@ -464,441 +523,587 @@ class _ManageBusinessesScreenState
                       ),
                       const SizedBox(height: 16),
 
-                          // ── Header ────────────────────────────────────────
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppColors.navyPrimary,
-                                  borderRadius: BorderRadius.circular(13),
-                                ),
-                                child: Icon(
-                                  isEditing ? Icons.edit_rounded : Icons.add_business_rounded,
-                                  color: AppColors.yellowBrand,
-                                  size: 22,
-                                ),
-                              ),
-                              SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isEditing
-                                          ? _tr('Edit business', 'Hariri biashara')
-                                          : _tr('Add new business', 'Ongeza biashara mpya'),
-                                      style: GoogleFonts.dmSans(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.navyPrimary,
-                                        letterSpacing: -0.3,
-                                        height: 1.2,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      isEditing
-                                          ? _tr('Update your business profile.', 'Sasisha wasifu wa biashara yako.')
-                                          : _tr('Fill in the details below to get started.', 'Jaza maelezo hapa chini kuanza.'),
-                                      style: GoogleFonts.dmSans(
-                                        fontSize: 12,
-                                        color: AppColors.textMuted,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 28),
-
-                          // ── Logo picker ───────────────────────────────────
-                          Center(
-                            child: GestureDetector(
-                              onTap: () async {
-                                final picker = ImagePicker();
-                                final picked = await picker.pickImage(
-                                  source: ImageSource.gallery,
-                                  maxWidth: 512,
-                                  maxHeight: 512,
-                                  imageQuality: 85,
-                                );
-                                if (picked != null && dlgCtx.mounted) {
-                                  setS(() => pickedLogoFile = File(picked.path));
-                                }
-                              },
-                              child: Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  Container(
-                                    width: 90,
-                                    height: 90,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppColors.yellowBrand,
-                                      border: Border.all(color: AppColors.border, width: 2.5),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: pickedLogoFile != null
-                                        ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
-                                        : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
-                                            ? Image.network(
-                                                existingLogoUrl,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
-                                              )
-                                            : _LogoInitial(initial: initial)),
-                                  ),
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.navyPrimary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
-                                    ),
-                                    child: const Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.yellowBrand),
-                                  ),
-                                ],
-                              ),
+                      // ── Header ────────────────────────────────────────
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.navyPrimary,
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(
+                              isEditing
+                                  ? Icons.edit_rounded
+                                  : Icons.add_business_rounded,
+                              color: AppColors.yellowBrand,
+                              size: 22,
                             ),
                           ),
-                          const SizedBox(height: 28),
-
-                          // Business name
-                          TextField(
-                            controller: nameCtrl,
-                            onChanged: (_) => setS(() {}),
-                            style: GoogleFonts.dmSans(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: _tr('Business name *', 'Jina la biashara *'),
-                              hint: _tr("e.g. Mama Lucy's Shop", 'mfano Duka la Mama Lucy'),
-                              icon: Icons.storefront_outlined,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // ── Business type ─────────────────────────────────
-                          _FormSectionLabel(label: _tr('Business type', 'Aina ya biashara')),
-                          const SizedBox(height: 8),
-                          _FormTapSelector(
-                            icon: () {
-                              final t = _businessTypes.firstWhere(
-                                (t) => t['value'] == selectedType,
-                                orElse: () => _businessTypes.isNotEmpty ? _businessTypes.first : {'icon': Icons.category},
-                              );
-                              final raw = t['icon'];
-                              if (raw is IconData) return raw;
-                              if (raw is String) return LookupService.iconFromName(raw);
-                              return Icons.category_rounded;
-                            }(),
-                            value: () {
-                              final t = _businessTypes.firstWhere(
-                                (t) => t['value'] == selectedType,
-                                orElse: () => _businessTypes.isNotEmpty ? _businessTypes.first : {'en': '', 'sw': ''},
-                              );
-                              return _tr(t['en'] as String, t['sw'] as String);
-                            }(),
-                            placeholder: _tr('Select business type', 'Chagua aina ya biashara'),
-                            hasValue: true,
-                            onTap: () async {
-                              final picked = await showAppSheet<String>(
-                                dlgCtx,
-                                builder: (_) => _BizTypePickerSheet(
-                                  types: _businessTypes,
-                                  selectedValue: selectedType,
-                                  tr: _tr,
-                                ),
-                              );
-                              if (picked != null && dlgCtx.mounted) {
-                                setS(() => selectedType = picked);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 24),
-
-                          // ── Business location ─────────────────────────────
-                          _FormSectionLabel(label: _tr('Business location', 'Mahali pa biashara')),
-                          SizedBox(height: 4),
-                          Text(
-                            _tr(
-                              'Helps customers and reports stay accurate.',
-                              'Husaidia wateja na ripoti kuwa sahihi.',
-                            ),
-                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 12),
-                          _FormTapSelector(
-                            icon: Icons.location_on_outlined,
-                            value: selectedCity == null ? null : () {
-                              final city = _tanzaniaCities.firstWhere(
-                                (c) => c['en'] == selectedCity,
-                                orElse: () => _tanzaniaCities.isNotEmpty ? _tanzaniaCities.first : {'en': '', 'sw': ''},
-                              );
-                              return _tr(city['en']!, city['sw']!);
-                            }(),
-                            placeholder: _tr('Select city / region *', 'Chagua mji / mkoa *'),
-                            hasValue: selectedCity != null,
-                            onTap: () async {
-                              final picked = await showAppSheet<String>(
-                                dlgCtx,
-                                builder: (_) => _CityPickerSheet(
-                                  cities: _tanzaniaCities,
-                                  selectedValue: selectedCity,
-                                  tr: _tr,
-                                ),
-                              );
-                              if (picked != null && dlgCtx.mounted) {
-                                setS(() {
-                                  selectedCity = picked;
-                                  selectedDistrict = null;
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          _FormTapSelector(
-                            icon: Icons.location_city_outlined,
-                            value: selectedDistrict,
-                            placeholder: selectedCity == null
-                                ? _tr('Select city first', 'Chagua mji kwanza')
-                                : _tr('Select district (optional)', 'Chagua wilaya (hiari)'),
-                            hasValue: selectedDistrict != null,
-                            onTap: selectedCity == null
-                                ? () {}
-                                : () async {
-                                    final districts = _districts[selectedCity] ?? [];
-                                    if (districts.isEmpty) return;
-                                    final picked = await showAppSheet<String>(
-                                      dlgCtx,
-                                      builder: (_) => _DistrictPickerSheet(
-                                        districts: districts,
-                                        selectedValue: selectedDistrict,
-                                        tr: _tr,
-                                      ),
-                                    );
-                                    if (picked != null && dlgCtx.mounted) {
-                                      setS(() => selectedDistrict = picked);
-                                    }
-                                  },
-                            disabled: selectedCity == null,
-                          ),
-                          const SizedBox(height: 24),
-
-                          // ── Online presence ───────────────────────────────
-                          _FormSectionLabel(label: _tr('Online presence', 'Uwepo wa mtandao')),
-                          SizedBox(height: 4),
-                          Text(
-                            _tr(
-                              'Add your website if you have one (optional).',
-                              'Ongeza tovuti yako kama una moja (si lazima).',
-                            ),
-                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
-                          ),
-                          SizedBox(height: 12),
-                          TextField(
-                            controller: websiteCtrl,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            style: GoogleFonts.dmSans(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: _tr('Business website (optional)', 'Tovuti ya biashara (hiari)'),
-                              hint: 'https://mybusiness.com',
-                              icon: Icons.language_rounded,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // "Build me my website" checkbox
-                          GestureDetector(
-                            onTap: () => setS(() => websiteInterest = !websiteInterest),
-                            behavior: HitTestBehavior.opaque,
-                            child: Row(
+                          SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: Checkbox(
-                                    value: websiteInterest,
-                                    onChanged: (v) => setS(() => websiteInterest = v ?? false),
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    activeColor: AppColors.navyPrimary,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                    side: const BorderSide(color: AppColors.border, width: 1.5),
+                                Text(
+                                  isEditing
+                                      ? _tr('Edit business', 'Hariri biashara')
+                                      : _tr(
+                                          'Add new business',
+                                          'Ongeza biashara mpya',
+                                        ),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.navyPrimary,
+                                    letterSpacing: -0.3,
+                                    height: 1.2,
                                   ),
                                 ),
-                                SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    _tr('Build me my website', 'Nitengenezee Tovuti Yangu'),
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 13,
-                                      color: AppColors.textMuted,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                SizedBox(height: 2),
+                                Text(
+                                  isEditing
+                                      ? _tr(
+                                          'Update your business profile.',
+                                          'Sasisha wasifu wa biashara yako.',
+                                        )
+                                      : _tr(
+                                          'Fill in the details below to get started.',
+                                          'Jaza maelezo hapa chini kuanza.',
+                                        ),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    height: 1.4,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 32),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
 
-                          // ── Delete (edit mode only) ────────────────────────
-                          if (isEditing) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.error,
-                                  side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () async {
-                                  final nameConfirmCtrl = TextEditingController();
-                                  final bizName = (business['name'] as String?)?.trim() ?? '';
-                                  final confirmed = await showDialog<bool>(
-                                    context: dlgCtx,
-                                    barrierDismissible: false,
-                                    builder: (c) => StatefulBuilder(
-                                      builder: (sc, ss) => AlertDialog(
-                                        title: Text(_tr('Confirm deletion', 'Thibitisha kufuta')),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(_tr(
-                                              'Type the business name to confirm permanent deletion.',
-                                              'Andika jina la biashara kuthibitisha ufutaji.',
-                                            )),
-                                            const SizedBox(height: 12),
-                                            TextField(
-                                              controller: nameConfirmCtrl,
-                                              decoration: InputDecoration(hintText: bizName),
-                                              onChanged: (_) => ss(() {}),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.of(c).pop(false),
-                                            child: Text(_tr('Cancel', 'Ghairi')),
-                                          ),
-                                          TextButton(
-                                            onPressed: nameConfirmCtrl.text.trim() == bizName
-                                                ? () => Navigator.of(c).pop(true)
-                                                : null,
-                                            child: Text(
-                                              _tr('Delete permanently', 'Futa kudumu'),
-                                              style: GoogleFonts.dmSans(color: Colors.redAccent),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                  if (confirmed == true) {
-                                    if (dlgCtx.mounted) Navigator.of(dlgCtx).pop(false);
-                                    await _deleteBusiness(profile, business);
-                                  }
-                                },
-                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                                label: Text(_tr('Delete business', 'Futa biashara')),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // ── Cancel / Save ─────────────────────────────────
-                          Row(
+                      // ── Logo picker ───────────────────────────────────
+                      Center(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final picked = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 512,
+                              maxHeight: 512,
+                              imageQuality: 85,
+                            );
+                            if (picked != null && dlgCtx.mounted) {
+                              setS(() => pickedLogoFile = File(picked.path));
+                            }
+                          },
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
                             children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    foregroundColor: AppColors.navyPrimary,
-                                    side: const BorderSide(color: AppColors.border),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.yellowBrand,
+                                  border: Border.all(
+                                    color: AppColors.border,
+                                    width: 2.5,
                                   ),
-                                  onPressed: localSaving ? null : () => Navigator.of(dlgCtx).pop(false),
-                                  child: Text(_tr('Cancel', 'Ghairi')),
                                 ),
+                                clipBehavior: Clip.antiAlias,
+                                child: pickedLogoFile != null
+                                    ? Image.file(
+                                        pickedLogoFile!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : (existingLogoUrl != null &&
+                                              existingLogoUrl.isNotEmpty
+                                          ? Image.network(
+                                              existingLogoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  _LogoInitial(
+                                                    initial: initial,
+                                                  ),
+                                            )
+                                          : _LogoInitial(initial: initial)),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.navyPrimary,
-                                    elevation: 3,
-                                    shadowColor: AppColors.primary.withValues(alpha: 0.35),
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: AppColors.navyPrimary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
                                   ),
-                                  onPressed: localSaving
-                                      ? null
-                                      : () async {
-                                          setS(() => localSaving = true);
-                                          final saved = await _saveBusinessForm(
-                                            profile: profile,
-                                            businessId: businessId,
-                                            name: nameCtrl.text.trim(),
-                                            category: selectedType,
-                                            place: selectedCity ?? '',
-                                            district: selectedDistrict ?? '',
-                                            phone: (business?['phone'] as String?) ?? '',
-                                            workingHours: (business?['workingHours'] as String?) ?? '',
-                                            websiteUrl: websiteCtrl.text.trim(),
-                                            websiteInterest: websiteInterest,
-                                            facebook: (business?['facebook'] as String?) ?? '',
-                                            instagram: (business?['instagram'] as String?) ?? '',
-                                            tiktok: (business?['tiktok'] as String?) ?? '',
-                                            existingBusiness: business,
-                                            pickedLogoFile: pickedLogoFile,
-                                            existingLogoUrl: existingLogoUrl,
-                                          );
-                                          if (!mounted) return;
-                                          // Delay the pop by one post-frame callback.
-                                          // The Firestore write triggers a Riverpod
-                                          // provider cascade (currentBusinessIdProvider
-                                          // → syncServiceProvider → MainShellPage)
-                                          // that schedules widget rebuilds. If the pop
-                                          // starts in the same frame those rebuilds are
-                                          // processed, an InheritedElement is deactivated
-                                          // while the sheet's elements are still
-                                          // registered as dependents → _dependents.isEmpty
-                                          // assertion. Deferring to the next frame lets
-                                          // those rebuilds flush cleanly first.
-                                          if (saved) {
-                                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                                              if (dlgCtx.mounted) Navigator.of(dlgCtx).pop(true);
-                                            });
-                                          } else if (dlgCtx.mounted) {
-                                            setS(() => localSaving = false);
-                                          }
-                                        },
-                                  child: localSaving
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.navyPrimary,
-                                          ),
-                                        )
-                                      : Text(
-                                          isEditing
-                                              ? _tr('Save changes', 'Hifadhi mabadiliko')
-                                              : _tr('Add business', 'Ongeza biashara'),
-                                          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 15),
-                                        ),
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 14,
+                                  color: AppColors.yellowBrand,
                                 ),
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Business name
+                      TextField(
+                        controller: nameCtrl,
+                        onChanged: (_) => setS(() {}),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          color: AppColors.navyPrimary,
+                        ),
+                        decoration: fieldDeco(
+                          label: _tr('Business name *', 'Jina la biashara *'),
+                          hint: _tr(
+                            "e.g. Mama Lucy's Shop",
+                            'mfano Duka la Mama Lucy',
+                          ),
+                          icon: Icons.storefront_outlined,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Business type ─────────────────────────────────
+                      _FormSectionLabel(
+                        label: _tr('Business type', 'Aina ya biashara'),
+                      ),
+                      const SizedBox(height: 8),
+                      _FormTapSelector(
+                        icon: () {
+                          final t = _businessTypes.firstWhere(
+                            (t) => t['value'] == selectedType,
+                            orElse: () => _businessTypes.isNotEmpty
+                                ? _businessTypes.first
+                                : {'icon': Icons.category},
+                          );
+                          final raw = t['icon'];
+                          if (raw is IconData) return raw;
+                          if (raw is String)
+                            return LookupService.iconFromName(raw);
+                          return Icons.category_rounded;
+                        }(),
+                        value: () {
+                          final t = _businessTypes.firstWhere(
+                            (t) => t['value'] == selectedType,
+                            orElse: () => _businessTypes.isNotEmpty
+                                ? _businessTypes.first
+                                : {'en': '', 'sw': ''},
+                          );
+                          return _tr(t['en'] as String, t['sw'] as String);
+                        }(),
+                        placeholder: _tr(
+                          'Select business type',
+                          'Chagua aina ya biashara',
+                        ),
+                        hasValue: true,
+                        onTap: () async {
+                          final picked = await showAppSheet<String>(
+                            dlgCtx,
+                            builder: (_) => _BizTypePickerSheet(
+                              types: _businessTypes,
+                              selectedValue: selectedType,
+                              tr: _tr,
+                            ),
+                          );
+                          if (picked != null && dlgCtx.mounted) {
+                            setS(() => selectedType = picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Business location ─────────────────────────────
+                      _FormSectionLabel(
+                        label: _tr('Business location', 'Mahali pa biashara'),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _tr(
+                          'Helps customers and reports stay accurate.',
+                          'Husaidia wateja na ripoti kuwa sahihi.',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _FormTapSelector(
+                        icon: Icons.location_on_outlined,
+                        value: selectedCity == null
+                            ? null
+                            : () {
+                                final city = _tanzaniaCities.firstWhere(
+                                  (c) => c['en'] == selectedCity,
+                                  orElse: () => _tanzaniaCities.isNotEmpty
+                                      ? _tanzaniaCities.first
+                                      : {'en': '', 'sw': ''},
+                                );
+                                return _tr(city['en']!, city['sw']!);
+                              }(),
+                        placeholder: _tr(
+                          'Select city / region *',
+                          'Chagua mji / mkoa *',
+                        ),
+                        hasValue: selectedCity != null,
+                        onTap: () async {
+                          final picked = await showAppSheet<String>(
+                            dlgCtx,
+                            builder: (_) => _CityPickerSheet(
+                              cities: _tanzaniaCities,
+                              selectedValue: selectedCity,
+                              tr: _tr,
+                            ),
+                          );
+                          if (picked != null && dlgCtx.mounted) {
+                            setS(() {
+                              selectedCity = picked;
+                              selectedDistrict = null;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _FormTapSelector(
+                        icon: Icons.location_city_outlined,
+                        value: selectedDistrict,
+                        placeholder: selectedCity == null
+                            ? _tr('Select city first', 'Chagua mji kwanza')
+                            : _tr(
+                                'Select district (optional)',
+                                'Chagua wilaya (hiari)',
+                              ),
+                        hasValue: selectedDistrict != null,
+                        onTap: selectedCity == null
+                            ? () {}
+                            : () async {
+                                final districts =
+                                    _districts[selectedCity] ?? [];
+                                if (districts.isEmpty) return;
+                                final picked = await showAppSheet<String>(
+                                  dlgCtx,
+                                  builder: (_) => _DistrictPickerSheet(
+                                    districts: districts,
+                                    selectedValue: selectedDistrict,
+                                    tr: _tr,
+                                  ),
+                                );
+                                if (picked != null && dlgCtx.mounted) {
+                                  setS(() => selectedDistrict = picked);
+                                }
+                              },
+                        disabled: selectedCity == null,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Online presence ───────────────────────────────
+                      _FormSectionLabel(
+                        label: _tr('Online presence', 'Uwepo wa mtandao'),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _tr(
+                          'Add your website if you have one (optional).',
+                          'Ongeza tovuti yako kama una moja (si lazima).',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: websiteCtrl,
+                        keyboardType: TextInputType.url,
+                        autocorrect: false,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          color: AppColors.navyPrimary,
+                        ),
+                        decoration: fieldDeco(
+                          label: _tr(
+                            'Business website (optional)',
+                            'Tovuti ya biashara (hiari)',
+                          ),
+                          hint: 'https://mybusiness.com',
+                          icon: Icons.language_rounded,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // "Build me my website" checkbox
+                      GestureDetector(
+                        onTap: () =>
+                            setS(() => websiteInterest = !websiteInterest),
+                        behavior: HitTestBehavior.opaque,
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Checkbox(
+                                value: websiteInterest,
+                                onChanged: (v) =>
+                                    setS(() => websiteInterest = v ?? false),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                activeColor: AppColors.navyPrimary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                side: const BorderSide(
+                                  color: AppColors.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _tr(
+                                  'Build me my website',
+                                  'Nitengenezee Tovuti Yangu',
+                                ),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // ── Delete (edit mode only) ────────────────────────
+                      if (isEditing) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: BorderSide(
+                                color: AppColors.error.withValues(alpha: 0.3),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () async {
+                              final nameConfirmCtrl = TextEditingController();
+                              final bizName =
+                                  (business['name'] as String?)?.trim() ?? '';
+                              final confirmed = await showDialog<bool>(
+                                context: dlgCtx,
+                                barrierDismissible: false,
+                                builder: (c) => StatefulBuilder(
+                                  builder: (sc, ss) => AlertDialog(
+                                    title: Text(
+                                      _tr(
+                                        'Confirm deletion',
+                                        'Thibitisha kufuta',
+                                      ),
+                                    ),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _tr(
+                                            'Type the business name to confirm permanent deletion.',
+                                            'Andika jina la biashara kuthibitisha ufutaji.',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        TextField(
+                                          controller: nameConfirmCtrl,
+                                          decoration: InputDecoration(
+                                            hintText: bizName,
+                                          ),
+                                          onChanged: (_) => ss(() {}),
+                                        ),
+                                      ],
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(c).pop(false),
+                                        child: Text(_tr('Cancel', 'Ghairi')),
+                                      ),
+                                      TextButton(
+                                        onPressed:
+                                            nameConfirmCtrl.text.trim() ==
+                                                bizName
+                                            ? () => Navigator.of(c).pop(true)
+                                            : null,
+                                        child: Text(
+                                          _tr(
+                                            'Delete permanently',
+                                            'Futa kudumu',
+                                          ),
+                                          style: GoogleFonts.dmSans(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                              if (confirmed == true) {
+                                if (dlgCtx.mounted)
+                                  Navigator.of(dlgCtx).pop(false);
+                                await _deleteBusiness(profile, business);
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
+                            label: Text(
+                              _tr('Delete business', 'Futa biashara'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // ── Cancel / Save ─────────────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                foregroundColor: AppColors.navyPrimary,
+                                side: const BorderSide(color: AppColors.border),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: localSaving
+                                  ? null
+                                  : () => Navigator.of(dlgCtx).pop(false),
+                              child: Text(_tr('Cancel', 'Ghairi')),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.navyPrimary,
+                                elevation: 3,
+                                shadowColor: AppColors.primary.withValues(
+                                  alpha: 0.35,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: localSaving
+                                  ? null
+                                  : () async {
+                                      setS(() => localSaving = true);
+                                      final saved = await _saveBusinessForm(
+                                        profile: profile,
+                                        businessId: businessId,
+                                        name: nameCtrl.text.trim(),
+                                        category: selectedType,
+                                        place: selectedCity ?? '',
+                                        district: selectedDistrict ?? '',
+                                        phone:
+                                            (business?['phone'] as String?) ??
+                                            '',
+                                        workingHours:
+                                            (business?['workingHours']
+                                                as String?) ??
+                                            '',
+                                        websiteUrl: websiteCtrl.text.trim(),
+                                        websiteInterest: websiteInterest,
+                                        facebook:
+                                            (business?['facebook']
+                                                as String?) ??
+                                            '',
+                                        instagram:
+                                            (business?['instagram']
+                                                as String?) ??
+                                            '',
+                                        tiktok:
+                                            (business?['tiktok'] as String?) ??
+                                            '',
+                                        existingBusiness: business,
+                                        pickedLogoFile: pickedLogoFile,
+                                        existingLogoUrl: existingLogoUrl,
+                                      );
+                                      if (!mounted) return;
+                                      // Delay the pop by one post-frame callback.
+                                      // The Firestore write triggers a Riverpod
+                                      // provider cascade (currentBusinessIdProvider
+                                      // → syncServiceProvider → MainShellPage)
+                                      // that schedules widget rebuilds. If the pop
+                                      // starts in the same frame those rebuilds are
+                                      // processed, an InheritedElement is deactivated
+                                      // while the sheet's elements are still
+                                      // registered as dependents → _dependents.isEmpty
+                                      // assertion. Deferring to the next frame lets
+                                      // those rebuilds flush cleanly first.
+                                      if (saved) {
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) {
+                                              if (dlgCtx.mounted)
+                                                Navigator.of(dlgCtx).pop(true);
+                                            });
+                                      } else if (dlgCtx.mounted) {
+                                        setS(() => localSaving = false);
+                                      }
+                                    },
+                              child: localSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.navyPrimary,
+                                      ),
+                                    )
+                                  : Text(
+                                      isEditing
+                                          ? _tr(
+                                              'Save changes',
+                                              'Hifadhi mabadiliko',
+                                            )
+                                          : _tr(
+                                              'Add business',
+                                              'Ongeza biashara',
+                                            ),
+                                      style: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -923,7 +1128,9 @@ class _ManageBusinessesScreenState
           ),
           backgroundColor: AppColors.navyPrimary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -956,17 +1163,20 @@ class _ManageBusinessesScreenState
     if (name.isEmpty || place.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_tr(
-            'Business name and city are required.',
-            'Jina la biashara na mji vinahitajika.',
-          )),
+          content: Text(
+            _tr(
+              'Business name and city are required.',
+              'Jina la biashara na mji vinahitajika.',
+            ),
+          ),
         ),
       );
       return false;
     }
 
     try {
-      final resolvedId = businessId ?? _firestore.collection('businesses').doc().id;
+      final resolvedId =
+          businessId ?? _firestore.collection('businesses').doc().id;
 
       final phoneVal = phone.trim().isEmpty ? null : phone.trim();
       final hoursVal = workingHours.trim();
@@ -977,9 +1187,9 @@ class _ManageBusinessesScreenState
       // Preserve x / linkedin (not surfaced in form)
       String? xVal, linkedinVal;
       if (existingBusiness != null) {
-        final x  = (existingBusiness['x']       as String?)?.trim();
+        final x = (existingBusiness['x'] as String?)?.trim();
         final li = (existingBusiness['linkedin'] as String?)?.trim();
-        if (x  != null && x.isNotEmpty)  xVal       = x;
+        if (x != null && x.isNotEmpty) xVal = x;
         if (li != null && li.isNotEmpty) linkedinVal = li;
       }
 
@@ -995,12 +1205,16 @@ class _ManageBusinessesScreenState
         } on FirebaseException catch (e) {
           debugPrint('Logo upload failed: ${e.code} ${e.message}');
           if (mounted) {
-            messenger.showSnackBar(SnackBar(
-              content: Text(_tr(
-                'Logo upload failed. Business saved without logo change.',
-                'Kupakia nembo kumeshindikana. Biashara imehifadhiwa bila kubadilisha nembo.',
-              )),
-            ));
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  _tr(
+                    'Logo upload failed. Business saved without logo change.',
+                    'Kupakia nembo kumeshindikana. Biashara imehifadhiwa bila kubadilisha nembo.',
+                  ),
+                ),
+              ),
+            );
           }
         }
       }
@@ -1008,7 +1222,8 @@ class _ManageBusinessesScreenState
       // Single write — businesses collection is the source of truth.
       await _firestore.collection('businesses').doc(resolvedId).set({
         'ownerUid': user.uid,
-        'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
+        'ownerName':
+            profile?['displayName'] ?? profile?['name'] ?? user.displayName,
         'businessName': name,
         'businessCategory': category,
         'city': place,
@@ -1031,7 +1246,9 @@ class _ManageBusinessesScreenState
 
       // Keep selectedBusinessId current on the user profile.
       final currentSelected = _selectedBusinessId(profile);
-      if (currentSelected == null || currentSelected.isEmpty || businessId == null) {
+      if (currentSelected == null ||
+          currentSelected.isEmpty ||
+          businessId == null) {
         await _persistSelectedBusiness(
           userId: user.uid,
           selectedBusinessId: resolvedId,
@@ -1045,22 +1262,30 @@ class _ManageBusinessesScreenState
     } on FirebaseException catch (e) {
       debugPrint('Business save failed: ${e.code} ${e.message}');
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_tr(
-          'Could not save business right now. Please try again.',
-          'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
-        )),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not save business right now. Please try again.',
+              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
+            ),
+          ),
+        ),
+      );
       return false;
     } catch (e) {
       debugPrint('Business save failed: $e');
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_tr(
-          'Could not save business right now. Please try again.',
-          'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
-        )),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not save business right now. Please try again.',
+              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
+            ),
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -1071,6 +1296,8 @@ class _ManageBusinessesScreenState
     Map<String, dynamic>? profile,
     Map<String, dynamic> business,
   ) async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final name = (business['name'] as String?)?.trim() ?? '';
     final category = (business['category'] as String?)?.trim() ?? '';
     final logoUrl = (business['logoUrl'] as String?)?.trim();
@@ -1150,21 +1377,31 @@ class _ManageBusinessesScreenState
                       color: AppColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.edit_outlined,
-                        color: AppColors.primary, size: 20),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                   ),
                   title: Text(
                     _tr('Edit business', 'Hariri biashara'),
                     style: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w600, fontSize: 14),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                   subtitle: Text(
-                    _tr('Update details, logo and contacts',
-                        'Sasisha maelezo, nembo na mawasiliano'),
+                    _tr(
+                      'Update details, logo and contacts',
+                      'Sasisha maelezo, nembo na mawasiliano',
+                    ),
                     style: GoogleFonts.dmSans(fontSize: 12),
                   ),
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textMuted, size: 18),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 18,
+                  ),
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     await _openBusinessFormSheet(profile, business: business);
@@ -1181,8 +1418,11 @@ class _ManageBusinessesScreenState
                       color: AppColors.error.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        color: AppColors.error, size: 20),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
                   ),
                   title: Text(
                     _tr('Delete business', 'Futa biashara'),
@@ -1193,8 +1433,10 @@ class _ManageBusinessesScreenState
                     ),
                   ),
                   subtitle: Text(
-                    _tr('Permanently remove this business',
-                        'Futa biashara hii kudumu'),
+                    _tr(
+                      'Permanently remove this business',
+                      'Futa biashara hii kudumu',
+                    ),
                     style: GoogleFonts.dmSans(fontSize: 12),
                   ),
                   onTap: () async {
@@ -1224,10 +1466,11 @@ class _ManageBusinessesScreenState
         final livePlanTier = ref.watch(
           planStatusProvider.select((a) => a.valueOrNull?.tier),
         );
-        final tier = livePlanTier ??
-            PlanTierX.fromString(profile?['plan'] as String?);
+        final tier =
+            livePlanTier ?? PlanTierX.fromString(profile?['plan'] as String?);
         final defs = ref.watch(planDefinitionsProvider).valueOrNull;
-        final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
+        final maxBusinesses = _businessLimitFor(tier, defs);
+        final isOnline = ref.watch(isOnlineProvider);
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -1266,6 +1509,7 @@ class _ManageBusinessesScreenState
                         }),
                       ),
                       const SizedBox(height: _BusinessDarkHeader._pillHalf + 8),
+                      if (!isOnline) const _OfflineBusinessBanner(),
                       Expanded(
                         child: businesses.isEmpty
                             ? const _BusinessEmptyState()
@@ -1277,8 +1521,13 @@ class _ManageBusinessesScreenState
                                   isActive:
                                       businesses[i]['id'] == selectedBusinessId,
                                   isLast: i == businesses.length - 1,
-                                  onTap: () => _openBusinessActionsSheet(
-                                      profile, businesses[i]),
+                                  isReadOnly: !isOnline,
+                                  onTap: isOnline
+                                      ? () => _openBusinessActionsSheet(
+                                          profile,
+                                          businesses[i],
+                                        )
+                                      : null,
                                 ),
                               ),
                       ),
@@ -1382,7 +1631,12 @@ class _BusinessDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            _pillHalf + 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1411,13 +1665,19 @@ class _BusinessDarkHeader extends StatelessWidget {
                             : Colors.white12,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: searchExpanded ? AppColors.yellowBrand : Colors.transparent,
+                          color: searchExpanded
+                              ? AppColors.yellowBrand
+                              : Colors.transparent,
                           width: 1.5,
                         ),
                       ),
                       child: Icon(
-                        searchExpanded ? Icons.close_rounded : Icons.search_rounded,
-                        color: searchExpanded ? AppColors.yellowBrand : Colors.white,
+                        searchExpanded
+                            ? Icons.close_rounded
+                            : Icons.search_rounded,
+                        color: searchExpanded
+                            ? AppColors.yellowBrand
+                            : Colors.white,
                         size: 20,
                       ),
                     ),
@@ -1436,16 +1696,23 @@ class _BusinessDarkHeader extends StatelessWidget {
                             controller: searchCtrl,
                             autofocus: true,
                             style: GoogleFonts.dmSans(
-                                fontSize: 14, color: Colors.white),
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
                             decoration: InputDecoration(
                               hintText: _tr(
                                 'Search by name or category…',
                                 'Tafuta kwa jina au kategoria…',
                               ),
                               hintStyle: GoogleFonts.dmSans(
-                                  fontSize: 14, color: Colors.white38),
-                              prefixIcon: const Icon(Icons.search_rounded,
-                                  size: 18, color: Colors.white54),
+                                fontSize: 14,
+                                color: Colors.white38,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: Colors.white54,
+                              ),
                               filled: true,
                               fillColor: Colors.white12,
                               contentPadding: EdgeInsets.zero,
@@ -1455,13 +1722,16 @@ class _BusinessDarkHeader extends StatelessWidget {
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Colors.white24),
+                                borderSide: const BorderSide(
+                                  color: Colors.white24,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                    color: AppColors.yellowBrand, width: 1.5),
+                                  color: AppColors.yellowBrand,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -1487,8 +1757,11 @@ class _PillStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _PillStat(
-      {required this.label, required this.value, required this.color});
+  const _PillStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1498,15 +1771,19 @@ class _PillStat extends StatelessWidget {
         Text(
           value,
           style: GoogleFonts.dmSans(
-              fontSize: 13, fontWeight: FontWeight.w800, color: color),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
         SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textMuted,
+          ),
         ),
       ],
     );
@@ -1520,27 +1797,66 @@ class _PillDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(
-        width: 1,
-        height: 28,
-        color: AppColors.border,
-      ),
+      child: Container(width: 1, height: 28, color: AppColors.border),
     );
   }
 }
 
 // ─── Business row (flat list-card style, mirrors CustomerListScreen) ─────────
 
+class _OfflineBusinessBanner extends StatelessWidget {
+  const _OfflineBusinessBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppColors.warning,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _tr(
+                'Offline: businesses are available to view, but changes are disabled.',
+                'Nje ya mtandao: biashara zinaweza kutazamwa, lakini mabadiliko yamezuiwa.',
+              ),
+              style: GoogleFonts.dmSans(
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BusinessRow extends StatelessWidget {
   final Map<String, dynamic> business;
   final bool isActive;
   final bool isLast;
-  final VoidCallback onTap;
+  final bool isReadOnly;
+  final VoidCallback? onTap;
 
   const _BusinessRow({
     required this.business,
     required this.isActive,
     required this.isLast,
+    required this.isReadOnly,
     required this.onTap,
   });
 
@@ -1568,13 +1884,12 @@ class _BusinessRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: hasLogo
                         ? Colors.transparent
-                        : (isActive ? AppColors.navyPrimary : AppColors.yellowBrand),
+                        : (isActive
+                              ? AppColors.navyPrimary
+                              : AppColors.yellowBrand),
                     shape: BoxShape.circle,
                     border: hasLogo
-                        ? Border.all(
-                            color: AppColors.border,
-                            width: 1,
-                          )
+                        ? Border.all(color: AppColors.border, width: 1)
                         : null,
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -1584,26 +1899,24 @@ class _BusinessRow extends StatelessWidget {
                           fit: BoxFit.cover,
                           loadingBuilder: (_, child, progress) =>
                               progress == null
-                                  ? child
-                                  : Center(
-                                      child: SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          value: progress.expectedTotalBytes != null
-                                              ? progress.cumulativeBytesLoaded /
-                                                  progress.expectedTotalBytes!
-                                              : null,
-                                        ),
-                                      ),
+                              ? child
+                              : Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value: progress.expectedTotalBytes != null
+                                          ? progress.cumulativeBytesLoaded /
+                                                progress.expectedTotalBytes!
+                                          : null,
                                     ),
+                                  ),
+                                ),
                           errorBuilder: (_, __, ___) =>
                               _LogoInitial(initial: initial),
                         )
-                      : Center(
-                          child: _LogoInitial(initial: initial),
-                        ),
+                      : Center(child: _LogoInitial(initial: initial)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1631,7 +1944,9 @@ class _BusinessRow extends StatelessWidget {
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.navyPrimary,
                                 borderRadius: BorderRadius.circular(999),
@@ -1668,15 +1983,23 @@ class _BusinessRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted, size: 18),
+                Icon(
+                  isReadOnly
+                      ? Icons.lock_outline_rounded
+                      : Icons.chevron_right_rounded,
+                  color: AppColors.textMuted,
+                  size: 18,
+                ),
               ],
             ),
             if (!isLast)
               const Padding(
                 padding: EdgeInsets.only(top: 13, left: 54),
                 child: Divider(
-                    height: 1, color: AppColors.border, thickness: 0.8),
+                  height: 1,
+                  color: AppColors.border,
+                  thickness: 0.8,
+                ),
               ),
           ],
         ),
@@ -1715,10 +2038,9 @@ class _BusinessEmptyState extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               _tr('No businesses yet', 'Bado hakuna biashara'),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1747,14 +2069,14 @@ class _FormSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        label,
-        style: GoogleFonts.dmSans(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.navyPrimary,
-          letterSpacing: 0.1,
-        ),
-      );
+    label,
+    style: GoogleFonts.dmSans(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: AppColors.navyPrimary,
+      letterSpacing: 0.1,
+    ),
+  );
 }
 
 // ── Tap-to-open selector (matches onboarding _TapSelector style) ──────────────
@@ -1769,11 +2091,11 @@ class _FormTapSelector extends StatelessWidget {
     this.disabled = false,
   });
 
-  final IconData  icon;
-  final String    placeholder;
-  final String?   value;
-  final bool      hasValue;
-  final bool      disabled;
+  final IconData icon;
+  final String placeholder;
+  final String? value;
+  final bool hasValue;
+  final bool disabled;
   final VoidCallback onTap;
 
   @override
@@ -1784,7 +2106,9 @@ class _FormTapSelector extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: disabled ? AppColors.surface.withValues(alpha: 0.5) : AppColors.surface,
+          color: disabled
+              ? AppColors.surface.withValues(alpha: 0.5)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: hasValue
@@ -1795,8 +2119,13 @@ class _FormTapSelector extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18,
-                color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textMuted)),
+            Icon(
+              icon,
+              size: 18,
+              color: disabled
+                  ? AppColors.textDisabled
+                  : (hasValue ? AppColors.navyPrimary : AppColors.textMuted),
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -1804,7 +2133,11 @@ class _FormTapSelector extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                  color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textDisabled),
+                  color: disabled
+                      ? AppColors.textDisabled
+                      : (hasValue
+                            ? AppColors.navyPrimary
+                            : AppColors.textDisabled),
                 ),
               ),
             ),
@@ -1832,7 +2165,7 @@ class _BizTypePickerSheet extends StatefulWidget {
   });
 
   final List<Map<String, dynamic>> types;
-  final String  selectedValue;
+  final String selectedValue;
   final String Function(String, String) tr;
 
   @override
@@ -1888,7 +2221,9 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
             child: Text(
               widget.tr('Business Type', 'Aina ya Biashara'),
               style: GoogleFonts.dmSans(
-                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
               ),
             ),
           ),
@@ -1903,13 +2238,29 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: AppColors.navyPrimary,
+                ),
                 decoration: InputDecoration(
-                  hintText: widget.tr('Search business type…', 'Tafuta aina ya biashara…'),
-                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  hintText: widget.tr(
+                    'Search business type…',
+                    'Tafuta aina ya biashara…',
+                  ),
+                  hintStyle: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    color: AppColors.textDisabled,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -1920,14 +2271,19 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
               itemCount: _filtered.length,
               itemBuilder: (_, i) {
-                final t        = _filtered[i];
-                final val      = t['value'] as String? ?? '';
+                final t = _filtered[i];
+                final val = t['value'] as String? ?? '';
                 final selected = val == widget.selectedValue;
-                final label    = widget.tr(t['en'] as String? ?? '', t['sw'] as String? ?? '');
-                final rawIcon  = t['icon'];
-                final icon     = rawIcon is IconData
+                final label = widget.tr(
+                  t['en'] as String? ?? '',
+                  t['sw'] as String? ?? '',
+                );
+                final rawIcon = t['icon'];
+                final icon = rawIcon is IconData
                     ? rawIcon
-                    : (rawIcon is String ? LookupService.iconFromName(rawIcon) : Icons.category_rounded);
+                    : (rawIcon is String
+                          ? LookupService.iconFromName(rawIcon)
+                          : Icons.category_rounded);
 
                 return InkWell(
                   onTap: () => Navigator.of(context).pop(val),
@@ -1935,7 +2291,10 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
                     margin: const EdgeInsets.symmetric(vertical: 2),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
                     decoration: BoxDecoration(
                       color: selected
                           ? AppColors.navyPrimary.withValues(alpha: 0.06)
@@ -1945,28 +2304,46 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                     child: Row(
                       children: [
                         Container(
-                          width: 36, height: 36,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: selected ? AppColors.navyPrimary : AppColors.surface,
+                            color: selected
+                                ? AppColors.navyPrimary
+                                : AppColors.surface,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: selected ? AppColors.navyPrimary : AppColors.border,
+                              color: selected
+                                  ? AppColors.navyPrimary
+                                  : AppColors.border,
                             ),
                           ),
-                          child: Icon(icon, size: 18,
-                              color: selected ? AppColors.yellowBrand : AppColors.textMuted),
+                          child: Icon(
+                            icon,
+                            size: 18,
+                            color: selected
+                                ? AppColors.yellowBrand
+                                : AppColors.textMuted,
+                          ),
                         ),
                         SizedBox(width: 14),
                         Expanded(
-                          child: Text(label,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                color: AppColors.navyPrimary,
-                              )),
+                          child: Text(
+                            label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
                         ),
                         if (selected)
-                          const Icon(Icons.check_rounded, size: 18, color: AppColors.success),
+                          const Icon(
+                            Icons.check_rounded,
+                            size: 18,
+                            color: AppColors.success,
+                          ),
                       ],
                     ),
                   ),
@@ -2046,7 +2423,9 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
             child: Text(
               widget.tr('City / Region', 'Mji / Mkoa'),
               style: GoogleFonts.dmSans(
-                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
               ),
             ),
           ),
@@ -2061,13 +2440,26 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: AppColors.navyPrimary,
+                ),
                 decoration: InputDecoration(
                   hintText: widget.tr('Search…', 'Tafuta…'),
-                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  hintStyle: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    color: AppColors.textDisabled,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -2078,28 +2470,39 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
               itemCount: _filtered.length,
               itemBuilder: (_, i) {
-                final city     = _filtered[i];
-                final en       = city['en'] ?? '';
+                final city = _filtered[i];
+                final en = city['en'] ?? '';
                 final selected = en == widget.selectedValue;
-                final label    = widget.tr(en, city['sw'] ?? en);
+                final label = widget.tr(en, city['sw'] ?? en);
 
                 return InkWell(
                   onTap: () => Navigator.of(context).pop(en),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(label,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                color: AppColors.navyPrimary,
-                              )),
+                          child: Text(
+                            label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
                         ),
                         if (selected)
-                          const Icon(Icons.check_rounded, size: 17, color: AppColors.success),
+                          const Icon(
+                            Icons.check_rounded,
+                            size: 17,
+                            color: AppColors.success,
+                          ),
                       ],
                     ),
                   ),
@@ -2158,7 +2561,9 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.70),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.70,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2174,7 +2579,9 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
             child: Text(
               widget.tr('District', 'Wilaya'),
               style: GoogleFonts.dmSans(
-                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
               ),
             ),
           ),
@@ -2189,13 +2596,26 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: AppColors.navyPrimary,
+                ),
                 decoration: InputDecoration(
                   hintText: widget.tr('Search…', 'Tafuta…'),
-                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  hintStyle: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    color: AppColors.textDisabled,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -2212,19 +2632,30 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                   onTap: () => Navigator.of(context).pop(district),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(district,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                color: AppColors.navyPrimary,
-                              )),
+                          child: Text(
+                            district,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
                         ),
                         if (selected)
-                          const Icon(Icons.check_rounded, size: 17, color: AppColors.success),
+                          const Icon(
+                            Icons.check_rounded,
+                            size: 17,
+                            color: AppColors.success,
+                          ),
                       ],
                     ),
                   ),
@@ -2256,4 +2687,3 @@ class _LogoInitial extends StatelessWidget {
     );
   }
 }
-

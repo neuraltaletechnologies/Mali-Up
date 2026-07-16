@@ -39,7 +39,11 @@ class SubscriptionScreen extends ConsumerWidget {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, size: 18, color: AppColors.navyPrimary),
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            size: 18,
+            color: AppColors.navyPrimary,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -49,11 +53,16 @@ class SubscriptionScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: AppColors.error, size: 48),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: AppColors.error,
+                size: 48,
+              ),
               SizedBox(height: 12),
-              Text(_t('Could not load plan info', 'Imeshindwa kupakia mpango'),
-                  style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
+              Text(
+                _t('Could not load plan info', 'Imeshindwa kupakia mpango'),
+                style: GoogleFonts.dmSans(color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.invalidate(planStatusProvider),
@@ -64,7 +73,7 @@ class SubscriptionScreen extends ConsumerWidget {
         ),
         data: (status) {
           final defs = status.definitions;
-          final growthLimits   = limitsFor(PlanTier.growth,   defs);
+          final growthLimits = limitsFor(PlanTier.growth, defs);
           final businessLimits = limitsFor(PlanTier.business, defs);
           final bottomInset = MediaQuery.paddingOf(context).bottom;
           return ListView(
@@ -108,70 +117,78 @@ class SubscriptionScreen extends ConsumerWidget {
                   'Tuma ${_fmtPrice(growthLimits.pricePerCycle)} (miezi ${growthLimits.cycleMonths} × Growth) au ${_fmtPrice(businessLimits.pricePerCycle)} (miezi ${businessLimits.cycleMonths} × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
                 ),
               ),
-            _Faq(
-              q: _t('Can I cancel?', 'Ninaweza kughairi?'),
-              a: _t(
-                'Yes. When your paid period ends it simply reverts to Starter — no automatic charges.',
-                'Ndiyo. Wakati kipindi chako cha malipo kinapoisha, moja kwa moja inarudi Starter — hakuna malipo ya moja kwa moja.',
-              ),
-            ),
-            _Faq(
-              q: _t('What happens to my data if I downgrade?',
-                  'Nini kinatokea kwa data yangu nikienda chini?'),
-              a: _t(
-                'All your data stays safe. You can only create new invoices up to the Starter limit; everything already recorded remains accessible.',
-                'Data yako yote inabaki salama. Unaweza tu kuunda ankara mpya hadi kikomo cha Starter; kila kitu kilichorekodiwa tayari kinabaki kinaweza kufikiwa.',
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ── Upgrade CTA (Starter only) ─────────────────────
-            if (status.isStarter)
-              Container(
-                width: double.infinity,
-                height: 54,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.yellowBrand.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+              _Faq(
+                q: _t('Can I cancel?', 'Ninaweza kughairi?'),
+                a: _t(
+                  'Yes. When your paid period ends it simply reverts to Starter — no automatic charges.',
+                  'Ndiyo. Wakati kipindi chako cha malipo kinapoisha, moja kwa moja inarudi Starter — hakuna malipo ya moja kwa moja.',
                 ),
-                child: ElevatedButton(
-                  onPressed: () => _openUpgrade(context, ref, status),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.yellowBrand,
-                    foregroundColor: AppColors.navyPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _t('Upgrade my plan', 'Boresha mpango wangu'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              _Faq(
+                q: _t(
+                  'What happens to my data if I downgrade?',
+                  'Nini kinatokea kwa data yangu nikienda chini?',
+                ),
+                a: _t(
+                  'All your data stays safe. You can only create new invoices up to the Starter limit; everything already recorded remains accessible.',
+                  'Data yako yote inabaki salama. Unaweza tu kuunda ankara mpya hadi kikomo cha Starter; kila kitu kilichorekodiwa tayari kinabaki kinaweza kufikiwa.',
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Upgrade CTA (Starter only) ─────────────────────
+              if (status.isStarter)
+                Container(
+                  width: double.infinity,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, size: 18),
                     ],
                   ),
+                  child: ElevatedButton(
+                    onPressed: () => _openUpgrade(context, ref, status),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.yellowBrand,
+                      foregroundColor: AppColors.navyPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _t('Upgrade my plan', 'Boresha mpango wangu'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-          ],
-        );
+            ],
+          );
         },
       ),
     );
   }
 
   Future<void> _openUpgrade(
-      BuildContext context, WidgetRef ref, PlanStatus status) async {
+    BuildContext context,
+    WidgetRef ref,
+    PlanStatus status,
+  ) async {
     await showUpgradeSheet(context, currentStatus: status);
     // Refresh plan status after user dismisses the sheet
     ref.invalidate(planStatusProvider);
@@ -186,14 +203,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        label.toUpperCase(),
-        style: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textMuted,
-          letterSpacing: 1.1,
-        ),
-      );
+    label.toUpperCase(),
+    style: GoogleFonts.dmSans(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textMuted,
+      letterSpacing: 1.1,
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,8 +220,11 @@ class _UsageMeter extends StatelessWidget {
   final int used;
   final int limit;
 
-  const _UsageMeter(
-      {required this.label, required this.used, required this.limit});
+  const _UsageMeter({
+    required this.label,
+    required this.used,
+    required this.limit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -212,8 +232,8 @@ class _UsageMeter extends StatelessWidget {
     final barColor = pct >= 1.0
         ? AppColors.error
         : pct >= 0.8
-            ? AppColors.warning
-            : AppColors.success;
+        ? AppColors.warning
+        : AppColors.success;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -235,17 +255,21 @@ class _UsageMeter extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary)),
+              Text(
+                label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
               Text(
                 '$used / $limit',
                 style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -263,11 +287,18 @@ class _UsageMeter extends StatelessWidget {
             SizedBox(height: 8),
             Text(
               pct >= 1.0
-                  ? _t('Limit reached — upgrade to continue', 'Kikomo kimefikiwa — boresha kuendelea')
-                  : _t('${limit - used} remaining this month', '${limit - used} zimebaki mwezi huu'),
+                  ? _t(
+                      'Limit reached — upgrade to continue',
+                      'Kikomo kimefikiwa — boresha kuendelea',
+                    )
+                  : _t(
+                      '${limit - used} remaining this month',
+                      '${limit - used} zimebaki mwezi huu',
+                    ),
               style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  color: pct >= 1.0 ? AppColors.error : AppColors.warning),
+                fontSize: 11,
+                color: pct >= 1.0 ? AppColors.error : AppColors.warning,
+              ),
             ),
           ],
         ],
@@ -285,50 +316,125 @@ class _ComparisonTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tiers = [PlanTier.starter, PlanTier.growth, PlanTier.business];
-    final tierNames = ['Starter', 'Growth', 'Business'];
+    final tiers = [
+      PlanTier.starter,
+      PlanTier.growth,
+      PlanTier.business,
+      PlanTier.enterprise,
+      if (currentTier == PlanTier.lifetime) PlanTier.lifetime,
+    ];
+    final tierNames = [
+      'Starter',
+      'Growth',
+      'Business',
+      'Enterprise',
+      if (currentTier == PlanTier.lifetime) 'Lifetime',
+    ];
+    final allLimits = tiers.map((tier) => limitsFor(tier, defs)).toList();
 
-    final starterL  = limitsFor(PlanTier.starter,  defs);
-    final growthL   = limitsFor(PlanTier.growth,   defs);
-    final businessL = limitsFor(PlanTier.business, defs);
-
-    String priceLabel(PlanLimits l) => l.pricePerMonth > 0
-        ? '${_fmtPriceCompact(l.pricePerMonth)}${_t("/mo", "/mwezi")}'
-        : _t('Free', 'Bure');
+    String priceLabel(PlanTier tier, PlanLimits limits) {
+      if (limits.pricePerMonth > 0) {
+        return '${_fmtPriceCompact(limits.pricePerMonth)}${_t("/mo", "/mwezi")}';
+      }
+      if (tier == PlanTier.enterprise) return _t('Custom', 'Maalum');
+      if (tier == PlanTier.lifetime) return _t('Lifetime', 'Maisha yote');
+      return _t('Free', 'Bure');
+    }
 
     final prices = [
-      priceLabel(starterL),
-      priceLabel(growthL),
-      priceLabel(businessL),
+      for (var i = 0; i < tiers.length; i++) priceLabel(tiers[i], allLimits[i]),
     ];
 
-    final allLimits = [starterL, growthL, businessL];
-
     final features = <(String, List<bool>)>[
-      (_t('Monthly invoices', 'Ankara / mwezi'), [false, true, true]),
-      (_t('Users', 'Watumiaji'), [false, false, true]),
-      (_t('Full reports', 'Ripoti kamili'),
-          allLimits.map((l) => l.fullReports).toList()),
-      (_t('M-Pesa import', 'Kuingiza M-Pesa'),
-          allLimits.map((l) => l.mpesaImport).toList()),
-      (_t('SMS reminders', 'Ukumbusho wa SMS'),
-          allLimits.map((l) => l.smsReminders).toList()),
-      (_t('Multi-location stock', 'Stoo nyingi'),
-          allLimits.map((l) => l.multiLocation).toList()),
-      (_t('API access', 'Ufikiaji wa API'),
-          allLimits.map((l) => l.apiAccess).toList()),
-      (_t('Priority support', 'Msaada wa kipaumbele'),
-          allLimits.map((l) => l.prioritySupport).toList()),
+      (
+        _t('Monthly invoices', 'Ankara / mwezi'),
+        allLimits.map((l) => l.monthlyInvoices != 0).toList(),
+      ),
+      (
+        _t('Users', 'Watumiaji'),
+        allLimits.map((l) => l.maxUsers != 0).toList(),
+      ),
+      (
+        _t('Businesses', 'Biashara'),
+        allLimits.map((l) => l.maxBusinesses != 0).toList(),
+      ),
+      (
+        _t('Customers', 'Wateja'),
+        allLimits.map((l) => l.maxCustomers != 0).toList(),
+      ),
+      (
+        _t('Cash flow tracking', 'Ufuatiliaji wa mtiririko wa fedha'),
+        allLimits.map((l) => l.cashFlow).toList(),
+      ),
+      (
+        _t('Expense tracking', 'Ufuatiliaji wa matumizi'),
+        allLimits.map((l) => l.expenseTracking).toList(),
+      ),
+      (
+        _t('Manual debt entry', 'Kuingiza madeni mwenyewe'),
+        allLimits.map((l) => l.manualDebt).toList(),
+      ),
+      (
+        _t('Full reports', 'Ripoti kamili'),
+        allLimits.map((l) => l.fullReports).toList(),
+      ),
+      (
+        _t('M-Pesa import', 'Kuingiza M-Pesa'),
+        allLimits.map((l) => l.mpesaImport).toList(),
+      ),
+      (
+        _t('SMS reminders', 'Ukumbusho wa SMS'),
+        allLimits.map((l) => l.smsReminders).toList(),
+      ),
+      (
+        _t('All exports', 'Uhamishaji wote'),
+        allLimits.map((l) => l.allExports).toList(),
+      ),
+      (
+        _t('Multi-location stock', 'Stoo za maeneo mengi'),
+        allLimits.map((l) => l.multiLocation).toList(),
+      ),
+      (
+        _t('API access', 'Ufikiaji wa API'),
+        allLimits.map((l) => l.apiAccess).toList(),
+      ),
+      (
+        _t('Priority support', 'Msaada wa kipaumbele'),
+        allLimits.map((l) => l.prioritySupport).toList(),
+      ),
+      (
+        _t('Custom integrations', 'Miunganisho maalum'),
+        allLimits.map((l) => l.customIntegrations).toList(),
+      ),
+      (
+        _t('White-label options', 'Chaguo za chapa binafsi'),
+        allLimits.map((l) => l.whiteLabel).toList(),
+      ),
+      (
+        _t('Dedicated onboarding', 'Msaada maalum wa kuanza'),
+        allLimits.map((l) => l.dedicatedOnboarding).toList(),
+      ),
     ];
 
     String invoiceLabel(PlanLimits l) => l.monthlyInvoices == -1
         ? '∞'
         : '${l.monthlyInvoices}${_t("/mo", "/mwezi")}';
-    String userLabel(PlanLimits l) =>
-        l.maxUsers == -1 ? '∞' : '${l.maxUsers}';
+    String userLabel(PlanLimits l) => l.maxUsers == -1 ? '∞' : '${l.maxUsers}';
 
     final limitLabels = allLimits.map(invoiceLabel).toList();
-    final userLabels  = allLimits.map(userLabel).toList();
+    final userLabels = allLimits.map(userLabel).toList();
+    final businessLabels = allLimits
+        .map((l) => l.maxBusinesses == -1 ? '∞' : '${l.maxBusinesses}')
+        .toList();
+    final customerLabels = allLimits
+        .map((l) => l.maxCustomers == -1 ? '∞' : '${l.maxCustomers}')
+        .toList();
+    final numericLabels = [
+      limitLabels,
+      userLabels,
+      businessLabels,
+      customerLabels,
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -359,16 +465,16 @@ class _ComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: tiers[i] == currentTier
-                          ? const BoxDecoration(
-                              color: AppColors.navyPrimary,
-                            )
+                          ? const BoxDecoration(color: AppColors.navyPrimary)
                           : null,
                       child: Column(
                         children: [
                           if (tiers[i] == currentTier) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.yellowBrand,
                                 borderRadius: BorderRadius.circular(999),
@@ -426,7 +532,8 @@ class _ComparisonTable extends StatelessWidget {
                 border: isLast
                     ? null
                     : const Border(
-                        bottom: BorderSide(color: AppColors.border, width: 0.5)),
+                        bottom: BorderSide(color: AppColors.border, width: 0.5),
+                      ),
               ),
               child: Row(
                 children: [
@@ -437,14 +544,16 @@ class _ComparisonTable extends StatelessWidget {
                       child: Text(
                         label,
                         style: GoogleFonts.dmSans(
-                            fontSize: 12, color: AppColors.textSecondary),
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
                   ...List.generate(tiers.length, (i) {
                     final isCurrent = tiers[i] == currentTier;
-                    // Special handling for invoices (index 0) and users (index 1)
-                    if (idx == 0) {
+                    // Numeric limits come directly from the plan definition.
+                    if (idx <= 3) {
                       return Expanded(
                         flex: 2,
                         child: Container(
@@ -454,30 +563,7 @@ class _ComparisonTable extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Center(
                             child: Text(
-                              limitLabels[i],
-                              style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isCurrent
-                                    ? AppColors.navyPrimary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    if (idx == 1) {
-                      return Expanded(
-                        flex: 2,
-                        child: Container(
-                          color: isCurrent
-                              ? AppColors.navyPrimary.withValues(alpha: 0.04)
-                              : null,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Center(
-                            child: Text(
-                              userLabels[i],
+                              numericLabels[idx][i],
                               style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -558,9 +644,7 @@ class _FaqState extends State<_Faq> {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: _open
-                  ? AppColors.navyPrimary
-                  : AppColors.surfaceVariant,
+              color: _open ? AppColors.navyPrimary : AppColors.surfaceVariant,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -572,9 +656,10 @@ class _FaqState extends State<_Faq> {
           title: Text(
             widget.q,
             style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navyPrimary,
+            ),
           ),
           trailing: Icon(
             _open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
@@ -582,15 +667,15 @@ class _FaqState extends State<_Faq> {
             size: 20,
           ),
           onExpansionChanged: (v) => setState(() => _open = v),
-          childrenPadding:
-              const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           children: [
             Text(
               widget.a,
               style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  height: 1.6),
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
             ),
           ],
         ),

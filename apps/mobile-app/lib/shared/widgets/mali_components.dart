@@ -484,8 +484,8 @@ class StatusChip extends StatelessWidget {
 //   EmptyState(
 //     icon: Icons.receipt_long_outlined,
 //     title: 'No sales yet',
-//     subtitle: 'Tap New Sale to record your first transaction.',
-//     actionLabel: 'New Sale',   // optional
+//     subtitle: 'Tap Add Sale to record your first transaction.',
+//     actionLabel: 'Add Sale',   // optional
 //     onAction: () { ... },      // optional
 //   )
 // ─────────────────────────────────────────────────────────────────────────────
@@ -572,9 +572,12 @@ class EmptyState extends StatelessWidget {
                     foregroundColor: AppColors.navyPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
                     textStyle: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w700, fontSize: 14),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                   onPressed: onAction,
                   child: Text(actionLabel!),
@@ -715,19 +718,106 @@ class SkeletonScreen extends StatelessWidget {
 // Page-specific skeleton screens — each mirrors its page's real content shape
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Stats column used inside page skeletons (value + label shimmer)
-class _PageSkeletonStat extends StatelessWidget {
-  const _PageSkeletonStat();
+class _DarkPageHeaderSkeleton extends StatelessWidget {
+  const _DarkPageHeaderSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      mainAxisSize: MainAxisSize.min,
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        ShimmerBox(width: 72, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
-        SizedBox(height: 6),
-        ShimmerBox(width: 50, height: 11, borderRadius: BorderRadius.all(Radius.circular(999))),
+        Container(
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, 38),
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+          ),
+          child: Row(
+            children: [
+              const ShimmerBox(width: 135, height: 30),
+              const Spacer(),
+              const ShimmerBox(
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              const SizedBox(width: 10),
+              const ShimmerBox(
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+            ],
+          ),
+        ),
+        const Positioned(
+          left: 24,
+          right: 24,
+          bottom: -22,
+          child: ShimmerBox(
+            height: 44,
+            borderRadius: BorderRadius.all(Radius.circular(24)),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _FlatPageRowSkeleton extends StatelessWidget {
+  const _FlatPageRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: const Column(
+        children: [
+          Row(
+            children: [
+              ShimmerBox(
+                width: 38,
+                height: 38,
+                borderRadius: BorderRadius.all(Radius.circular(19)),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShimmerBox(width: 150, height: 12),
+                    SizedBox(height: 7),
+                    ShimmerBox(width: 100, height: 10),
+                  ],
+                ),
+              ),
+              ShimmerBox(width: 70, height: 12),
+            ],
+          ),
+          Padding(
+            padding: EdgeInsets.only(top: 10, left: 48),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlatPageListSkeleton extends StatelessWidget {
+  final int itemCount;
+
+  const _FlatPageListSkeleton({this.itemCount = 7});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: itemCount,
+      itemBuilder: (_, _) => const _FlatPageRowSkeleton(),
     );
   }
 }
@@ -738,28 +828,11 @@ class SalesPageSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return const Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          color: AppColors.surface,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _PageSkeletonStat(),
-              _PageSkeletonStat(),
-              _PageSkeletonStat(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: SkeletonList(itemCount: 6),
-          ),
-        ),
+        _DarkPageHeaderSkeleton(),
+        SizedBox(height: 30),
+        Expanded(child: _FlatPageListSkeleton()),
       ],
     );
   }
@@ -772,24 +845,10 @@ class InventoryPageSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.all(24),
-          child: Row(
-            children: [
-              Expanded(child: ShimmerBox(height: 68)),
-              SizedBox(width: 16),
-              Expanded(child: ShimmerBox(height: 68)),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: SkeletonList(itemCount: 6),
-          ),
-        ),
+        _DarkPageHeaderSkeleton(),
+        SizedBox(height: 30),
+        Expanded(child: _FlatPageListSkeleton()),
       ],
     );
   }
@@ -801,26 +860,7 @@ class CustomerPageSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
-          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
-        ),
-        SizedBox(height: 4),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: SkeletonList(itemCount: 7),
-          ),
-        ),
-      ],
-    );
+    return const _FlatPageListSkeleton();
   }
 }
 
@@ -830,32 +870,7 @@ class ExpensePageSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(24, 4, 24, 16),
-          child: Row(
-            children: [
-              Expanded(child: ShimmerBox(height: 62, borderRadius: BorderRadius.all(Radius.circular(12)))),
-              SizedBox(width: 12),
-              Expanded(child: ShimmerBox(height: 62, borderRadius: BorderRadius.all(Radius.circular(12)))),
-            ],
-          ),
-        ),
-        SizedBox(height: 8),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: SkeletonList(),
-          ),
-        ),
-      ],
-    );
+    return const _FlatPageListSkeleton(itemCount: 6);
   }
 }
 
@@ -1138,7 +1153,9 @@ class MaliSelectSheet<T> extends StatelessWidget {
                     child: Container(
                       constraints: const BoxConstraints(minHeight: 52),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 8),
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       color: isSelected
                           ? AppColors.primary.withValues(alpha: 0.06)
                           : Colors.transparent,
@@ -1251,7 +1268,8 @@ class PaymentStatusChip extends StatelessWidget {
       LocalizationService.tr(en: en, sw: sw);
 
   static ({Color bg, Color fg, String label, IconData icon}) _resolve(
-      String s) {
+    String s,
+  ) {
     switch (s.toLowerCase().trim()) {
       case 'paid':
         return (
@@ -1373,15 +1391,29 @@ class AppSearchBar extends StatelessWidget {
           return TextField(
             controller: controller,
             focusNode: focusNode,
-            style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              color: AppColors.navyPrimary,
+            ),
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
-              prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
+              hintStyle: GoogleFonts.dmSans(
+                fontSize: 14,
+                color: AppColors.textMuted,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
               suffixIcon: value.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
                       onPressed: () {
                         controller.clear();
                         onClear?.call();
@@ -1402,9 +1434,15 @@ class AppSearchBar extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.navyPrimary,
+                  width: 1.5,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           );
         },

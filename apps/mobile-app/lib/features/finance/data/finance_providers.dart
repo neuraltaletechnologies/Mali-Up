@@ -8,6 +8,7 @@ import '../../customer/data/customer_providers.dart';
 import '../domain/models/budget.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/expense.dart';
+import '../domain/models/expense_category.dart';
 import '../domain/models/recurring_expense_template.dart';
 import 'mappers/expense_mapper.dart';
 import 'repositories/sync_cash_repository.dart';
@@ -21,9 +22,63 @@ class _SelectedMonthNotifier extends Notifier<DateTime> {
   void setMonth(DateTime month) => state = month;
 }
 
-final selectedMonthProvider = NotifierProvider<_SelectedMonthNotifier, DateTime>(
-  _SelectedMonthNotifier.new,
-);
+final selectedMonthProvider =
+    NotifierProvider<_SelectedMonthNotifier, DateTime>(
+      _SelectedMonthNotifier.new,
+    );
+
+// Business-scoped expense categories. Defaults are available immediately;
+// Firestore only stores custom categories and hidden-default overrides.
+final expenseCategoryListProvider = StreamProvider<List<ExpenseCategory>>((
+  ref,
+) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  yield ExpenseCategory.defaults;
+  if (user == null || businessId.isEmpty) return;
+
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  final collection = repo.scopeCollection(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(businessId),
+    childCollection: 'expense_categories',
+  );
+
+  await for (final snapshot in collection.snapshots()) {
+    final hiddenDefaults = <String>{};
+    final custom = <ExpenseCategory>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['isHidden'] == true) {
+        hiddenDefaults.add(doc.id);
+      } else {
+        final category = ExpenseCategory.fromFirestore(doc.id, data);
+        if (category.nameEn.isNotEmpty) custom.add(category);
+      }
+    }
+    custom.sort(
+      (a, b) => a.nameEn.toLowerCase().compareTo(b.nameEn.toLowerCase()),
+    );
+    yield [
+      ...ExpenseCategory.defaults.where((c) => !hiddenDefaults.contains(c.key)),
+      ...custom,
+    ];
+  }
+});
+
+final expenseCategoryCollectionProvider =
+    Provider<CollectionReference<Map<String, dynamic>>?>((ref) {
+      final user = FirebaseAuth.instance.currentUser;
+      final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+      if (user == null || businessId.isEmpty) return null;
+      return ref
+          .read(contextFirestoreRepositoryProvider)
+          .scopeCollection(
+            uid: user.uid,
+            context: ResolvedFinanceContext.business(businessId),
+            childCollection: 'expense_categories',
+          );
+    });
 
 // ── Expense streams ───────────────────────────────────────────────────────────
 
@@ -40,10 +95,9 @@ final expenseListProvider = StreamProvider<List<Expense>>((ref) {
 /// Expenses filtered to the currently selected month.
 final expensesByMonthProvider = Provider<List<Expense>>((ref) {
   final month = ref.watch(selectedMonthProvider);
-  final all = ref.watch(expenseListProvider).maybeWhen(
-        data: (d) => d,
-        orElse: () => <Expense>[],
-      );
+  final all = ref
+      .watch(expenseListProvider)
+      .maybeWhen(data: (d) => d, orElse: () => <Expense>[]);
   return all.where((e) {
     final d = DateTime.tryParse(e.date);
     return d != null && d.year == month.year && d.month == month.month;
@@ -70,24 +124,24 @@ final monthTotalSpendProvider = Provider<double>((ref) {
 });
 
 /// Monthly totals for the last 6 months (for trend chart).
-final sixMonthSpendProvider = Provider<List<({int month, int year, double total})>>((ref) {
-  final all = ref.watch(expenseListProvider).maybeWhen(
-        data: (d) => d,
-        orElse: () => <Expense>[],
-      );
-  final now = DateTime.now();
-  return List.generate(6, (i) {
-    final m = DateTime(now.year, now.month - 5 + i);
-    final total = all
-        .where((e) {
-          if (e.status == 'rejected') return false;
-          final d = DateTime.tryParse(e.date);
-          return d != null && d.year == m.year && d.month == m.month;
-        })
-        .fold(0.0, (s, e) => s + (double.tryParse(e.amount) ?? 0));
-    return (month: m.month, year: m.year, total: total);
-  });
-});
+final sixMonthSpendProvider =
+    Provider<List<({int month, int year, double total})>>((ref) {
+      final all = ref
+          .watch(expenseListProvider)
+          .maybeWhen(data: (d) => d, orElse: () => <Expense>[]);
+      final now = DateTime.now();
+      return List.generate(6, (i) {
+        final m = DateTime(now.year, now.month - 5 + i);
+        final total = all
+            .where((e) {
+              if (e.status == 'rejected') return false;
+              final d = DateTime.tryParse(e.date);
+              return d != null && d.year == m.year && d.month == m.month;
+            })
+            .fold(0.0, (s, e) => s + (double.tryParse(e.amount) ?? 0));
+        return (month: m.month, year: m.year, total: total);
+      });
+    });
 
 // ── Budget streams ────────────────────────────────────────────────────────────
 
@@ -109,8 +163,8 @@ final budgetStreamProvider = StreamProvider<List<Budget>>((ref) async* {
     childCollection: 'budgets',
   );
   yield* col.snapshots().map(
-        (s) => s.docs.map((d) => Budget.fromFirestore(d.data(), d.id)).toList(),
-      );
+    (s) => s.docs.map((d) => Budget.fromFirestore(d.data(), d.id)).toList(),
+  );
 });
 
 /// Budgets filtered to the selected month.
@@ -174,26 +228,30 @@ Future<void> saveBudget({
 
 final recurringTemplateListProvider =
     StreamProvider<List<RecurringExpenseTemplate>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <RecurringExpenseTemplate>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <RecurringExpenseTemplate>[];
-    return;
-  }
-  final repository = ref.read(contextFirestoreRepositoryProvider);
-  yield* repository
-      .watchRecurringTemplates(
-        uid: user.uid,
-        context: ResolvedFinanceContext.business(bizId),
-      )
-      .map((list) => list
-          .map((m) => RecurringExpenseTemplate.fromMap(m, m['id'] as String))
-          .toList());
-});
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        yield const <RecurringExpenseTemplate>[];
+        return;
+      }
+      final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+      if (bizId == null || bizId.isEmpty) {
+        yield const <RecurringExpenseTemplate>[];
+        return;
+      }
+      final repository = ref.read(contextFirestoreRepositoryProvider);
+      yield* repository
+          .watchRecurringTemplates(
+            uid: user.uid,
+            context: ResolvedFinanceContext.business(bizId),
+          )
+          .map(
+            (list) => list
+                .map(
+                  (m) => RecurringExpenseTemplate.fromMap(m, m['id'] as String),
+                )
+                .toList(),
+          );
+    });
 
 // ── Cash accounts (offline-first) ─────────────────────────────────────────────
 

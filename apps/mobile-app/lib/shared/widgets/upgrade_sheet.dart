@@ -35,46 +35,46 @@ enum PlanFeatureKey {
 
 extension PlanFeatureKeyX on PlanFeatureKey {
   IconData get icon => switch (this) {
-        PlanFeatureKey.teamMembers     => Icons.group_rounded,
-        PlanFeatureKey.cashFlow        => Icons.waterfall_chart_rounded,
-        PlanFeatureKey.expenseExports  => Icons.download_rounded,
-        PlanFeatureKey.expenseTracking => Icons.receipt_long_rounded,
-        PlanFeatureKey.fullReports     => Icons.bar_chart_rounded,
-        PlanFeatureKey.mpesaImport     => Icons.phone_android_rounded,
-        PlanFeatureKey.smsReminders    => Icons.sms_rounded,
-        PlanFeatureKey.allExports      => Icons.ios_share_rounded,
-        PlanFeatureKey.manualDebt      => Icons.edit_note_rounded,
-        PlanFeatureKey.multiBusiness   => Icons.store_mall_directory_rounded,
-        PlanFeatureKey.customerLimit   => Icons.people_alt_rounded,
-      };
+    PlanFeatureKey.teamMembers => Icons.group_rounded,
+    PlanFeatureKey.cashFlow => Icons.waterfall_chart_rounded,
+    PlanFeatureKey.expenseExports => Icons.download_rounded,
+    PlanFeatureKey.expenseTracking => Icons.receipt_long_rounded,
+    PlanFeatureKey.fullReports => Icons.bar_chart_rounded,
+    PlanFeatureKey.mpesaImport => Icons.phone_android_rounded,
+    PlanFeatureKey.smsReminders => Icons.sms_rounded,
+    PlanFeatureKey.allExports => Icons.ios_share_rounded,
+    PlanFeatureKey.manualDebt => Icons.edit_note_rounded,
+    PlanFeatureKey.multiBusiness => Icons.store_mall_directory_rounded,
+    PlanFeatureKey.customerLimit => Icons.people_alt_rounded,
+  };
 
   String get labelSw => switch (this) {
-        PlanFeatureKey.teamMembers     => 'Wanachama wa Timu',
-        PlanFeatureKey.cashFlow        => 'Mtiririko wa Fedha',
-        PlanFeatureKey.expenseExports  => 'Uhamishaji wa Matumizi',
-        PlanFeatureKey.expenseTracking => 'Kufuatilia Matumizi',
-        PlanFeatureKey.fullReports     => 'Ripoti Kamili',
-        PlanFeatureKey.mpesaImport     => 'Kuingiza Data ya M-Pesa',
-        PlanFeatureKey.smsReminders    => 'SMS za Ukumbusho',
-        PlanFeatureKey.allExports      => 'Uhamishaji wa Data',
-        PlanFeatureKey.manualDebt      => 'Kuongeza Deni/Dai Mkononi',
-        PlanFeatureKey.multiBusiness   => 'Biashara Nyingi',
-        PlanFeatureKey.customerLimit   => 'Kikomo cha Wateja',
-      };
+    PlanFeatureKey.teamMembers => 'Wanachama wa Timu',
+    PlanFeatureKey.cashFlow => 'Mtiririko wa Fedha',
+    PlanFeatureKey.expenseExports => 'Uhamishaji wa Matumizi',
+    PlanFeatureKey.expenseTracking => 'Kufuatilia Matumizi',
+    PlanFeatureKey.fullReports => 'Ripoti Kamili',
+    PlanFeatureKey.mpesaImport => 'Kuingiza Data ya M-Pesa',
+    PlanFeatureKey.smsReminders => 'SMS za Ukumbusho',
+    PlanFeatureKey.allExports => 'Uhamishaji wa Data',
+    PlanFeatureKey.manualDebt => 'Kuongeza Deni/Dai Mkononi',
+    PlanFeatureKey.multiBusiness => 'Biashara Nyingi',
+    PlanFeatureKey.customerLimit => 'Kikomo cha Wateja',
+  };
 
   String get labelEn => switch (this) {
-        PlanFeatureKey.teamMembers     => 'Team Members',
-        PlanFeatureKey.cashFlow        => 'Cash Flow',
-        PlanFeatureKey.expenseExports  => 'Expense Exports',
-        PlanFeatureKey.expenseTracking => 'Expense Tracking',
-        PlanFeatureKey.fullReports     => 'Full Reports',
-        PlanFeatureKey.mpesaImport     => 'M-Pesa Import',
-        PlanFeatureKey.smsReminders    => 'SMS Reminders',
-        PlanFeatureKey.allExports      => 'Data Exports',
-        PlanFeatureKey.manualDebt      => 'Manual Debt Entry',
-        PlanFeatureKey.multiBusiness   => 'Multiple Businesses',
-        PlanFeatureKey.customerLimit   => 'Customer Limit',
-      };
+    PlanFeatureKey.teamMembers => 'Team Members',
+    PlanFeatureKey.cashFlow => 'Cash Flow',
+    PlanFeatureKey.expenseExports => 'Expense Exports',
+    PlanFeatureKey.expenseTracking => 'Expense Tracking',
+    PlanFeatureKey.fullReports => 'Full Reports',
+    PlanFeatureKey.mpesaImport => 'M-Pesa Import',
+    PlanFeatureKey.smsReminders => 'SMS Reminders',
+    PlanFeatureKey.allExports => 'Data Exports',
+    PlanFeatureKey.manualDebt => 'Manual Debt Entry',
+    PlanFeatureKey.multiBusiness => 'Multiple Businesses',
+    PlanFeatureKey.customerLimit => 'Customer Limit',
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,9 +148,15 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
           children: [
             SkeletonPlanCard(),
             SizedBox(height: 16),
-            SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+            SkeletonCard(
+              height: 56,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
             SizedBox(height: 8),
-            SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+            SkeletonCard(
+              height: 56,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
           ],
         ),
       ),
@@ -190,7 +196,12 @@ class _PendingRequestNotice extends StatelessWidget {
     };
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -201,16 +212,23 @@ class _PendingRequestNotice extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.tealAccent.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.25)),
+              border: Border.all(
+                color: AppColors.tealAccent.withValues(alpha: 0.25),
+              ),
             ),
             child: Column(
               children: [
-                const Icon(Icons.hourglass_top_rounded,
-                    color: AppColors.tealAccent, size: 36),
+                const Icon(
+                  Icons.hourglass_top_rounded,
+                  color: AppColors.tealAccent,
+                  size: 36,
+                ),
                 const SizedBox(height: 10),
                 Text(
-                  _t('Your $tierLabel request is still being processed',
-                      'Ombi lako la $tierLabel bado linashughulikiwa'),
+                  _t(
+                    'Your $tierLabel request is still being processed',
+                    'Ombi lako la $tierLabel bado linashughulikiwa',
+                  ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     fontSize: 15,
@@ -221,9 +239,10 @@ class _PendingRequestNotice extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   _t(
-                      'Our team is verifying your request. You cannot submit '
-                      'another request until this one is done.',
-                      'Timu yetu inathibitisha ombi lako. Huwezi kutuma ombi jingine mpaka hili likamilike.'),
+                    'Our team is verifying your request. You cannot submit '
+                        'another request until this one is done.',
+                    'Timu yetu inathibitisha ombi lako. Huwezi kutuma ombi jingine mpaka hili likamilike.',
+                  ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
@@ -242,12 +261,15 @@ class _PendingRequestNotice extends StatelessWidget {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       _t('Got It', 'Nimeelewa'),
                       style: GoogleFonts.dmSans(
-                          fontSize: 14, fontWeight: FontWeight.w700),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -282,7 +304,7 @@ class _UpgradeSheet extends StatefulWidget {
 }
 
 class _UpgradeSheetState extends State<_UpgradeSheet> {
-  PlanTier _selected = PlanTier.growth;
+  late PlanTier _selected;
   bool _showPayment = false;
   bool _showEnterprise = false;
   bool _submittingClaim = false;
@@ -291,9 +313,20 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 
   static const _mpesaNumber = '+255 746 520 819';
 
+  bool get _isMultiBusiness =>
+      widget.featureKey == PlanFeatureKey.multiBusiness;
+
+  @override
+  void initState() {
+    super.initState();
+    // Growth does not include multiple businesses. Start this paywall on the
+    // first plan that actually unlocks the requested feature.
+    _selected = _isMultiBusiness ? PlanTier.business : PlanTier.growth;
+  }
+
   PlanLimits get _selLimits => limitsFor(_selected, widget.defs);
   int get _priceMonthly => _selLimits.pricePerMonth;
-  int get _priceCycle   => _selLimits.pricePerCycle;
+  int get _priceCycle => _selLimits.pricePerCycle;
 
   Future<void> _openPayment() async {
     // The payment claim must reach Firestore (admin portal activates the
@@ -343,7 +376,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
         top: false,
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-            20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom,
+            20,
+            12,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -371,9 +407,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               SizedBox(height: 3),
               Text(
                 _t(
-                    'Costs less than an hour of accountant fees — reach '
-                    'further every day.',
-                    'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.'),
+                  'Costs less than an hour of accountant fees — reach '
+                      'further every day.',
+                  'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
+                ),
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textMuted,
@@ -383,17 +420,19 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SizedBox(height: 16),
 
               // ── Plan cards ───────────────────────────────────────────────
-              _TierCard(
-                tier: PlanTier.growth,
-                limits: limitsFor(PlanTier.growth, widget.defs),
-                isSelected: !_showEnterprise && _selected == PlanTier.growth,
-                onTap: () => setState(() {
-                  _selected = PlanTier.growth;
-                  _showPayment = false;
-                  _showEnterprise = false;
-                }),
-              ),
-              const SizedBox(height: 6),
+              if (!_isMultiBusiness) ...[
+                _TierCard(
+                  tier: PlanTier.growth,
+                  limits: limitsFor(PlanTier.growth, widget.defs),
+                  isSelected: !_showEnterprise && _selected == PlanTier.growth,
+                  onTap: () => setState(() {
+                    _selected = PlanTier.growth;
+                    _showPayment = false;
+                    _showEnterprise = false;
+                  }),
+                ),
+                const SizedBox(height: 6),
+              ],
               _TierCard(
                 tier: PlanTier.business,
                 limits: limitsFor(PlanTier.business, widget.defs),
@@ -510,9 +549,10 @@ class _LockedFeatureNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (featureKey == null && triggerReason == null) return const SizedBox.shrink();
+    if (featureKey == null && triggerReason == null)
+      return const SizedBox.shrink();
 
-    final icon  = featureKey?.icon ?? Icons.lock_rounded;
+    final icon = featureKey?.icon ?? Icons.lock_rounded;
     final label = LocalizationService.isSwahili
         ? featureKey?.labelSw
         : featureKey?.labelEn;
@@ -555,8 +595,10 @@ class _LockedFeatureNotice extends StatelessWidget {
                   ],
                   Text(
                     triggerReason ??
-                        _t('This feature requires a higher plan.',
-                            'Kipengele hiki kinahitaji mpango wa juu.'),
+                        _t(
+                          'This feature requires a higher plan.',
+                          'Kipengele hiki kinahitaji mpango wa juu.',
+                        ),
                     style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: AppColors.textMuted,
@@ -648,7 +690,11 @@ class _TierCard extends StatelessWidget {
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded, size: 10, color: AppColors.navyPrimary)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 10,
+                      color: AppColors.navyPrimary,
+                    )
                   : null,
             ),
             const SizedBox(width: 10),
@@ -664,14 +710,19 @@ class _TierCard extends StatelessWidget {
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: isSelected ? Colors.white : AppColors.navyPrimary,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.navyPrimary,
                       ),
                     ),
                   ),
                   if (isGrowth) ...[
                     SizedBox(width: 5),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.yellowBrand.withValues(
                           alpha: isSelected ? 0.2 : 0.12,
@@ -683,7 +734,9 @@ class _TierCard extends StatelessWidget {
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
+                          color: isSelected
+                              ? AppColors.yellowBrand
+                              : AppColors.navyPrimary,
                         ),
                       ),
                     ),
@@ -719,7 +772,9 @@ class _TierCard extends StatelessWidget {
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
+                      color: isSelected
+                          ? AppColors.yellowBrand
+                          : AppColors.navyPrimary,
                     ),
                   ),
                   Text(
@@ -796,8 +851,10 @@ class _EnterpriseCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _t('Chains, NGOs, distributors — custom pricing',
-                        'Minyororo, NGO, wasambazaji — bei maalum'),
+                    _t(
+                      'Chains, NGOs, distributors — custom pricing',
+                      'Minyororo, NGO, wasambazaji — bei maalum',
+                    ),
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,
@@ -851,12 +908,15 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
   }
 
   Future<void> _checkPending() async {
-    final pending =
-        await PlanRequestService.hasPending(PlanRequestType.enterpriseInquiry);
+    final pending = await PlanRequestService.hasPending(
+      PlanRequestType.enterpriseInquiry,
+    );
     if (!mounted) return;
-    setState(() => _state = pending
-        ? _EnterpriseFormState.alreadyPending
-        : _EnterpriseFormState.form);
+    setState(
+      () => _state = pending
+          ? _EnterpriseFormState.alreadyPending
+          : _EnterpriseFormState.form,
+    );
   }
 
   Future<void> _submit() async {
@@ -880,8 +940,9 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
       setState(() {
         _state = _EnterpriseFormState.form;
         _error = _t(
-            'Failed to send request. Check your internet connection and try again.',
-            'Imeshindwa kutuma ombi. Hakikisha una intaneti kisha jaribu tena.');
+          'Failed to send request. Check your internet connection and try again.',
+          'Imeshindwa kutuma ombi. Hakikisha una intaneti kisha jaribu tena.',
+        );
       });
     }
   }
@@ -909,17 +970,24 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
           decoration: BoxDecoration(
             color: AppColors.success.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+            border: Border.all(
+              color: AppColors.success.withValues(alpha: 0.25),
+            ),
           ),
           child: Column(
             children: [
-              const Icon(Icons.mark_email_read_rounded,
-                  color: AppColors.success, size: 36),
+              const Icon(
+                Icons.mark_email_read_rounded,
+                color: AppColors.success,
+                size: 36,
+              ),
               SizedBox(height: 10),
               Text(
                 alreadyPending
-                    ? _t('You already submitted an Enterprise request',
-                        'Tayari umetuma ombi la Enterprise')
+                    ? _t(
+                        'You already submitted an Enterprise request',
+                        'Tayari umetuma ombi la Enterprise',
+                      )
                     : _t('Request sent!', 'Ombi limetumwa!'),
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
@@ -930,9 +998,10 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               SizedBox(height: 4),
               Text(
                 _t(
-                    'Our team will contact you within 24 hours about custom '
-                    'pricing for your business.',
-                    'Timu yetu itawasiliana nawe ndani ya masaa 24 kuhusu bei maalum ya biashara yako.'),
+                  'Our team will contact you within 24 hours about custom '
+                      'pricing for your business.',
+                  'Timu yetu itawasiliana nawe ndani ya masaa 24 kuhusu bei maalum ya biashara yako.',
+                ),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
@@ -951,12 +1020,15 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     _t('OK', 'Sawa'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 14, fontWeight: FontWeight.w700),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -971,8 +1043,10 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _t('Tell us about your business (optional)',
-                  'Tuambie kuhusu biashara yako (hiari)'),
+              _t(
+                'Tell us about your business (optional)',
+                'Tuambie kuhusu biashara yako (hiari)',
+              ),
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -988,10 +1062,13 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               style: GoogleFonts.dmSans(fontSize: 13),
               decoration: InputDecoration(
                 hintText: _t(
-                    'E.g. 5 branches, 30 staff, need API and custom reports…',
-                    'Mf. matawi 5, wafanyakazi 30, tunahitaji API na ripoti maalum…'),
+                  'E.g. 5 branches, 30 staff, need API and custom reports…',
+                  'Mf. matawi 5, wafanyakazi 30, tunahitaji API na ripoti maalum…',
+                ),
                 hintStyle: GoogleFonts.dmSans(
-                    fontSize: 12, color: AppColors.textMuted),
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
                 filled: true,
                 fillColor: AppColors.surface,
                 counterText: '',
@@ -1027,33 +1104,44 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.navyPrimary),
+                          strokeWidth: 2,
+                          color: AppColors.navyPrimary,
+                        ),
                       )
                     : const Icon(Icons.send_rounded, size: 16),
                 label: Text(
                   busy
                       ? _t('Sending…', 'Inatuma…')
-                      : _t('Send Enterprise Request',
-                          'Tuma Ombi la Enterprise'),
+                      : _t(
+                          'Send Enterprise Request',
+                          'Tuma Ombi la Enterprise',
+                        ),
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w800),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.yellowBrand,
                   foregroundColor: AppColors.navyPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
             SizedBox(height: 6),
             Center(
               child: Text(
-                _t('Your request will reach our team immediately.',
-                    'Ombi lako litaonekana na timu yetu mara moja.'),
+                _t(
+                  'Your request will reach our team immediately.',
+                  'Ombi lako litaonekana na timu yetu mara moja.',
+                ),
                 style: GoogleFonts.dmSans(
-                    fontSize: 11, color: AppColors.textMuted),
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
               ),
             ),
           ],
@@ -1089,12 +1177,17 @@ class _PaymentSubmittedCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.hourglass_top_rounded,
-              color: AppColors.success, size: 36),
+          const Icon(
+            Icons.hourglass_top_rounded,
+            color: AppColors.success,
+            size: 36,
+          ),
           SizedBox(height: 10),
           Text(
-            _t('We received your payment info!',
-                'Tumepokea taarifa yako ya malipo!'),
+            _t(
+              'We received your payment info!',
+              'Tumepokea taarifa yako ya malipo!',
+            ),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1104,11 +1197,12 @@ class _PaymentSubmittedCard extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             _t(
-                'We are confirming your $tierName payment ($paymentRef) — '
-                'your plan will be activated within 24 hours. You will see '
-                'a notice here once it is active.',
-                'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
-                'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.'),
+              'We are confirming your $tierName payment ($paymentRef) — '
+                  'your plan will be activated within 24 hours. You will see '
+                  'a notice here once it is active.',
+              'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
+                  'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.',
+            ),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
               fontSize: 12,
@@ -1127,12 +1221,15 @@ class _PaymentSubmittedCard extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: Text(
                 _t('OK', 'Sawa'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w700),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1180,8 +1277,11 @@ class _PaymentInstructions extends StatelessWidget {
           onTap: onBack,
           child: Row(
             children: [
-              const Icon(Icons.arrow_back_rounded,
-                  size: 16, color: AppColors.textSecondary),
+              const Icon(
+                Icons.arrow_back_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               SizedBox(width: 4),
               Text(
                 _t('Back', 'Rudi'),
@@ -1212,8 +1312,11 @@ class _PaymentInstructions extends StatelessWidget {
                       color: AppColors.tealAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(9),
                     ),
-                    child: const Icon(Icons.phone_android_rounded,
-                        color: AppColors.tealAccent, size: 16),
+                    child: const Icon(
+                      Icons.phone_android_rounded,
+                      color: AppColors.tealAccent,
+                      size: 16,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
@@ -1228,13 +1331,18 @@ class _PaymentInstructions extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _Step(
-                  number: '1',
-                  text: _t('Open M-Pesa on your phone',
-                      'Fungua M-Pesa kwenye simu yako')),
+                number: '1',
+                text: _t(
+                  'Open M-Pesa on your phone',
+                  'Fungua M-Pesa kwenye simu yako',
+                ),
+              ),
               _Step(
                 number: '2',
-                text: _t('Select "Pay Bill" (Lipa Number)',
-                    'Chagua "Lipa Biashara" (Lipa Number)'),
+                text: _t(
+                  'Select "Pay Bill" (Lipa Number)',
+                  'Chagua "Lipa Biashara" (Lipa Number)',
+                ),
               ),
               _Step(
                 number: '3',
@@ -1254,12 +1362,16 @@ class _PaymentInstructions extends StatelessWidget {
                       '${_t("Amount", "Kiasi")}: ${_fmtPrice(priceCycle)} '
                       '(${_t("$cycleMonths months", "miezi $cycleMonths")})',
                       style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       '(${_fmtPrice(priceMonthly)}${_t("/mo", "/mwezi")} × $cycleMonths)',
                       style: GoogleFonts.dmSans(
-                          fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -1287,14 +1399,18 @@ class _PaymentInstructions extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 14, color: AppColors.warning),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: AppColors.warning,
+                    ),
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _t(
-                            'After paying, our team will confirm within 24 hours.',
-                            'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.'),
+                          'After paying, our team will confirm within 24 hours.',
+                          'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.',
+                        ),
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: AppColors.warning,
@@ -1316,13 +1432,19 @@ class _PaymentInstructions extends StatelessWidget {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white,
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                  label: Text(busy
-                      ? _t('Sending…', 'Inatuma…')
-                      : _t('I Have Paid', 'Nimemaliza Kulipa')),
+                      : const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 18,
+                        ),
+                  label: Text(
+                    busy
+                        ? _t('Sending…', 'Inatuma…')
+                        : _t('I Have Paid', 'Nimemaliza Kulipa'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
@@ -1374,7 +1496,9 @@ class _CopyRow extends StatelessWidget {
                 Text(
                   sublabel!,
                   style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textSecondary),
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               Text(
                 label,
@@ -1391,11 +1515,13 @@ class _CopyRow extends StatelessWidget {
         GestureDetector(
           onTap: () {
             Clipboard.setData(ClipboardData(text: copyValue));
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(snackLabel),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(snackLabel),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
           child: Container(
             padding: const EdgeInsets.all(6),
@@ -1403,8 +1529,11 @@ class _CopyRow extends StatelessWidget {
               color: AppColors.tealAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.copy_rounded,
-                size: 14, color: AppColors.tealAccent),
+            child: const Icon(
+              Icons.copy_rounded,
+              size: 14,
+              color: AppColors.tealAccent,
+            ),
           ),
         ),
       ],
@@ -1422,7 +1551,7 @@ class _Step extends StatelessWidget {
   final Widget? child;
 
   const _Step({required this.number, this.text, this.child})
-      : assert(text != null || child != null);
+    : assert(text != null || child != null);
 
   @override
   Widget build(BuildContext context) {
@@ -1454,10 +1583,7 @@ class _Step extends StatelessWidget {
             child: text != null
                 ? Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      text!,
-                      style: GoogleFonts.dmSans(fontSize: 13),
-                    ),
+                    child: Text(text!, style: GoogleFonts.dmSans(fontSize: 13)),
                   )
                 : child!,
           ),

@@ -20,11 +20,7 @@ class SkeletonBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerBox(
-      width: width,
-      height: height,
-      borderRadius: borderRadius,
-    );
+    return ShimmerBox(width: width, height: height, borderRadius: borderRadius);
   }
 }
 
@@ -356,10 +352,7 @@ class SkeletonComparisonTable extends StatelessWidget {
               decoration: BoxDecoration(
                 border: i < 5
                     ? const Border(
-                        bottom: BorderSide(
-                          color: AppColors.border,
-                          width: 0.5,
-                        ),
+                        bottom: BorderSide(color: AppColors.border, width: 0.5),
                       )
                     : null,
               ),
@@ -435,11 +428,20 @@ class SkeletonSubscriptionBody extends StatelessWidget {
         SizedBox(height: 28),
         SkeletonText(width: 150),
         SizedBox(height: 12),
-        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+        SkeletonCard(
+          height: 56,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
         SizedBox(height: 8),
-        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+        SkeletonCard(
+          height: 56,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
         SizedBox(height: 8),
-        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+        SkeletonCard(
+          height: 56,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
       ],
     );
   }
@@ -453,31 +455,34 @@ class SkeletonBusinessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Row(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: const Column(
         children: [
-          SkeletonAvatar(size: 48, circle: false),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SkeletonText(width: 140, height: 14),
-                SizedBox(height: 6),
-                SkeletonText(width: 90, height: 11),
-              ],
-            ),
+          Row(
+            children: [
+              SkeletonAvatar(size: 46),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonText(width: 150, height: 13),
+                    SizedBox(height: 7),
+                    SkeletonText(width: 110, height: 10),
+                  ],
+                ),
+              ),
+              SkeletonBox(
+                width: 18,
+                height: 18,
+                borderRadius: BorderRadius.all(Radius.circular(4)),
+              ),
+            ],
           ),
-          SkeletonBox(
-            width: 20,
-            height: 20,
-            borderRadius: BorderRadius.all(Radius.circular(4)),
+          Padding(
+            padding: EdgeInsets.only(top: 13, left: 58),
+            child: Divider(height: 1, color: AppColors.border),
           ),
         ],
       ),
@@ -493,28 +498,52 @@ class SkeletonBusinessList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-    return ListView(
-      padding: EdgeInsets.fromLTRB(20, topPad + 62, 20, 40),
-      children: const [
-        ShimmerBox(
-          height: 160,
-          borderRadius: BorderRadius.all(Radius.circular(20)),
-        ),
-        SizedBox(height: 28),
-        Row(
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
           children: [
-            SkeletonText(width: 110, height: 14),
-            Spacer(),
-            ShimmerBox(
-              width: 28,
-              height: 22,
-              borderRadius: BorderRadius.all(Radius.circular(999)),
+            Container(
+              padding: EdgeInsets.fromLTRB(20, topPad + 16, 20, 38),
+              decoration: const BoxDecoration(
+                color: AppColors.navyPrimary,
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(20),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  SkeletonBox(width: 150, height: 30),
+                  Spacer(),
+                  SkeletonAvatar(size: 40),
+                ],
+              ),
+            ),
+            const Positioned(
+              left: 44,
+              right: 44,
+              bottom: -22,
+              child: ShimmerBox(
+                height: 44,
+                borderRadius: BorderRadius.all(Radius.circular(30)),
+              ),
             ),
           ],
         ),
-        SizedBox(height: 12),
-        SkeletonBusinessCard(),
-        SkeletonBusinessCard(),
+        const SizedBox(height: 30),
+        const Expanded(
+          child: SingleChildScrollView(
+            physics: NeverScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                SkeletonBusinessCard(),
+                SkeletonBusinessCard(),
+                SkeletonBusinessCard(),
+                SkeletonBusinessCard(),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
