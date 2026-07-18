@@ -12,7 +12,7 @@
     "backfill:staff-counts": "tsx --env-file=.env.local scripts/backfill-staff-counts.ts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "npx wrangler dev",
-    "cf:deploy": "npx wrangler deploy"
+    "cf:deploy": "npx wrangler deploy --keep-vars"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",

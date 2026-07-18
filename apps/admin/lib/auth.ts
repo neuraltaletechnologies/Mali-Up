@@ -15,7 +15,27 @@ const credentialsSchema = z.object({
 // it's cached in the JWT and only re-checked once this interval elapses.
 const ADMIN_RECHECK_INTERVAL_MS = 5 * 60 * 1000
 
+function resolveAuthSecret() {
+  const explicitSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (explicitSecret) return explicitSecret
+
+  const projectId = process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+
+  // Cloudflare runtime secrets are sometimes wired for Firebase admin only.
+  // Reuse those same credentials as a stable fallback so Auth.js can still
+  // sign sessions even when a dedicated NextAuth secret was not provisioned.
+  if (projectId && clientEmail && privateKey) {
+    return [projectId, clientEmail, privateKey].join(':')
+  }
+
+  return undefined
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: resolveAuthSecret(),
+  trustHost: true,
   providers: [
     Credentials({
       id: 'firebase',

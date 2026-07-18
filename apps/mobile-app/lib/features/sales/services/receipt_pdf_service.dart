@@ -285,30 +285,30 @@ abstract final class ReceiptPdfService {
         ),
         build: (_) => [
           pw.Container(
-            padding: const pw.EdgeInsets.all(16),
+            padding: const pw.EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             decoration: pw.BoxDecoration(
               color: _navy,
-              borderRadius: pw.BorderRadius.circular(10),
+              borderRadius: pw.BorderRadius.circular(9),
             ),
             child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Container(
-                  width: 48,
-                  height: 48,
+                  width: 38,
+                  height: 38,
                   alignment: pw.Alignment.center,
-                  decoration: pw.BoxDecoration(
+                  decoration: const pw.BoxDecoration(
                     color: _yellow,
-                    borderRadius: pw.BorderRadius.circular(8),
+                    shape: pw.BoxShape.circle,
                   ),
                   child: businessLogo != null
-                      ? pw.ClipRRect(
-                          horizontalRadius: 8,
-                          verticalRadius: 8,
+                      ? pw.ClipOval(
                           child: pw.Image(
                             businessLogo,
-                            width: 48,
-                            height: 48,
+                            width: 38,
+                            height: 38,
                             fit: pw.BoxFit.cover,
                           ),
                         )
@@ -316,12 +316,12 @@ abstract final class ReceiptPdfService {
                           _businessInitial(businessName),
                           style: pw.TextStyle(
                             color: _navy,
-                            fontSize: 17,
+                            fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
                 ),
-                pw.SizedBox(width: 14),
+                pw.SizedBox(width: 12),
                 pw.Expanded(
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -332,23 +332,23 @@ abstract final class ReceiptPdfService {
                             : businessName,
                         style: pw.TextStyle(
                           color: PdfColors.white,
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
-                      pw.SizedBox(height: 3),
+                      pw.SizedBox(height: 2),
                       pw.Text(
                         documentTitle,
                         style: const pw.TextStyle(
                           color: _yellow,
-                          fontSize: 10,
-                          letterSpacing: 1.1,
+                          fontSize: 8.5,
+                          letterSpacing: 0.9,
                         ),
                       ),
                       if (businessAddress.isNotEmpty ||
                           businessPhone.isNotEmpty ||
                           businessEmail.isNotEmpty) ...[
-                        pw.SizedBox(height: 5),
+                        pw.SizedBox(height: 3),
                         pw.Text(
                           [
                             businessAddress,
@@ -357,7 +357,7 @@ abstract final class ReceiptPdfService {
                           ].where((value) => value.isNotEmpty).join('  |  '),
                           style: const pw.TextStyle(
                             color: PdfColors.white,
-                            fontSize: 7.5,
+                            fontSize: 6.8,
                           ),
                         ),
                       ],
@@ -367,7 +367,7 @@ abstract final class ReceiptPdfService {
               ],
             ),
           ),
-          pw.SizedBox(height: 22),
+          pw.SizedBox(height: 16),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
