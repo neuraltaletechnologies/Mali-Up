@@ -4,7 +4,9 @@
 name = "mali-up"
 main = ".open-next/worker.js"
 compatibility_date = "2025-01-01"
-compatibility_flags = ["nodejs_compat"]
+# This date predates automatic process.env population. Firebase Admin and
+# Auth.js read their runtime bindings through process.env.
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
 
 [observability]
 enabled = true
