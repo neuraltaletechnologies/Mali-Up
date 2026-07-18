@@ -8,6 +8,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+val isReleaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
+if (isReleaseBuildRequested && keystorePassword.isNullOrBlank()) {
+    throw GradleException(
+        "KEYSTORE_PASSWORD is required for release builds. " +
+            "Refusing to create a bundle with an invalid signing configuration.",
+    )
+}
+
 android {
     namespace = "com.neuraltale.maliup"
     // Google Play requires Android 16 / API 36 for new apps and updates from
@@ -38,10 +50,9 @@ android {
 
     signingConfigs {
         create("release") {
-            // Only populate when set, so debug builds (which configure this
-            // block too, even though they never use it) don't fail without it.
-            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-            if (keystorePassword != null) {
+            // Only populate when set so normal debug builds do not require
+            // access to the release keystore.
+            if (!keystorePassword.isNullOrBlank()) {
                 keyAlias = "mali-up-key"
                 keyPassword = keystorePassword
                 storeFile = file("keystore/mali-up-release.jks")
@@ -57,14 +68,10 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 
-            // Use release signing config for Google Play; fall back to the
-            // debug key locally so `flutter run --release` works without the
-            // real secret. CI always sets KEYSTORE_PASSWORD.
-            signingConfig = if (System.getenv("KEYSTORE_PASSWORD") != null) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Never fall back to the debug key: Google Play rejects bundles
+            // signed by any certificate other than the registered upload key.
+            // Without KEYSTORE_PASSWORD, release signing validation must fail.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

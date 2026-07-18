@@ -57,7 +57,11 @@ export default function LoginPage() {
       const result = await signIn('firebase', { idToken, redirect: false })
       if (result?.error) {
         await getFirebaseAuth().signOut()
-        setError('Your account does not have admin access. Contact the platform owner.')
+        setError(
+          result.error === 'CredentialsSignin'
+            ? 'Your account does not have admin access. Contact the platform owner.'
+            : 'The admin sign-in service is temporarily unavailable. Please try again.',
+        )
       } else {
         router.push('/admin')
       }
