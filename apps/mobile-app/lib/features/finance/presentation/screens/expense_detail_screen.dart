@@ -503,7 +503,7 @@ class _ReceiptHeroBackground extends StatelessWidget {
                     size: 13,
                     color: Colors.white,
                   ),
-                  SizedBox(width: 5),
+                  const SizedBox(width: 5),
                   Text(
                     _tr('View receipt', 'Angalia risiti'),
                     style: GoogleFonts.dmSans(
@@ -627,7 +627,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 16, color: AppColors.textMuted),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,7 +697,7 @@ class _ReceiptPreviewCard extends StatelessWidget {
                 },
               ),
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,7 +710,7 @@ class _ReceiptPreviewCard extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     _tr('Tap to view full receipt', 'Gusa kuona risiti kamili'),
                     style: GoogleFonts.dmSans(
@@ -796,7 +796,7 @@ class _ActionRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 18, color: color),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               label,
               style: GoogleFonts.dmSans(

@@ -373,7 +373,7 @@ class _SetPinBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           sw
               ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kufikia Mali Up.'
@@ -491,7 +491,7 @@ class _ConfirmPinBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           sw
               ? 'Ingiza tena PIN yako ili ithibitishwe.'
@@ -614,7 +614,7 @@ class _OnboardingOfflineBanner extends StatelessWidget {
             size: 18,
             color: Color(0xFF856404),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,17 +624,17 @@ class _OnboardingOfflineBanner extends StatelessWidget {
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF856404),
+                    color: const Color(0xFF856404),
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'
                       : 'Please connect to the internet and try again.',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
-                    color: Color(0xFF856404),
+                    color: const Color(0xFF856404),
                     height: 1.4,
                   ),
                 ),

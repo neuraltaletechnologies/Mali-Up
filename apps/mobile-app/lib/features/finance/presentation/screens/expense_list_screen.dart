@@ -136,7 +136,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           backgroundColor: AppColors.yellowBrand,
           foregroundColor: AppColors.navyPrimary,
           elevation: 3,
-          icon: Icon(Icons.receipt_long_rounded, size: 20),
+          icon: const Icon(Icons.receipt_long_rounded, size: 20),
           label: Text(
             _tr('Add Expense', 'Ongeza Matumizi'),
             style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -341,7 +341,7 @@ class _ExpenseDarkHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     _monthLabel(month),
                     style: GoogleFonts.dmSans(
@@ -620,7 +620,7 @@ class _ExpenseCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Text(
                               '·',
                               style: GoogleFonts.dmSans(
@@ -628,7 +628,7 @@ class _ExpenseCard extends StatelessWidget {
                                 color: AppColors.textDisabled,
                               ),
                             ),
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Text(
                               _fmtDate(expense.date),
                               style: GoogleFonts.dmSans(
@@ -705,7 +705,7 @@ class _PillStat extends StatelessWidget {
             color: color,
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(

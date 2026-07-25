@@ -90,7 +90,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                 ),
 
                 // PIN Length Indicator
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   '${pinEntry.length} ${_t("digits", "tarakimu")}',
                   style: GoogleFonts.dmSans(

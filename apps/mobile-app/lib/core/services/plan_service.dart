@@ -687,7 +687,7 @@ class PlanPendingBanner extends ConsumerWidget {
               size: 18,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -700,7 +700,7 @@ class PlanPendingBanner extends ConsumerWidget {
                     color: AppColors.navyPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Timu yetu inathibitisha malipo yako — utapata taarifa mara mpango ukiwashwa.',
                   style: GoogleFonts.dmSans(
@@ -765,7 +765,7 @@ class PlanUpgradeCard extends StatelessWidget {
               size: 20,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -780,7 +780,7 @@ class PlanUpgradeCard extends StatelessWidget {
                     color: accent,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Growth: ${_fmtPrice(status.definitions?[PlanTier.growth]?.pricePerMonth ?? 5000)}/mwezi — ankara zisizo na kikomo',
                   style: GoogleFonts.dmSans(
@@ -792,7 +792,7 @@ class PlanUpgradeCard extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: onUpgradeTap,
             child: Container(
@@ -903,7 +903,7 @@ class PlanInfoCard extends StatelessWidget {
                       size: 20,
                     ),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -957,7 +957,7 @@ class PlanInfoCard extends StatelessWidget {
               const SizedBox(height: 16),
               if (status.isStarter) ...[
                 _UsageBar(status: status),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   '${status.invoicesUsedThisMonth} / $limit invoices mwezi huu',
                   style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
@@ -967,7 +967,7 @@ class PlanInfoCard extends StatelessWidget {
                 const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: false),
                 const _FeatureRow(text: 'Ripoti kamili', ok: false),
                 const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: false),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
                   height: 48,
@@ -1066,7 +1066,7 @@ class _FeatureRow extends StatelessWidget {
                 ? (light ? AppColors.yellowBrand : AppColors.success)
                 : AppColors.textDisabled,
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Text(
             text,
             style: GoogleFonts.dmSans(

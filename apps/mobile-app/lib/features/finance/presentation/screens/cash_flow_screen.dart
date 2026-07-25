@@ -305,7 +305,7 @@ class _PillStat extends StatelessWidget {
             color: color,
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
@@ -419,7 +419,7 @@ class _OverviewTab extends ConsumerWidget {
                       (a) => !PaymentMethodAccounts.isMethodAccountId(a.id),
                     )
                     .toList();
-                final specs = PaymentMethodAccounts.specs;
+                const specs = PaymentMethodAccounts.specs;
 
                 return ListView.separated(
                   scrollDirection: Axis.horizontal,
@@ -554,7 +554,7 @@ class _StatementTab extends ConsumerWidget {
                 builder: (_) => const CashFlowStatementScreen(),
               ),
             ),
-            icon: Icon(Icons.open_in_new, size: 16),
+            icon: const Icon(Icons.open_in_new, size: 16),
             label: Text(
               _tr('Full Statement', 'Taarifa Kamili'),
               style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
@@ -608,7 +608,7 @@ class _StatementTab extends ConsumerWidget {
                         fontSize: 12,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       _tr('Net Cash Flow', 'Mtiririko Halisi'),
                       style: GoogleFonts.dmSans(
@@ -1076,7 +1076,7 @@ class _TxnListTile extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 18),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1091,7 +1091,7 @@ class _TxnListTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   '$subtitle • ${txn.date}',
                   style: GoogleFonts.dmSans(
@@ -1104,7 +1104,7 @@ class _TxnListTile extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
             '$prefix${_fmtCompact(txn.amount)}',
             style: GoogleFonts.dmSans(
@@ -1152,7 +1152,7 @@ class _ActivityCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -57,7 +57,7 @@ class CashFlowStatementScreen extends ConsumerWidget {
                             fontSize: 13,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           _t('Net Cash Flow', 'Mtiririko Halisi wa Pesa'),
                           style: GoogleFonts.dmSans(

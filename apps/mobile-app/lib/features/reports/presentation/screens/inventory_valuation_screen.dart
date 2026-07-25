@@ -28,7 +28,7 @@ class InventoryValuationScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Inventory Valuation', 'Tathmini ya Hisa'),
           style: GoogleFonts.dmSans(
@@ -82,7 +82,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                           fontSize: 12,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         formatCurrency(report.totalValue),
                         style: GoogleFonts.dmSans(
@@ -91,7 +91,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         _tr(
                           'Weighted average cost method',
@@ -123,7 +123,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                         fontSize: 11,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       report.totalUnits.toStringAsFixed(0),
                       style: GoogleFonts.dmSans(
@@ -164,7 +164,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                   color: AppColors.tealAccent,
                   size: 18,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _tr(
@@ -450,7 +450,7 @@ class _CategoryPieCard extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,7 +469,7 @@ class _CategoryPieCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

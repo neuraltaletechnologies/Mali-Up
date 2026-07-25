@@ -599,7 +599,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                           ],
                         ),
                         if (_customer.phone.isNotEmpty) ...[
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(_customer.phone,
                               style: GoogleFonts.dmSans(
                                   fontSize: 11, color: Colors.white60)),
@@ -609,7 +609,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                   ),
                   // ── Balance pill ──────────────────────────────────────────
                   if (showFinancials) ...[
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1005,7 +1005,7 @@ class _ActionBtn extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: color),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Text(label,
                 style: GoogleFonts.dmSans(
                     fontSize: 12,
@@ -1098,7 +1098,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                       : AppColors.success,
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1225,7 +1225,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                           ),
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       FilledButton(
                         onPressed: () {
                           final v =
@@ -1268,7 +1268,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                         children: [
                           const Icon(Icons.credit_score_rounded,
                               size: 16, color: AppColors.tealAccent),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             hasLimit
                                 ? _tr('Edit credit limit',
@@ -1294,7 +1294,7 @@ class _BalanceCardState extends State<_BalanceCard> {
               children: [
                 const Icon(Icons.credit_score_rounded,
                     size: 16, color: AppColors.textDisabled),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   hasLimit
                       ? _tr('Credit limit: TZS ${_fmtNum(widget.limit)}',
@@ -1308,12 +1308,12 @@ class _BalanceCardState extends State<_BalanceCard> {
 
           // ── Pay Debt button ───────────────────────────────────────
           if (widget.balance > 0 && widget.onPayDebt != null) ...[
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: widget.onPayDebt,
-                icon: Icon(Icons.payments_rounded, size: 16),
+                icon: const Icon(Icons.payments_rounded, size: 16),
                 label: Text(
                   _tr('Pay Debt', 'Lipa Deni'),
                   style: GoogleFonts.dmSans(
@@ -1408,7 +1408,7 @@ class _InsightsCard extends ConsumerWidget {
                     child: const Icon(Icons.insights_rounded,
                         size: 15, color: AppColors.navyPrimary),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Text(
                     _tr('Customer Insights', 'Uchambuzi wa Mteja'),
                     style: GoogleFonts.dmSans(
@@ -1578,7 +1578,7 @@ class _InsightRow extends StatelessWidget {
             ),
             child: Icon(icon, size: 12, color: color),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
@@ -1639,7 +1639,7 @@ class _ContactCard extends StatelessWidget {
                   child: const Icon(Icons.contact_page_rounded,
                       size: 15, color: AppColors.tealAccent),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
                   _tr('Contact Info', 'Mawasiliano'),
                   style: GoogleFonts.dmSans(
@@ -1753,7 +1753,7 @@ class _ContactRow extends StatelessWidget {
               ),
               child: Icon(icon, size: 15, color: iconColor),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1873,7 +1873,7 @@ class _TagsCardState extends State<_TagsCard> {
                         size: 14,
                         color: AppColors.navyPrimary,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         _addingCustom
                             ? _tr('Cancel', 'Ghairi')
@@ -1937,7 +1937,7 @@ class _TagsCardState extends State<_TagsCard> {
 
           // ── Custom tag input ──────────────────────────────────────────
           if (_addingCustom) ...[
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -1972,7 +1972,7 @@ class _TagsCardState extends State<_TagsCard> {
                     },
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 FilledButton(
                   onPressed: () {
                     final tag = _customTagCtrl.text.trim();
@@ -2002,7 +2002,7 @@ class _TagsCardState extends State<_TagsCard> {
           if (customTags.isNotEmpty) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.border),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               _tr('Custom Tags', 'Lebo za Mtumiaji'),
               style: GoogleFonts.dmSans(
@@ -2156,7 +2156,7 @@ class _InvoicesTab extends ConsumerWidget {
                       children: [
                         const Icon(Icons.bar_chart_rounded,
                             size: 14, color: AppColors.navyPrimary),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           _tr(
                             'Avg. order value: TZS ${_fmtNum(ins.avgOrderValue)}',
@@ -2257,7 +2257,7 @@ class _InvoiceTile extends StatelessWidget {
                               color: AppColors.textPrimary),
                         ),
                         if (isQuotation) ...[
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 5, vertical: 1),
@@ -2276,13 +2276,13 @@ class _InvoiceTile extends StatelessWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
                         if (createdAt != null) ...[
                           const Icon(Icons.calendar_today_rounded,
                               size: 10, color: AppColors.textDisabled),
-                          SizedBox(width: 3),
+                          const SizedBox(width: 3),
                           Text(
                             _fmtDate(createdAt),
                             style: GoogleFonts.dmSans(
@@ -2310,7 +2310,7 @@ class _InvoiceTile extends StatelessWidget {
                       ],
                     ),
                     if (dueDate != null) ...[
-                      SizedBox(height: 3),
+                      const SizedBox(height: 3),
                       Row(
                         children: [
                           Icon(
@@ -2320,7 +2320,7 @@ class _InvoiceTile extends StatelessWidget {
                                 ? AppColors.error
                                 : AppColors.textDisabled,
                           ),
-                          SizedBox(width: 3),
+                          const SizedBox(width: 3),
                           Text(
                             '${_tr('Due', 'Mwisho')}: ${_fmtDate(dueDate)}',
                             style: GoogleFonts.dmSans(
@@ -2339,7 +2339,7 @@ class _InvoiceTile extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -2420,7 +2420,7 @@ class _NotesTab extends ConsumerWidget {
                 heroTag: 'add-note-fab',
                 onPressed: onAddNote,
                 backgroundColor: AppColors.navyPrimary,
-                icon: Icon(Icons.add_rounded, color: Colors.white),
+                icon: const Icon(Icons.add_rounded, color: Colors.white),
                 label: Text(
                   _tr('Add Note', 'Ongeza Logi'),
                   style: GoogleFonts.dmSans(
@@ -2478,7 +2478,7 @@ class _NoteTile extends StatelessWidget {
                 ),
                 child: Icon(type.icon, size: 15, color: type.color),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 type.label,
                 style: GoogleFonts.dmSans(
@@ -2496,13 +2496,13 @@ class _NoteTile extends StatelessWidget {
             ],
           ),
           if (text.isNotEmpty) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(text,
                 style: GoogleFonts.dmSans(
                     fontSize: 13, color: AppColors.textPrimary)),
           ],
           if (isReminder && scheduledFor != null) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Icon(
@@ -2510,7 +2510,7 @@ class _NoteTile extends StatelessWidget {
                   size: 12,
                   color: reminderSent ? AppColors.success : AppColors.warning,
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
                   '${_tr("Scheduled:", "Imepangwa:")} ${_fmtDate(scheduledFor)}',
                   style: GoogleFonts.dmSans(
@@ -2520,7 +2520,7 @@ class _NoteTile extends StatelessWidget {
                           : AppColors.warning),
                 ),
                 if (reminderSent) ...[
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Text(
                     _tr('Sent', 'Imetumwa'),
                     style: GoogleFonts.dmSans(
@@ -2592,7 +2592,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               _tr('Log Activity', 'Rekodi Shughuli'),
               style: GoogleFonts.dmSans(
@@ -2625,7 +2625,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                             Icon(t.icon,
                                 size: 13,
                                 color: active ? Colors.white : t.color),
-                            SizedBox(width: 5),
+                            const SizedBox(width: 5),
                             Text(t.label,
                                 style: GoogleFonts.dmSans(
                                     fontSize: 12,
@@ -2641,7 +2641,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                 }).toList(),
               ),
             ),
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
@@ -2668,7 +2668,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
               ),
             ),
             if (_type == _NoteType.reminder) ...[
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               GestureDetector(
                 onTap: _pickDate,
                 child: Container(
@@ -2684,7 +2684,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                     children: [
                       const Icon(Icons.alarm_rounded,
                           size: 16, color: AppColors.warning),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         _scheduledFor != null
                             ? _fmtDate(_scheduledFor!)
@@ -2882,7 +2882,7 @@ class _EditCustomerFullSheetState
                           borderRadius: BorderRadius.circular(999)),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     _tr('Edit Profile', 'Hariri Wasifu'),
                     style: GoogleFonts.dmSans(
@@ -2955,7 +2955,7 @@ class _EditCustomerFullSheetState
                       Icons.credit_score_rounded,
                     ),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
@@ -2972,7 +2972,7 @@ class _EditCustomerFullSheetState
                               style: GoogleFonts.dmSans()),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton(
                           onPressed: _saving ? null : _save,
@@ -3078,7 +3078,7 @@ class _ToggleTab extends StatelessWidget {
               Icon(icon,
                   size: 16,
                   color: active ? Colors.white : AppColors.textMuted),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   label,
@@ -3212,7 +3212,7 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               _tr('Record Debt Payment', 'Rekodi Malipo ya Deni'),
               style: GoogleFonts.dmSans(
@@ -3220,7 +3220,7 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               '${_tr('Outstanding balance', 'Deni linalobaki')}: TZS ${_fmtNum(widget.balance)}',
               style: GoogleFonts.dmSans(

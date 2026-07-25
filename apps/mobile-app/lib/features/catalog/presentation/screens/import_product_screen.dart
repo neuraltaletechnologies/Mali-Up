@@ -188,7 +188,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          SheetHandle(),
+          const SheetHandle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Row(
@@ -247,7 +247,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
             // ── Section: Pricing ──────────────────────────────────────────
             _SectionLabel(_tr('Pricing', 'Bei')),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               _tr(
                 'Set your own cost and selling prices for this product.',
@@ -325,13 +325,13 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                     ],
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel(_tr('Unit', 'Kitengo')),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Container(
                         height: 48,
                         decoration: BoxDecoration(
@@ -392,7 +392,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
             // ── Payment status (shown only when purchased) ────────────────
             if (_stockOrigin == 'purchased') ...[
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
                   color: _paymentStatus == 'unpaid'
@@ -465,7 +465,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                     // Supplier + amount fields (shown when partial or unpaid)
                     if (_paymentStatus == 'partial' ||
                         _paymentStatus == 'unpaid') ...[
-                      Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                         child: Column(
@@ -488,7 +488,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(height: 10),
+                            const SizedBox(height: 10),
                             TextFormField(
                               controller: _supplierPhoneCtrl,
                               keyboardType: TextInputType.phone,
@@ -509,7 +509,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
                             // Amount paid field (partial only)
                             if (_paymentStatus == 'partial') ...[
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               TextFormField(
                                 controller: _amountPaidCtrl,
                                 keyboardType: const TextInputType
@@ -576,7 +576,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                                               color: AppColors.textMuted),
                                         ),
                                       if (_paymentStatus == 'partial')
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                       Text(
                                         _tr(
                                           'Debt to record: TZS ${debt.toStringAsFixed(0)}',
@@ -630,7 +630,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.download_rounded, size: 20),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             _tr('Import to My Inventory',
                                 'Ingiza kwenye Stoo Yangu'),
@@ -644,7 +644,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
               ),
             ),
 
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               _tr(
                 'This creates an independent product in your inventory. '
@@ -687,7 +687,7 @@ class _SourceCard extends StatelessWidget {
         children: [
           const Icon(Icons.menu_book_rounded,
               color: AppColors.tealAccent, size: 22),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +701,7 @@ class _SourceCard extends StatelessWidget {
                     color: AppColors.tealAccent,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   product.productName,
                   style: GoogleFonts.dmSans(
@@ -799,7 +799,7 @@ class _TextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-            GoogleFonts.dmSans(fontSize: 14, color: Color(0xFF94A3B8)),
+            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF94A3B8)),
         filled: true,
         fillColor: const Color(0xFFF8F9FC),
         contentPadding:
@@ -850,7 +850,7 @@ class _NumericField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-            GoogleFonts.dmSans(fontSize: 14, color: Color(0xFF94A3B8)),
+            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF94A3B8)),
         filled: true,
         fillColor: const Color(0xFFF8F9FC),
         contentPadding:
@@ -925,7 +925,7 @@ class _OriginOption extends StatelessWidget {
                   size: 20,
                   color: selected ? iconColor : AppColors.textMuted),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -938,7 +938,7 @@ class _OriginOption extends StatelessWidget {
                       color: selected ? iconColor : AppColors.navyPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: GoogleFonts.dmSans(
@@ -994,7 +994,7 @@ class _PaymentOption extends StatelessWidget {
               activeColor: color,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1030,7 +1030,7 @@ class _MarginBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isGood = margin >= 20;
     final color = isGood ? AppColors.success : const Color(0xFFD97706);
-    final bg = isGood ? Color(0xFFD1FAE5) : Color(0xFFFEF3C7);
+    final bg = isGood ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -1047,7 +1047,7 @@ class _MarginBadge extends StatelessWidget {
             color: color,
             size: 16,
           ),
-          SizedBox(width: 6),
+          const SizedBox(width: 6),
           Text(
             _tr(
               'Margin: ${margin.toStringAsFixed(1)}%',

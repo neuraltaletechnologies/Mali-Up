@@ -302,7 +302,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                       ),
                     )
                   else
-                    SizedBox(width: 44),
+                    const SizedBox(width: 44),
                   TextButton.icon(
                     onPressed: () => _openWhatsAppHelp(sw),
                     icon: const Icon(
@@ -420,7 +420,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                 onCountryTap: _pickCountry,
                                 onFieldSubmitted: (_) => _submit(),
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(
@@ -428,7 +428,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                     size: 12,
                                     color: AppColors.textMuted,
                                   ),
-                                  SizedBox(width: 5),
+                                  const SizedBox(width: 5),
                                   Flexible(
                                     child: Text(
                                       OnboardingStrings.s(
@@ -578,7 +578,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
           children: [
             // Label
             AnimatedDefaultTextStyle(
-              duration: Duration(milliseconds: 180),
+              duration: const Duration(milliseconds: 180),
               style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -636,7 +636,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                             widget.country.flag,
                             style: GoogleFonts.dmSans(fontSize: 20),
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Text(
                             widget.country.dial,
                             style: GoogleFonts.dmSans(
@@ -686,7 +686,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                           color: AppColors.textDisabled,
                         ),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 15,
                         ),
@@ -699,7 +699,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
 
             // Error message
             if (_error != null) ...[
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(
@@ -707,7 +707,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                     size: 13,
                     color: AppColors.error,
                   ),
-                  SizedBox(width: 5),
+                  const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       _error!,
@@ -892,7 +892,7 @@ class _CountryTile extends StatelessWidget {
         child: Row(
           children: [
             Text(country.flag, style: GoogleFonts.dmSans(fontSize: 22)),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 country.name,
@@ -943,7 +943,7 @@ class _OfflineBanner extends StatelessWidget {
             size: 18,
             color: Color(0xFF856404),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -953,17 +953,17 @@ class _OfflineBanner extends StatelessWidget {
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF856404),
+                    color: const Color(0xFF856404),
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'
                       : 'Please connect to the internet and try again.',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
-                    color: Color(0xFF856404),
+                    color: const Color(0xFF856404),
                     height: 1.4,
                   ),
                 ),

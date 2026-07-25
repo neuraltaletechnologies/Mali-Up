@@ -158,7 +158,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                             children: [
                               const Icon(Icons.check_circle,
                                   color: AppColors.success, size: 14),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
                                 _t('Reconciled', 'Imelinganishwa'),
                                 style: GoogleFonts.dmSans(

@@ -178,7 +178,7 @@ class _SyncHealthCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 statusLabel,
                 style: GoogleFonts.dmSans(
@@ -308,7 +308,7 @@ class _QueueSection extends ConsumerWidget {
             child: Row(
               children: [
                 Icon(icon, size: 16, color: color),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   title,
                   style: GoogleFonts.dmSans(
@@ -317,7 +317,7 @@ class _QueueSection extends ConsumerWidget {
                     color: color,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 async.whenData((list) => Text(
                       '${list.length}',
                       style: GoogleFonts.dmSans(
@@ -329,7 +329,7 @@ class _QueueSection extends ConsumerWidget {
               ],
             ),
           ),
-          Divider(height: 1),
+          const Divider(height: 1),
           async.smartWhen(
             skeleton: () => const Column(
               children: [
@@ -380,7 +380,7 @@ class _QueueEntryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _EntityIcon(type: entry.entityType),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,7 +399,7 @@ class _QueueEntryTile extends StatelessWidget {
                     _StatusChip(status: entry.status),
                   ],
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   entry.entityId,
                   style: GoogleFonts.jetBrainsMono(
@@ -408,7 +408,7 @@ class _QueueEntryTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (entry.errorMessage.isNotEmpty) ...[
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     entry.errorMessage,
                     style: GoogleFonts.dmSans(
@@ -417,7 +417,7 @@ class _QueueEntryTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   '${_tr('Created', 'Iliundwa')} $created · '
                   '${_tr('Attempts', 'Majaribio')} ${entry.attempts}/${entry.maxAttempts}',
@@ -512,7 +512,7 @@ class _ActionButtons extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: onClearCompleted,
-            icon: Icon(Icons.delete_sweep_rounded, size: 16),
+            icon: const Icon(Icons.delete_sweep_rounded, size: 16),
             label: Text(_tr('Clear completed', 'Futa zilizomalizika'),
                 style: GoogleFonts.dmSans(fontSize: 13)),
             style: OutlinedButton.styleFrom(
@@ -524,7 +524,7 @@ class _ActionButtons extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         Expanded(
           child: FilledButton.icon(
             onPressed: syncing ? null : onForceSync,
@@ -535,7 +535,7 @@ class _ActionButtons extends StatelessWidget {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : Icon(Icons.sync_rounded, size: 16),
+                : const Icon(Icons.sync_rounded, size: 16),
             label: Text(
               syncing
                   ? _tr('Syncing...', 'Inasawazisha...')

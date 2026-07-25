@@ -215,7 +215,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     SizedBox(
                       height: 48,
                       child: ElevatedButton(
@@ -382,7 +382,7 @@ class _CategoryTile extends StatelessWidget {
                   ),
                   child: Icon(iconData, size: 20, color: accent),
                 ),
-                SizedBox(width: 14),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     category.categoryName,
@@ -435,7 +435,7 @@ class _EmptySearch extends StatelessWidget {
               child: const Icon(Icons.search_off_rounded,
                   size: 30, color: AppColors.textMuted),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               _tr('No categories found', 'Hakuna kategoria iliyopatikana'),
               style: GoogleFonts.dmSans(
@@ -444,7 +444,7 @@ class _EmptySearch extends StatelessWidget {
                 color: AppColors.navyPrimary,
               ),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Text(
               _tr(
                 'Try a different search term.',
@@ -557,7 +557,7 @@ class CategorySelectField extends ConsumerWidget {
                           : AppColors.textMuted,
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

@@ -73,7 +73,7 @@ class TermsAndConditionsPage extends StatelessWidget {
               content:
                   'You agree that you will not use the Service to post, upload, or transmit any unlawful, threatening, abusive, harassing, defamatory, vulgar, obscene, or otherwise objectionable material of any kind, including any material that infringes upon the rights of others or violates any applicable law.',
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             Center(
               child: Text(
                 'Last Updated: ${_getLastUpdatedDate()}',
@@ -103,7 +103,7 @@ class TermsAndConditionsPage extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           content,
           style: GoogleFonts.dmSans(

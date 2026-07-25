@@ -27,7 +27,7 @@ class CashFlowReportScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
           style: GoogleFonts.dmSans(
@@ -96,7 +96,7 @@ class CashFlowReportScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       isPositive
                           ? _tr(
@@ -263,7 +263,7 @@ class _CashWaterfallCard extends StatelessWidget {
           ReportSectionTitle(
             title: _tr('Cash Flow Overview', 'Muhtasari wa Mtiririko wa Fedha'),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           SizedBox(
             height: 160,
             child: BarChart(
@@ -278,8 +278,9 @@ class _CashWaterfallCard extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         final idx = v.toInt();
-                        if (idx < 0 || idx >= labels.length)
+                        if (idx < 0 || idx >= labels.length) {
                           return const SizedBox.shrink();
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
@@ -355,7 +356,7 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       widget.title,
@@ -387,7 +388,7 @@ class _CashActivityCardState extends State<_CashActivityCard> {
             ),
           ),
           if (_expanded && widget.items.isNotEmpty) ...[
-            Divider(height: 1, color: AppColors.border),
+            const Divider(height: 1, color: AppColors.border),
             ...widget.items
                 .take(20)
                 .map(

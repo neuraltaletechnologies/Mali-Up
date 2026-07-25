@@ -371,10 +371,10 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.shield_outlined,
+                                      const Icon(Icons.shield_outlined,
                                           size: 16,
                                           color: AppColors.navyPrimary),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Flexible(
                                         child: Text(
                                           _t('Your Data Rights (PDPA)',
@@ -388,7 +388,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 10),
+                                  const SizedBox(height: 10),
                                   Text(
                                     _t(
                                       '• You own all your business data\n'

@@ -162,8 +162,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<String?> _uploadReceipt(String uid) async {
-    if (_receiptFile == null)
+    if (_receiptFile == null) {
       return _receiptUrl.isNotEmpty ? _receiptUrl : null;
+    }
     setState(() => _uploadingReceipt = true);
     try {
       final ref = FirebaseStorage.instance.ref(
@@ -654,7 +655,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               color: AppColors.error,
                               size: 15,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _tr(
@@ -680,7 +681,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       uploading: _uploadingReceipt,
                       onTap: _showReceiptOptions,
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     _FieldCard(
                       child: Column(
                         children: [
@@ -699,7 +700,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             onChanged: (v) => setState(() => _isRecurring = v),
                           ),
                           if (_isRecurring) ...[
-                            Divider(height: 1, color: AppColors.border),
+                            const Divider(height: 1, color: AppColors.border),
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -1006,7 +1007,7 @@ class _DateChip extends StatelessWidget {
             size: 15,
             color: AppColors.navyPrimary,
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
             _fmt(date),
             style: GoogleFonts.dmSans(
@@ -1102,7 +1103,7 @@ class _ReceiptSection extends StatelessWidget {
                         size: 11,
                         color: Colors.white,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         _tr('Change', 'Badilisha'),
                         style: GoogleFonts.dmSans(
@@ -1166,7 +1167,7 @@ class _ReceiptSection extends StatelessWidget {
                 color: AppColors.tealAccent,
               ),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               _tr(
                 'Take a photo or choose from gallery',
@@ -1236,7 +1237,7 @@ class _ToggleRow extends StatelessWidget {
             ),
             child: Icon(icon, size: 18, color: color),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
