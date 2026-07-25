@@ -314,7 +314,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                             children: [
                               const Icon(Icons.arrow_back_ios_new_rounded,
                                   color: Colors.white, size: 14),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Text(
                                 widget.title,
                                 style: GoogleFonts.dmSans(
@@ -367,7 +367,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                     children: [
                       const Icon(Icons.check_circle_rounded,
                           color: Colors.white, size: 20),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Flexible(
                         child: Text(
                           _lastScannedName!,
@@ -503,7 +503,7 @@ class _MiniCart extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +519,7 @@ class _MiniCart extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 1),
+                const SizedBox(height: 1),
                 Text(
                   _fmt(subtotal),
                   style: GoogleFonts.dmSans(

@@ -113,8 +113,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cacheAge = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(lastFetchMs),
     );
-    if (!force && lastFetchMs > 0 && cacheAge < _kTtl)
+    if (!force && lastFetchMs > 0 && cacheAge < _kTtl) {
       return; // cache is fresh, skip
+    }
 
     final fresh = await _fetchUserProfile();
     if (!mounted || fresh == null) return;
@@ -133,11 +134,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         profile['fullName'] as String?;
     if (name != null && name.isNotEmpty) prefs.setString(_kDisplayName, name);
     final bizName = _getBusinessName(profile);
-    if (bizName != null && bizName.isNotEmpty)
+    if (bizName != null && bizName.isNotEmpty) {
       prefs.setString(_kBizName, bizName);
+    }
     final logoUrl = _getBusinessLogoUrl(profile);
-    if (logoUrl != null && logoUrl.isNotEmpty)
+    if (logoUrl != null && logoUrl.isNotEmpty) {
       prefs.setString(_kLogoUrl, logoUrl);
+    }
     final plan = _getBusinessPlan(profile);
     if (plan != null && plan.isNotEmpty) prefs.setString(_kPlan, plan);
   }
@@ -145,8 +148,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return _tr('Good morning', 'Habari za asubuhi');
-    if (hour >= 12 && hour < 17)
+    if (hour >= 12 && hour < 17) {
       return _tr('Good afternoon', 'Habari za mchana');
+    }
     if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
     if (hour >= 21) return _tr('Good night', 'Usiku mwema');
     return _tr('Good midnight', 'Usiku mwema');
@@ -725,7 +729,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                         letterSpacing: 0.3,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       _fmtAmount(revenue),
                       style: GoogleFonts.dmSans(
@@ -752,7 +756,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                           size: 14,
                           color: changeColor,
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           '${isPositive ? '+' : ''}${periodChange.toStringAsFixed(1)}%',
                           style: GoogleFonts.dmSans(
@@ -763,7 +767,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       compLabel,
                       style: GoogleFonts.dmSans(
@@ -815,7 +819,7 @@ class _BusinessInsightsCard extends StatelessWidget {
               color: AppColors.navyPrimary,
             ),
           ),
-          SizedBox(height: 14),
+          const SizedBox(height: 14),
           ...insights.map(
             (insight) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -831,7 +835,7 @@ class _BusinessInsightsCard extends StatelessWidget {
                       color: AppColors.tealAccent,
                     ),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       insight,
@@ -2044,7 +2048,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                 color: AppColors.secondary,
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
@@ -2060,7 +2064,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                 ),
               ),
             ),
-            Spacer(),
+            const Spacer(),
             TextButton(
               onPressed: () => context.go(AppRouter.inventoryPath),
               style: TextButton.styleFrom(
@@ -2121,7 +2125,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                             size: 11,
                             color: alertColor,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
                             isOut
                                 ? _tr('Out', 'Imekwisha')
@@ -2332,7 +2336,7 @@ class _PerformerSubsection extends StatelessWidget {
           Row(
             children: [
               Icon(icon, size: 11, color: color),
-              SizedBox(width: 5),
+              const SizedBox(width: 5),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
@@ -2344,7 +2348,7 @@ class _PerformerSubsection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           ...entries.asMap().entries.map((e) {
             final rank = e.key;
             final entry = e.value;
@@ -2551,7 +2555,7 @@ class _RecentTransactionsList extends StatelessWidget {
                   size: 36,
                   color: AppColors.textDisabled,
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Text(
                   _tr(
                     'No activity yet. Your business is ready\nfor its first transaction.',
@@ -2742,7 +2746,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _tr(
@@ -2760,7 +2764,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             _tr(
               'Get a professional website designed for your business and start reaching more customers online.',
@@ -2772,7 +2776,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               height: 1.55,
             ),
           ),
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -2795,7 +2799,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Center(
             child: TextButton(
               onPressed: onDismiss,
@@ -3021,7 +3025,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 size: 48,
               ),
             ),
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
             Center(
               child: Text(
                 _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
@@ -3042,7 +3046,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 letterSpacing: -0.2,
               ),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Text(
               _tr(
                 'Any requirements or ideas for your website? (optional)',
@@ -3054,7 +3058,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 height: 1.5,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             TextField(
               controller: _notesCtrl,
               maxLines: 4,
@@ -3125,7 +3129,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                       ),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: widget.onDone,
@@ -3157,8 +3161,9 @@ double _numericValue(Object? raw) {
 String _fmtCompactAmount(double amount) {
   final sign = amount < 0 ? '-' : '';
   final abs = amount.abs();
-  if (abs >= 1000000)
+  if (abs >= 1000000) {
     return '${sign}TSh ${(abs / 1000000).toStringAsFixed(1)}M';
+  }
   if (abs >= 1000) return '${sign}TSh ${(abs / 1000).toStringAsFixed(0)}K';
   return '${sign}TSh ${abs.toStringAsFixed(0)}';
 }

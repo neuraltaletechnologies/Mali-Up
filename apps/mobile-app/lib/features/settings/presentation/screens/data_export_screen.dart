@@ -220,12 +220,12 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                     child: FilledButton.icon(
                       onPressed: isExporting ? null : _handleExport,
                       icon: isExporting
-                          ? SizedBox(
+                          ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : const Icon(Icons.download_rounded),
@@ -262,12 +262,12 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                         children: [
                           Row(
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
                                     AppColors.tealAccent,
                                   ),
                                 ),

@@ -286,7 +286,7 @@ class ErrorHandlingService {
         content: Row(
           children: [
             Icon(_getIconForErrorType(error.type), color: Colors.white, size: 20),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 getLocalizedErrorMessage(error),
@@ -363,7 +363,7 @@ class ErrorHandlingService {
           children: [
             Text(getLocalizedErrorMessage(error)),
             if (error.technicalDetails != null) ...[
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Technical details: ${error.technicalDetails}',
                 style: GoogleFonts.dmSans(

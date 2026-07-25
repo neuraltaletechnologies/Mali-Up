@@ -461,7 +461,7 @@ class StatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(config.icon, size: 12, color: config.text),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Text(
             customLabel ?? config.label,
             style: GoogleFonts.dmSans(
@@ -562,7 +562,7 @@ class EmptyState extends StatelessWidget {
 
             // ── CTA button ─────────────────────────────────────────────────
             if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: 22),
+              const SizedBox(height: 22),
               SizedBox(
                 width: 220,
                 height: 44,
@@ -733,17 +733,17 @@ class _DarkPageHeaderSkeleton extends StatelessWidget {
             color: AppColors.navyPrimary,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const ShimmerBox(width: 135, height: 30),
-              const Spacer(),
-              const ShimmerBox(
+              ShimmerBox(width: 135, height: 30),
+              Spacer(),
+              ShimmerBox(
                 width: 40,
                 height: 40,
                 borderRadius: BorderRadius.all(Radius.circular(20)),
               ),
-              const SizedBox(width: 10),
-              const ShimmerBox(
+              SizedBox(width: 10),
+              ShimmerBox(
                 width: 40,
                 height: 40,
                 borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -1103,7 +1103,7 @@ class MaliSelectSheet<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -1343,7 +1343,7 @@ class PaymentStatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(c.icon, size: 11, color: c.fg),
-          SizedBox(width: 3),
+          const SizedBox(width: 3),
           Text(
             c.label,
             style: GoogleFonts.dmSans(
@@ -1495,7 +1495,7 @@ class AppFilterChip extends StatelessWidget {
               ),
             ),
             if (count != null) ...[
-              SizedBox(width: 5),
+              const SizedBox(width: 5),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(

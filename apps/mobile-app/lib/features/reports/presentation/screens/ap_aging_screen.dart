@@ -25,7 +25,7 @@ class ApAgingScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AP Aging', 'Umri wa Madeni'),
           style: GoogleFonts.dmSans(
@@ -64,7 +64,7 @@ class ApAgingScreen extends ConsumerWidget {
                     fontSize: 12,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
                   formatCurrency(report.grandTotal),
                   style: GoogleFonts.dmSans(
@@ -73,7 +73,7 @@ class ApAgingScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   _tr(
                     'Total cash required to clear all payables',
@@ -146,7 +146,7 @@ class ApAgingScreen extends ConsumerWidget {
                   color: AppColors.warning,
                   size: 18,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _tr(
@@ -274,7 +274,7 @@ class _ApDistributionCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         b.label,
                         style: GoogleFonts.dmSans(
@@ -350,7 +350,7 @@ class _ApBucketCardState extends State<_ApBucketCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

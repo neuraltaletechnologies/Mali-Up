@@ -765,7 +765,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     '🇹🇿',
                                     style: GoogleFonts.dmSans(fontSize: 18),
                                   ),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Text(
                                     '+255',
                                     style: GoogleFonts.dmSans(
@@ -918,7 +918,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             color: AppColors.primary,
                                           ),
                                         ),
-                                        SizedBox(width: 10),
+                                        const SizedBox(width: 10),
                                         Flexible(
                                           child: Text(
                                             _tr(

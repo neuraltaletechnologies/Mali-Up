@@ -36,7 +36,6 @@ class OnlineGuard {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
-            duration: const Duration(seconds: 4),
             content: Row(
               children: [
                 const Icon(

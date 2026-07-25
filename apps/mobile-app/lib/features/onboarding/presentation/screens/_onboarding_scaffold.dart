@@ -156,7 +156,7 @@ class _OnboardingFieldState extends State<OnboardingField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AnimatedDefaultTextStyle(
-          duration: Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 180),
           style: GoogleFonts.dmSans(
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -165,7 +165,7 @@ class _OnboardingFieldState extends State<OnboardingField> {
           ),
           child: Text(widget.label.toUpperCase()),
         ),
-        SizedBox(height: 7),
+        const SizedBox(height: 7),
         TextFormField(
           controller: widget.controller,
           focusNode: _focus,
@@ -361,7 +361,7 @@ class OnboardingErrorBanner extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline_rounded,
               color: AppColors.error, size: 18),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
@@ -546,7 +546,7 @@ class _PinDotsInputState extends State<PinDotsInput>
               keyboardType: TextInputType.number,
               maxLength: widget.pinLength,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(border: InputBorder.none),
+              decoration: const InputDecoration(border: InputBorder.none),
               style: GoogleFonts.dmSans(height: 0.01, color: Colors.transparent),
               showCursor: false,
               enableInteractiveSelection: false,

@@ -295,7 +295,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                             ],
                           ),
                         ),
-                        Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.textDisabled),
+                        const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.textDisabled),
                       ],
                     ),
                   ),

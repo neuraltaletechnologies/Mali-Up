@@ -150,7 +150,7 @@ class _RecoveryView extends StatelessWidget {
                   children: [
                     const Icon(Icons.info_outline_rounded,
                         color: AppColors.tealAccent, size: 20),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         _tr(
@@ -186,7 +186,7 @@ class _RecoveryView extends StatelessWidget {
                               strokeWidth: 2,
                               color: AppColors.navyPrimary),
                         )
-                      : Icon(Icons.refresh_rounded, size: 18),
+                      : const Icon(Icons.refresh_rounded, size: 18),
                   label: Text(
                     isRetrying
                         ? _tr('Checking…', 'Inakagua…')
@@ -213,7 +213,7 @@ class _RecoveryView extends StatelessWidget {
                 height: 48,
                 child: OutlinedButton.icon(
                   onPressed: onSignOut,
-                  icon: Icon(Icons.logout_rounded, size: 16),
+                  icon: const Icon(Icons.logout_rounded, size: 16),
                   label: Text(
                     _tr('Sign out and try again', 'Toka na ujaribu tena'),
                     style: GoogleFonts.dmSans(
@@ -321,7 +321,7 @@ class _AccessView extends StatelessWidget {
                     children: [
                       const Icon(Icons.badge_outlined,
                           size: 16, color: AppColors.textMuted),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         _tr('Your role: ', 'Jukumu lako: '),
                         style: GoogleFonts.dmSans(
@@ -348,7 +348,7 @@ class _AccessView extends StatelessWidget {
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: onBack,
-                  icon: Icon(Icons.grid_view_rounded, size: 18),
+                  icon: const Icon(Icons.grid_view_rounded, size: 18),
                   label: Text(
                     _tr('Go to Dashboard', 'Rudi kwenye Dashibodi'),
                     style: GoogleFonts.dmSans(

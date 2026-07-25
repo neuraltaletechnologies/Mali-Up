@@ -32,7 +32,7 @@ class BalanceSheetScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Balance Sheet', 'Karatasi ya Mizania'),
           style: GoogleFonts.dmSans(
@@ -101,7 +101,7 @@ class BalanceSheetScreen extends ConsumerWidget {
             ),
           ),
           if (!isBalanced) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -204,7 +204,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Text(
                       _tr("OWNER'S EQUITY", 'HISA YA MMILIKI'),
                       style: GoogleFonts.dmSans(
@@ -284,7 +284,7 @@ class _EquationTerm extends StatelessWidget {
           label,
           style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 10),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           value,
           style: GoogleFonts.dmSans(
@@ -337,7 +337,7 @@ class _BalanceSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Text(
                 title,
                 style: GoogleFonts.dmSans(

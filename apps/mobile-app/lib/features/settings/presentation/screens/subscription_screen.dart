@@ -48,7 +48,7 @@ class SubscriptionScreen extends ConsumerWidget {
         ),
       ),
       body: planAsync.smartWhen(
-        skeleton: () => SkeletonSubscriptionBody(),
+        skeleton: () => const SkeletonSubscriptionBody(),
         onError: (_, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -58,7 +58,7 @@ class SubscriptionScreen extends ConsumerWidget {
                 color: AppColors.error,
                 size: 48,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
                 _t('Could not load plan info', 'Imeshindwa kupakia mpango'),
                 style: GoogleFonts.dmSans(color: AppColors.textSecondary),
@@ -241,11 +241,11 @@ class _UsageMeter extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -284,7 +284,7 @@ class _UsageMeter extends StatelessWidget {
             ),
           ),
           if (pct >= 0.8) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               pct >= 1.0
                   ? _t(
@@ -441,11 +441,11 @@ class _ComparisonTable extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 14,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -457,7 +457,7 @@ class _ComparisonTable extends StatelessWidget {
             color: AppColors.surface,
             child: Row(
               children: [
-                Expanded(flex: 3, child: SizedBox()),
+                const Expanded(flex: 3, child: SizedBox()),
                 ...List.generate(
                   tiers.length,
                   (i) => Expanded(
@@ -629,11 +629,11 @@ class _FaqState extends State<_Faq> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 10,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),

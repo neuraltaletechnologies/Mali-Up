@@ -237,7 +237,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                         color: AppColors.warning,
                         size: 18,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _tr(
@@ -253,7 +253,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   _tr('Reason', 'Sababu'),
                   style: GoogleFonts.dmSans(
@@ -262,7 +262,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     color: AppColors.textMuted,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: selectedReason,
                   decoration: InputDecoration(
@@ -296,7 +296,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 TextField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
@@ -661,7 +661,7 @@ class _HeroAmountCard extends StatelessWidget {
               minHeight: 6,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text(
@@ -803,7 +803,7 @@ class _InfoRow extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon, size: 16, color: AppColors.textMuted),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
@@ -811,7 +811,7 @@ class _InfoRow extends StatelessWidget {
                   color: AppColors.textMuted,
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               Flexible(
                 child: Text(
                   value,
@@ -864,7 +864,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                   size: 16,
                   color: AppColors.textMuted,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   _tr('Payment History', 'Historia ya Malipo'),
                   style: GoogleFonts.dmSans(
@@ -873,7 +873,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 Text(
                   paymentsAsync.maybeWhen(
                     data: (p) => '${p.length} ${_tr('payments', 'malipo')}',
@@ -887,7 +887,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: AppColors.border),
+          const Divider(height: 1, color: AppColors.border),
           paymentsAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(24),
@@ -978,7 +978,7 @@ class _PaymentTile extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Icon(icon, color: color, size: 18),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1150,7 +1150,7 @@ class _ActionRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Icon(icon, color: color, size: 18),
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
@@ -1352,7 +1352,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SheetHandle(),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(

@@ -287,7 +287,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          side: BorderSide(color: AppColors.border, width: 1.5),
+          side: const BorderSide(color: AppColors.border, width: 1.5),
           textStyle: GoogleFonts.dmSans(
             fontSize: 15,
             fontWeight: FontWeight.w600,

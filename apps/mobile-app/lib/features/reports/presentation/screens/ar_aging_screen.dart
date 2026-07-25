@@ -25,7 +25,7 @@ class ArAgingScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AR Aging', 'Umri wa Madai'),
           style: GoogleFonts.dmSans(
@@ -64,7 +64,7 @@ class ArAgingScreen extends ConsumerWidget {
                     fontSize: 12,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
                   formatCurrency(report.grandTotal),
                   style: GoogleFonts.dmSans(
@@ -268,7 +268,7 @@ class _AgingLegend extends StatelessWidget {
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           label,
           style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
@@ -337,7 +337,7 @@ class _AgingBucketCardState extends State<_AgingBucketCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

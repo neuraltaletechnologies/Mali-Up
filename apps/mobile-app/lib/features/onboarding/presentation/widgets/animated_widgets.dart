@@ -67,7 +67,7 @@ class _AnimatedChartState extends State<AnimatedChart>
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F2937),
+                      color: const Color(0xFF1F2937),
                     ),
                   ),
                   Container(
@@ -81,7 +81,7 @@ class _AnimatedChartState extends State<AnimatedChart>
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF16C47F),
+                        color: const Color(0xFF16C47F),
                       ),
                     ),
                   ),

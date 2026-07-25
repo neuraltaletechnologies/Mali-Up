@@ -446,7 +446,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     ? 'Mahali pa biashara'
                                     : 'Business location',
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 sw
                                     ? 'Saidia wateja kukupata.'
@@ -500,7 +500,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     ? 'Mtandao wa Biashara'
                                     : 'Online Presence',
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 sw
                                     ? 'Ongeza tovuti yako kama una moja (si lazima).'
@@ -510,7 +510,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                   color: AppColors.textMuted,
                                 ),
                               ),
-                              SizedBox(height: 12),
+                              const SizedBox(height: 12),
                               TextFormField(
                                 controller: _websiteCtrl,
                                 keyboardType: TextInputType.url,
@@ -592,7 +592,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                         ),
                                       ),
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
                                         sw
@@ -689,7 +689,7 @@ class _FieldError extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline_rounded,
               size: 13, color: AppColors.error),
-          SizedBox(width: 5),
+          const SizedBox(width: 5),
           Expanded(
             child: Text(message,
                 style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error)),
@@ -774,7 +774,7 @@ class _TapSelectorState extends State<_TapSelector>
                 size: 18,
                 color: hasValue ? AppColors.navyPrimary : AppColors.textMuted,
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   widget.value ?? widget.placeholder,
@@ -853,7 +853,7 @@ class _LocationRow extends StatelessWidget {
                       ? AppColors.navyPrimary
                       : AppColors.textMuted,
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -869,7 +869,7 @@ class _LocationRow extends StatelessWidget {
                       letterSpacing: 0.4,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     value ?? placeholder ?? '',
                     style: GoogleFonts.dmSans(
@@ -978,7 +978,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -992,7 +992,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1091,7 +1091,7 @@ class _BizTypeTile extends StatelessWidget {
                     selected ? AppColors.yellowBrand : AppColors.textMuted,
               ),
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 isSwahili ? type.sw : type.en,
@@ -1181,7 +1181,7 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -1193,7 +1193,7 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1210,16 +1210,16 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
                   hintText: 'Search…',
                   hintStyle: GoogleFonts.dmSans(
                       fontSize: 14, color: AppColors.textDisabled),
-                  prefixIcon: Icon(Icons.search_rounded,
+                  prefixIcon: const Icon(Icons.search_rounded,
                       size: 18, color: AppColors.textMuted),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 12),
                 ),
               ),
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),

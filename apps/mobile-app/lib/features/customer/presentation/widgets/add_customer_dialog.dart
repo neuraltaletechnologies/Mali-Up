@@ -190,7 +190,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                   )
                                 : const Icon(Icons.contacts_outlined,
                                     size: 18, color: AppColors.navyPrimary),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 _isImportingContact
@@ -281,7 +281,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     ),
 
                     if (_isOrganisation) ...[
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _tinController,
                         textCapitalization: TextCapitalization.characters,
@@ -295,7 +295,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       ),
                     ],
 
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _addressController,
                       textCapitalization: TextCapitalization.sentences,
@@ -1137,7 +1137,7 @@ class _TypeTab extends StatelessWidget {
                 Icon(icon,
                     size: 15,
                     color: active ? Colors.white : AppColors.textMuted),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     label,

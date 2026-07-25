@@ -288,7 +288,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                           ),
                         ),
                         if (_isRecurring) ...[
-                          Divider(height: 1),
+                          const Divider(height: 1),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),

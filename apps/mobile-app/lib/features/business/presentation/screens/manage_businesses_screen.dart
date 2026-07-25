@@ -120,8 +120,9 @@ class _ManageBusinessesScreenState
     final dot = path.lastIndexOf('.');
     if (dot <= -1 || dot >= path.length - 1) return '.jpg';
     final ext = path.substring(dot).toLowerCase();
-    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp')
+    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp') {
       return ext;
+    }
     return '.jpg';
   }
 
@@ -541,7 +542,7 @@ class _ManageBusinessesScreenState
                               size: 22,
                             ),
                           ),
-                          SizedBox(width: 14),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,7 +562,7 @@ class _ManageBusinessesScreenState
                                     height: 1.2,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
                                   isEditing
                                       ? _tr(
@@ -689,8 +690,9 @@ class _ManageBusinessesScreenState
                           );
                           final raw = t['icon'];
                           if (raw is IconData) return raw;
-                          if (raw is String)
+                          if (raw is String) {
                             return LookupService.iconFromName(raw);
+                          }
                           return Icons.category_rounded;
                         }(),
                         value: () {
@@ -727,7 +729,7 @@ class _ManageBusinessesScreenState
                       _FormSectionLabel(
                         label: _tr('Business location', 'Mahali pa biashara'),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         _tr(
                           'Helps customers and reports stay accurate.',
@@ -811,7 +813,7 @@ class _ManageBusinessesScreenState
                       _FormSectionLabel(
                         label: _tr('Online presence', 'Uwepo wa mtandao'),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         _tr(
                           'Add your website if you have one (optional).',
@@ -822,7 +824,7 @@ class _ManageBusinessesScreenState
                           color: AppColors.textMuted,
                         ),
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: websiteCtrl,
                         keyboardType: TextInputType.url,
@@ -868,7 +870,7 @@ class _ManageBusinessesScreenState
                                 ),
                               ),
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 _tr(
@@ -963,8 +965,9 @@ class _ManageBusinessesScreenState
                                 ),
                               );
                               if (confirmed == true) {
-                                if (dlgCtx.mounted)
+                                if (dlgCtx.mounted) {
                                   Navigator.of(dlgCtx).pop(false);
+                                }
                                 await _deleteBusiness(profile, business);
                               }
                             },
@@ -1069,8 +1072,9 @@ class _ManageBusinessesScreenState
                                       if (saved) {
                                         WidgetsBinding.instance
                                             .addPostFrameCallback((_) {
-                                              if (dlgCtx.mounted)
+                                              if (dlgCtx.mounted) {
                                                 Navigator.of(dlgCtx).pop(true);
+                                              }
                                             });
                                       } else if (dlgCtx.mounted) {
                                         setS(() => localSaving = false);
@@ -1336,7 +1340,7 @@ class _ManageBusinessesScreenState
                             )
                           : _LogoInitial(initial: initial),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1776,7 +1780,7 @@ class _PillStat extends StatelessWidget {
             color: color,
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
@@ -1889,7 +1893,7 @@ class _BusinessRow extends StatelessWidget {
                               : AppColors.yellowBrand),
                     shape: BoxShape.circle,
                     border: hasLogo
-                        ? Border.all(color: AppColors.border, width: 1)
+                        ? Border.all(color: AppColors.border)
                         : null,
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -1913,7 +1917,7 @@ class _BusinessRow extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                          errorBuilder: (_, __, ___) =>
+                          errorBuilder: (_, _, _) =>
                               _LogoInitial(initial: initial),
                         )
                       : Center(child: _LogoInitial(initial: initial)),
@@ -2126,7 +2130,7 @@ class _FormTapSelector extends StatelessWidget {
                   ? AppColors.textDisabled
                   : (hasValue ? AppColors.navyPrimary : AppColors.textMuted),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 value ?? placeholder,
@@ -2215,7 +2219,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -2227,7 +2231,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -2325,7 +2329,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                                 : AppColors.textMuted,
                           ),
                         ),
-                        SizedBox(width: 14),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Text(
                             label,
@@ -2417,7 +2421,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -2429,7 +2433,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -2464,7 +2468,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
@@ -2573,7 +2577,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -2585,7 +2589,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -2620,7 +2624,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),

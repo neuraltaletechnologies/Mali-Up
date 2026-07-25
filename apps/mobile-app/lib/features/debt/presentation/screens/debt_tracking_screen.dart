@@ -248,7 +248,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
           backgroundColor: AppColors.yellowBrand,
           foregroundColor: AppColors.navyPrimary,
-          icon: Icon(Icons.add_rounded),
+          icon: const Icon(Icons.add_rounded),
           label: Text(
             _tabCtrl.index == 0
                 ? _tr('Add Receivable', 'Ongeza Dai')
@@ -328,7 +328,7 @@ class _DebtDarkHeader extends StatelessWidget {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Row(
                           children: [
                             Icon(
@@ -1023,7 +1023,7 @@ class _DebtCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (debt.partyPhone.isNotEmpty) ...[
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           debt.partyPhone,
                           style: GoogleFonts.dmSans(
@@ -1048,7 +1048,7 @@ class _DebtCard extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -1157,7 +1157,7 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SheetHandle(),
+              const SheetHandle(),
               Row(
                 children: [
                   Expanded(
@@ -1222,7 +1222,7 @@ class _DebtFilterSheetState extends State<_DebtFilterSheet> {
                   ),
                 ],
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -1334,7 +1334,7 @@ class _SectionHeader extends StatelessWidget {
             height: 8,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
             '$label  ($count)',
             style: GoogleFonts.dmSans(

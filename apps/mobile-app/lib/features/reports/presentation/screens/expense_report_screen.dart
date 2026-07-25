@@ -35,7 +35,7 @@ class ExpenseReportScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Expense Report', 'Ripoti ya Gharama'),
           style: GoogleFonts.dmSans(
@@ -140,7 +140,7 @@ class ExpenseReportScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 10),
+                              const SizedBox(width: 10),
                               Text(
                                 e.value.key,
                                 style: GoogleFonts.dmSans(
@@ -247,7 +247,7 @@ class _CategoryBreakdownCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             e.value.key,
                             style: GoogleFonts.dmSans(
@@ -340,8 +340,9 @@ class _ExpenseTrendCard extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         final idx = v.toInt();
-                        if (idx < 0 || idx >= trend.length)
+                        if (idx < 0 || idx >= trend.length) {
                           return const SizedBox.shrink();
+                        }
                         return Text(
                           monthLabel(trend[idx].month),
                           style: GoogleFonts.dmSans(

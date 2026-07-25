@@ -208,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             lang == AppLanguage.english ? '🇬🇧' : '🇹🇿',
                             style: GoogleFonts.dmSans(fontSize: 22),
                           ),
-                          SizedBox(width: 14),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,7 +269,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               letterSpacing: -0.5,
             ),
           ),
-          SizedBox(height: 2),
+          const SizedBox(height: 2),
           Text(
             _tr('Account & preferences', 'Akaunti na mipangilio'),
             style: GoogleFonts.dmSans(
@@ -465,7 +465,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 14),
+                const SizedBox(height: 14),
                 Text(
                   'v1.1.0',
                   style: GoogleFonts.dmSans(
@@ -568,7 +568,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,7 +583,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
                               contact,
                               maxLines: 1,
@@ -674,7 +674,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                                     color: AppColors.yellowBrand,
                                     size: 14,
                                   ),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       tr(
@@ -821,7 +821,7 @@ class _SettingTile extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: iconColor),
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,7 +835,7 @@ class _SettingTile extends StatelessWidget {
                     ),
                   ),
                   if (subtitle != null) ...[
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
                       style: GoogleFonts.dmSans(
@@ -921,7 +921,7 @@ class _PlanCardBody extends StatelessWidget {
           color: AppColors.yellowBrand,
           size: 16,
         ),
-        SizedBox(width: 7),
+        const SizedBox(width: 7),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -938,7 +938,7 @@ class _PlanCardBody extends StatelessWidget {
                     ),
                   ),
                   if (isStarter) ...[
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
@@ -968,7 +968,7 @@ class _PlanCardBody extends StatelessWidget {
                 ],
               ),
               if (isStarter) ...[
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
@@ -988,7 +988,7 @@ class _PlanCardBody extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       '$invoicesUsed/$invoiceLimit',
                       style: GoogleFonts.dmSans(
@@ -1002,7 +1002,7 @@ class _PlanCardBody extends StatelessWidget {
                   ],
                 ),
               ] else if (expiresAt != null) ...[
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   tr(
                     'Valid until ${_fmtDate(expiresAt!)}',

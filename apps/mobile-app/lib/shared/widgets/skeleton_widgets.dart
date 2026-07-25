@@ -467,7 +467,7 @@ class SkeletonBusinessCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SkeletonText(width: 150, height: 13),
+                    SkeletonText(width: 150),
                     SizedBox(height: 7),
                     SkeletonText(width: 110, height: 10),
                   ],
@@ -515,7 +515,7 @@ class SkeletonBusinessList extends StatelessWidget {
                 children: [
                   SkeletonBox(width: 150, height: 30),
                   Spacer(),
-                  SkeletonAvatar(size: 40),
+                  SkeletonAvatar(),
                 ],
               ),
             ),
