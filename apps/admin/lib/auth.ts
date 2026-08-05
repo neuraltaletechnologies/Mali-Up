@@ -51,14 +51,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         let decoded
         try {
           decoded = await verifyIdToken(parsed.data.idToken)
-        } catch {
-          // Token invalid, expired, or revoked
+        } catch (err) {
+          console.error('[Auth Error] verifyIdToken failed on server:', err)
           return null
         }
 
-        const hasAdminAccess = await isAdminUser(decoded.uid)
+        let hasAdminAccess = false
+        try {
+          hasAdminAccess = await isAdminUser(decoded.uid)
+        } catch (err) {
+          console.error('[Auth Error] isAdminUser check failed on server:', err)
+          return null
+        }
+
         if (!hasAdminAccess) {
-          // Valid Firebase user, but not a platform admin
           return null
         }
 
