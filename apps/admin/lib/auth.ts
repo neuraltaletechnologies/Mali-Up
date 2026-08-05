@@ -51,8 +51,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         let decoded
         try {
           decoded = await verifyIdToken(parsed.data.idToken)
-        } catch (err) {
-          console.error('[Auth Error] verifyIdToken failed on server:', err)
+        } catch (err: any) {
+          console.error(
+            '[Auth Error] verifyIdToken failed on server:',
+            err?.code ?? 'NO_CODE',
+            err?.message ?? err
+          )
           return null
         }
 
