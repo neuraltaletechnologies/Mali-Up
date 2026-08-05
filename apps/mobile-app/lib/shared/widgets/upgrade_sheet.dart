@@ -404,7 +404,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   letterSpacing: -0.3,
                 ),
               ),
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
               Text(
                 _t(
                   'Costs less than an hour of accountant fees — reach '
@@ -488,7 +488,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.rocket_launch_rounded, size: 16),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Flexible(
                             child: Text(
                               '${_t("Upgrade to", "Panda")} '
@@ -506,7 +506,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                     ),
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Center(
                   child: Text(
                     '${_fmtPrice(_priceCycle)} ${_t("billed every ${_selLimits.cycleMonths} months upfront", "ulipwa kwa miezi ${_selLimits.cycleMonths} mbele")}',
@@ -549,8 +549,9 @@ class _LockedFeatureNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (featureKey == null && triggerReason == null)
+    if (featureKey == null && triggerReason == null) {
       return const SizedBox.shrink();
+    }
 
     final icon = featureKey?.icon ?? Icons.lock_rounded;
     final label = LocalizationService.isSwahili
@@ -577,7 +578,7 @@ class _LockedFeatureNotice extends StatelessWidget {
               ),
               child: Icon(icon, color: AppColors.navyPrimary, size: 17),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -608,7 +609,7 @@ class _LockedFeatureNotice extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
@@ -619,7 +620,7 @@ class _LockedFeatureNotice extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
-                  SizedBox(width: 3),
+                  const SizedBox(width: 3),
                   Text(
                     'PREMIUM',
                     style: GoogleFonts.dmSans(
@@ -717,7 +718,7 @@ class _TierCard extends StatelessWidget {
                     ),
                   ),
                   if (isGrowth) ...[
-                    SizedBox(width: 5),
+                    const SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -741,7 +742,7 @@ class _TierCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       '${_fmtPrice(limits.pricePerCycle)} / '
@@ -759,7 +760,7 @@ class _TierCard extends StatelessWidget {
               ),
             ),
 
-            SizedBox(width: 6),
+            const SizedBox(width: 6),
             // Price
             Flexible(
               child: Column(
@@ -837,7 +838,7 @@ class _EnterpriseCard extends StatelessWidget {
                 size: 16,
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -981,7 +982,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                 color: AppColors.success,
                 size: 36,
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Text(
                 alreadyPending
                     ? _t(
@@ -995,7 +996,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                   color: AppColors.navyPrimary,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 _t(
                   'Our team will contact you within 24 hours about custom '
@@ -1009,7 +1010,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                   height: 1.5,
                 ),
               ),
-              SizedBox(height: 14),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: 46,
@@ -1053,7 +1054,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                 color: AppColors.textSecondary,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: _noteController,
               maxLines: 3,
@@ -1087,13 +1088,13 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               ),
             ),
             if (_error != null) ...[
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 _error!,
                 style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
               ),
             ],
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -1131,7 +1132,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                 ),
               ),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Center(
               child: Text(
                 _t(
@@ -1182,7 +1183,7 @@ class _PaymentSubmittedCard extends StatelessWidget {
             color: AppColors.success,
             size: 36,
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             _t(
               'We received your payment info!',
@@ -1194,7 +1195,7 @@ class _PaymentSubmittedCard extends StatelessWidget {
               color: AppColors.navyPrimary,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             _t(
               'We are confirming your $tierName payment ($paymentRef) — '
@@ -1210,7 +1211,7 @@ class _PaymentSubmittedCard extends StatelessWidget {
               height: 1.5,
             ),
           ),
-          SizedBox(height: 14),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 46,
@@ -1282,7 +1283,7 @@ class _PaymentInstructions extends StatelessWidget {
                 size: 16,
                 color: AppColors.textSecondary,
               ),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Text(
                 _t('Back', 'Rudi'),
                 style: GoogleFonts.dmSans(
@@ -1318,7 +1319,7 @@ class _PaymentInstructions extends StatelessWidget {
                       size: 16,
                     ),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Text(
                     _t('M-Pesa Payment Steps', 'Hatua za Malipo ya M-Pesa'),
                     style: GoogleFonts.dmSans(
@@ -1387,7 +1388,7 @@ class _PaymentInstructions extends StatelessWidget {
                   bold: true,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -1404,7 +1405,7 @@ class _PaymentInstructions extends StatelessWidget {
                       size: 14,
                       color: AppColors.warning,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _t(
@@ -1421,7 +1422,7 @@ class _PaymentInstructions extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 14),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -1578,7 +1579,7 @@ class _Step extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: text != null
                 ? Padding(

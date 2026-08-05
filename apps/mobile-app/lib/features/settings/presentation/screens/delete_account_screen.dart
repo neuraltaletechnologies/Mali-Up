@@ -66,7 +66,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
                       _t(
                         'Deleting your account permanently removes your Mali Up login and data. '
@@ -88,7 +88,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -181,7 +181,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _t(
                         '1. Export your data first (for your records)\n'
@@ -214,7 +214,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _t(
                         'Your request is processed immediately. You must be online and signed in. '

@@ -94,7 +94,7 @@ class PrivacyPolicyPage extends StatelessWidget {
                   '• Right to Data Portability: You can request a copy of your data in a portable format\n\n'
                   'To exercise any of these rights, please contact us using the details provided above.',
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             Center(
               child: Text(
                 'Last Updated: ${_getLastUpdatedDate()}',
@@ -124,7 +124,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           content,
           style: GoogleFonts.dmSans(

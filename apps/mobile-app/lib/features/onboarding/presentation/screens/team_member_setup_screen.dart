@@ -429,7 +429,7 @@ class _InvitationBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           sw
               ? 'Uliombwa kujiunga na biashara hii kama mwanachama wa timu.'
@@ -475,7 +475,7 @@ class _InvitationBody extends StatelessWidget {
                       size: 22,
                     ),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -507,7 +507,7 @@ class _InvitationBody extends StatelessWidget {
               if (role.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     const Icon(
@@ -515,7 +515,7 @@ class _InvitationBody extends StatelessWidget {
                       size: 16,
                       color: Colors.white54,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       sw ? 'Jukumu lako: ' : 'Your role: ',
                       style: GoogleFonts.dmSans(
@@ -552,7 +552,7 @@ class _InvitationBody extends StatelessWidget {
               if (name.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     const Icon(
@@ -560,7 +560,7 @@ class _InvitationBody extends StatelessWidget {
                       size: 16,
                       color: Colors.white54,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       sw ? 'Jina lako: ' : 'Your name: ',
                       style: GoogleFonts.dmSans(
@@ -726,7 +726,7 @@ class _PinSetupBody extends StatelessWidget {
             size: 26,
           ),
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 20),
         Text(
           isConfirm
               ? (sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓')
@@ -739,7 +739,7 @@ class _PinSetupBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           isConfirm
               ? (sw
@@ -909,7 +909,7 @@ class _TeamOfflineBanner extends StatelessWidget {
             size: 18,
             color: Color(0xFF856404),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               sw
@@ -917,7 +917,7 @@ class _TeamOfflineBanner extends StatelessWidget {
                   : 'This step requires internet. Please connect and try again.',
               style: GoogleFonts.dmSans(
                 fontSize: 12,
-                color: Color(0xFF856404),
+                color: const Color(0xFF856404),
                 height: 1.4,
               ),
             ),
@@ -1041,7 +1041,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 2),

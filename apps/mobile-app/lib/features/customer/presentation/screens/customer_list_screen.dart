@@ -151,7 +151,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                 backgroundColor: AppColors.yellowBrand,
                 foregroundColor: AppColors.navyPrimary,
                 elevation: 3,
-                icon: Icon(Icons.person_add_alt_1_rounded, size: 20),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
                 label: Text(
                   _tr('Add Customer', 'Ongeza Mteja'),
                   style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -505,7 +505,7 @@ class _PillStat extends StatelessWidget {
           style: GoogleFonts.dmSans(
               fontSize: 13, fontWeight: FontWeight.w800, color: color),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
@@ -642,7 +642,7 @@ class _CustomerFilterSheetState extends State<_CustomerFilterSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SheetHandle(),
+              const SheetHandle(),
               Row(
                 children: [
                   Expanded(
@@ -715,7 +715,7 @@ class _CustomerFilterSheetState extends State<_CustomerFilterSheet> {
                         ))
                     .toList(),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -987,7 +987,7 @@ class _CustomerCard extends ConsumerWidget {
                           children: _statusChips(),
                         ),
                         if (customer.displaySubtitle.isNotEmpty) ...[
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             customer.displaySubtitle,
                             maxLines: 1,
@@ -1025,7 +1025,7 @@ class _CustomerCard extends ConsumerWidget {
                           style: GoogleFonts.dmSans(
                               fontSize: 10, color: AppColors.textMuted),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           balance > 0
                               ? 'TZS ${_fmtShort(balance)}'
@@ -1042,7 +1042,7 @@ class _CustomerCard extends ConsumerWidget {
                                       : AppColors.success),
                         ),
                         if (hasBalance && customer.creditLimit > 0) ...[
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             customer.isOverCreditLimit
                                 ? _tr('Over limit!', 'Imezidi!')
@@ -1061,13 +1061,13 @@ class _CustomerCard extends ConsumerWidget {
                             size: 14, color: AppColors.textDisabled),
                       ],
                       if (hasLastDate) ...[
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.history_rounded,
                                 size: 10, color: AppColors.textDisabled),
-                            SizedBox(width: 3),
+                            const SizedBox(width: 3),
                             Text(
                               lastDate,
                               style: GoogleFonts.dmSans(
@@ -1315,7 +1315,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SheetHandle(),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     _tr('Edit Customer', 'Hariri Mteja'),
                     style: GoogleFonts.dmSans(
@@ -1392,7 +1392,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                             'Kikomo cha Mkopo (TZS, 0 = bila kikomo)'),
                         Icons.credit_score_rounded),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
@@ -1409,7 +1409,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                               style: GoogleFonts.dmSans()),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton(
                           onPressed: _isSaving ? null : _save,
@@ -1517,7 +1517,7 @@ class _ToggleTab extends StatelessWidget {
               Icon(icon,
                   size: 16,
                   color: active ? Colors.white : AppColors.textMuted),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
@@ -1689,7 +1689,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: 14),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1709,7 +1709,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                   ),
                                 ),
                                 if (live.isOrganisation) ...[
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 6, vertical: 2),
@@ -1731,7 +1731,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               ],
                             ),
                             if (hasPhone) ...[
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
                                 live.phone,
                                 style: GoogleFonts.dmSans(
@@ -1812,7 +1812,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                 ? AppColors.error
                                 : AppColors.success,
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               balance > 0
@@ -1906,7 +1906,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               ),
                             );
                           },
-                          icon: Icon(Icons.payments_rounded, size: 16),
+                          icon: const Icon(Icons.payments_rounded, size: 16),
                           label: Text(
                             _tr('Pay Debt', 'Lipa Deni'),
                             style: GoogleFonts.dmSans(
@@ -2041,7 +2041,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           customer: live,
                         );
                       },
-                      icon: Icon(Icons.person_rounded, size: 18),
+                      icon: const Icon(Icons.person_rounded, size: 18),
                       label: Text(
                         _tr('View Full Profile', 'Ona Profaili Kamili'),
                         style: GoogleFonts.dmSans(
@@ -2097,7 +2097,7 @@ class _SheetActionBtn extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 22, color: color),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -2167,7 +2167,7 @@ class _SheetInfoRow extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 15, color: AppColors.textMuted),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2179,7 +2179,7 @@ class _SheetInfoRow extends StatelessWidget {
                           color: AppColors.textMuted,
                         ),
                       ),
-                      SizedBox(height: 1),
+                      const SizedBox(height: 1),
                       Text(
                         value,
                         style: GoogleFonts.dmSans(

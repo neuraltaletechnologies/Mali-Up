@@ -82,11 +82,11 @@ class AuditLogScreen extends ConsumerWidget {
                     Container(
                       width: 80,
                       height: 80,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.surfaceVariant,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.history_rounded,
                         size: 40,
                         color: AppColors.textMuted,
@@ -250,13 +250,13 @@ class _AuditLogItem extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             if (isSuccess)
-                              Icon(
+                              const Icon(
                                 Icons.check_circle_rounded,
                                 size: 16,
                                 color: AppColors.success,
                               )
                             else
-                              Icon(
+                              const Icon(
                                 Icons.error_rounded,
                                 size: 16,
                                 color: AppColors.error,
@@ -290,8 +290,8 @@ class _AuditLogItem extends StatelessWidget {
           ),
         ),
         if (!isLast)
-          Padding(
-            padding: const EdgeInsets.only(left: 74),
+          const Padding(
+            padding: EdgeInsets.only(left: 74),
             child: Divider(
               height: 1,
               color: AppColors.border,

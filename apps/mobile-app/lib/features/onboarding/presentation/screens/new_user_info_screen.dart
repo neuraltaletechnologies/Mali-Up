@@ -299,12 +299,12 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     v ?? '', isSwahili: sw, optional: false),
                                 onFieldSubmitted: (_) => _submit(),
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(Icons.info_outline_rounded,
                                       size: 13, color: AppColors.textMuted),
-                                  SizedBox(width: 5),
+                                  const SizedBox(width: 5),
                                   Flexible(
                                     child: Text(
                                       sw

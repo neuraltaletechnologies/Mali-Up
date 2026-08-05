@@ -32,7 +32,7 @@ class AddProductChoiceSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SheetHandle(),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             _tr('Add Product', 'Ongeza Bidhaa'),
             style: GoogleFonts.dmSans(
@@ -113,7 +113,7 @@ class _Tile extends StatelessWidget {
               ),
               child: Icon(icon, color: AppColors.tealAccent, size: 20),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,

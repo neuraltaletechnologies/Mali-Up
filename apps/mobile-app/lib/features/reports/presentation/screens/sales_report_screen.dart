@@ -38,7 +38,7 @@ class SalesReportScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Sales Report', 'Ripoti ya Mauzo'),
           style: GoogleFonts.dmSans(
@@ -208,7 +208,7 @@ class _PaymentPieCard extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +226,7 @@ class _PaymentPieCard extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               e.value.key,
@@ -299,7 +299,7 @@ class _SalesTrendCard extends StatelessWidget {
               'Mwenendo wa Mapato (miezi 6)',
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           SizedBox(
             height: 150,
             child: BarChart(
@@ -313,8 +313,9 @@ class _SalesTrendCard extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         final idx = v.toInt();
-                        if (idx < 0 || idx >= trend.length)
+                        if (idx < 0 || idx >= trend.length) {
                           return const SizedBox.shrink();
+                        }
                         return Text(
                           monthLabel(trend[idx].month),
                           style: GoogleFonts.dmSans(
@@ -398,7 +399,7 @@ class _RankedListCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             e.value.key,
                             style: GoogleFonts.dmSans(

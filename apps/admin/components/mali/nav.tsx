@@ -107,7 +107,7 @@ export function Nav() {
             onClick={handleCtaClick}
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:scale-105 hover:shadow-[0_6px_24px_rgba(245,166,35,0.4)] active:scale-[0.97] transition-all duration-200"
           >
-            Join Waitlist
+            Download
           </a>
         </div>
 
@@ -159,7 +159,7 @@ export function Nav() {
           onClick={() => setMenuOpen(false)}
           className="shimmer-btn text-center text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl mt-1"
         >
-          Join Waitlist
+          Download
         </a>
       </div>
     </header>

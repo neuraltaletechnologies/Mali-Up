@@ -47,7 +47,7 @@ class ReportsHubScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     _tr(
                       'Full picture of your business finances',
@@ -303,7 +303,7 @@ class _SectionHeader extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
         child: Row(
           children: [
-            Expanded(child: Divider(height: 1, color: AppColors.border)),
+            const Expanded(child: Divider(height: 1, color: AppColors.border)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Text(
@@ -380,7 +380,7 @@ class _ReportCard extends StatelessWidget {
                     ),
                     child: Icon(icon, color: iconColor, size: 22),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,7 +393,7 @@ class _ReportCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        SizedBox(height: 3),
+                        const SizedBox(height: 3),
                         Text(
                           subtitle,
                           style: GoogleFonts.dmSans(
@@ -554,7 +554,7 @@ class ReportStatCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.dmSans(

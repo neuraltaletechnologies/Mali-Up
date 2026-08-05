@@ -173,7 +173,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                       ),
                     ),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Text(
                     'MALI UP',
                     style: GoogleFonts.dmSans(
@@ -185,7 +185,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                   ),
                 ],
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               Text(
                 _tr('Enter PIN to continue', 'Ingiza PIN kuendelea'),
                 style: GoogleFonts.dmSans(
@@ -239,7 +239,7 @@ class _PinLockScreenState extends State<PinLockScreen>
               ),
 
               if (_hasError && _lockoutRemaining == null) ...[
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
                   _tr(
                     'Incorrect PIN. Try again.',
@@ -253,7 +253,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                 ),
               ],
               if (_lockoutRemaining != null) ...[
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
                   _tr(
                     'Too many attempts. ${_formatLockout(_lockoutRemaining!)}',
@@ -286,7 +286,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                         _buildNumRow(['4', '5', '6']),
                         const SizedBox(height: 16),
                         _buildNumRow(['7', '8', '9']),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -301,7 +301,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                                 ),
                               )
                             else
-                              SizedBox(width: 72, height: 72),
+                              const SizedBox(width: 72, height: 72),
                             _NumpadKey(
                               onTap: () => _enterDigit('0'),
                               child: Text(

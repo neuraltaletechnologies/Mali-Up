@@ -26,7 +26,7 @@ class VatSummaryScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: AppColors.secondary),
+        leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('VAT Summary', 'Muhtasari wa VAT'),
           style: GoogleFonts.dmSans(
@@ -63,7 +63,7 @@ class VatSummaryScreen extends ConsumerWidget {
                   color: AppColors.secondary,
                   size: 20,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _tr(
@@ -178,7 +178,7 @@ class VatSummaryScreen extends ConsumerWidget {
                     letterSpacing: 0.8,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   formatCurrency(report.netVatPayable.abs()),
                   style: GoogleFonts.dmSans(
@@ -187,7 +187,7 @@ class VatSummaryScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   isPayable
                       ? _tr(
@@ -294,7 +294,7 @@ class _VatSection extends StatelessWidget {
                 ),
                 child: Icon(icon, color: color, size: 16),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,

@@ -171,7 +171,7 @@ class _AccountHeader extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,12 +198,12 @@ class _AccountHeader extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
             _t('Current Balance', 'Salio la Sasa'),
             style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 12),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             _fmtAmt(account.balance),
             style: GoogleFonts.dmSans(
@@ -213,7 +213,7 @@ class _AccountHeader extends StatelessWidget {
             ),
           ),
           if (lastReconDate != null && lastReconDate!.isNotEmpty) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(
@@ -221,7 +221,7 @@ class _AccountHeader extends StatelessWidget {
                   color: Colors.white54,
                   size: 14,
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
                   _t(
                     'Last reconciled: $lastReconDate',
@@ -298,7 +298,7 @@ class _TxnTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Row(
                   children: [
                     Text(
@@ -309,7 +309,7 @@ class _TxnTile extends StatelessWidget {
                       ),
                     ),
                     if (txn.reference.isNotEmpty) ...[
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,

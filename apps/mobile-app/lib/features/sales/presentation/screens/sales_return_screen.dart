@@ -549,7 +549,7 @@ class _ReturnItemCard extends StatelessWidget {
                               size: 14, color: Colors.white)
                           : null,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         line.productName,
@@ -570,7 +570,7 @@ class _ReturnItemCard extends StatelessWidget {
               ),
             ),
             if (line.selected) ...[
-              Divider(height: 1, color: AppColors.border),
+              const Divider(height: 1, color: AppColors.border),
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 6),
@@ -589,7 +589,7 @@ class _ReturnItemCard extends StatelessWidget {
                       max: line.originalQty,
                       onChanged: onQtyChange,
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Text(
                       'TZS ${_fmtNum(line.returnTotal)}',
                       style: GoogleFonts.jetBrainsMono(
@@ -696,7 +696,7 @@ class _RestockToggle extends StatelessWidget {
         children: [
           const Icon(Icons.inventory_2_outlined,
               size: 18, color: AppColors.tealAccent),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               _tr('Return to inventory', 'Rudisha kwenye stoo'),
@@ -736,7 +736,7 @@ class _ReasonField extends StatelessWidget {
               color: AppColors.textSecondary,
               letterSpacing: 0.5),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -818,7 +818,7 @@ class _BottomBar extends StatelessWidget {
                     fontSize: 13, color: AppColors.textMuted),
               ),
             ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           FilledButton.icon(
             onPressed: (saving || !hasSelection) ? null : onSave,
             icon: saving
@@ -826,7 +826,7 @@ class _BottomBar extends StatelessWidget {
                     dimension: 16,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
-                : Icon(Icons.undo_rounded, size: 16),
+                : const Icon(Icons.undo_rounded, size: 16),
             label: Text(
               saving
                   ? _tr('Saving…', 'Inahifadhi…')
@@ -938,7 +938,7 @@ class _ResolutionOption extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 20, color: selected ? Colors.white : AppColors.textMuted),
-            SizedBox(width: 6),
+            const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -1015,7 +1015,7 @@ class _ExchangeProductPickerState
             color: AppColors.textSecondary, letterSpacing: 0.5,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         TextField(
           controller: widget.controller,
           focusNode: _focus,
@@ -1062,7 +1062,7 @@ class _ExchangeProductPickerState
                     child: Row(
                       children: [
                         const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.textMuted),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             item.name,

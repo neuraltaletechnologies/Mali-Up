@@ -484,7 +484,7 @@ class _ToggleChip extends StatelessWidget {
               Icon(icon,
                   size: 18,
                   color: active ? Colors.white : AppColors.textMuted),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,7 +553,7 @@ class _AmountCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             children: [
               Text(
@@ -563,7 +563,7 @@ class _AmountCard extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w500),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextFormField(
                   controller: controller,
@@ -637,7 +637,7 @@ class _DueDateRow extends StatelessWidget {
           children: [
             const Icon(Icons.calendar_today_outlined,
                 size: 18, color: AppColors.textSecondary),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
