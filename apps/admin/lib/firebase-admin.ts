@@ -1,4 +1,9 @@
 import admin from 'firebase-admin'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
+
+const GOOGLE_JWKS = createRemoteJWKSet(
+  new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
+)
 
 // Singleton — safe to call multiple times.
 function getAdminApp() {
@@ -59,7 +64,32 @@ export const adminStorage = admin.storage(adminApp).bucket('neuraltale-mali-up.f
  * Throws if the token is invalid or expired.
  */
 export async function verifyIdToken(idToken: string) {
-  return adminAuth.verifyIdToken(idToken)
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ??
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ??
+    'neuraltale-mali-up'
+
+  try {
+    return await adminAuth.verifyIdToken(idToken)
+  } catch (err: any) {
+    const errStr = String(err?.message ?? err)
+    // Fallback for Cloudflare Workers (unenv) where Node's `https.request` is not implemented:
+    // Verify using standard Web Crypto + Google JWKS via `jose`
+    if (errStr.includes('https.request') || errStr.includes('unenv') || errStr.includes('argument-error')) {
+      const { payload } = await jwtVerify(idToken, GOOGLE_JWKS, {
+        issuer: `https://securetoken.google.com/${projectId}`,
+        audience: projectId,
+      })
+      return {
+        uid: payload.sub as string,
+        email: (payload.email as string) ?? '',
+        name: (payload.name as string) ?? (payload.email as string) ?? '',
+        admin: payload.admin === true,
+        ...payload,
+      } as any
+    }
+    throw err
+  }
 }
 
 /**
@@ -71,11 +101,27 @@ export async function verifyIdToken(idToken: string) {
  * when SKIP_FIRESTORE_ADMIN_CHECK=true so you can test without a real
  * Firestore admin document.
  */
-export async function isAdminUser(uid: string): Promise<boolean> {
+export async function isAdminUser(uid: string, decodedToken?: any): Promise<boolean> {
   // Custom-claim check
-  const userRecord = await adminAuth.getUser(uid)
-  const claims = userRecord.customClaims as Record<string, unknown> | undefined
-  if (claims?.admin !== true) return false
+  let hasClaim = false
+  if (decodedToken && typeof decodedToken === 'object' && decodedToken.admin === true) {
+    hasClaim = true
+  } else {
+    try {
+      const userRecord = await adminAuth.getUser(uid)
+      const claims = userRecord.customClaims as Record<string, unknown> | undefined
+      hasClaim = claims?.admin === true
+    } catch (err: any) {
+      const errStr = String(err?.message ?? err)
+      if (errStr.includes('https.request') || errStr.includes('unenv')) {
+        hasClaim = decodedToken?.admin === true
+      } else {
+        throw err
+      }
+    }
+  }
+
+  if (!hasClaim) return false
 
   // Firestore document check (belt-and-suspenders)
   if (process.env.SKIP_FIRESTORE_ADMIN_CHECK === 'true') return true
