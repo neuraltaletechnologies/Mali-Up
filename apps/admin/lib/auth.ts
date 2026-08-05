@@ -62,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         let hasAdminAccess = false
         try {
-          hasAdminAccess = await isAdminUser(decoded.uid)
+          hasAdminAccess = await isAdminUser(decoded.uid, decoded)
         } catch (err) {
           console.error('[Auth Error] isAdminUser check failed on server:', err)
           return null
