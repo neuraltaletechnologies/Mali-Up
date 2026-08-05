@@ -13,6 +13,12 @@ function getAdminApp() {
     ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     : undefined
 
+  if (!process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
+    console.warn(
+      '[Firebase Admin] Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY in environment. Server-side token verification will fail.'
+    )
+  }
+
   const credential =
     process.env.FIREBASE_CLIENT_EMAIL && privateKey
       ? admin.credential.cert({
