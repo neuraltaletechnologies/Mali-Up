@@ -59,7 +59,7 @@ export const adminStorage = admin.storage(adminApp).bucket('neuraltale-mali-up.f
  * Throws if the token is invalid or expired.
  */
 export async function verifyIdToken(idToken: string) {
-  return adminAuth.verifyIdToken(idToken, /* checkRevoked= */ true)
+  return adminAuth.verifyIdToken(idToken)
 }
 
 /**
