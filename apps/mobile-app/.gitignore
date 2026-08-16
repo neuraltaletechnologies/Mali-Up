@@ -54,7 +54,6 @@ android/app/google-services.json
 .env.local
 .env.*.local
 sentry.local.json
-clickpesa.local.json
 
 # iOS certificates and provisioning profiles
 ios/Certificates/

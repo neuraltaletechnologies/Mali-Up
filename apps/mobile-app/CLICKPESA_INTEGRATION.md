@@ -1,133 +1,140 @@
 # ClickPesa Payment Gateway Integration
 
 ## Overview
-This document describes the ClickPesa payment gateway integration for Mali Up plan upgrades.
 
-## Configuration
-
-### Required Environment Variables (dart-define)
-
-The ClickPesa credentials must be passed at build time using `--dart-define` flags for security. **Never commit API keys to source control.**
-
-```bash
-flutter build apk \
-  --dart-define=CLICKPESA_CLIENT_ID=your-client-id \
-  --dart-define=CLICKPESA_API_KEY=your-api-key
-```
-
-For iOS:
-```bash
-flutter build ios \
-  --dart-define=CLICKPESA_CLIENT_ID=your-client-id \
-  --dart-define=CLICKPESA_API_KEY=your-api-key
-```
-
-### Local Development
-
-Create a `clickpesa.local.json` file (gitignored) with your credentials:
-```json
-{
-  "CLICKPESA_CLIENT_ID": "your-client-id",
-  "CLICKPESA_API_KEY": "your-api-key"
-}
-```
-
-Then run:
-```bash
-flutter run --dart-define-from-file=clickpesa.local.json
-```
+ClickPesa payments for Mali Up plan upgrades are handled entirely **server-side**,
+via two Cloud Functions (`apps/mobile-app/functions/src/clickpesa.ts`). The
+mobile app never holds a ClickPesa API key and can never activate a plan by
+itself — `firestore.rules` rejects any client write to `plan`, `planExpiresAt`,
+`premiumExpiresAt`, `lastPayment`, or `enterpriseOverrides` on a user's own
+profile doc. Only the Admin SDK (used by these Cloud Functions and the admin
+portal) can set those fields.
 
 ## Architecture
 
 ### Files
-- `lib/core/services/clickpesa_service.dart` - Core service for payment operations
-- `lib/shared/widgets/upgrade_sheet.dart` - Updated to use ClickPesa for plan upgrades
+- `functions/src/clickpesa.ts` — `createClickPesaPayment` and
+  `verifyClickPesaPayment` callables. These are the only code that ever talks
+  to the ClickPesa API or holds the secret key.
+- `lib/core/services/clickpesa_service.dart` — thin client that calls the two
+  callables above via `cloud_functions`.
+- `lib/shared/widgets/upgrade_sheet.dart` — upgrade paywall UI.
+- `firestore.rules` — blocks client writes to entitlement fields on
+  `users/{uid}`.
 
-### Payment Flow
+### Payment flow
 
-1. **User selects plan** (Growth/Business) in upgrade sheet
-2. **User taps "Upgrade"** button
-3. **App creates ClickPesa payment** via API:
-   - Amount: Plan price (TZS)
-   - Reference: Unique payment reference (MALIUP-{TIER}-{TIMESTAMP})
-   - Customer info: Phone, email from user profile
-4. **App launches ClickPesa payment URL** in external browser
-5. **User completes payment** on ClickPesa page (M-Pesa, Card, etc.)
-6. **App polls for payment status** (every 3 seconds, max 30 attempts)
-7. **On success**: Plan activated in Firestore immediately
-8. **On failure**: Error shown, user can retry
+1. User selects a plan (Growth/Business) and taps "Upgrade".
+2. App calls `createClickPesaPayment({tier})`. The function reads the
+   *current* admin-configured price from `platform_config/plans`, creates the
+   ClickPesa payment, and stores a pending record in `clickpesa_payments/{id}`
+   (server-only collection — the client never reads or writes it directly).
+3. App opens the returned `paymentUrl` in an external browser
+   (M-Pesa/Card/etc., ClickPesa's own UI).
+4. App polls `verifyClickPesaPayment({paymentId})` every 3s (up to 30
+   attempts). The function checks the *real* ClickPesa status, cross-checks
+   the charged amount against what was actually quoted, and — the first time
+   it sees `completed` — activates the plan on `users/{uid}` via the Admin
+   SDK inside a transaction (idempotent against concurrent calls).
+5. Client sees `status: 'completed'` and shows the confirmation card. There is
+   no separate client-side activation step; by the time the client sees
+   success, the plan is already active.
 
-### Security
+## Configuration
 
-- API keys injected at build time via `--dart-define` (not in source control)
-- Payment verification done server-side via ClickPesa API
-- Plan activation only after confirmed payment
-- All payment metadata stored in Firestore for audit trail
+### Production (Secret Manager)
 
-### ClickPesa API Endpoints Used
+The ClickPesa Client ID and API Key are stored as Firebase Secret Manager
+secrets, referenced in code via `defineSecret()`. They are **never** committed
+and **never** shipped in the app binary. Set them once per environment:
 
-- `POST /v2/payments` - Create payment
-- `GET /v2/payments/{id}` - Verify payment status
-- `GET /v2/payments?reference={ref}` - Check by reference
+```bash
+cd apps/mobile-app/functions
+firebase functions:secrets:set CLICKPESA_CLIENT_ID
+firebase functions:secrets:set CLICKPESA_API_KEY
+```
+
+Each command prompts for the value (paste it, press Enter). Then deploy:
+
+```bash
+firebase deploy --only functions,firestore:rules
+```
+
+To rotate a key later, re-run `functions:secrets:set` with the new value and
+redeploy — the old secret version is retained but no longer referenced.
+
+### Local development (emulator)
+
+Create `apps/mobile-app/functions/.secret.local` (gitignored, never commit):
+
+```
+CLICKPESA_CLIENT_ID=your-client-id
+CLICKPESA_API_KEY=your-api-key
+```
+
+Then:
+
+```bash
+cd apps/mobile-app/functions
+npm install
+npm run build
+firebase emulators:start --only functions,firestore
+```
+
+The mobile app itself needs no ClickPesa configuration at all — no
+`--dart-define` flags, no local JSON file. It only needs to be pointed at the
+Functions emulator during local testing (`FirebaseFunctions.instance.useFunctionsEmulator(...)`),
+same as any other Cloud Function in this app.
 
 ## Testing
 
-### Sandbox Mode
-Use ClickPesa sandbox credentials for testing:
-- Client ID: (provided by ClickPesa sandbox)
-- API Key: (provided by ClickPesa sandbox)
-
-### Test Payment Flow
-1. Run app with sandbox credentials
-2. Open upgrade sheet
-3. Select plan and tap upgrade
-4. Complete test payment in sandbox
-5. Verify plan activates
+1. Run functions + Firestore emulators with `.secret.local` set to ClickPesa
+   sandbox credentials.
+2. Open the upgrade sheet, select a plan, tap Upgrade.
+3. Complete the sandbox payment in the opened browser.
+4. Confirm the app shows the success card and `users/{uid}.plan` updates in
+   the emulator UI.
 
 ## Troubleshooting
 
-### Common Issues
+1. **`FirebaseFunctionsException(not-found)` on verify** — the payment record
+   in `clickpesa_payments/{id}` doesn't exist; usually means `createPayment`
+   failed or was called against a different Firebase project than the one the
+   Functions are deployed to.
+2. **`permission-denied` on verify** — the payment belongs to a different
+   `uid` than the caller. Should never happen through the app's own UI.
+3. **`failed-precondition` / "Payment amount mismatch"** — ClickPesa reports a
+   different amount than what the payment was created for; the function
+   refuses to activate rather than trust it. Check `platform_config/plans`
+   pricing didn't change mid-flow.
+4. **Payment URL doesn't open** — check `url_launcher` permissions and that
+   ClickPesa returned a `paymentUrl`.
+5. **Stuck on ClickPesa's page after paying** — the `maliup://` URL scheme
+   (registered in `AndroidManifest.xml` / `Info.plist`) should bring the app
+   back to the foreground; the client keeps polling regardless, so activation
+   still completes even if that redirect fails.
+6. **Plan not activating after payment** — check Cloud Functions logs
+   (`firebase functions:log`) for the `verifyClickPesaPayment` call; the
+   transaction only commits once ClickPesa reports `completed`/`paid` *and*
+   the amount matches.
 
-1. **"CLICKPESA_CLIENT_ID not configured"**
-   - Ensure `--dart-define` flags are passed at build time
-   - Check `flutter build` command includes both flags
+## Security notes
 
-2. **Payment URL doesn't open**
-   - Check `url_launcher` permissions in AndroidManifest.xml / Info.plist
-   - Ensure ClickPesa returns valid `paymentUrl`
-
-3. **Payment verification timeout**
-   - Increase `maxAttempts` in `waitForPayment()`
-   - Check ClickPesa webhook configuration
-
-4. **Plan not activating after payment**
-   - Check Firestore rules allow user document write
-   - Verify `processSuccessfulPayment()` completes without error
-
-### Debug Logging
-Enable debug logging by checking console output:
-```
-[ClickPesa] Creating payment for growth: 30000 TZS
-[ClickPesa] Payment created: pay_xxx
-[ClickPesa] Plan activated for user uid: growth
-```
-
-## Compliance
-
-### ClickPesa Terms & Conditions
-- API keys must be kept secure and rotated periodically
-- Payment data handled per PCI DSS requirements
-- Customer consent obtained before payment initiation
-- Refund policy aligned with ClickPesa terms
-
-### Data Privacy
-- Only necessary customer data sent to ClickPesa (phone, email, name)
-- Payment references stored for audit, not full card details
-- GDPR/PDPA compliant data handling
+- The ClickPesa API key lives only in Secret Manager, injected into the
+  Cloud Functions runtime — never in the mobile app binary, never in git.
+- `firestore.rules` makes `plan`/`planExpiresAt`/`lastPayment`/
+  `premiumExpiresAt`/`enterpriseOverrides` on `users/{uid}` write-only from
+  the Admin SDK. A user cannot self-grant a paid plan by writing to their own
+  profile doc, regardless of what the client app does.
+- The amount charged always comes from the server-side read of
+  `platform_config/plans`, never from anything the client supplies — a
+  tampered client can't ask ClickPesa to charge less than the real price.
+- `verifyClickPesaPayment` is idempotent: repeated polls, retries, or two
+  concurrent calls for the same payment activate the plan at most once
+  (guarded by a Firestore transaction).
 
 ## Support
 
-For ClickPesa integration issues:
 - ClickPesa API docs: https://docs.clickpesa.com
 - ClickPesa support: support@clickpesa.com
-- Mali Up internal: Check Sentry for payment errors
+- Mali Up internal: Check Cloud Functions logs / Sentry for payment errors

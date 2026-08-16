@@ -1,3 +1,8 @@
 node_modules/
 lib/
 *.log
+
+# Local override for firebase-functions defineSecret() values, used only by
+# the emulator. Real deploys read from Secret Manager instead — see
+# CLICKPESA_INTEGRATION.md. Never commit actual secret values.
+.secret.local
