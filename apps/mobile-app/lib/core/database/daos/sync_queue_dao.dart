@@ -27,6 +27,27 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
         .map((row) => row.read(countExpr) ?? 0);
   }
 
+  /// Live count of entries stuck in 'failed' status. Drives the sync-failure
+  /// notification alert (see NotificationAggregatorService).
+  Stream<int> watchFailedCount() {
+    final countExpr = syncQueueTable.id.count();
+    return (selectOnly(syncQueueTable)
+          ..addColumns([countExpr])
+          ..where(syncQueueTable.status.equals('failed')))
+        .watchSingle()
+        .map((row) => row.read(countExpr) ?? 0);
+  }
+
+  /// Live count of entries in 'conflict' status.
+  Stream<int> watchConflictCount() {
+    final countExpr = syncQueueTable.id.count();
+    return (selectOnly(syncQueueTable)
+          ..addColumns([countExpr])
+          ..where(syncQueueTable.status.equals('conflict')))
+        .watchSingle()
+        .map((row) => row.read(countExpr) ?? 0);
+  }
+
   // ─── Queries ───────────────────────────────────────────────────────────────
 
   /// Fetches the next batch of entries ready to be processed (FIFO order).

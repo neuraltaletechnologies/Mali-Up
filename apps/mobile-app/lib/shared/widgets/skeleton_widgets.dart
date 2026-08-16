@@ -414,34 +414,17 @@ class SkeletonSubscriptionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
       children: const [
-        SkeletonPlanCard(),
-        SizedBox(height: 28),
-        SkeletonText(width: 130),
-        SizedBox(height: 12),
-        SkeletonUsageMeter(),
-        SizedBox(height: 28),
-        SkeletonText(width: 110),
-        SizedBox(height: 12),
-        SkeletonComparisonTable(),
-        SizedBox(height: 28),
+        SkeletonCard(height: 130),
+        SizedBox(height: 32),
+        SkeletonText(width: 60),
+        SizedBox(height: 10),
+        SkeletonCard(height: 280),
+        SizedBox(height: 32),
         SkeletonText(width: 150),
-        SizedBox(height: 12),
-        SkeletonCard(
-          height: 56,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
-        SizedBox(height: 8),
-        SkeletonCard(
-          height: 56,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
-        SizedBox(height: 8),
-        SkeletonCard(
-          height: 56,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
+        SizedBox(height: 10),
+        SkeletonCard(height: 190),
       ],
     );
   }

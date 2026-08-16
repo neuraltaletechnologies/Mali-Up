@@ -7,10 +7,11 @@ import { HowItWorks } from "@/components/mali/how-it-works"
 import { PhoneShowcase } from "@/components/mali/phone-showcase"
 import { AppGallery } from "@/components/mali/app-gallery"
 import { Stats } from "@/components/mali/stats"
-import { Waitlist } from "@/components/mali/waitlist"
+import { Download } from "@/components/mali/download"
 import { Footer } from "@/components/mali/footer"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.com'
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.neuraltale.maliup'
 
 export const metadata: Metadata = {
   title: 'Mali Up — Programu ya Biashara Tanzania | Mauzo, Ankara, Bidhaa',
@@ -58,11 +59,13 @@ const jsonLd = {
         'ERP ya simu kwa biashara ndogo za Tanzania — mauzo, ankara, bidhaa, fedha na wateja katika programu moja.',
       applicationCategory: 'BusinessApplication',
       operatingSystem: ['Android', 'iOS'],
+      installUrl: PLAY_STORE_URL,
+      downloadUrl: PLAY_STORE_URL,
       offers: {
         '@type': 'Offer',
         price: '0',
         priceCurrency: 'TZS',
-        availability: 'https://schema.org/PreOrder',
+        availability: 'https://schema.org/InStock',
       },
       creator: { '@id': `${BASE_URL}/#org` },
       inLanguage: ['sw', 'en'],
@@ -124,7 +127,7 @@ export default function HomePage() {
         <PhoneShowcase />
         <AppGallery />
         <Stats />
-        <Waitlist />
+        <Download />
         <Footer />
       </main>
     </>
