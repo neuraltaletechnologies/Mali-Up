@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
@@ -643,6 +644,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         ),
       );
       unawaited(ref.read(syncServiceProvider).syncNow());
+
+      // A confirmed sale is a genuine happy-path moment — count it toward
+      // the "rate us" prompt gating (see AppRatingService).
+      if (confirmingNow) {
+        unawaited(AppRatingService.recordPositiveSignal());
+      }
 
       if (mounted) {
         if (confirmingNow && _isCredit && _customer != null) {

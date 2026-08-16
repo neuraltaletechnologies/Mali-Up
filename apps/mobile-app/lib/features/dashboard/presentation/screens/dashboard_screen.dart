@@ -11,11 +11,13 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/rate_app_dialog.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/data/finance_providers.dart';
@@ -71,6 +73,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _maybeRefreshFromFirestore();
       _showFirstEntryRewardIfNeeded();
       _checkWebsiteInterestNudge();
+      _maybeShowRateAppPrompt();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
       });
@@ -178,6 +181,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
     showAppSheet<void>(context, builder: (_) => const _WebsiteInterestSheet());
+  }
+
+  /// Soft-ask for a Play Store rating, gated by [AppRatingService] so it
+  /// only fires after a few happy-path moments and never more than a
+  /// handful of times total. See AppRatingService for the full policy.
+  Future<void> _maybeShowRateAppPrompt() async {
+    final eligible = await AppRatingService.shouldPrompt();
+    if (!eligible || !mounted) return;
+    await Future.delayed(const Duration(milliseconds: 2800));
+    if (!mounted) return;
+    RateAppDialog.show(context);
   }
 
   Future<Map<String, dynamic>?> _fetchUserProfile() async {
