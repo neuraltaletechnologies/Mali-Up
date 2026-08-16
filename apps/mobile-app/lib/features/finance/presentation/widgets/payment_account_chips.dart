@@ -34,6 +34,10 @@ class PaymentAccountChips extends ConsumerStatefulWidget {
   /// should provide this and display the message inline themselves.
   final ValueChanged<String>? onActivationRequired;
 
+  /// Called when an unactivated built-in payment method is double-tapped.
+  /// The spec contains all info needed to show the activation sheet.
+  final ValueChanged<PaymentMethodSpec>? onActivateMethod;
+
   const PaymentAccountChips({
     super.key,
     required this.selectedAccountId,
@@ -43,6 +47,7 @@ class PaymentAccountChips extends ConsumerStatefulWidget {
     this.onSelectCredit,
     this.lockUnactivated = true,
     this.onActivationRequired,
+    this.onActivateMethod,
   });
 
   @override
@@ -105,6 +110,7 @@ class _PaymentAccountChipsState extends ConsumerState<PaymentAccountChips> {
                     !widget.selectedIsCredit &&
                     widget.selectedAccountId == spec.accountId,
                 enabled: byId[spec.accountId] != null,
+                spec: byId[spec.accountId] == null ? spec : null,
                 onTap: () {
                   final account = byId[spec.accountId];
                   if (account != null) {
@@ -117,6 +123,10 @@ class _PaymentAccountChipsState extends ConsumerState<PaymentAccountChips> {
                   }
                   selectAccount(spec.toAccount(openingBalance: 0));
                 },
+                onDoubleTap: widget.onActivateMethod != null &&
+                        byId[spec.accountId] == null
+                    ? () => widget.onActivateMethod!(spec)
+                    : null,
               ),
             for (final account in custom)
               _PaymentChip(
@@ -161,14 +171,18 @@ class _PaymentChip extends StatelessWidget {
   final String label;
   final bool active;
   final bool enabled;
+  final PaymentMethodSpec? spec;
   final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
 
   const _PaymentChip({
     required this.icon,
     required this.label,
     required this.active,
     required this.enabled,
+    this.spec,
     required this.onTap,
+    this.onDoubleTap,
   });
 
   @override
@@ -181,6 +195,7 @@ class _PaymentChip extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onDoubleTap: onDoubleTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -204,6 +219,14 @@ class _PaymentChip extends StatelessWidget {
                 color: color,
               ),
             ),
+            if (spec != null && onDoubleTap != null) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.touch_app_rounded,
+                size: 12,
+                color: color.withValues(alpha: 0.7),
+              ),
+            ],
           ],
         ),
       ),
