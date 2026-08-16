@@ -9,7 +9,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 
-/// Premium 3-slide onboarding carousel.
+/// Premium onboarding carousel highlighting Mali Up's flagship features
+/// (offline-first sync, real-time insights, invoicing/inventory automation,
+/// bilingual support, and PIN security).
 /// Calls [onOnboardingComplete] when the user taps "Let's get started" on
 /// the last slide.
 class OnboardingScreen extends StatefulWidget {
@@ -32,6 +34,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _slides = [
     _SlideData(
+      titleEn: 'Works perfectly,\neven offline.',
+      titleSw: 'Inafanya kazi vizuri,\nhata bila mtandao.',
+      bodyEn:
+          'Mali Up saves everything on your phone first. No internet? No problem — your sales, invoices, and stock keep updating, then sync automatically once you\'re back online.',
+      bodySw:
+          'Mali Up huhifadhi kila kitu kwenye simu yako kwanza. Huna mtandao? Si tatizo — mauzo, ankara, na hifadhi yako yanaendelea kusasishwa, kisha yanasawazishwa kiotomatiki mtandao ukirudi.',
+    ),
+    _SlideData(
       titleEn: 'Make confident\nbusiness decisions.',
       titleSw: 'Fanya maamuzi ya\nbiashara kwa ujasiri.',
       bodyEn:
@@ -48,12 +58,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Otomatisha ankara, masasisho ya hifadhi, na ufuatiliaji wa malipo katika mfumo mmoja madhubuti.',
     ),
     _SlideData(
-      titleEn: 'Built specifically for\nAfrican businesses.',
-      titleSw: 'Imeundwa maalum kwa\nbiashara za Afrika.',
+      titleEn: 'Speaks your language,\nliterally.',
+      titleSw: 'Inaongea lugha yako,\nkihalisi.',
       bodyEn:
-          'Offline-first, mobile-first, and designed for the way real businesses operate.',
+          'Fully bilingual in Kiswahili and English, switch anytime. Built specifically for the way African businesses actually operate.',
       bodySw:
-          'Inafanya kazi bila mtandao, kwenye simu, na iliyoundwa kwa jinsi biashara halisi zinavyofanya kazi.',
+          'Inapatikana kikamilifu kwa Kiswahili na Kiingereza, badilisha wakati wowote. Imeundwa maalum kwa jinsi biashara za Afrika zinavyofanya kazi.',
+    ),
+    _SlideData(
+      titleEn: 'Your data,\nlocked down.',
+      titleSw: 'Taarifa zako,\nzimelindwa.',
+      bodyEn:
+          'A secure PIN keeps your business safe, even if someone else picks up your phone.',
+      bodySw:
+          'PIN salama inalinda biashara yako, hata kama mtu mwingine akishika simu yako.',
     ),
   ];
 

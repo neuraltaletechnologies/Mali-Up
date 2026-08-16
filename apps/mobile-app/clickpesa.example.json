@@ -1,4 +1,4 @@
 {
-  "CLICKPESA_CLIENT_ID": "IDB9DctYJ72nQWspfp5Ty2cl8ihOrNn3",
-  "CLICKPESA_API_KEY": "SKbclwDOjhXsGnuYIOQsLxx1sLa2PKn95yEshGsq91"
+  "CLICKPESA_CLIENT_ID": "your-client-id",
+  "CLICKPESA_API_KEY": "your-api-key"
 }

@@ -69,7 +69,9 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     if (_query.isEmpty) return widget.categories;
     final q = _query.toLowerCase();
     return widget.categories
-        .where((c) => c.categoryName.toLowerCase().contains(q))
+        .where((c) =>
+            c.categoryName.toLowerCase().contains(q) ||
+            c.categoryNameSw.toLowerCase().contains(q))
         .toList();
   }
 
@@ -385,7 +387,7 @@ class _CategoryTile extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    category.categoryName,
+                    category.displayName,
                     style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -572,7 +574,7 @@ class CategorySelectField extends ConsumerWidget {
                         ),
                         Text(
                           hasValue
-                              ? selected!.categoryName
+                              ? selected!.displayName
                               : _tr(
                                   'Tap to select a category',
                                   'Gusa kuchagua kategoria',

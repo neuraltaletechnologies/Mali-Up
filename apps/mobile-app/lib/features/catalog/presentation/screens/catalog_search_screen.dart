@@ -138,7 +138,7 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
                   : (categoriesAsync.valueOrNull
                           ?.where((c) => c.categorySlug == selectedCatId)
                           .firstOrNull
-                          ?.categoryName ??
+                          ?.displayName ??
                       ''),
             ),
           ),
@@ -272,7 +272,7 @@ class _CategoryChips extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                cat.categoryName,
+                cat.displayName,
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight:
