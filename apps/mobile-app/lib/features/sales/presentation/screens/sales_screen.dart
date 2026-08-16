@@ -32,6 +32,7 @@ import '../../../debt/domain/models/debt.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
@@ -2586,6 +2587,22 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         _errorField = field;
       });
 
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    final result = await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+    if (result == true && mounted) {
+      // The account was activated, refresh will happen automatically via providers
+      // Optionally show a confirmation message
+      _snack(
+        _tr('${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated', 
+            '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa'),
+        field: _ErrorField.payment,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -3843,6 +3860,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             }),
             onActivationRequired: (message) =>
                 _snack(message, field: _ErrorField.payment),
+            onActivateMethod: (spec) => _showActivateAccountSheet(spec),
           ),
           if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
             const SizedBox(height: 10),

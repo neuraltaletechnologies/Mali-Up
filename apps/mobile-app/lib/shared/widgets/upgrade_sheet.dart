@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/services/clickpesa_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
@@ -307,9 +311,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
   bool _showPayment = false;
   bool _showEnterprise = false;
-  bool _submittingClaim = false;
+  final bool _submittingClaim = false;
   bool _paymentSubmitted = false;
+  bool _processingClickPesa = false;
   String _paymentRef = '';
+  ClickPesaPaymentResponse? _clickPesaResponse;
 
   static const _mpesaNumber = '+255 746 520 819';
 
@@ -319,8 +325,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   @override
   void initState() {
     super.initState();
-    // Growth does not include multiple businesses. Start this paywall on the
-    // first plan that actually unlocks the requested feature.
     _selected = _isMultiBusiness ? PlanTier.business : PlanTier.growth;
   }
 
@@ -329,42 +333,85 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   int get _priceCycle => _selLimits.pricePerCycle;
 
   Future<void> _openPayment() async {
-    // The payment claim must reach Firestore (admin portal activates the
-    // plan from it) — don't start the flow without a connection.
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-    final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
-    setState(() {
-      _paymentRef =
-          'MALIUP-$tierName-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-      _showPayment = true;
-    });
-  }
 
-  /// Records the payment claim in Firestore (visible in the admin portal)
-  /// before closing the sheet. Best-effort — activation is manual either way.
-  Future<void> _finishPayment() async {
-    // Without a connection PlanRequestService.submit would hang forever
-    // (Firestore persistence is disabled) — bail out with the offline notice.
-    if (!await OnlineGuard.ensureOnline(context)) return;
-    if (!mounted) return;
-    setState(() => _submittingClaim = true);
+    final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
+    _paymentRef =
+        'MALIUP-$tierName-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+    setState(() => _processingClickPesa = true);
+
     try {
-      await PlanRequestService.submit(
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('User not authenticated');
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userData = userDoc.data() ?? {};
+      final phone = (userData['phone'] as String?) ?? '';
+      final email = user.email ?? '';
+
+      // Create ClickPesa payment
+      final response = await ClickPesaService.createPayment(
         tier: _selected,
-        type: PlanRequestType.paymentClaim,
+        amountTzs: _priceCycle,
         paymentRef: _paymentRef,
+        customerPhone: phone.isNotEmpty ? phone : '+255000000000',
+        customerEmail: email,
+        returnUrl: 'maliup://payment-return',
       );
-    } catch (_) {
-      // Offline or rules failure — the M-Pesa reference still reaches the
-      // team through the payment itself, so don't block the user here.
-    }
-    if (mounted) {
+
+      if (!mounted) return;
+
+      _clickPesaResponse = response;
+
+      // Launch ClickPesa payment URL
+      final launched = await launchUrl(
+        Uri.parse(response.paymentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        throw Exception('Could not open payment page');
+      }
+
+      // Wait for payment completion
+      final status = await ClickPesaService.waitForPayment(
+        paymentId: response.id,
+        maxAttempts: 30,
+      );
+
+      if (!mounted) return;
+
+      // Process successful payment
+      await ClickPesaService.processSuccessfulPayment(
+        payment: status,
+        tier: _selected,
+      );
+
       setState(() {
-        _submittingClaim = false;
+        _processingClickPesa = false;
         _paymentSubmitted = true;
       });
+    } catch (e) {
+      debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
+      if (!mounted) return;
+      setState(() => _processingClickPesa = false);
+      _showErrorSnackBar(_t(
+        'Payment failed: ${e.toString()}',
+        'Malipo yamehshindikana: ${e.toString()}',
+      ));
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -464,7 +511,13 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
                 ),
-              ] else if (!_showPayment) ...[
+              ] else if (_processingClickPesa) ...[
+                _ClickPesaProcessingCard(
+                  tier: _selected,
+                  priceCycle: _priceCycle,
+                  cycleMonths: _selLimits.cycleMonths,
+                ),
+              ] else ...[
                 SizedBox(
                   width: double.infinity,
                   child: ConstrainedBox(
@@ -517,16 +570,56 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   ),
                 ),
               ] else ...[
-                _PaymentInstructions(
-                  tier: _selected,
-                  priceMonthly: _priceMonthly,
-                  priceCycle: _priceCycle,
-                  cycleMonths: _selLimits.cycleMonths,
-                  mpesaNumber: _mpesaNumber,
-                  paymentRef: _paymentRef,
-                  busy: _submittingClaim,
-                  onDone: _finishPayment,
-                  onBack: () => setState(() => _showPayment = false),
+                SizedBox(
+                  width: double.infinity,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 52),
+                    child: ElevatedButton(
+                      onPressed: _processingClickPesa ? null : _openPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.yellowBrand,
+                        foregroundColor: AppColors.navyPrimary,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.rocket_launch_rounded, size: 16),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              '${_t("Upgrade to", "Panda")} '
+                              '${_selected == PlanTier.growth ? "Growth" : "Business"}'
+                              ' — ${_fmtPrice(_priceMonthly)}${_t("/mo", "/mwezi")}',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    '${_fmtPrice(_priceCycle)} ${_t("billed every ${_selLimits.cycleMonths} months upfront", "ulipwa kwa miezi ${_selLimits.cycleMonths} mbele")}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -1148,6 +1241,102 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
           ],
         );
     }
+  }
+}
+
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClickPesa payment processing card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ClickPesaProcessingCard extends StatelessWidget {
+  final PlanTier tier;
+  final int priceCycle;
+  final int cycleMonths;
+
+  const _ClickPesaProcessingCard({
+    required this.tier,
+    required this.priceCycle,
+    required this.cycleMonths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.navyPrimary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _t('Processing Payment', 'Inachakata Malipo'),
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _t(
+              'Please complete the payment in the ClickPesa window. '
+              'This will close automatically when done.',
+              'Tafadhali kamilisha malipo kwenye dirisha la ClickPesa. '
+              'Hii itafunga yenyewe wakati imekamilika.',
+            ),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _t('$tierName Plan', '$tierName Mpango'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
