@@ -469,7 +469,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 
               // ── CTA / Payment / Enterprise request ───────────────────────
               if (_paymentSubmitted) ...[
-                _PaymentSubmittedCard(
+                _PaymentSuccessCard(
                   tier: _selected,
                   paymentRef: _paymentRef,
                   onDone: () => Navigator.pop(context, _selected),
@@ -1257,12 +1257,12 @@ class _ClickPesaProcessingCard extends StatelessWidget {
 // Payment claim submitted — "we're processing it" confirmation
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PaymentSubmittedCard extends StatelessWidget {
+class _PaymentSuccessCard extends StatelessWidget {
   final PlanTier tier;
   final String paymentRef;
   final VoidCallback onDone;
 
-  const _PaymentSubmittedCard({
+  const _PaymentSuccessCard({
     required this.tier,
     required this.paymentRef,
     required this.onDone,
@@ -1281,16 +1281,13 @@ class _PaymentSubmittedCard extends StatelessWidget {
       child: Column(
         children: [
           const Icon(
-            Icons.hourglass_top_rounded,
+            Icons.check_circle_rounded,
             color: AppColors.success,
             size: 36,
           ),
           const SizedBox(height: 10),
           Text(
-            _t(
-              'We received your payment info!',
-              'Tumepokea taarifa yako ya malipo!',
-            ),
+            _t('Payment successful!', 'Malipo yamefanikiwa!'),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1300,11 +1297,10 @@ class _PaymentSubmittedCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             _t(
-              'We are confirming your $tierName payment ($paymentRef) — '
-                  'your plan will be activated within 24 hours. You will see '
-                  'a notice here once it is active.',
-              'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
-                  'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.',
+              'Your $tierName plan is now active ($paymentRef). Enjoy the '
+                  'new features right away.',
+              'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
+                  'vipengele vipya mara moja.',
             ),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
