@@ -602,9 +602,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final businessName = meta['businessName'] ?? 'Business';
     final printedBy = meta['printedBy'] ?? 'User';
 
-    Future<void> sharePdf() async {
+    Future<void> openPdf() async {
       try {
-        await ReceiptPdfService.share(
+        await ReceiptPdfService.open(
           sale: sale,
           businessName: businessName,
           printedBy: printedBy,
@@ -679,8 +679,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               _ReceiptAction(
                 icon: Icons.picture_as_pdf_outlined,
                 iconColor: AppColors.tealAccent,
-                label: _tr('Share PDF', 'Shiriki PDF'),
-                onTap: sharePdf,
+                label: _tr('Open PDF', 'Fungua PDF'),
+                onTap: openPdf,
               ),
             ],
           ),

@@ -7,13 +7,15 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../core/services/business_profile_service.dart';
+import '../../../core/services/pdf_export_service.dart';
 import '../../../core/utils/online_guard.dart';
 
-/// Builds and shares customer-facing sale receipts as real PDF attachments.
+/// Builds and hands out customer-facing sale receipts as real PDF files.
 ///
-/// The caller continues to own channel selection. WhatsApp and email use
-/// [share], printing uses [print], while SMS can keep using the compact text
-/// receipt already built by the sales screens.
+/// The caller continues to own channel selection. [open] generates the PDF
+/// and lets the user pick a viewer via the OS "Open with" chooser, printing
+/// uses [print], while SMS can keep using the compact text receipt already
+/// built by the sales screens.
 abstract final class ReceiptPdfService {
   static const _navy = PdfColor.fromInt(0xFF0D1B3E);
   static const _teal = PdfColor.fromInt(0xFF1A6E8A);
@@ -525,7 +527,7 @@ abstract final class ReceiptPdfService {
     return document.save();
   }
 
-  static Future<bool> share({
+  static Future<void> open({
     required Map<String, dynamic> sale,
     required String businessName,
     required String printedBy,
@@ -534,7 +536,6 @@ abstract final class ReceiptPdfService {
     String businessEmail = '',
     String businessAddress = '',
     String businessLogoUrl = '',
-    String? customerEmail,
   }) async {
     final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
         .toString();
@@ -548,20 +549,7 @@ abstract final class ReceiptPdfService {
       businessAddress: businessAddress,
       businessLogoUrl: businessLogoUrl,
     );
-    final email = customerEmail?.trim() ?? '';
-    return Printing.sharePdf(
-      bytes: bytes,
-      filename: filename(invoiceNumber),
-      subject: isSwahili
-          ? 'Risiti $invoiceNumber kutoka $businessName'
-          : 'Receipt $invoiceNumber from $businessName',
-      body: _shareBody(
-        isSwahili: isSwahili,
-        businessPhone: businessPhone,
-        businessEmail: businessEmail,
-      ),
-      emails: email.isEmpty ? null : [email],
-    );
+    await PdfExportService.openPdf(bytes, filename(invoiceNumber));
   }
 
   static Future<bool> print({
@@ -625,24 +613,6 @@ abstract final class ReceiptPdfService {
   static String _businessInitial(String businessName) {
     final value = businessName.trim();
     return value.isEmpty ? 'B' : value.substring(0, 1).toUpperCase();
-  }
-
-  static String _shareBody({
-    required bool isSwahili,
-    required String businessPhone,
-    required String businessEmail,
-  }) {
-    final contact = [
-      businessPhone.trim(),
-      businessEmail.trim(),
-    ].where((value) => value.isNotEmpty).join(' / ');
-    final message = isSwahili
-        ? 'Risiti yako imeambatishwa kama PDF.'
-        : 'Your receipt is attached as a PDF.';
-    if (contact.isEmpty) return message;
-    return isSwahili
-        ? '$message Mawasiliano ya biashara: $contact'
-        : '$message Business contact: $contact';
   }
 
   static pw.Widget _infoBlock(String title, List<String> lines) => pw.Column(

@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
+import '../../../core/services/pdf_export_service.dart';
 import '../data/reports_providers.dart';
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
@@ -163,10 +163,7 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'profit_loss_$period.pdf',
-    );
+    await PdfExportService.openPdf(await doc.save(), 'profit_loss_$period.pdf');
   }
 
   static String pnlCsv(PnlReport report, String period) {
@@ -245,9 +242,9 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'sales_report_$period.pdf',
+    await PdfExportService.openPdf(
+      await doc.save(),
+      'sales_report_$period.pdf',
     );
   }
 
@@ -333,9 +330,9 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'expense_report_$period.pdf',
+    await PdfExportService.openPdf(
+      await doc.save(),
+      'expense_report_$period.pdf',
     );
   }
 
@@ -407,10 +404,7 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'vat_summary_$period.pdf',
-    );
+    await PdfExportService.openPdf(await doc.save(), 'vat_summary_$period.pdf');
   }
 
   static String vatCsv(VatSummary report, String period) {
@@ -477,10 +471,7 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'ar_aging_$period.pdf',
-    );
+    await PdfExportService.openPdf(await doc.save(), 'ar_aging_$period.pdf');
   }
 
   static String arAgingCsv(ArAgingReport report) {
@@ -556,10 +547,7 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'ap_aging_$period.pdf',
-    );
+    await PdfExportService.openPdf(await doc.save(), 'ap_aging_$period.pdf');
   }
 
   static String apAgingCsv(ApAgingReport report) {
@@ -628,10 +616,7 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'cash_flow_$period.pdf',
-    );
+    await PdfExportService.openPdf(await doc.save(), 'cash_flow_$period.pdf');
   }
 
   static String cashFlowCsv(CashFlowReport report, String period) {
@@ -686,9 +671,9 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'balance_sheet_$date.pdf',
+    await PdfExportService.openPdf(
+      await doc.save(),
+      'balance_sheet_$date.pdf',
     );
   }
 
@@ -745,9 +730,9 @@ abstract final class ReportExportService {
         ],
       ),
     );
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'inventory_valuation_$date.pdf',
+    await PdfExportService.openPdf(
+      await doc.save(),
+      'inventory_valuation_$date.pdf',
     );
   }
 

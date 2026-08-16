@@ -74,4 +74,25 @@ final hasPendingSyncProvider = Provider<bool>((ref) {
   return (ref.watch(pendingSyncCountProvider).valueOrNull ?? 0) > 0;
 });
 
+/// Live count of queue entries stuck in 'failed' status.
+final syncFailedCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).syncQueueDao.watchFailedCount();
+});
+
+/// Live count of queue entries in 'conflict' status.
+final syncConflictCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).syncQueueDao.watchConflictCount();
+});
+
+/// True when sync is erroring or there are unresolved failed/conflict queue
+/// entries — drives the "sync problem" notification alert. Deliberately not
+/// keyed per-entry: a business sees one consolidated alert, not one per
+/// failed queue item.
+final syncHasProblemsProvider = Provider<bool>((ref) {
+  final state = ref.watch(syncStateProvider);
+  final failed = ref.watch(syncFailedCountProvider).valueOrNull ?? 0;
+  final conflict = ref.watch(syncConflictCountProvider).valueOrNull ?? 0;
+  return state == SyncState.error || failed > 0 || conflict > 0;
+});
+
 typedef AppDb = AppDatabase;

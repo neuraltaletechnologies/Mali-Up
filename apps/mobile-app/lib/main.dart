@@ -15,6 +15,7 @@ import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
+import 'package:mali_up/core/services/notification_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/core/services/version_gate_service.dart';
@@ -78,6 +79,7 @@ Future<void> _startApp() async {
     LocalizationService.initializeWithPrefs(prefs),
     MotionService.initializeWithPrefs(prefs),
     SecurityService.initialize(),
+    NotificationService.initialize(),
   ]);
 
   final hasCompletedOnboarding =
