@@ -8,6 +8,7 @@ import 'daos/expense_dao.dart';
 import 'daos/inventory_dao.dart';
 import 'daos/invoice_dao.dart';
 import 'daos/master_catalog_dao.dart';
+import 'daos/notification_log_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/sync_queue_dao.dart';
 import 'daos/team_dao.dart';
@@ -23,6 +24,7 @@ import 'tables/inventory_table.dart';
 import 'tables/invoice_items_table.dart';
 import 'tables/invoices_table.dart';
 import 'tables/master_catalog_tables.dart';
+import 'tables/notification_log_table.dart';
 import 'tables/sync_queue_table.dart';
 import 'tables/team_members_table.dart';
 import 'tables/user_settings_table.dart';
@@ -47,6 +49,7 @@ part 'app_database.g.dart';
     DailyReconciliationsTable,
     MasterCategoriesTable,
     MasterProductsTable,
+    NotificationLogTable,
   ],
   daos: [
     InvoiceDao,
@@ -59,6 +62,7 @@ part 'app_database.g.dart';
     TeamDao,
     CashFlowDao,
     MasterCatalogDao,
+    NotificationLogDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -66,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   /// Removes account and business data cached on this device.
   ///
@@ -88,6 +92,7 @@ class AppDatabase extends _$AppDatabase {
         await delete(cashAccountsTable).go();
         await delete(businessSettingsTable).go();
         await delete(userSettingsTable).go();
+        await delete(notificationLogTable).go();
       });
 
   @override
@@ -190,6 +195,13 @@ class AppDatabase extends _$AppDatabase {
               "ALTER TABLE expenses ADD COLUMN payment_account_id TEXT NOT NULL DEFAULT ''",
             );
           }
+          if (from < 11) {
+            // Notifications: local-only alert log (low stock, overdue debt,
+            // overdue invoice, sync failures). No Firestore sync — every row
+            // is re-derived on-device, so there's nothing to push or pull.
+            await m.createTable(notificationLogTable);
+            await _createV11Indexes();
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -248,6 +260,14 @@ class AppDatabase extends _$AppDatabase {
     await _createV3Indexes();
     await _createV5Indexes();
     await _createV8Indexes();
+    await _createV11Indexes();
+  }
+
+  Future<void> _createV11Indexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_notification_log_business_read '
+      'ON notification_log(business_id, is_read)',
+    );
   }
 
   Future<void> _createV3Indexes() async {

@@ -412,7 +412,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  Future<void> _sharePdf() async {
+  Future<void> _openPdf() async {
     try {
       final scope = await resolveSalesScope(ref);
       if (scope == null) return;
@@ -421,7 +421,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         businessId: scope.businessId,
         createdByUid: (_inv['createdBy'] ?? '').toString(),
       );
-      await ReceiptPdfService.share(
+      await ReceiptPdfService.open(
         sale: _inv,
         businessName: meta['businessName'] ?? 'Business',
         printedBy: meta['printedBy'] ?? 'User',
@@ -558,7 +558,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               outstanding: _outstanding,
             ),
             const SizedBox(height: 16),
-            _ShareRow(onSms: _shareSms, onPdf: _sharePdf),
+            _ShareRow(onSms: _shareSms, onPdf: _openPdf),
             const SizedBox(height: 16),
             _LineItemsCard(items: _lineItems),
             const SizedBox(height: 16),
@@ -922,7 +922,7 @@ class _ShareRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _ShareBtn(
-            label: _tr('Share PDF', 'Shiriki PDF'),
+            label: _tr('Open PDF', 'Fungua PDF'),
             icon: Icons.picture_as_pdf_outlined,
             color: AppColors.tealAccent,
             onTap: onPdf,

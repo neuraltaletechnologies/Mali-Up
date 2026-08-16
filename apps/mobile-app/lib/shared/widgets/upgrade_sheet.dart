@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/services/clickpesa_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
@@ -305,13 +306,10 @@ class _UpgradeSheet extends StatefulWidget {
 
 class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
-  bool _showPayment = false;
   bool _showEnterprise = false;
-  bool _submittingClaim = false;
   bool _paymentSubmitted = false;
+  bool _processingClickPesa = false;
   String _paymentRef = '';
-
-  static const _mpesaNumber = '+255 746 520 819';
 
   bool get _isMultiBusiness =>
       widget.featureKey == PlanFeatureKey.multiBusiness;
@@ -319,8 +317,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   @override
   void initState() {
     super.initState();
-    // Growth does not include multiple businesses. Start this paywall on the
-    // first plan that actually unlocks the requested feature.
     _selected = _isMultiBusiness ? PlanTier.business : PlanTier.growth;
   }
 
@@ -329,42 +325,63 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   int get _priceCycle => _selLimits.pricePerCycle;
 
   Future<void> _openPayment() async {
-    // The payment claim must reach Firestore (admin portal activates the
-    // plan from it) — don't start the flow without a connection.
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-    final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
-    setState(() {
-      _paymentRef =
-          'MALIUP-$tierName-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-      _showPayment = true;
-    });
-  }
 
-  /// Records the payment claim in Firestore (visible in the admin portal)
-  /// before closing the sheet. Best-effort — activation is manual either way.
-  Future<void> _finishPayment() async {
-    // Without a connection PlanRequestService.submit would hang forever
-    // (Firestore persistence is disabled) — bail out with the offline notice.
-    if (!await OnlineGuard.ensureOnline(context)) return;
-    if (!mounted) return;
-    setState(() => _submittingClaim = true);
+    setState(() => _processingClickPesa = true);
+
     try {
-      await PlanRequestService.submit(
+      // Create the ClickPesa payment. The amount and the reference are both
+      // decided server-side (from the admin-configured price), not by the
+      // client — see functions/src/clickpesa.ts.
+      final response = await ClickPesaService.createPayment(
         tier: _selected,
-        type: PlanRequestType.paymentClaim,
-        paymentRef: _paymentRef,
+        returnUrl: 'maliup://payment-return',
       );
-    } catch (_) {
-      // Offline or rules failure — the M-Pesa reference still reaches the
-      // team through the payment itself, so don't block the user here.
-    }
-    if (mounted) {
+      _paymentRef = response.reference;
+
+      if (!mounted) return;
+
+      // Launch ClickPesa payment URL
+      final launched = await launchUrl(
+        Uri.parse(response.paymentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        throw Exception('Could not open payment page');
+      }
+
+      // Poll the server for payment completion. Plan activation happens
+      // server-side the moment this reports "completed" — there is nothing
+      // left for the client to write.
+      await ClickPesaService.waitForPayment(paymentId: response.paymentId);
+
+      if (!mounted) return;
+
       setState(() {
-        _submittingClaim = false;
+        _processingClickPesa = false;
         _paymentSubmitted = true;
       });
+    } catch (e) {
+      debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
+      if (!mounted) return;
+      setState(() => _processingClickPesa = false);
+      _showErrorSnackBar(_t(
+        'Payment failed: ${e.toString()}',
+        'Malipo yamehshindikana: ${e.toString()}',
+      ));
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -427,7 +444,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   isSelected: !_showEnterprise && _selected == PlanTier.growth,
                   onTap: () => setState(() {
                     _selected = PlanTier.growth;
-                    _showPayment = false;
                     _showEnterprise = false;
                   }),
                 ),
@@ -439,7 +455,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 isSelected: !_showEnterprise && _selected == PlanTier.business,
                 onTap: () => setState(() {
                   _selected = PlanTier.business;
-                  _showPayment = false;
                   _showEnterprise = false;
                 }),
               ),
@@ -448,14 +463,13 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 isSelected: _showEnterprise,
                 onTap: () => setState(() {
                   _showEnterprise = true;
-                  _showPayment = false;
                 }),
               ),
               const SizedBox(height: 16),
 
               // ── CTA / Payment / Enterprise request ───────────────────────
               if (_paymentSubmitted) ...[
-                _PaymentSubmittedCard(
+                _PaymentSuccessCard(
                   tier: _selected,
                   paymentRef: _paymentRef,
                   onDone: () => Navigator.pop(context, _selected),
@@ -464,7 +478,13 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
                 ),
-              ] else if (!_showPayment) ...[
+              ] else if (_processingClickPesa) ...[
+                _ClickPesaProcessingCard(
+                  tier: _selected,
+                  priceCycle: _priceCycle,
+                  cycleMonths: _selLimits.cycleMonths,
+                ),
+              ] else ...[
                 SizedBox(
                   width: double.infinity,
                   child: ConstrainedBox(
@@ -515,18 +535,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                       color: AppColors.textMuted,
                     ),
                   ),
-                ),
-              ] else ...[
-                _PaymentInstructions(
-                  tier: _selected,
-                  priceMonthly: _priceMonthly,
-                  priceCycle: _priceCycle,
-                  cycleMonths: _selLimits.cycleMonths,
-                  mpesaNumber: _mpesaNumber,
-                  paymentRef: _paymentRef,
-                  busy: _submittingClaim,
-                  onDone: _finishPayment,
-                  onBack: () => setState(() => _showPayment = false),
                 ),
               ],
             ],
@@ -1152,15 +1160,109 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ClickPesa payment processing card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ClickPesaProcessingCard extends StatelessWidget {
+  final PlanTier tier;
+  final int priceCycle;
+  final int cycleMonths;
+
+  const _ClickPesaProcessingCard({
+    required this.tier,
+    required this.priceCycle,
+    required this.cycleMonths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.navyPrimary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _t('Processing Payment', 'Inachakata Malipo'),
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _t(
+              'Please complete the payment in the ClickPesa window. '
+              'This will close automatically when done.',
+              'Tafadhali kamilisha malipo kwenye dirisha la ClickPesa. '
+              'Hii itafunga yenyewe wakati imekamilika.',
+            ),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _t('$tierName Plan', '$tierName Mpango'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Payment claim submitted — "we're processing it" confirmation
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PaymentSubmittedCard extends StatelessWidget {
+class _PaymentSuccessCard extends StatelessWidget {
   final PlanTier tier;
   final String paymentRef;
   final VoidCallback onDone;
 
-  const _PaymentSubmittedCard({
+  const _PaymentSuccessCard({
     required this.tier,
     required this.paymentRef,
     required this.onDone,
@@ -1179,16 +1281,13 @@ class _PaymentSubmittedCard extends StatelessWidget {
       child: Column(
         children: [
           const Icon(
-            Icons.hourglass_top_rounded,
+            Icons.check_circle_rounded,
             color: AppColors.success,
             size: 36,
           ),
           const SizedBox(height: 10),
           Text(
-            _t(
-              'We received your payment info!',
-              'Tumepokea taarifa yako ya malipo!',
-            ),
+            _t('Payment successful!', 'Malipo yamefanikiwa!'),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1198,11 +1297,10 @@ class _PaymentSubmittedCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             _t(
-              'We are confirming your $tierName payment ($paymentRef) — '
-                  'your plan will be activated within 24 hours. You will see '
-                  'a notice here once it is active.',
-              'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
-                  'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.',
+              'Your $tierName plan is now active ($paymentRef). Enjoy the '
+                  'new features right away.',
+              'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
+                  'vipengele vipya mara moja.',
             ),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
@@ -1233,360 +1331,6 @@ class _PaymentSubmittedCard extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Payment instructions
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PaymentInstructions extends StatelessWidget {
-  final PlanTier tier;
-  final int priceMonthly;
-  final int priceCycle;
-  final int cycleMonths;
-  final String mpesaNumber;
-  final String paymentRef;
-  final bool busy;
-  final VoidCallback onDone;
-  final VoidCallback onBack;
-
-  const _PaymentInstructions({
-    required this.tier,
-    required this.priceMonthly,
-    required this.priceCycle,
-    required this.cycleMonths,
-    required this.mpesaNumber,
-    required this.paymentRef,
-    required this.busy,
-    required this.onDone,
-    required this.onBack,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ref = paymentRef;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          onTap: onBack,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.arrow_back_rounded,
-                size: 16,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _t('Back', 'Rudi'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.tealAccent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: const Icon(
-                      Icons.phone_android_rounded,
-                      color: AppColors.tealAccent,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    _t('M-Pesa Payment Steps', 'Hatua za Malipo ya M-Pesa'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _Step(
-                number: '1',
-                text: _t(
-                  'Open M-Pesa on your phone',
-                  'Fungua M-Pesa kwenye simu yako',
-                ),
-              ),
-              _Step(
-                number: '2',
-                text: _t(
-                  'Select "Pay Bill" (Lipa Number)',
-                  'Chagua "Lipa Biashara" (Lipa Number)',
-                ),
-              ),
-              _Step(
-                number: '3',
-                child: _CopyRow(
-                  label: '${_t("Number", "Namba")}: $mpesaNumber',
-                  copyValue: mpesaNumber,
-                  snackLabel: _t('Number copied', 'Namba imenakiliwa'),
-                  context: context,
-                ),
-              ),
-              _Step(
-                number: '4',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_t("Amount", "Kiasi")}: ${_fmtPrice(priceCycle)} '
-                      '(${_t("$cycleMonths months", "miezi $cycleMonths")})',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '(${_fmtPrice(priceMonthly)}${_t("/mo", "/mwezi")} × $cycleMonths)',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _Step(
-                number: '5',
-                child: _CopyRow(
-                  label: ref,
-                  sublabel: _t('Reference:', 'Maelezo / Kumbukumbu:'),
-                  copyValue: ref,
-                  snackLabel: _t('Reference copied', 'Kumbukumbu imenakiliwa'),
-                  context: context,
-                  bold: true,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.warningBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time_rounded,
-                      size: 14,
-                      color: AppColors.warning,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _t(
-                          'After paying, our team will confirm within 24 hours.',
-                          'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.',
-                        ),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: AppColors.warning,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: busy ? null : onDone,
-                  icon: busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.check_circle_outline_rounded,
-                          size: 18,
-                        ),
-                  label: Text(
-                    busy
-                        ? _t('Sending…', 'Inatuma…')
-                        : _t('I Have Paid', 'Nimemaliza Kulipa'),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    textStyle: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CopyRow extends StatelessWidget {
-  final String label;
-  final String? sublabel;
-  final String copyValue;
-  final String snackLabel;
-  final BuildContext context;
-  final bool bold;
-
-  const _CopyRow({
-    required this.label,
-    this.sublabel,
-    required this.copyValue,
-    required this.snackLabel,
-    required this.context,
-    this.bold = false,
-  });
-
-  @override
-  Widget build(BuildContext _) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (sublabel != null)
-                Text(
-                  sublabel!,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-                  color: AppColors.navyPrimary,
-                  letterSpacing: bold ? 0.5 : 0,
-                ),
-              ),
-            ],
-          ),
-        ),
-        GestureDetector(
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: copyValue));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(snackLabel),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.tealAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.copy_rounded,
-              size: 14,
-              color: AppColors.tealAccent,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Payment step row
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Step extends StatelessWidget {
-  final String number;
-  final String? text;
-  final Widget? child;
-
-  const _Step({required this.number, this.text, this.child})
-    : assert(text != null || child != null);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              color: AppColors.navyPrimary,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                number,
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: text != null
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(text!, style: GoogleFonts.dmSans(fontSize: 13)),
-                  )
-                : child!,
           ),
         ],
       ),

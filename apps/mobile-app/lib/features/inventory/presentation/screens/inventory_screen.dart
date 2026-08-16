@@ -3998,7 +3998,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     if (result != null) {
       setState(() {
         _selectedCategoryId = result.id;
-        _selectedCategoryName = result.categoryName;
+        _selectedCategoryName = result.displayName;
       });
     }
   }
@@ -6753,9 +6753,12 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
   List<MasterCategory> get _filtered {
     if (_query.isEmpty) return widget.categories;
+    final q = _query.toLowerCase();
     return widget.categories
         .where(
-          (c) => c.categoryName.toLowerCase().contains(_query.toLowerCase()),
+          (c) =>
+              c.categoryName.toLowerCase().contains(q) ||
+              c.categoryNameSw.toLowerCase().contains(q),
         )
         .toList();
   }
@@ -7047,7 +7050,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                           ),
                         ),
                         title: Text(
-                          cat.categoryName,
+                          cat.displayName,
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: isSelected

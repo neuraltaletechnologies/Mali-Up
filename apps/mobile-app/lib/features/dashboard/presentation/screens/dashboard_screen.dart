@@ -3158,28 +3158,21 @@ double _numericValue(Object? raw) {
   return double.tryParse(cleaned) ?? 0;
 }
 
+/// Formats a whole-shilling amount with thousands separators, e.g. 10000
+/// becomes "10,000" rather than an approximated "10K"/"10M".
+String _fmtWholeNumber(double amount) => amount
+    .abs()
+    .toStringAsFixed(0)
+    .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+
 String _fmtCompactAmount(double amount) {
   final sign = amount < 0 ? '-' : '';
-  final abs = amount.abs();
-  if (abs >= 1000000) {
-    return '${sign}TSh ${(abs / 1000000).toStringAsFixed(1)}M';
-  }
-  if (abs >= 1000) return '${sign}TSh ${(abs / 1000).toStringAsFixed(0)}K';
-  return '${sign}TSh ${abs.toStringAsFixed(0)}';
+  return '${sign}TSh ${_fmtWholeNumber(amount)}';
 }
 
 String _fmtAmount(double amount) {
   final sign = amount < 0 ? '-' : '';
-  final abs = amount.abs();
-  String formatted;
-  if (abs >= 1000000) {
-    formatted = '${(abs / 1000000).toStringAsFixed(1)}M';
-  } else if (abs >= 1000) {
-    formatted = '${(abs / 1000).toStringAsFixed(0)}K';
-  } else {
-    formatted = abs.toStringAsFixed(0);
-  }
-  return '${sign}TSh $formatted';
+  return '${sign}TSh ${_fmtWholeNumber(amount)}';
 }
 
 String _displayName(Map<String, dynamic>? profile) {

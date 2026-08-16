@@ -1,3 +1,5 @@
+import '../../../../core/services/localization_service.dart';
+
 class MasterCategory {
   final String id;
   final String businessType; // normalised key ("retail", "pharmacy" …)
@@ -33,5 +35,10 @@ class MasterCategory {
     );
   }
 
-  String get displayName => categoryName;
+  /// Category name in the app's active language, falling back to English
+  /// when no Swahili translation is available for this category.
+  String get displayName =>
+      LocalizationService.isSwahili && categoryNameSw.isNotEmpty
+          ? categoryNameSw
+          : categoryName;
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_request_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
@@ -15,6 +16,46 @@ String _fmtPrice(int v) =>
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 String _fmtPriceCompact(int v) => v == 0 ? _t('Free', 'Bure') : _fmtPrice(v);
+
+/// One-line differentiator shown next to each tier in the plan list.
+String _blurbFor(PlanTier tier, PlanLimits limits) {
+  switch (tier) {
+    case PlanTier.starter:
+      return _t(
+        '${limits.monthlyInvoices} invoices/mo · 1 user',
+        'Ankara ${limits.monthlyInvoices}/mwezi · Mtumiaji 1',
+      );
+    case PlanTier.growth:
+      return _t(
+        'Unlimited invoices · Full reports · M-Pesa import',
+        'Ankara zisizo na kikomo · Ripoti kamili · Kuingiza M-Pesa',
+      );
+    case PlanTier.business:
+      return _t(
+        'Multi-location stock · API access · Priority support',
+        'Stoo za maeneo mengi · API · Msaada wa kipaumbele',
+      );
+    case PlanTier.enterprise:
+      return _t(
+        'Custom integrations · White-label · Dedicated onboarding',
+        'Miunganisho maalum · Chapa binafsi · Msaada maalum',
+      );
+    case PlanTier.lifetime:
+      return _t(
+        'One-time payment · Full access forever',
+        'Malipo mara moja · Ufikiaji kamili milele',
+      );
+  }
+}
+
+String _priceLabel(PlanTier tier, PlanLimits limits) {
+  if (limits.pricePerMonth > 0) {
+    return '${_fmtPriceCompact(limits.pricePerMonth)}${_t("/mo", "/mwezi")}';
+  }
+  if (tier == PlanTier.enterprise) return _t('Custom', 'Maalum');
+  if (tier == PlanTier.lifetime) return _t('Lifetime', 'Maisha yote');
+  return _t('Free', 'Bure');
+}
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -73,110 +114,46 @@ class SubscriptionScreen extends ConsumerWidget {
         ),
         data: (status) {
           final defs = status.definitions;
-          final growthLimits = limitsFor(PlanTier.growth, defs);
-          final businessLimits = limitsFor(PlanTier.business, defs);
           final bottomInset = MediaQuery.paddingOf(context).bottom;
+          final tiers = [
+            PlanTier.starter,
+            PlanTier.growth,
+            PlanTier.business,
+            PlanTier.enterprise,
+            if (status.tier == PlanTier.lifetime) PlanTier.lifetime,
+          ];
+
           return ListView(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 40 + bottomInset),
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 32 + bottomInset),
             children: [
               // ── Pending request notice ─────────────────────────
-              const PlanPendingBanner(),
+              const _PendingBanner(),
 
-              // ── Current plan card ──────────────────────────────
-              PlanInfoCard(
+              // ── Current plan ────────────────────────────────────
+              _CurrentPlanBlock(
                 status: status,
                 onUpgradeTap: () => _openUpgrade(context, ref, status),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
-              // ── Usage meters (Starter only) ────────────────────
-              if (status.isStarter) ...[
-                _SectionHeader(_t('Usage this month', 'Matumizi mwezi huu')),
-                const SizedBox(height: 12),
-                _UsageMeter(
-                  label: _t('Invoices', 'Ankara'),
-                  used: status.invoicesUsedThisMonth,
-                  limit: status.limits.monthlyInvoices,
-                ),
-                const SizedBox(height: 28),
-              ],
-
-              // ── All tiers comparison ───────────────────────────
-              _SectionHeader(_t('Compare plans', 'Linganisha mipango')),
-              const SizedBox(height: 12),
-              _ComparisonTable(currentTier: status.tier, defs: defs),
-              const SizedBox(height: 28),
+              // ── Plans ────────────────────────────────────────────
+              _SectionLabel(_t('Plans', 'Mipango')),
+              const SizedBox(height: 10),
+              _PlanList(
+                tiers: tiers,
+                currentTier: status.tier,
+                defs: defs,
+                onTap: (tier) {
+                  if (tier == status.tier) return;
+                  _openUpgrade(context, ref, status);
+                },
+              ),
+              const SizedBox(height: 32),
 
               // ── FAQ ────────────────────────────────────────────
-              _SectionHeader(_t('Common questions', 'Maswali ya kawaida')),
-              const SizedBox(height: 12),
-              _Faq(
-                q: _t('How do I pay?', 'Ninalipaje?'),
-                a: _t(
-                  'Send ${_fmtPrice(growthLimits.pricePerCycle)} (${growthLimits.cycleMonths} months × Growth) or ${_fmtPrice(businessLimits.pricePerCycle)} (${businessLimits.cycleMonths} months × Business) via M-Pesa to our business number. Our team activates your plan within 24 hours.',
-                  'Tuma ${_fmtPrice(growthLimits.pricePerCycle)} (miezi ${growthLimits.cycleMonths} × Growth) au ${_fmtPrice(businessLimits.pricePerCycle)} (miezi ${businessLimits.cycleMonths} × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
-                ),
-              ),
-              _Faq(
-                q: _t('Can I cancel?', 'Ninaweza kughairi?'),
-                a: _t(
-                  'Yes. When your paid period ends it simply reverts to Starter — no automatic charges.',
-                  'Ndiyo. Wakati kipindi chako cha malipo kinapoisha, moja kwa moja inarudi Starter — hakuna malipo ya moja kwa moja.',
-                ),
-              ),
-              _Faq(
-                q: _t(
-                  'What happens to my data if I downgrade?',
-                  'Nini kinatokea kwa data yangu nikienda chini?',
-                ),
-                a: _t(
-                  'All your data stays safe. You can only create new invoices up to the Starter limit; everything already recorded remains accessible.',
-                  'Data yako yote inabaki salama. Unaweza tu kuunda ankara mpya hadi kikomo cha Starter; kila kitu kilichorekodiwa tayari kinabaki kinaweza kufikiwa.',
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Upgrade CTA (Starter only) ─────────────────────
-              if (status.isStarter)
-                Container(
-                  width: double.infinity,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.yellowBrand.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () => _openUpgrade(context, ref, status),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.yellowBrand,
-                      foregroundColor: AppColors.navyPrimary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _t('Upgrade my plan', 'Boresha mpango wangu'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward_rounded, size: 18),
-                      ],
-                    ),
-                  ),
-                ),
+              _SectionLabel(_t('Common questions', 'Maswali ya kawaida')),
+              const SizedBox(height: 10),
+              _FaqList(defs: defs),
             ],
           );
         },
@@ -196,10 +173,12 @@ class SubscriptionScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Section label — small muted caps heading
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
   final String label;
-  const _SectionHeader(this.label);
+  const _SectionLabel(this.label);
 
   @override
   Widget build(BuildContext context) => Text(
@@ -214,91 +193,266 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Pending request notice — flat, single line
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _UsageMeter extends StatelessWidget {
-  final String label;
-  final int used;
-  final int limit;
+class _PendingBanner extends ConsumerWidget {
+  const _PendingBanner();
 
-  const _UsageMeter({
-    required this.label,
-    required this.used,
-    required this.limit,
-  });
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingPlanRequestProvider).valueOrNull;
+    if (pending == null) return const SizedBox.shrink();
+
+    final tierLabel = switch (pending.tier) {
+      PlanTier.growth => 'Growth',
+      PlanTier.business => 'Business',
+      PlanTier.enterprise => 'Enterprise',
+      PlanTier.lifetime => 'Lifetime',
+      PlanTier.starter => 'Starter',
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.tealAccent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.hourglass_top_rounded,
+            color: AppColors.tealAccent,
+            size: 16,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _t(
+                'Your $tierLabel request is being reviewed',
+                'Ombi lako la $tierLabel linashughulikiwa',
+              ),
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Current plan — flat card, no gradient/shadow
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CurrentPlanBlock extends StatelessWidget {
+  final PlanStatus status;
+  final VoidCallback onUpgradeTap;
+
+  const _CurrentPlanBlock({required this.status, required this.onUpgradeTap});
 
   @override
   Widget build(BuildContext context) {
-    final pct = (used / limit).clamp(0.0, 1.0);
-    final barColor = pct >= 1.0
-        ? AppColors.error
-        : pct >= 0.8
-        ? AppColors.warning
-        : AppColors.success;
+    final limit = status.limits.monthlyInvoices;
+    final atLimit = !status.canCreateInvoice;
+    final nearLimit = status.usagePercent >= 0.8;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _t('CURRENT PLAN', 'MPANGO WA SASA'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      status.tierLabel,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '$used / $limit',
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              if (status.expiresAt != null)
+                Text(
+                  _t(
+                    'Until ${_fmtDate(status.expiresAt!)}',
+                    'Hadi ${_fmtDate(status.expiresAt!)}',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                )
+              else if (status.tier == PlanTier.lifetime)
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.all_inclusive_rounded,
+                      size: 14,
+                      color: AppColors.tealAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _t('Lifetime', 'Maisha yote'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tealAccent,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 8,
-              backgroundColor: AppColors.surfaceVariant,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+
+          if (status.isStarter) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _t('Invoices this month', 'Ankara mwezi huu'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '${status.invoicesUsedThisMonth} / $limit',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: atLimit
+                        ? AppColors.error
+                        : nearLimit
+                        ? AppColors.warning
+                        : AppColors.navyPrimary,
+                  ),
+                ),
+              ],
             ),
-          ),
-          if (pct >= 0.8) ...[
             const SizedBox(height: 8),
-            Text(
-              pct >= 1.0
-                  ? _t(
-                      'Limit reached — upgrade to continue',
-                      'Kikomo kimefikiwa — boresha kuendelea',
-                    )
-                  : _t(
-                      '${limit - used} remaining this month',
-                      '${limit - used} zimebaki mwezi huu',
-                    ),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                color: pct >= 1.0 ? AppColors.error : AppColors.warning,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: status.usagePercent,
+                minHeight: 5,
+                backgroundColor: AppColors.surfaceVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  atLimit
+                      ? AppColors.error
+                      : nearLimit
+                      ? AppColors.warning
+                      : AppColors.navyPrimary,
+                ),
               ),
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: onUpgradeTap,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _t('Upgrade my plan', 'Boresha mpango wangu'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 15,
+                    color: AppColors.navyPrimary,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _fmtDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plan list — vertical, single column (replaces the wide comparison table)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PlanList extends StatelessWidget {
+  final List<PlanTier> tiers;
+  final PlanTier currentTier;
+  final PlanDefinitions? defs;
+  final ValueChanged<PlanTier> onTap;
+
+  const _PlanList({
+    required this.tiers,
+    required this.currentTier,
+    required this.defs,
+    required this.onTap,
+  });
+
+  static const _tierNames = {
+    PlanTier.starter: 'Starter',
+    PlanTier.growth: 'Growth',
+    PlanTier.business: 'Business',
+    PlanTier.enterprise: 'Enterprise',
+    PlanTier.lifetime: 'Lifetime',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < tiers.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.borderLight),
+            _PlanRow(
+              tier: tiers[i],
+              limits: limitsFor(tiers[i], defs),
+              isCurrent: tiers[i] == currentTier,
+              onTap: () => onTap(tiers[i]),
             ),
           ],
         ],
@@ -307,369 +461,196 @@ class _UsageMeter extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+class _PlanRow extends StatelessWidget {
+  final PlanTier tier;
+  final PlanLimits limits;
+  final bool isCurrent;
+  final VoidCallback onTap;
 
-class _ComparisonTable extends StatelessWidget {
-  final PlanTier currentTier;
-  final PlanDefinitions? defs;
-  const _ComparisonTable({required this.currentTier, this.defs});
+  const _PlanRow({
+    required this.tier,
+    required this.limits,
+    required this.isCurrent,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final tiers = [
-      PlanTier.starter,
-      PlanTier.growth,
-      PlanTier.business,
-      PlanTier.enterprise,
-      if (currentTier == PlanTier.lifetime) PlanTier.lifetime,
-    ];
-    final tierNames = [
-      'Starter',
-      'Growth',
-      'Business',
-      'Enterprise',
-      if (currentTier == PlanTier.lifetime) 'Lifetime',
-    ];
-    final allLimits = tiers.map((tier) => limitsFor(tier, defs)).toList();
-
-    String priceLabel(PlanTier tier, PlanLimits limits) {
-      if (limits.pricePerMonth > 0) {
-        return '${_fmtPriceCompact(limits.pricePerMonth)}${_t("/mo", "/mwezi")}';
-      }
-      if (tier == PlanTier.enterprise) return _t('Custom', 'Maalum');
-      if (tier == PlanTier.lifetime) return _t('Lifetime', 'Maisha yote');
-      return _t('Free', 'Bure');
-    }
-
-    final prices = [
-      for (var i = 0; i < tiers.length; i++) priceLabel(tiers[i], allLimits[i]),
-    ];
-
-    final features = <(String, List<bool>)>[
-      (
-        _t('Monthly invoices', 'Ankara / mwezi'),
-        allLimits.map((l) => l.monthlyInvoices != 0).toList(),
-      ),
-      (
-        _t('Users', 'Watumiaji'),
-        allLimits.map((l) => l.maxUsers != 0).toList(),
-      ),
-      (
-        _t('Businesses', 'Biashara'),
-        allLimits.map((l) => l.maxBusinesses != 0).toList(),
-      ),
-      (
-        _t('Customers', 'Wateja'),
-        allLimits.map((l) => l.maxCustomers != 0).toList(),
-      ),
-      (
-        _t('Cash flow tracking', 'Ufuatiliaji wa mtiririko wa fedha'),
-        allLimits.map((l) => l.cashFlow).toList(),
-      ),
-      (
-        _t('Expense tracking', 'Ufuatiliaji wa matumizi'),
-        allLimits.map((l) => l.expenseTracking).toList(),
-      ),
-      (
-        _t('Manual debt entry', 'Kuingiza madeni mwenyewe'),
-        allLimits.map((l) => l.manualDebt).toList(),
-      ),
-      (
-        _t('Full reports', 'Ripoti kamili'),
-        allLimits.map((l) => l.fullReports).toList(),
-      ),
-      (
-        _t('M-Pesa import', 'Kuingiza M-Pesa'),
-        allLimits.map((l) => l.mpesaImport).toList(),
-      ),
-      (
-        _t('SMS reminders', 'Ukumbusho wa SMS'),
-        allLimits.map((l) => l.smsReminders).toList(),
-      ),
-      (
-        _t('All exports', 'Uhamishaji wote'),
-        allLimits.map((l) => l.allExports).toList(),
-      ),
-      (
-        _t('Multi-location stock', 'Stoo za maeneo mengi'),
-        allLimits.map((l) => l.multiLocation).toList(),
-      ),
-      (
-        _t('API access', 'Ufikiaji wa API'),
-        allLimits.map((l) => l.apiAccess).toList(),
-      ),
-      (
-        _t('Priority support', 'Msaada wa kipaumbele'),
-        allLimits.map((l) => l.prioritySupport).toList(),
-      ),
-      (
-        _t('Custom integrations', 'Miunganisho maalum'),
-        allLimits.map((l) => l.customIntegrations).toList(),
-      ),
-      (
-        _t('White-label options', 'Chaguo za chapa binafsi'),
-        allLimits.map((l) => l.whiteLabel).toList(),
-      ),
-      (
-        _t('Dedicated onboarding', 'Msaada maalum wa kuanza'),
-        allLimits.map((l) => l.dedicatedOnboarding).toList(),
-      ),
-    ];
-
-    String invoiceLabel(PlanLimits l) => l.monthlyInvoices == -1
-        ? '∞'
-        : '${l.monthlyInvoices}${_t("/mo", "/mwezi")}';
-    String userLabel(PlanLimits l) => l.maxUsers == -1 ? '∞' : '${l.maxUsers}';
-
-    final limitLabels = allLimits.map(invoiceLabel).toList();
-    final userLabels = allLimits.map(userLabel).toList();
-    final businessLabels = allLimits
-        .map((l) => l.maxBusinesses == -1 ? '∞' : '${l.maxBusinesses}')
-        .toList();
-    final customerLabels = allLimits
-        .map((l) => l.maxCustomers == -1 ? '∞' : '${l.maxCustomers}')
-        .toList();
-    final numericLabels = [
-      limitLabels,
-      userLabels,
-      businessLabels,
-      customerLabels,
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Header row
-          Container(
-            color: AppColors.surface,
-            child: Row(
-              children: [
-                const Expanded(flex: 3, child: SizedBox()),
-                ...List.generate(
-                  tiers.length,
-                  (i) => Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: tiers[i] == currentTier
-                          ? const BoxDecoration(color: AppColors.navyPrimary)
-                          : null,
-                      child: Column(
-                        children: [
-                          if (tiers[i] == currentTier) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.yellowBrand,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                _t('CURRENT', 'SASA'),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.navyPrimary,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                          ],
-                          Text(
-                            tierNames[i],
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: tiers[i] == currentTier
-                                  ? Colors.white
-                                  : AppColors.textPrimary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          Text(
-                            prices[i],
-                            style: GoogleFonts.dmSans(
-                              fontSize: 9,
-                              color: tiers[i] == currentTier
-                                  ? Colors.white.withValues(alpha: 0.65)
-                                  : AppColors.textMuted,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Feature rows
-          ...features.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final (label, values) = entry.value;
-            final isLast = idx == features.length - 1;
-
-            return Container(
+    return InkWell(
+      onTap: isCurrent ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                border: isLast
-                    ? null
-                    : const Border(
-                        bottom: BorderSide(color: AppColors.border, width: 0.5),
-                      ),
+                shape: BoxShape.circle,
+                color: isCurrent ? AppColors.navyPrimary : Colors.transparent,
+                border: Border.all(
+                  color: isCurrent ? AppColors.navyPrimary : AppColors.border,
+                  width: 1.4,
+                ),
               ),
-              child: Row(
+              child: isCurrent
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-                      child: Text(
-                        label,
+                  Row(
+                    children: [
+                      Text(
+                        _PlanList._tierNames[tier]!,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _priceLabel(tier, limits),
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _blurbFor(tier, limits),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11.5,
+                      color: AppColors.textSecondary,
+                      height: 1.35,
                     ),
                   ),
-                  ...List.generate(tiers.length, (i) {
-                    final isCurrent = tiers[i] == currentTier;
-                    // Numeric limits come directly from the plan definition.
-                    if (idx <= 3) {
-                      return Expanded(
-                        flex: 2,
-                        child: Container(
-                          color: isCurrent
-                              ? AppColors.navyPrimary.withValues(alpha: 0.04)
-                              : null,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Center(
-                            child: Text(
-                              numericLabels[idx][i],
-                              style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isCurrent
-                                    ? AppColors.navyPrimary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return Expanded(
-                      flex: 2,
-                      child: Container(
-                        color: isCurrent
-                            ? AppColors.navyPrimary.withValues(alpha: 0.04)
-                            : null,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Center(
-                          child: Icon(
-                            values[i]
-                                ? Icons.check_circle_rounded
-                                : Icons.remove_rounded,
-                            size: 16,
-                            color: values[i]
-                                ? AppColors.success
-                                : AppColors.textDisabled,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
                 ],
               ),
-            );
-          }),
-        ],
+            ),
+            if (!isCurrent) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: AppColors.textDisabled,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FAQ — flat list, hairline dividers, no per-item card shadow
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _Faq extends StatefulWidget {
-  final String q;
-  final String a;
-  const _Faq({required this.q, required this.a});
+class _FaqList extends StatelessWidget {
+  final PlanDefinitions? defs;
+  const _FaqList({required this.defs});
 
   @override
-  State<_Faq> createState() => _FaqState();
+  Widget build(BuildContext context) {
+    final growthLimits = limitsFor(PlanTier.growth, defs);
+    final businessLimits = limitsFor(PlanTier.business, defs);
+
+    final items = [
+      (
+        _t('How do I pay?', 'Ninalipaje?'),
+        _t(
+          'Send ${_fmtPrice(growthLimits.pricePerCycle)} (${growthLimits.cycleMonths} months × Growth) or ${_fmtPrice(businessLimits.pricePerCycle)} (${businessLimits.cycleMonths} months × Business) via M-Pesa to our business number. Our team activates your plan within 24 hours.',
+          'Tuma ${_fmtPrice(growthLimits.pricePerCycle)} (miezi ${growthLimits.cycleMonths} × Growth) au ${_fmtPrice(businessLimits.pricePerCycle)} (miezi ${businessLimits.cycleMonths} × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
+        ),
+      ),
+      (
+        _t('Can I cancel?', 'Ninaweza kughairi?'),
+        _t(
+          'Yes. When your paid period ends it simply reverts to Starter — no automatic charges.',
+          'Ndiyo. Wakati kipindi chako cha malipo kinapoisha, moja kwa moja inarudi Starter — hakuna malipo ya moja kwa moja.',
+        ),
+      ),
+      (
+        _t(
+          'What happens to my data if I downgrade?',
+          'Nini kinatokea kwa data yangu nikienda chini?',
+        ),
+        _t(
+          'All your data stays safe. You can only create new invoices up to the Starter limit; everything already recorded remains accessible.',
+          'Data yako yote inabaki salama. Unaweza tu kuunda ankara mpya hadi kikomo cha Starter; kila kitu kilichorekodiwa tayari kinabaki kinaweza kufikiwa.',
+        ),
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.borderLight),
+            _FaqTile(q: items[i].$1, a: items[i].$2),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
-class _FaqState extends State<_Faq> {
+class _FaqTile extends StatefulWidget {
+  final String q;
+  final String a;
+  const _FaqTile({required this.q, required this.a});
+
+  @override
+  State<_FaqTile> createState() => _FaqTileState();
+}
+
+class _FaqTileState extends State<_FaqTile> {
   bool _open = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 10,
-            offset: Offset(0, 3),
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Text(
+          widget.q,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.navyPrimary,
           ),
-        ],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: _open ? AppColors.navyPrimary : AppColors.surfaceVariant,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.help_outline_rounded,
-              size: 15,
-              color: _open ? Colors.white : AppColors.textMuted,
-            ),
-          ),
-          title: Text(
-            widget.q,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navyPrimary,
-            ),
-          ),
-          trailing: Icon(
-            _open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-            color: AppColors.textMuted,
-            size: 20,
-          ),
-          onExpansionChanged: (v) => setState(() => _open = v),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          children: [
-            Text(
+        ),
+        trailing: Icon(
+          _open ? Icons.remove_rounded : Icons.add_rounded,
+          color: AppColors.textMuted,
+          size: 18,
+        ),
+        onExpansionChanged: (v) => setState(() => _open = v),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
               widget.a,
               style: GoogleFonts.dmSans(
                 fontSize: 12,
@@ -677,8 +658,8 @@ class _FaqState extends State<_Faq> {
                 height: 1.6,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

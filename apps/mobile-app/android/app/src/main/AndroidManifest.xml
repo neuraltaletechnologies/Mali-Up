@@ -3,6 +3,11 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Runtime-requested (Android 13+) the first time NotificationsScreen is
+         opened — see NotificationService.requestPermission(). No scheduling
+         permissions needed: alerts only ever fire reactively while the app
+         is foregrounded, never from a background/scheduled task. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="Mali Up"
@@ -28,6 +33,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Lets external flows (e.g. ClickPesa's payment return redirect)
+                 bring the app back to the foreground via maliup://<path>. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="maliup"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

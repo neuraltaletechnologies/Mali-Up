@@ -22,11 +22,13 @@ import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/business_profile_service.dart';
 import '../../core/sync/sync_service.dart';
+import '../../features/notifications/data/notification_aggregator.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
 import 'nav_aware_fab.dart';
+import 'notification_bell_button.dart';
 import 'plan_activated_dialog.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
@@ -1273,6 +1275,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     ref.watch(
       syncServiceProvider,
     ); // starts SyncService (local→Firestore push) when uid + bizId are ready
+    ref.watch(
+      notificationAggregatorActivatorProvider,
+    ); // starts alert detection (low stock, overdue debt/invoice, sync issues)
     // Drive the Dynamic Island Live Activity whenever the sync state changes.
     ref.listen<SyncState>(syncStateProvider, (prev, next) {
       if (prev == next) return;
@@ -1395,19 +1400,26 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             planStatus: planStatus,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: _FinanceContextSwitcher(
-                            selectedContext: selectedContext,
-                            canSwitch: canSwitch,
-                            businesses: businesses,
-                            isOnline: isOnline,
-                            onChanged: _switchFinanceContext,
-                            onManageBusinesses: () async {
-                              await context.push(AppRouter.businessesPath);
-                              _refreshProfile();
-                            },
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const NotificationBellButton(),
+                            const SizedBox(width: 2),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: _FinanceContextSwitcher(
+                                selectedContext: selectedContext,
+                                canSwitch: canSwitch,
+                                businesses: businesses,
+                                isOnline: isOnline,
+                                onChanged: _switchFinanceContext,
+                                onManageBusinesses: () async {
+                                  await context.push(AppRouter.businessesPath);
+                                  _refreshProfile();
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
