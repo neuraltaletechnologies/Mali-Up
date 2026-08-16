@@ -160,18 +160,24 @@ class ClickPesaService {
 
   /// Process payment completion and activate plan
   /// This should be called after successful payment verification
+  ///
+  /// [cycleMonths] must be the same billing-cycle length the user was
+  /// actually charged for (i.e. the admin-configurable `PlanLimits.cycleMonths`
+  /// shown at checkout) — it is NOT re-derived here so that the granted
+  /// expiry always matches what was paid for, even if the cycle length is
+  /// changed remotely between when the price was quoted and when this runs.
   static Future<void> processSuccessfulPayment({
     required ClickPesaPaymentStatus payment,
     required PlanTier tier,
+    required int cycleMonths,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('User not authenticated');
 
     final db = FirebaseFirestore.instance;
 
-    // Calculate expiry date based on plan
-    final months = _getPlanMonths(tier);
-    final expiresAt = DateTime.now().add(Duration(days: 30 * months));
+    // Calculate expiry date based on the cycle actually paid for.
+    final expiresAt = DateTime.now().add(Duration(days: 30 * cycleMonths));
 
     // Update user's plan in Firestore
     await db.collection('users').doc(user.uid).set({
@@ -189,20 +195,6 @@ class ClickPesaService {
     }, SetOptions(merge: true));
 
     debugPrint('[ClickPesa] Plan activated for user ${user.uid}: $tier');
-  }
-
-  static int _getPlanMonths(PlanTier tier) {
-    switch (tier) {
-      case PlanTier.growth:
-      case PlanTier.business:
-        return 6;
-      case PlanTier.enterprise:
-        return 12;
-      case PlanTier.lifetime:
-        return 999;
-      default:
-        return 1;
-    }
   }
 }
 

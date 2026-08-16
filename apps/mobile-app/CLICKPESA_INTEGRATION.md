@@ -11,15 +11,15 @@ The ClickPesa credentials must be passed at build time using `--dart-define` fla
 
 ```bash
 flutter build apk \
-  --dart-define=CLICKPESA_CLIENT_ID=REDACTED-ROTATED-CLICKPESA-CLIENT-ID \
-  --dart-define=CLICKPESA_API_KEY=REDACTED-ROTATED-CLICKPESA-API-KEY
+  --dart-define=CLICKPESA_CLIENT_ID=your-client-id \
+  --dart-define=CLICKPESA_API_KEY=your-api-key
 ```
 
 For iOS:
 ```bash
 flutter build ios \
-  --dart-define=CLICKPESA_CLIENT_ID=REDACTED-ROTATED-CLICKPESA-CLIENT-ID \
-  --dart-define=CLICKPESA_API_KEY=REDACTED-ROTATED-CLICKPESA-API-KEY
+  --dart-define=CLICKPESA_CLIENT_ID=your-client-id \
+  --dart-define=CLICKPESA_API_KEY=your-api-key
 ```
 
 ### Local Development
