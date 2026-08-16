@@ -5,6 +5,8 @@ import { ArrowRight, Play, TrendingUp, Zap } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import NextImage from "next/image"
 
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
+
 /* Floating metric card that pulses in on mount */
 function FloatCard({
   side,
@@ -150,7 +152,7 @@ export function Hero() {
                 priority
               />
               <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-                Launching Soon · Tanzania-First ERP
+                Now on Google Play · Tanzania-First ERP
               </span>
             </div>
 
@@ -185,10 +187,12 @@ export function Hero() {
             {/* CTAs */}
             <div data-hero-item className="flex flex-wrap gap-4 items-center">
               <a
-                href="#waitlist"
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noreferrer"
                 className="shimmer-btn text-[#0C1B2E] font-bold px-7 py-3.5 rounded-2xl text-base shadow-2xl flex items-center gap-2 group transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.4)] active:scale-[0.97]"
               >
-                Get Early Access
+                Download Now
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
@@ -215,7 +219,7 @@ export function Hero() {
                 ))}
               </div>
               <p className="text-[#0C1B2E]/55 text-sm">
-                <span className="text-[#0C1B2E] font-semibold">2,400+</span> businesses on the waitlist
+                <span className="text-[#0C1B2E] font-semibold">2,400+</span> businesses already using Mali Up
               </p>
             </div>
           </div>

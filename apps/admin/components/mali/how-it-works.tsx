@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { Download, Store, TrendingUp } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
+
 const steps = [
   {
     number: "01",
@@ -11,7 +13,7 @@ const steps = [
     color: "#F5A623",
     img: "/app-dashboard.jpg",
     title: "Download & Sign Up",
-    desc: "Install Mali Up on Android or iOS. Create your business account in under 2 minutes — no paperwork, no delays.",
+    desc: "Install Mali Up from Google Play. Create your business account in under 2 minutes — no paperwork, no delays.",
   },
   {
     number: "02",
@@ -175,10 +177,12 @@ export function HowItWorks() {
         {/* CTA */}
         <div className="mt-16 flex justify-center reveal">
           <a
-            href="#waitlist"
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold px-8 py-4 rounded-2xl text-base shadow-2xl hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.45)] active:scale-[0.97] transition-all duration-200 inline-flex items-center gap-2 group"
           >
-            Start Your Free Account
+            Download Mali Up Free
             <span className="group-hover:translate-x-1 transition-transform duration-200" aria-hidden="true">→</span>
           </a>
         </div>

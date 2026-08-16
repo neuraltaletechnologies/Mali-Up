@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { Menu, X } from "lucide-react"
 import NextImage from "next/image"
 
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
+
 export function Nav() {
   const [scrolled, setScrolled]   = useState(false)
   const [menuOpen, setMenuOpen]   = useState(false)
@@ -103,7 +105,9 @@ export function Nav() {
         <div className="hidden md:flex items-center gap-3">
           <a
             ref={ctaRef}
-            href="#waitlist"
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
             onClick={handleCtaClick}
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:scale-105 hover:shadow-[0_6px_24px_rgba(245,166,35,0.4)] active:scale-[0.97] transition-all duration-200"
           >
@@ -155,7 +159,9 @@ export function Nav() {
           </a>
         ))}
         <a
-          href="#waitlist"
+          href={PLAY_STORE_URL}
+          target="_blank"
+          rel="noreferrer"
           onClick={() => setMenuOpen(false)}
           className="shimmer-btn text-center text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl mt-1"
         >
