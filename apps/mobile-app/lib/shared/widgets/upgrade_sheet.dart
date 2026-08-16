@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
@@ -330,30 +328,17 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
 
-    final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
-    _paymentRef =
-        'MALIUP-$tierName-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
     setState(() => _processingClickPesa = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw StateError('User not authenticated');
-
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final userData = userDoc.data() ?? {};
-      final phone = (userData['phone'] as String?) ?? '';
-      final email = user.email ?? '';
-
-      // Create ClickPesa payment
+      // Create the ClickPesa payment. The amount and the reference are both
+      // decided server-side (from the admin-configured price), not by the
+      // client — see functions/src/clickpesa.ts.
       final response = await ClickPesaService.createPayment(
         tier: _selected,
-        amountTzs: _priceCycle,
-        paymentRef: _paymentRef,
-        customerPhone: phone.isNotEmpty ? phone : '+255000000000',
-        customerEmail: email,
         returnUrl: 'maliup://payment-return',
       );
+      _paymentRef = response.reference;
 
       if (!mounted) return;
 
@@ -367,20 +352,12 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
         throw Exception('Could not open payment page');
       }
 
-      // Wait for payment completion
-      final status = await ClickPesaService.waitForPayment(
-        paymentId: response.id,
-        maxAttempts: 30,
-      );
+      // Poll the server for payment completion. Plan activation happens
+      // server-side the moment this reports "completed" — there is nothing
+      // left for the client to write.
+      await ClickPesaService.waitForPayment(paymentId: response.paymentId);
 
       if (!mounted) return;
-
-      // Process successful payment
-      await ClickPesaService.processSuccessfulPayment(
-        payment: status,
-        tier: _selected,
-        cycleMonths: _selLimits.cycleMonths,
-      );
 
       setState(() {
         _processingClickPesa = false;
