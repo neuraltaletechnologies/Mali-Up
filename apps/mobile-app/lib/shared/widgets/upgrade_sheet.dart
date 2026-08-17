@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
@@ -307,55 +308,86 @@ class _UpgradeSheet extends StatefulWidget {
 class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
   bool _showEnterprise = false;
+  bool _showPhoneConfirm = false;
   bool _paymentSubmitted = false;
   bool _processingClickPesa = false;
-  String _paymentRef = '';
+  String _orderReference = '';
+  String? _prefillPhone;
 
   bool get _isMultiBusiness =>
       widget.featureKey == PlanFeatureKey.multiBusiness;
 
+  /// Whether [_selected] is the tier the user is already on — happens when
+  /// they're already on Business (there's no higher standard tier to
+  /// preselect) or when they tap their own current tier's card. The CTA
+  /// swaps to an Enterprise nudge instead of a "pay again" button in this
+  /// case; see [_selectedIsCurrentTier] usage in build().
+  bool get _selectedIsCurrentTier => widget.currentStatus?.tier == _selected;
+
   @override
   void initState() {
     super.initState();
-    _selected = _isMultiBusiness ? PlanTier.business : PlanTier.growth;
+    final currentTier = widget.currentStatus?.tier;
+    if (_isMultiBusiness) {
+      _selected = PlanTier.business;
+    } else if (currentTier == PlanTier.growth) {
+      // Already on Growth — the natural next step is Business, not Growth
+      // again (defaulting back to Growth here was the sheet's main "stuck"
+      // bug: an existing subscriber would see "Upgrade to Growth" for the
+      // plan they already had).
+      _selected = PlanTier.business;
+    } else {
+      _selected = PlanTier.growth;
+    }
+    _loadProfilePhone();
+  }
+
+  Future<void> _loadProfilePhone() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final phone = (doc.data()?['phone'] as String?)?.trim();
+      if (phone != null && phone.isNotEmpty && mounted) {
+        setState(() => _prefillPhone = phone);
+      }
+    } catch (_) {
+      // Best-effort prefill only — the user can always type their number.
+    }
   }
 
   PlanLimits get _selLimits => limitsFor(_selected, widget.defs);
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle => _selLimits.pricePerCycle;
 
-  Future<void> _openPayment() async {
+  Future<void> _sendPaymentRequest(String phoneNumber) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
 
-    setState(() => _processingClickPesa = true);
+    setState(() {
+      _showPhoneConfirm = false;
+      _processingClickPesa = true;
+    });
 
     try {
-      // Create the ClickPesa payment. The amount and the reference are both
+      // Push a USSD payment prompt to the user's phone. The amount is
       // decided server-side (from the admin-configured price), not by the
       // client — see functions/src/clickpesa.ts.
-      final response = await ClickPesaService.createPayment(
+      final initiated = await ClickPesaService.initiatePayment(
         tier: _selected,
-        returnUrl: 'maliup://payment-return',
+        phoneNumber: phoneNumber,
       );
-      _paymentRef = response.reference;
+      _orderReference = initiated.orderReference;
 
       if (!mounted) return;
 
-      // Launch ClickPesa payment URL
-      final launched = await launchUrl(
-        Uri.parse(response.paymentUrl),
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!launched) {
-        throw Exception('Could not open payment page');
-      }
-
-      // Poll the server for payment completion. Plan activation happens
-      // server-side the moment this reports "completed" — there is nothing
-      // left for the client to write.
-      await ClickPesaService.waitForPayment(paymentId: response.paymentId);
+      // Poll the server while the user confirms the PIN prompt on their
+      // phone. Plan activation happens server-side the moment this reports
+      // "completed" — there is nothing left for the client to write.
+      await ClickPesaService.waitForPayment(orderReference: initiated.orderReference);
 
       if (!mounted) return;
 
@@ -369,7 +401,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
       setState(() => _processingClickPesa = false);
       _showErrorSnackBar(_t(
         'Payment failed: ${e.toString()}',
-        'Malipo yamehshindikana: ${e.toString()}',
+        'Malipo yameshindikana: ${e.toString()}',
       ));
     }
   }
@@ -442,9 +474,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   tier: PlanTier.growth,
                   limits: limitsFor(PlanTier.growth, widget.defs),
                   isSelected: !_showEnterprise && _selected == PlanTier.growth,
+                  isCurrent: widget.currentStatus?.tier == PlanTier.growth,
                   onTap: () => setState(() {
                     _selected = PlanTier.growth;
                     _showEnterprise = false;
+                    _showPhoneConfirm = false;
                   }),
                 ),
                 const SizedBox(height: 6),
@@ -453,9 +487,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 tier: PlanTier.business,
                 limits: limitsFor(PlanTier.business, widget.defs),
                 isSelected: !_showEnterprise && _selected == PlanTier.business,
+                isCurrent: widget.currentStatus?.tier == PlanTier.business,
                 onTap: () => setState(() {
                   _selected = PlanTier.business;
                   _showEnterprise = false;
+                  _showPhoneConfirm = false;
                 }),
               ),
               const SizedBox(height: 6),
@@ -471,7 +507,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               if (_paymentSubmitted) ...[
                 _PaymentSuccessCard(
                   tier: _selected,
-                  paymentRef: _paymentRef,
+                  paymentRef: _orderReference,
                   onDone: () => Navigator.pop(context, _selected),
                 ),
               ] else if (_showEnterprise) ...[
@@ -484,13 +520,24 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   priceCycle: _priceCycle,
                   cycleMonths: _selLimits.cycleMonths,
                 ),
+              ] else if (_showPhoneConfirm) ...[
+                _PhonePaymentForm(
+                  initialPhone: _prefillPhone,
+                  onBack: () => setState(() => _showPhoneConfirm = false),
+                  onSubmit: _sendPaymentRequest,
+                ),
+              ] else if (_selectedIsCurrentTier) ...[
+                _AlreadyOnThisPlanNotice(
+                  tier: _selected,
+                  onSeeEnterprise: () => setState(() => _showEnterprise = true),
+                ),
               ] else ...[
                 SizedBox(
                   width: double.infinity,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(minHeight: 52),
                     child: ElevatedButton(
-                      onPressed: _openPayment,
+                      onPressed: () => setState(() => _showPhoneConfirm = true),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.yellowBrand,
                         foregroundColor: AppColors.navyPrimary,
@@ -656,18 +703,26 @@ class _TierCard extends StatelessWidget {
   final PlanTier tier;
   final PlanLimits limits;
   final bool isSelected;
+  final bool isCurrent;
   final VoidCallback onTap;
 
   const _TierCard({
     required this.tier,
     required this.limits,
     required this.isSelected,
+    this.isCurrent = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final isGrowth = tier == PlanTier.growth;
+    // "Current Plan" always wins over the generic "Popular" badge — knowing
+    // which plan you're already on matters more here than a marketing tag.
+    final showBadge = isCurrent || isGrowth;
+    final badgeLabel = isCurrent
+        ? _t('Current Plan', 'Mpango wa Sasa')
+        : _t('Popular', 'Maarufu');
 
     return GestureDetector(
       onTap: onTap,
@@ -725,7 +780,7 @@ class _TierCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (isGrowth) ...[
+                  if (showBadge) ...[
                     const SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -739,7 +794,7 @@ class _TierCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        _t('Popular', 'Maarufu'),
+                        badgeLabel,
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -1160,6 +1215,226 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Already-on-this-plan notice — shown instead of a "pay again" button when
+// the selected tier is the user's current plan (only reachable when they're
+// already on Business, the top standard tier).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AlreadyOnThisPlanNotice extends StatelessWidget {
+  final PlanTier tier;
+  final VoidCallback onSeeEnterprise;
+
+  const _AlreadyOnThisPlanNotice({required this.tier, required this.onSeeEnterprise});
+
+  @override
+  Widget build(BuildContext context) {
+    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.verified_rounded,
+            color: AppColors.tealAccent,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _t(
+                "You're already on $tierName — our top standard plan. "
+                    'Need more? See Enterprise above.',
+                'Tayari upo kwenye $tierName — mpango wetu wa juu zaidi wa kawaida. '
+                    'Unahitaji zaidi? Angalia Enterprise juu.',
+              ),
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onSeeEnterprise,
+            child: const Icon(
+              Icons.arrow_forward_rounded,
+              color: AppColors.navyPrimary,
+              size: 18,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phone confirmation — the number ClickPesa pushes the mobile-money PIN
+// prompt to. Prefilled from the user's profile when available and editable,
+// since the mobile money line isn't always the same as the account phone.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PhonePaymentForm extends StatefulWidget {
+  final String? initialPhone;
+  final VoidCallback onBack;
+  final ValueChanged<String> onSubmit;
+
+  const _PhonePaymentForm({
+    this.initialPhone,
+    required this.onBack,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_PhonePaymentForm> createState() => _PhonePaymentFormState();
+}
+
+class _PhonePaymentFormState extends State<_PhonePaymentForm> {
+  late final TextEditingController _phoneController =
+      TextEditingController(text: widget.initialPhone ?? '');
+  String? _error;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  bool _looksLikePhone(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    return digits.length >= 9 && digits.length <= 12;
+  }
+
+  void _submit() {
+    final phone = _phoneController.text.trim();
+    if (!_looksLikePhone(phone)) {
+      setState(() => _error = _t(
+            'Enter a valid mobile money number, e.g. 0712 345 678',
+            'Weka namba sahihi ya pesa ya simu, mf. 0712 345 678',
+          ));
+      return;
+    }
+    setState(() => _error = null);
+    widget.onSubmit(phone);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: widget.onBack,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.arrow_back_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _t('Back', 'Rudi'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _t(
+            'Which number should receive the payment request?',
+            'Ni namba gani ipokee ombi la malipo?',
+          ),
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _t(
+            "We'll send a payment prompt to this number — enter your M-Pesa, "
+                'Tigo Pesa, Airtel Money, or HaloPesa PIN there to confirm.',
+            'Tutatuma ombi la malipo kwenye namba hii — weka PIN yako ya M-Pesa, '
+                'Tigo Pesa, Airtel Money, au HaloPesa hapo kuthibitisha.',
+          ),
+          style: GoogleFonts.dmSans(
+            fontSize: 11.5,
+            color: AppColors.textMuted,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          autofocus: widget.initialPhone == null,
+          style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: '0712 345 678',
+            hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+            prefixIcon: const Icon(Icons.phone_android_rounded, size: 18),
+            filled: true,
+            fillColor: AppColors.surface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.navyPrimary),
+            ),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _error!,
+            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
+          ),
+        ],
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _submit,
+            icon: const Icon(Icons.send_to_mobile_rounded, size: 16),
+            label: Text(
+              _t('Send Payment Request', 'Tuma Ombi la Malipo'),
+              style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ClickPesa payment processing card
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1196,7 +1471,7 @@ class _ClickPesaProcessingCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            _t('Processing Payment', 'Inachakata Malipo'),
+            _t('Check Your Phone', 'Angalia Simu Yako'),
             style: GoogleFonts.dmSans(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -1206,10 +1481,12 @@ class _ClickPesaProcessingCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _t(
-              'Please complete the payment in the ClickPesa window. '
-              'This will close automatically when done.',
-              'Tafadhali kamilisha malipo kwenye dirisha la ClickPesa. '
-              'Hii itafunga yenyewe wakati imekamilika.',
+              "We've sent a payment prompt to your phone — enter your mobile "
+                  'money PIN there to confirm. This closes automatically once '
+                  "you've confirmed.",
+              'Tumetuma ombi la malipo kwenye simu yako — weka PIN yako ya pesa '
+                  'ya simu hapo kuthibitisha. Hii itafunga yenyewe mara '
+                  'utakapothibitisha.',
             ),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(

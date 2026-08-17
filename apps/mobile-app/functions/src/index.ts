@@ -4,7 +4,7 @@ import {GoogleAuth} from "google-auth-library";
 
 admin.initializeApp();
 
-export {createClickPesaPayment, verifyClickPesaPayment} from "./clickpesa";
+export {initiateClickPesaPayment, verifyClickPesaPayment} from "./clickpesa";
 
 // Must match `applicationId` in android/app/build.gradle.kts.
 const PACKAGE_NAME = "com.neuraltale.maliup";
