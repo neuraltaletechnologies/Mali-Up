@@ -44,15 +44,20 @@ class RemoteExpenseRepository {
     return ExpenseMapper.fromFirestore(data, id);
   }
 
+  /// See [RemoteInvoiceRepository.fetchUpdatedSince] for [scopeToUid] —
+  /// same DataScope.own contract, filtered on `createdBy`.
   Future<List<({String id, Map<String, dynamic> data})>> fetchUpdatedSince(
-    int sinceMs,
-  ) async {
-    final snap = await _collection
-        .where(
-          'updatedAt',
-          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(sinceMs),
-        )
-        .get();
+    int sinceMs, {
+    String? scopeToUid,
+  }) async {
+    Query<Map<String, dynamic>> query = _collection.where(
+      'updatedAt',
+      isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(sinceMs),
+    );
+    if (scopeToUid != null && scopeToUid.isNotEmpty) {
+      query = query.where('createdBy', isEqualTo: scopeToUid);
+    }
+    final snap = await query.get();
     return snap.docs.map((d) => (id: d.id, data: d.data())).toList();
   }
 }

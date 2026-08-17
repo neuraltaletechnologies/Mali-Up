@@ -425,5 +425,8 @@ final permissionServiceProvider = Provider<PermissionService>((ref) {
         'role=${member.role.name} '
         'perms=${member.effectivePermissions.length}');
   }
-  return PermissionService.forMember(member.effectivePermissions);
+  return PermissionService.forMember(
+    member.effectivePermissions,
+    dataScope: member.dataScope,
+  );
 });

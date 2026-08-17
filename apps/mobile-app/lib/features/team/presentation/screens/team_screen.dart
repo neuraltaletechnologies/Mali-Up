@@ -1038,6 +1038,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
   TeamRole _selectedRole = TeamRole.cashier;
   Set<AppPermission> _customPerms = {};
+  bool _ownRecordsOnly = false;
   bool _isSaving = false;
 
   late final AnimationController _animCtrl;
@@ -1071,6 +1072,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       _selectedRole = r;
       if (r != TeamRole.custom) {
         _customPerms = Set.of(defaultPermissionsFor(r));
+        _ownRecordsOnly = false;
       }
     });
   }
@@ -1138,6 +1140,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           'invitedBy': user.uid,
           if (_notesCtrl.text.trim().isNotEmpty)
             'notes': _notesCtrl.text.trim(),
+          'dataScope':
+              (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+                  ? DataScope.own.name
+                  : DataScope.all.name,
         },
       );
 
@@ -1185,6 +1191,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           notes: _notesCtrl.text.trim().isNotEmpty
               ? _notesCtrl.text.trim()
               : null,
+          dataScope: (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+              ? DataScope.own
+              : DataScope.all,
         );
         await db.teamDao.upsert(
           TeamMemberMapper.toCompanion(
@@ -1391,6 +1400,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                               perms: _customPerms,
                               onChanged: (p) =>
                                   setState(() => _customPerms = p),
+                            ),
+                            const SizedBox(height: 16),
+                            _OwnRecordsOnlyToggle(
+                              value: _ownRecordsOnly,
+                              onChanged: (v) =>
+                                  setState(() => _ownRecordsOnly = v),
                             ),
                             const SizedBox(height: 16),
                           ] else ...[
@@ -2006,6 +2021,71 @@ class _RoleCard extends StatelessWidget {
 }
 
 // ── Permission editor (custom role) ───────────────────────────────────────────
+
+// Restricts a custom-role member to only the records they created (sales,
+// expenses) or are assigned to (inventory) instead of everything in the
+// business — e.g. a driver who should see only their own vehicle's
+// collections. See DataScope in team_member.dart and firestore.rules.
+class _OwnRecordsOnlyToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _OwnRecordsOnlyToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.visibility_outlined,
+              size: 20, color: AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Own records only', 'Rekodi zake tu'),
+                  style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _tr(
+                    'Sees only sales/expenses they created and inventory '
+                    'assigned to them — not the rest of the business.',
+                    'Ataona mauzo/matumizi aliyoingiza na bidhaa '
+                    'alizopangiwa tu — si biashara nzima.',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PermissionEditor extends StatelessWidget {
   final Set<AppPermission> perms;

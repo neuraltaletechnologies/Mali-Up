@@ -65,6 +65,30 @@ enum TeamRole {
       };
 }
 
+// ── Data scope ────────────────────────────────────────────────────────────────
+//
+// Controls whether a member sees every record in the business or only the
+// ones tied to them. Applies to entities with an owner-like field:
+// sales/expenses use `createdBy`, inventory items use `assignedDriverUid`.
+// Only meaningful for members who lack the matching "view all" permission
+// (viewSales / viewFinancialReports / viewInventory) — a member who has both
+// simply sees everything, `own` is a fallback, not a restriction on top.
+
+enum DataScope {
+  /// Sees every record in the business (subject to their permissions).
+  all,
+
+  /// Sees only records they created (sales/expenses) or that are assigned
+  /// to them (inventory) — e.g. a driver who should see their own vehicle's
+  /// collections but not other drivers'.
+  own;
+
+  static DataScope fromString(String s) => switch (s) {
+        'own' => DataScope.own,
+        _ => DataScope.all,
+      };
+}
+
 // ── Permission ────────────────────────────────────────────────────────────────
 
 enum AppPermission {
@@ -265,6 +289,8 @@ class TeamMember {
   /// Firebase Auth UID of this member — set when they accept the invite.
   /// Used as the doc ID in `memberAccess/{userId}` for Firestore rules.
   final String? userId;
+  /// 'all' (default) or 'own' — see [DataScope].
+  final DataScope dataScope;
 
   const TeamMember({
     required this.id,
@@ -279,6 +305,7 @@ class TeamMember {
     required this.invitedBy,
     this.notes,
     this.userId,
+    this.dataScope = DataScope.all,
   });
 
   Set<AppPermission> get effectivePermissions =>
@@ -323,6 +350,7 @@ class TeamMember {
       invitedBy: (data['invitedBy'] as String?) ?? '',
       notes: data['notes'] as String?,
       userId: (data['workerUid'] ?? data['userId']) as String?,
+      dataScope: DataScope.fromString((data['dataScope'] as String?) ?? 'all'),
     );
   }
 
@@ -341,6 +369,7 @@ class TeamMember {
         'invitedBy': invitedBy,
         if (notes != null && notes!.isNotEmpty) 'notes': notes,
         if (userId != null && userId!.isNotEmpty) 'userId': userId,
+        'dataScope': dataScope.name,
       };
 
   TeamMember copyWith({
@@ -353,6 +382,7 @@ class TeamMember {
     DateTime? acceptedAt,
     String? notes,
     String? userId,
+    DataScope? dataScope,
   }) =>
       TeamMember(
         id: id,
@@ -367,5 +397,6 @@ class TeamMember {
         invitedBy: invitedBy,
         notes: notes ?? this.notes,
         userId: userId ?? this.userId,
+        dataScope: dataScope ?? this.dataScope,
       );
 }

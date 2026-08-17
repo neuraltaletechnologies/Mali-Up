@@ -26,6 +26,7 @@ abstract final class TeamMemberMapper {
       invitedBy: row.invitedBy,
       notes: row.notes.isNotEmpty ? row.notes : null,
       userId: row.userId.isNotEmpty ? row.userId : null,
+      dataScope: DataScope.fromString(row.dataScope),
     );
   }
 
@@ -56,6 +57,7 @@ abstract final class TeamMemberMapper {
       invitedBy: Value(member.invitedBy),
       notes: Value(member.notes ?? ''),
       userId: Value(member.userId ?? ''),
+      dataScope: Value(member.dataScope.name),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
       serverUpdatedAt: Value(serverUpdatedAt),

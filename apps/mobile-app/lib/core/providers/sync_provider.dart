@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/rbac/data/rbac_providers.dart';
+import '../../features/team/domain/models/team_member.dart';
 import '../database/app_database.dart';
 import '../sync/offline_policy_notifier.dart';
 import '../sync/sync_service.dart';
@@ -24,11 +25,20 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
   final offlinePolicy = ref.read(offlinePolicyProvider);
 
+  // DataScope.own team members (e.g. a driver who should only see their own
+  // vehicle's records) sync against their own Firebase Auth UID rather than
+  // the full tenant — see SyncService.scopeReadsToUid and firestore.rules.
+  final member = ref.watch(currentMemberProvider).valueOrNull;
+  final scopeReadsToUid = member?.dataScope == DataScope.own
+      ? FirebaseAuth.instance.currentUser?.uid
+      : null;
+
   final service = SyncService(
     db: db,
     uid: uid,
     businessId: bizId,
     offlinePolicy: offlinePolicy,
+    scopeReadsToUid: scopeReadsToUid,
   );
 
   // Keep alive until the provider is disposed (widget tree torn down or

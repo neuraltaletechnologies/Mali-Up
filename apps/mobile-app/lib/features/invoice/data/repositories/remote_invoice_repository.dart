@@ -58,15 +58,24 @@ class RemoteInvoiceRepository {
 
   /// Fetches all invoices whose [updatedAt] is after [sinceMs].
   /// Used for the incremental pull during each sync cycle.
+  ///
+  /// When [scopeToUid] is set (DataScope.own team members — see
+  /// firestore.rules), the query is additionally filtered to `createdBy ==
+  /// scopeToUid`. Firestore security rules only grant these members read
+  /// access to their own records, so an unscoped query here would be
+  /// rejected outright rather than silently filtered.
   Future<List<({String id, Map<String, dynamic> data})>> fetchUpdatedSince(
-    int sinceMs,
-  ) async {
-    final snap = await _collection
-        .where(
-          'updatedAt',
-          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(sinceMs),
-        )
-        .get();
+    int sinceMs, {
+    String? scopeToUid,
+  }) async {
+    Query<Map<String, dynamic>> query = _collection.where(
+      'updatedAt',
+      isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(sinceMs),
+    );
+    if (scopeToUid != null && scopeToUid.isNotEmpty) {
+      query = query.where('createdBy', isEqualTo: scopeToUid);
+    }
+    final snap = await query.get();
     return snap.docs
         .map((d) => (id: d.id, data: d.data()))
         .toList();
