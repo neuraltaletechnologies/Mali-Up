@@ -1,15 +1,23 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 
 /**
- * ClickPesa payment gateway integration for Mali Up plan upgrades.
+ * ClickPesa payment gateway integration for Mali Up plan upgrades, using
+ * ClickPesa's USSD-Push API: the user picks a plan, we push a mobile-money
+ * prompt straight to their phone (M-Pesa/Tigo Pesa/Airtel Money/HaloPesa),
+ * they enter their PIN on the phone itself, and the plan activates the
+ * moment ClickPesa confirms the charge. No browser hop involved.
  *
- * All ClickPesa API calls happen here, server-side, using secrets that never
- * ship inside the mobile app binary. The mobile client only ever talks to
- * these two callables — it never sees the ClickPesa API key and it can never
- * write `plan`/`planExpiresAt`/`lastPayment` on its own user doc directly
- * (see firestore.rules). Plan activation happens exclusively in
+ * Endpoints and payload shapes below are verified against
+ * https://docs.clickpesa.com (generate-token, initiate-ussd-push-request,
+ * querying-for-payments) — not guessed. All ClickPesa API calls happen here,
+ * server-side, using secrets that never ship inside the mobile app binary.
+ * The mobile client only ever talks to these two callables — it never sees
+ * the ClickPesa API key and it can never write
+ * `plan`/`planExpiresAt`/`lastPayment` on its own user doc directly (see
+ * firestore.rules). Plan activation happens exclusively in
  * `verifyClickPesaPayment`, via the Admin SDK, after this function has
  * independently confirmed payment with ClickPesa and cross-checked the
  * amount against what was actually quoted.
@@ -18,7 +26,7 @@ import * as admin from "firebase-admin";
 const CLICKPESA_CLIENT_ID = defineSecret("CLICKPESA_CLIENT_ID");
 const CLICKPESA_API_KEY = defineSecret("CLICKPESA_API_KEY");
 
-const CLICKPESA_BASE_URL = "https://api.clickpesa.com/v2";
+const CLICKPESA_BASE_URL = "https://api.clickpesa.com/third-parties";
 
 type PayableTier = "growth" | "business";
 
@@ -60,36 +68,108 @@ async function getPlanPricing(tier: PayableTier): Promise<PlanPricing> {
   return fallback;
 }
 
-function clickPesaHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-    "Authorization": `Bearer ${CLICKPESA_API_KEY.value()}`,
-    "X-Client-Id": CLICKPESA_CLIENT_ID.value(),
-  };
+// ── ClickPesa auth token (module-level cache, reused across warm Cloud
+// Functions instances — the token is valid for 1 hour) ──────────────────────
+let cachedToken: {token: string; expiresAt: number} | null = null;
+
+async function getClickPesaToken(): Promise<string> {
+  const now = Date.now();
+  if (cachedToken && cachedToken.expiresAt > now) return cachedToken.token;
+
+  const response = await fetch(`${CLICKPESA_BASE_URL}/generate-token`, {
+    method: "POST",
+    headers: {
+      "client-id": CLICKPESA_CLIENT_ID.value(),
+      "api-key": CLICKPESA_API_KEY.value(),
+    },
+  });
+  if (!response.ok) {
+    console.error("[ClickPesa] generate-token failed", response.status, await response.text());
+    throw new HttpsError("internal", "Failed to authenticate with payment provider.");
+  }
+  const data = (await response.json()) as {success?: boolean; token?: string};
+  if (!data.token) {
+    throw new HttpsError("internal", "Payment provider returned no token.");
+  }
+  // Refresh a few minutes early so a call never lands right at the edge of
+  // expiry.
+  cachedToken = {token: data.token, expiresAt: now + 50 * 60 * 1000};
+  return data.token;
 }
 
-interface CreatePaymentRequest {
-  tier: PayableTier;
-  returnUrl?: string;
-}
-
-interface CreatePaymentResponse {
-  paymentId: string;
-  paymentUrl: string;
-  reference: string;
-  amount: number;
-  currency: string;
+/** Recursively sorts object keys — required before hashing, per ClickPesa's
+ * checksum spec (order-independent canonical form). */
+function canonicalize(value: unknown): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(canonicalize);
+  return Object.keys(value as Record<string, unknown>)
+    .sort()
+    .reduce((acc: Record<string, unknown>, key) => {
+      acc[key] = canonicalize((value as Record<string, unknown>)[key]);
+      return acc;
+    }, {});
 }
 
 /**
- * Creates a ClickPesa payment for the caller's chosen plan. The amount is
- * always derived server-side from the current admin-configured price —
- * the client only says which tier it wants.
+ * Computes ClickPesa's optional payload checksum: HMAC-SHA256 over the
+ * canonicalized, whitespace-free JSON payload, keyed with the application's
+ * checksum key. Returns null (caller omits the field) when no checksum key
+ * is configured — checksum validation is opt-in per ClickPesa application
+ * (Settings → Developers → Checksum in the ClickPesa dashboard). Deliberately
+ * read from a plain (non-secret) env var, not `defineSecret`, so leaving it
+ * unset never blocks deployment — set `CLICKPESA_CHECKSUM_KEY` in
+ * `functions/.env` (or `.secret.local` for the emulator) only if checksum
+ * validation is turned on for this application.
  */
-export const createClickPesaPayment = onCall<CreatePaymentRequest>(
+function checksumFor(payload: Record<string, unknown>): string | null {
+  const key = process.env.CLICKPESA_CHECKSUM_KEY;
+  if (!key) return null;
+  const serialized = JSON.stringify(canonicalize(payload));
+  return crypto.createHmac("sha256", key).update(serialized).digest("hex");
+}
+
+/**
+ * Normalizes a Tanzanian mobile number to ClickPesa's expected
+ * "255XXXXXXXXX" form (12 digits, no leading +/0). Returns null for
+ * anything that doesn't look like a real Tanzanian mobile money number —
+ * callers must reject rather than silently push to a placeholder number.
+ */
+function normalizeTzPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  let normalized: string;
+  if (digits.length === 12 && digits.startsWith("255")) {
+    normalized = digits;
+  } else if (digits.length === 10 && digits.startsWith("0")) {
+    normalized = `255${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    normalized = `255${digits}`;
+  } else {
+    return null;
+  }
+  // Tanzanian mobile numbers start 06 or 07 after the country code.
+  return /^255[67]\d{8}$/.test(normalized) ? normalized : null;
+}
+
+interface InitiatePaymentRequest {
+  tier: PayableTier;
+  phoneNumber: string;
+}
+
+interface InitiatePaymentResponse {
+  orderReference: string;
+  status: string;
+  channel?: string;
+}
+
+/**
+ * Pushes a USSD mobile-money payment prompt to the caller's phone for their
+ * chosen plan. The amount is always derived server-side from the current
+ * admin-configured price — the client only says which tier it wants and
+ * which phone number to push to.
+ */
+export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
-  async (request): Promise<CreatePaymentResponse> => {
+  async (request): Promise<InitiatePaymentResponse> => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
@@ -99,73 +179,82 @@ export const createClickPesaPayment = onCall<CreatePaymentRequest>(
     if (tier !== "growth" && tier !== "business") {
       throw new HttpsError("invalid-argument", "tier must be 'growth' or 'business'.");
     }
+    const phoneNumber = normalizeTzPhone(String(request.data?.phoneNumber ?? ""));
+    if (!phoneNumber) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid Tanzanian mobile money number (M-Pesa/Tigo Pesa/Airtel Money/HaloPesa) is required.",
+      );
+    }
 
     const {pricePerCycle, cycleMonths} = await getPlanPricing(tier);
 
-    const db = admin.firestore();
-    const userSnap = await db.collection("users").doc(uid).get();
-    const userData = userSnap.data() ?? {};
-    const phone =
-      typeof userData.phone === "string" && userData.phone ? userData.phone : "+255000000000";
-    const email = request.auth.token.email ?? "";
-    const name = typeof userData.name === "string" && userData.name ? userData.name : "Mali Up User";
+    // Alphanumeric only, per ClickPesa's orderReference requirement.
+    const orderReference = `MALIUP${tier.toUpperCase()}${Date.now().toString().slice(-8)}${uid
+      .slice(0, 6)
+      .toUpperCase()}`.replace(/[^A-Z0-9]/gi, "");
 
-    // Short, still-unique-enough reference: tier + ms timestamp + uid prefix.
-    const reference = `MALIUP-${tier.toUpperCase()}-${Date.now().toString().slice(-8)}-${uid.slice(0, 6)}`;
-    const returnUrl =
-      typeof request.data?.returnUrl === "string" ? request.data.returnUrl : undefined;
+    const token = await getClickPesaToken();
+    const body: Record<string, unknown> = {
+      amount: String(pricePerCycle),
+      currency: "TZS",
+      orderReference,
+      phoneNumber,
+    };
+    const checksum = checksumFor(body);
+    if (checksum) body.checksum = checksum;
 
-    const response = await fetch(`${CLICKPESA_BASE_URL}/payments`, {
+    const response = await fetch(`${CLICKPESA_BASE_URL}/payments/initiate-ussd-push-request`, {
       method: "POST",
-      headers: clickPesaHeaders(),
-      body: JSON.stringify({
-        amount: pricePerCycle,
-        currency: "TZS",
-        reference,
-        description: `Mali Up ${tier.toUpperCase()} plan upgrade`,
-        customer: {phone, email, name},
-        metadata: {tier, userId: uid, paymentRef: reference},
-        ...(returnUrl ? {returnUrl} : {}),
-      }),
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      console.error("[ClickPesa] create-payment failed", response.status, await response.text());
-      throw new HttpsError("internal", "Failed to create payment.");
+      const text = await response.text();
+      console.error("[ClickPesa] initiate-ussd-push failed", response.status, text);
+      if (response.status === 409) {
+        throw new HttpsError("already-exists", "A payment with this reference already exists.");
+      }
+      if (response.status === 400) {
+        throw new HttpsError("invalid-argument", "ClickPesa rejected the request — check the phone number.");
+      }
+      throw new HttpsError("internal", "Failed to start payment.");
     }
-
-    const data = (await response.json()) as {id: string; paymentUrl?: string; url?: string};
-    const paymentUrl = data.paymentUrl ?? data.url;
-    if (!data.id || !paymentUrl) {
-      throw new HttpsError("internal", "ClickPesa returned an unexpected response.");
-    }
+    const data = (await response.json()) as {id?: string; status?: string; channel?: string};
 
     // Server-side record of what this payment is *supposed* to be for —
     // verifyClickPesaPayment checks the real ClickPesa status against this,
     // not against anything the client claims.
-    await db.collection("clickpesa_payments").doc(data.id).set({
-      uid,
-      tier,
-      cycleMonths,
-      amount: pricePerCycle,
-      currency: "TZS",
-      reference,
-      status: "pending",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .collection("clickpesa_payments")
+      .doc(orderReference)
+      .set({
+        uid,
+        tier,
+        cycleMonths,
+        amount: pricePerCycle,
+        currency: "TZS",
+        phoneNumber,
+        clickPesaId: data.id ?? null,
+        status: "pending",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     return {
-      paymentId: data.id,
-      paymentUrl,
-      reference,
-      amount: pricePerCycle,
-      currency: "TZS",
+      orderReference,
+      status: data.status ?? "PROCESSING",
+      channel: data.channel,
     };
   },
 );
 
 interface VerifyPaymentRequest {
-  paymentId: string;
+  orderReference: string;
 }
 
 interface VerifyPaymentResponse {
@@ -177,10 +266,10 @@ interface VerifyPaymentResponse {
 /**
  * Checks a ClickPesa payment's real status and, the first time it is seen as
  * completed, activates the plan on the caller's own user doc via the Admin
- * SDK. Safe to call repeatedly (the mobile client polls this instead of
- * ClickPesa directly) — already-completed payments short-circuit without
- * re-charging or re-writing anything, and a Firestore transaction guards
- * against two concurrent calls double-activating the same payment.
+ * SDK. Safe to call repeatedly (the mobile client polls this while the user
+ * confirms the PIN prompt on their phone) — already-completed payments
+ * short-circuit without re-writing anything, and a Firestore transaction
+ * guards against two concurrent calls double-activating the same payment.
  */
 export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
@@ -190,13 +279,13 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     }
     const uid = request.auth.uid;
 
-    const paymentId = request.data?.paymentId;
-    if (!paymentId || typeof paymentId !== "string") {
-      throw new HttpsError("invalid-argument", "paymentId is required.");
+    const orderReference = request.data?.orderReference;
+    if (!orderReference || typeof orderReference !== "string") {
+      throw new HttpsError("invalid-argument", "orderReference is required.");
     }
 
     const db = admin.firestore();
-    const paymentRef = db.collection("clickpesa_payments").doc(paymentId);
+    const paymentRef = db.collection("clickpesa_payments").doc(orderReference);
     const paymentSnap = await paymentRef.get();
     if (!paymentSnap.exists) {
       throw new HttpsError("not-found", "Unknown payment.");
@@ -217,30 +306,41 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
       return {status: "failed"};
     }
 
-    const response = await fetch(`${CLICKPESA_BASE_URL}/payments/${paymentId}`, {
-      headers: clickPesaHeaders(),
+    const token = await getClickPesaToken();
+    const response = await fetch(`${CLICKPESA_BASE_URL}/payments/${orderReference}`, {
+      headers: {"Authorization": `Bearer ${token}`},
     });
     if (!response.ok) {
-      console.error("[ClickPesa] verify failed", response.status, await response.text());
-      throw new HttpsError("internal", "Failed to verify payment.");
+      console.error("[ClickPesa] query payment failed", response.status, await response.text());
+      throw new HttpsError("internal", "Failed to check payment status.");
     }
-    const data = (await response.json()) as {status?: string; amount?: number | string};
-    const status = String(data.status ?? "").toLowerCase();
-
-    if (status === "failed" || status === "cancelled" || status === "expired") {
-      await paymentRef.set({status: "failed"}, {merge: true});
-      return {status: "failed"};
-    }
-    if (status !== "completed" && status !== "paid") {
+    // ClickPesa returns an array of payment attempts for this orderReference.
+    const results = (await response.json()) as Array<{
+      status?: string;
+      collectedAmount?: number | string;
+    }>;
+    const payment = results[0];
+    if (!payment) {
       return {status: "pending"};
     }
 
-    const chargedAmount =
-      typeof data.amount === "number" ? data.amount : Number(data.amount);
-    if (!Number.isFinite(chargedAmount) || chargedAmount !== paymentDoc.amount) {
+    const status = String(payment.status ?? "").toUpperCase();
+    if (status === "FAILED") {
+      await paymentRef.set({status: "failed"}, {merge: true});
+      return {status: "failed"};
+    }
+    if (status !== "SUCCESS" && status !== "SETTLED") {
+      return {status: "pending"};
+    }
+
+    const collectedAmount =
+      typeof payment.collectedAmount === "number"
+        ? payment.collectedAmount
+        : Number(payment.collectedAmount);
+    if (!Number.isFinite(collectedAmount) || collectedAmount !== paymentDoc.amount) {
       console.error("[ClickPesa] amount mismatch — refusing to activate", {
-        paymentId,
-        chargedAmount,
+        orderReference,
+        collectedAmount,
         expected: paymentDoc.amount,
       });
       throw new HttpsError("failed-precondition", "Payment amount mismatch.");
@@ -271,10 +371,10 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
           planExpiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           lastPayment: {
-            reference: paymentDoc.reference,
+            reference: orderReference,
             amount: paymentDoc.amount,
             currency: paymentDoc.currency ?? "TZS",
-            paymentId,
+            paymentId: paymentDoc.clickPesaId ?? orderReference,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             provider: "clickpesa",
           },
