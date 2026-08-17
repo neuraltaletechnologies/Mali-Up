@@ -17,7 +17,6 @@ class RateAppDialog extends StatefulWidget {
     AppRatingService.recordPrompted();
     return showDialog<void>(
       context: context,
-      barrierDismissible: true,
       builder: (_) => const RateAppDialog(),
     );
   }
@@ -69,7 +68,6 @@ class _RateAppDialogState extends State<RateAppDialog> {
       children: [
         const EmotionalLottieSpot(
           scene: EmotionalLottieScene.celebrate,
-          size: 120,
           repeat: false,
         ),
         Text(

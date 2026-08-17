@@ -24,6 +24,7 @@ import '../../core/services/business_profile_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/notifications/data/notification_aggregator.dart';
 import '../../features/rbac/data/rbac_providers.dart';
+import '../../features/rbac/data/role_cache_service.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
@@ -283,6 +284,18 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _showSwitchingBusinessDialog(targetName);
 
     try {
+      // Update the local cache immediately so currentBusinessIdProvider
+      // (and everything that watches it — customers, invoices, sales,
+      // syncServiceProvider, ...) resolves the new business right away
+      // instead of waiting on Firestore's snapshot listener to round-trip
+      // (persistence cache is disabled app-wide, so that listener always
+      // needs a live network round trip and was the main source of both
+      // the multi-second delay and stale "still showing the old
+      // business's data" window).
+      if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
+        await RoleCacheService.saveBusinessId(user.uid, selectedBusinessId);
+      }
+
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'defaultContext': resolvedNextContext,
         'defaultAccountType': 'business',
@@ -290,20 +303,34 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
-        await _pullBusinessDataBeforeSwitch(user.uid, selectedBusinessId);
-      }
+      // No manual pre-pull here anymore: syncServiceProvider already
+      // watches currentBusinessIdProvider and auto-starts a fresh
+      // SyncService (which itself calls syncNow() on start) the moment the
+      // businessId changes — see core/providers/sync_provider.dart. Blocking
+      // navigation on a *second*, redundant full pull (capped at 12s) was
+      // why switching businesses felt as slow as it did; the destination
+      // screens already render from Drift reactively and fill in as the
+      // background sync lands, the same way they do on a normal cold start.
     } finally {
       _dismissSwitchingBusinessDialog();
     }
 
-    _refreshProfile();
-
     if (!mounted) return;
-    final route = DefaultContextRoutingService.routeFromContextValue(
-      resolvedNextContext,
-    );
-    context.go(route);
+    // Deferred one frame: popping the "switching…" dialog above schedules
+    // element teardown that Flutter finishes at the end of this frame.
+    // Navigating immediately (context.go tears down/rebuilds the whole page
+    // subtree) can race that teardown and trip the framework's
+    // '_dependents.isEmpty' assertion — the same class of bug documented in
+    // ManageBusinessesScreen's save handler. Waiting a frame lets the
+    // dialog's elements finish unmounting first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshProfile();
+      final route = DefaultContextRoutingService.routeFromContextValue(
+        resolvedNextContext,
+      );
+      context.go(route);
+    });
   }
 
   String? _businessLabelForId(
@@ -357,28 +384,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _switchingDialogOpen = false;
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
-  }
-
-  /// Performs a one-off pull of [businessId]'s Firestore data into Drift so
-  /// the destination screens have data to render as soon as we navigate.
-  /// Best-effort: on failure/timeout (e.g. offline) we fall through and let
-  /// the regular [syncServiceProvider] retry in the background as usual.
-  Future<void> _pullBusinessDataBeforeSwitch(
-    String uid,
-    String businessId,
-  ) async {
-    if (!ref.read(isOnlineProvider)) return;
-
-    final db = ref.read(appDatabaseProvider);
-    final syncService = SyncService(db: db, uid: uid, businessId: businessId);
-    try {
-      await syncService.syncNow().timeout(const Duration(seconds: 12));
-    } catch (_) {
-      // Offline or slow network — proceed anyway rather than stranding the
-      // user on the switching dialog indefinitely.
-    } finally {
-      syncService.dispose();
-    }
   }
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
@@ -1740,7 +1745,15 @@ class _FinanceContextSwitcher extends StatelessWidget {
   ) async {
     if (!canSwitch || businesses.isEmpty) return;
 
-    await showAppSheet<void>(
+    // The sheet returns the tapped business id (or '__manage__') instead of
+    // acting immediately inside the tap handler. Calling onChanged (which
+    // writes to Firestore and can pop up the "switching…" dialog) or
+    // onManageBusinesses while this sheet is still mid-pop races its own
+    // element teardown against that new work — the same '_dependents.isEmpty'
+    // class of crash documented elsewhere in this file. Waiting for
+    // showAppSheet's Future to resolve guarantees the sheet is fully gone
+    // first.
+    final selection = await showAppSheet<String>(
       context,
       backgroundColor: Colors.white,
       showDragHandle: true,
@@ -1804,10 +1817,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
                                 color: AppColors.success,
                               )
                             : null,
-                        onTap: () async {
-                          Navigator.of(sheetContext).pop();
-                          onChanged('business:${business['id']}');
-                        },
+                        onTap: () =>
+                            Navigator.of(sheetContext).pop(
+                              business['id'] as String,
+                            ),
                       );
                     },
                   ),
@@ -1816,10 +1829,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
-                      onManageBusinesses();
-                    },
+                    onPressed: () =>
+                        Navigator.of(sheetContext).pop(_manageBusinessesTag),
                     icon: const Icon(Icons.settings_rounded),
                     label: Text(tr('Manage businesses', 'Simamia biashara')),
                   ),
@@ -1830,7 +1841,16 @@ class _FinanceContextSwitcher extends StatelessWidget {
         );
       },
     );
+
+    if (selection == null || selection.isEmpty) return;
+    if (selection == _manageBusinessesTag) {
+      onManageBusinesses();
+    } else {
+      onChanged('business:$selection');
+    }
   }
+
+  static const _manageBusinessesTag = '__manage_businesses__';
 
   void _switchToNextBusiness() {
     if (!canSwitch || businesses.length < 2) return;
