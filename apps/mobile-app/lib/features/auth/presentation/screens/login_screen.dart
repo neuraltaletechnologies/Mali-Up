@@ -280,6 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final throttleKey = _normalizedPhone ?? '';
     final lockout = await _loginThrottle.lockoutRemaining(throttleKey);
+    if (!mounted) return;
     if (lockout != null) {
       await _NotificationHelper.showError(
         context,

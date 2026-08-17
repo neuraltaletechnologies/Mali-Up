@@ -18,6 +18,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_motion.dart';
 import '../../config/routing.dart';
+import '../../core/providers/business_id_provider.dart';
 import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/business_profile_service.dart';
@@ -273,25 +274,26 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ? resolvedNextContext.split(':').sublist(1).join(':')
         : null;
 
-    // Drift is the source of truth for every screen — if this business has
-    // never synced to this device before, its local tables are empty and
-    // navigating immediately would land the user on a screen that looks
-    // broken even though the business has data. Block on a first pull so
-    // the target business's data is in Drift before we route to it.
+    // Set the optimistic override synchronously, before anything else, so
+    // currentBusinessIdProvider — and every repository/screen watching it —
+    // re-scopes to the new business immediately. Drift is still the source
+    // of truth for every screen: if this business has never synced to this
+    // device before, its local tables are momentarily empty and screens show
+    // their normal loading/skeleton state (the same as any cold start) while
+    // the automatically-restarted syncServiceProvider pulls it in.
+    if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
+      ref.read(pendingBusinessIdOverrideProvider.notifier).state =
+          selectedBusinessId;
+    }
+
     final targetName = selectedBusinessId == null
         ? null
         : _businessLabelForId(businesses, selectedBusinessId);
     _showSwitchingBusinessDialog(targetName);
 
     try {
-      // Update the local cache immediately so currentBusinessIdProvider
-      // (and everything that watches it — customers, invoices, sales,
-      // syncServiceProvider, ...) resolves the new business right away
-      // instead of waiting on Firestore's snapshot listener to round-trip
-      // (persistence cache is disabled app-wide, so that listener always
-      // needs a live network round trip and was the main source of both
-      // the multi-second delay and stale "still showing the old
-      // business's data" window).
+      // Cache it too so a cold start (app fully closed and reopened) also
+      // resolves it instantly, without waiting on Firestore.
       if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
         await RoleCacheService.saveBusinessId(user.uid, selectedBusinessId);
       }

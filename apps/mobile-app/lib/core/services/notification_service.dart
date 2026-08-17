@@ -36,7 +36,10 @@ class NotificationService {
     );
     try {
       await _plugin.initialize(
-        const InitializationSettings(android: androidInit, iOS: iosInit),
+        settings: const InitializationSettings(
+          android: androidInit,
+          iOS: iosInit,
+        ),
       );
       await _plugin
           .resolvePlatformSpecificImplementation<
@@ -94,7 +97,13 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
     try {
-      await _plugin.show(id, title, body, details, payload: payload);
+      await _plugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
     } catch (e) {
       debugPrint('[NotificationService] showLocalNotification failed: $e');
     }
