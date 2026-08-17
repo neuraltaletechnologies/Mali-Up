@@ -30,6 +30,8 @@ import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
+import '../../../team/data/team_providers.dart';
+import '../../../team/domain/models/team_member.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../debt/data/debt_providers.dart';
@@ -3175,6 +3177,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   String _selectedCategoryId = '';
   String _selectedCategoryName = '';
 
+  // Assigned driver (service-type items only, e.g. a vehicle) — scopes
+  // Firestore reads for team members with DataScope.own. See firestore.rules.
+  String _assignedDriverUid = '';
+
   // Expiry date state
   DateTime? _expiryDate;
 
@@ -3254,6 +3260,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryId = (item['categoryId'] ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
+      _assignedDriverUid = (item['assignedDriverUid'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3695,6 +3702,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
+        assignedDriverUid:
+            _type == ProductType.service ? _assignedDriverUid : '',
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -4042,6 +4051,21 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   void _snack(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
+
+  // Assigns a service-type item (e.g. a vehicle) to a team member — used to
+  // scope Firestore reads for team members with DataScope.own, so a driver
+  // sees only their own vehicle's product record. See firestore.rules.
+  Future<void> _openDriverPicker() async {
+    // '' (empty string) means the user explicitly chose "Unassigned";
+    // null means the sheet was dismissed without a choice.
+    final result = await showAppSheet<String?>(
+      context,
+      builder: (_) => _DriverPickerSheet(selectedUid: _assignedDriverUid),
+    );
+    if (result != null) {
+      setState(() => _assignedDriverUid = result);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4721,6 +4745,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
 
                       const SizedBox(height: 14),
+
+                      if (_type == ProductType.service) ...[
+                        _FormLabel(_tr(
+                            'Assigned driver (optional)',
+                            'Dereva aliyepangiwa (hiari)')),
+                        const SizedBox(height: 6),
+                        _AssignedDriverField(
+                          selectedUid: _assignedDriverUid,
+                          onTap: _openDriverPicker,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
 
                       // Category dropdown + Unit
                       Row(
@@ -6668,6 +6704,164 @@ class _AddRowButton extends StatelessWidget {
 }
 
 // ── Category dropdown button ──────────────────────────────────────────────────
+
+// Shows the currently assigned driver's name (resolved from the local team
+// list) or "Unassigned" — tapping opens _DriverPickerSheet.
+class _AssignedDriverField extends ConsumerWidget {
+  final String selectedUid;
+  final VoidCallback onTap;
+
+  const _AssignedDriverField({required this.selectedUid, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(teamMembersProvider);
+    String label = _tr('Unassigned', 'Hajapangiwa');
+    if (selectedUid.isNotEmpty) {
+      final members = membersAsync.valueOrNull ?? const <TeamMember>[];
+      final match = members
+          .where((m) => (m.userId ?? '') == selectedUid)
+          .cast<TeamMember?>()
+          .firstOrNull;
+      label = match?.name ?? _tr('Unknown member', 'Mwanachama hajulikani');
+    }
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.person_outline_rounded,
+                size: 16,
+                color: selectedUid.isNotEmpty
+                    ? AppColors.tealAccent
+                    : AppColors.textDisabled),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight:
+                      selectedUid.isNotEmpty ? FontWeight.w600 : FontWeight.w400,
+                  color: selectedUid.isNotEmpty
+                      ? AppColors.navyPrimary
+                      : AppColors.textDisabled,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverPickerSheet extends ConsumerWidget {
+  final String selectedUid;
+
+  const _DriverPickerSheet({required this.selectedUid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(teamMembersProvider);
+    // Only accepted members have a Firebase Auth UID (userId) to assign —
+    // a still-pending invite can't be matched by isOwnRecord() in
+    // firestore.rules yet.
+    final assignable = (membersAsync.valueOrNull ?? const <TeamMember>[])
+        .where((m) => m.status == 'active' && (m.userId ?? '').isNotEmpty)
+        .toList();
+
+    return ConstrainedBox(
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Text(
+                _tr('Assign driver', 'Mpangie dereva'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.person_off_outlined,
+                        color: AppColors.textMuted),
+                    title: Text(_tr('Unassigned', 'Hajapangiwa')),
+                    trailing: selectedUid.isEmpty
+                        ? const Icon(Icons.check_circle_rounded,
+                            color: AppColors.tealAccent)
+                        : null,
+                    onTap: () => Navigator.pop(context, ''),
+                  ),
+                  if (assignable.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      child: Text(
+                        _tr(
+                          'No active team members yet. Invite one from Team settings first.',
+                          'Bado hakuna wanachama wa timu amilifu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
+                        ),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 13, color: AppColors.textMuted),
+                      ),
+                    )
+                  else
+                    ...assignable.map((m) => ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.tealAccent.withValues(alpha: 0.12),
+                            child: Text(m.initials,
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.tealAccent)),
+                          ),
+                          title: Text(m.name),
+                          subtitle: Text(m.role.label),
+                          trailing: selectedUid == m.userId
+                              ? const Icon(Icons.check_circle_rounded,
+                                  color: AppColors.tealAccent)
+                              : null,
+                          onTap: () => Navigator.pop(context, m.userId ?? ''),
+                        )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _CategoryDropdownButton extends StatelessWidget {
   final String selectedName;

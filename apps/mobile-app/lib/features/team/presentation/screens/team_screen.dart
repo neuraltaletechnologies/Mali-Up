@@ -1492,6 +1492,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
   TeamRole _pendingRole = TeamRole.cashier;
   Set<AppPermission> _pendingPerms = {};
+  DataScope _pendingDataScope = DataScope.all;
 
   @override
   void initState() {
@@ -1499,6 +1500,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     _member = widget.member;
     _pendingRole = _member.role;
     _pendingPerms = Set.of(_member.customPermissions);
+    _pendingDataScope = _member.dataScope;
   }
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
@@ -1583,6 +1585,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
               ? TeamRole.fromString(data['role'] as String)
               : null,
           status: data['status'] as String?,
+          dataScope: data.containsKey('dataScope')
+              ? DataScope.fromString(data['dataScope'] as String)
+              : null,
         );
         _isSaving = false;
         _editingRole = false;
@@ -1768,6 +1773,13 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                             onChanged: (p) =>
                                 setState(() => _pendingPerms = p),
                           ),
+                          const SizedBox(height: 8),
+                          _OwnRecordsOnlyToggle(
+                            value: _pendingDataScope == DataScope.own,
+                            onChanged: (v) => setState(() =>
+                                _pendingDataScope =
+                                    v ? DataScope.own : DataScope.all),
+                          ),
                         ],
                         const SizedBox(height: 8),
                         SizedBox(
@@ -1780,11 +1792,19 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                                         ? _pendingPerms
                                         : defaultPermissionsFor(_pendingRole);
                                     final permNames = effectivePerms.map((p) => p.name).toList();
+                                    // Non-custom roles always carry their view-all
+                                    // permission alongside create/manage (see
+                                    // _roleDefaults), so 'own' scoping only makes
+                                    // sense for custom roles — reset otherwise.
+                                    final scope = _pendingRole == TeamRole.custom
+                                        ? _pendingDataScope
+                                        : DataScope.all;
                                     _updateMember({
                                       'role': _pendingRole.name,
                                       'customPermissions': permNames,
                                       // Keep flat list in sync for isStaffWithAny() rules.
                                       'permissions': permNames,
+                                      'dataScope': scope.name,
                                     });
                                   },
                             style: ElevatedButton.styleFrom(
