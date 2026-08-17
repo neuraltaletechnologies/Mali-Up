@@ -45,15 +45,23 @@ export const adminFirestore = admin.firestore(adminApp)
 // every dev-server request), but Firestore throws if settings() is called
 // twice on that instance. Swallow that specific error — it just means an
 // earlier module evaluation in this process already configured it.
-try {
-  // This app runs on Cloudflare Workers (via OpenNext), which doesn't support
-  // the long-lived gRPC/HTTP2 streams the Firestore SDK uses by default —
-  // falling back to plain HTTP REST avoids multi-second stalls/retries on
-  // every query. Must be set before any other Firestore call.
-  adminFirestore.settings({ preferRest: true })
-} catch (err) {
-  if (!(err instanceof Error && err.message.includes('already been initialized'))) {
-    throw err
+// Deployed (and `wrangler dev`) runs on Cloudflare Workers (via OpenNext),
+// which doesn't support the long-lived gRPC/HTTP2 streams the Firestore SDK
+// uses by default — falling back to plain HTTP REST avoids multi-second
+// stalls on every query there. `next dev` runs on plain Node, where gRPC
+// works fine and its built-in keepalive/retry rides out transient network
+// blips (Wi-Fi roam, VPN reconnect, laptop sleep/wake) far better than a
+// one-shot REST fetch, which just hangs for the full timeout and throws.
+// So only force REST when actually inside the Workers runtime.
+const isCloudflareWorkers = globalThis.navigator?.userAgent === 'Cloudflare-Workers'
+if (isCloudflareWorkers) {
+  try {
+    // Must be set before any other Firestore call.
+    adminFirestore.settings({ preferRest: true })
+  } catch (err) {
+    if (!(err instanceof Error && err.message.includes('already been initialized'))) {
+      throw err
+    }
   }
 }
 

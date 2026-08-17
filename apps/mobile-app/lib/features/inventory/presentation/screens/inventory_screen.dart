@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -3698,6 +3699,35 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
+
+      // Submit newly created products to the community catalog queue so
+      // admins can review and promote them to the master catalog. Only
+      // brand-new, self-typed products qualify — edits, returns, and
+      // restocks (handled above) are not fresh contributions.
+      if (!_isEdit && !isReturn) {
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        if (uid.isNotEmpty) {
+          final cachedCategories =
+              ref.read(masterCategoriesProvider).valueOrNull ??
+                  const <MasterCategory>[];
+          final matchedCategory = cachedCategories
+              .where((c) => c.id == _selectedCategoryId)
+              .toList();
+          ref
+              .read(masterCatalogRepositoryProvider)
+              .submitCommunityProduct(
+                businessType: bizType,
+                productName: name,
+                addedByUid: uid,
+                categorySlug: matchedCategory.isNotEmpty
+                    ? matchedCategory.first.categorySlug
+                    : '',
+                unit: _unit,
+                businessId: ref.read(currentBusinessIdProvider).valueOrNull,
+              )
+              .ignore();
+        }
+      }
 
       // Auto-create payable debt for credit purchases
       if (!isManufactured &&

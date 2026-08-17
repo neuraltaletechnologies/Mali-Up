@@ -368,6 +368,36 @@ class MasterCatalogRepository {
     );
   }
 
+  /// Submits a business-defined custom product for admin review.
+  ///
+  /// Unlike [addCommunityCategory], this does NOT write into
+  /// `master_products` directly — products need admin curation (naming,
+  /// units, dedup) before they're safe to surface to every business, so
+  /// this only records the submission in `catalog_community_submissions`
+  /// for the admin panel to review and promote. Best-effort — a failure
+  /// here never blocks the product save that triggered it.
+  Future<void> submitCommunityProduct({
+    required String businessType, // normalised key
+    required String productName,
+    required String addedByUid,
+    String categorySlug = '',
+    String unit = 'Piece',
+    String? businessId,
+  }) {
+    final trimmed = productName.trim();
+    if (trimmed.isEmpty) return Future.value();
+    final catalogName = _catalogTypeNames(businessType).first;
+    return _submissions.submitProduct(
+      productName: trimmed,
+      businessType: businessType,
+      businessTypeName: catalogName,
+      submittedByUid: addedByUid,
+      submittedByBusinessId: businessId ?? '',
+      categorySlug: categorySlug,
+      unit: unit,
+    );
+  }
+
   String _slugify(String s) => s
       .trim()
       .toLowerCase()
