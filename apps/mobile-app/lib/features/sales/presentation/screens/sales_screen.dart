@@ -398,7 +398,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: _SalesDarkHeader._pillHalf + 8),
+              const SizedBox(height: HeaderStatsPill.pillHalf + 8),
               if (_filter != _SalesFilter.all)
                 _ActiveSalesFilterChip(
                   filter: _filter,
@@ -726,8 +726,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 // ── Dark Header ────────────────────────────────────────────────────────────────
 
 class _SalesDarkHeader extends StatefulWidget {
-  static const double _pillHalf = 22.0;
-
   final double todayRevenue;
   final double pendingTotal;
   final int overdueCount;
@@ -784,263 +782,74 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _SalesDarkHeader._pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Sales', 'Mauzo'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search icon
-                  GestureDetector(
-                    onTap: widget.onSearchToggle,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: widget.searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: widget.searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        widget.searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: widget.searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter icon
-                  GestureDetector(
-                    onTap: widget.onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: widget.activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: widget.activeFilters > 0
-                                  ? AppColors.yellowBrand
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: widget.activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (_alertDotColor != Colors.transparent)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: _alertDotColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.navyPrimary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: widget.searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextField(
-                          controller: _ctrl,
-                          focusNode: _focus,
-                          onChanged: widget.onSearchChanged,
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: _tr(
-                              'Customer name or invoice #…',
-                              'Jina la mteja au namba ya ankara…',
-                            ),
-                            hintStyle: GoogleFonts.dmSans(
-                              color: Colors.white54,
-                              fontSize: 14,
-                            ),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              color: Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+    final dotColor = _alertDotColor;
+
+    return DarkHeaderShell(
+      stretchPill: true,
+      title: Text(
+        _tr('Sales', 'Mauzo'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Stats pill
-        Positioned(
-          bottom: -_SalesDarkHeader._pillHalf,
-          left: 24,
-          right: 24,
-          child: Container(
-            height: _SalesDarkHeader._pillHalf * 2,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(_SalesDarkHeader._pillHalf),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PillStat(
-                  value: _fmtAmt(widget.todayRevenue),
-                  label: _tr('Today', 'Leo'),
-                  valueColor: AppColors.tealAccent,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtAmt(widget.pendingTotal),
-                  label: _tr('Pending', 'Inasubiri'),
-                  valueColor: widget.pendingTotal > 0
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: widget.overdueCount.toString(),
-                  label: _tr('Overdue', 'Imechelewa'),
-                  valueColor: widget.overdueCount > 0
-                      ? AppColors.error
-                      : AppColors.success,
-                ),
-              ],
-            ),
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: widget.searchExpanded
+                ? Icons.close_rounded
+                : Icons.search_rounded,
+            active: widget.searchExpanded,
+            onTap: widget.onSearchToggle,
           ),
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: widget.activeFilters > 0,
+            onTap: widget.onFilterTap,
+            dotColor: dotColor != Colors.transparent ? dotColor : null,
+          ),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: _ctrl,
+        focusNode: _focus,
+        onChanged: widget.onSearchChanged,
+        hintText: _tr(
+          'Customer name or invoice #…',
+          'Jina la mteja au namba ya ankara…',
         ),
-      ],
+        showClear: _ctrl.text.isNotEmpty,
+      ),
+      expanded: widget.searchExpanded,
+      pill: HeaderStatsPill(
+        layout: HeaderPillLayout.stretched,
+        stats: [
+          HeaderPillStat(
+            value: _fmtAmt(widget.todayRevenue),
+            label: _tr('Today', 'Leo'),
+            color: AppColors.tealAccent,
+          ),
+          HeaderPillStat(
+            value: _fmtAmt(widget.pendingTotal),
+            label: _tr('Pending', 'Inasubiri'),
+            color: widget.pendingTotal > 0
+                ? AppColors.warning
+                : AppColors.success,
+          ),
+          HeaderPillStat(
+            value: widget.overdueCount.toString(),
+            label: _tr('Overdue', 'Imechelewa'),
+            color: widget.overdueCount > 0
+                ? AppColors.error
+                : AppColors.success,
+          ),
+        ],
+      ),
     );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color valueColor;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 28, color: AppColors.border);
   }
 }
 

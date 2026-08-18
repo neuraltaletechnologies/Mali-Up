@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
@@ -62,7 +61,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
       body: Column(
         children: [
           const _CashFlowDarkHeader(),
-          const SizedBox(height: _CashFlowDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           _CashFlowTabBar(tabController: _tabController),
           Expanded(
             child: TabBarView(
@@ -80,13 +79,10 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
 // ── Dark Header ───────────────────────────────────────────────────────────────
 
 class _CashFlowDarkHeader extends ConsumerWidget {
-  static const double _pillHalf = 22.0;
-
   const _CashFlowDarkHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final top = MediaQuery.of(context).padding.top;
     final total = ref.watch(totalCashPositionProvider);
     final inflow = ref.watch(monthlyInflowProvider);
     final outflow = ref.watch(monthlyOutflowProvider);
@@ -100,144 +96,99 @@ class _CashFlowDarkHeader extends ConsumerWidget {
       await showAppSheet(context, builder: (_) => const AddAccountDialog());
     }
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Dark card — matches inventory/sales header shape exactly
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _tr('Cash Flow', 'Mtiririko'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: monthNotifier.prev,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.chevron_left_rounded,
-                    color: Colors.white70,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                DateFormat.yMMM().format(month),
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: isCurrentMonth ? null : monthNotifier.next,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: isCurrentMonth ? Colors.white24 : Colors.white70,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onAddAccount,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add_card_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Cash Flow', 'Mtiririko'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Stats pill — same shape/shadow/position as inventory
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: monthNotifier.prev,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _PillStat(
-                    value: _fmtCompact(inflow),
-                    label: _tr('Inflow', 'Mapato'),
-                    color: AppColors.success,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: _fmtCompact(outflow),
-                    label: _tr('Outflow', 'Matumizi'),
-                    color: AppColors.error,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: _fmtCompact(total),
-                    label: _tr('Position', 'Hali'),
-                    color: AppColors.tealAccent,
-                  ),
-                ],
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                color: Colors.white70,
+                size: 20,
               ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Text(
+            DateFormat.yMMM().format(month),
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: isCurrentMonth ? null : monthNotifier.next,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: isCurrentMonth ? Colors.white24 : Colors.white70,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onAddAccount,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_card_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+      pill: HeaderStatsPill(
+        stats: [
+          HeaderPillStat(
+            value: _fmtCompact(inflow),
+            label: _tr('Inflow', 'Mapato'),
+            color: AppColors.success,
+          ),
+          HeaderPillStat(
+            value: _fmtCompact(outflow),
+            label: _tr('Outflow', 'Matumizi'),
+            color: AppColors.error,
+          ),
+          HeaderPillStat(
+            value: _fmtCompact(total),
+            label: _tr('Position', 'Hali'),
+            color: AppColors.tealAccent,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -276,57 +227,6 @@ class _CashFlowTabBar extends StatelessWidget {
           const Divider(height: 1, color: AppColors.border),
         ],
       ),
-    );
-  }
-}
-
-// ── Pill widgets (match inventory PillStat / PillDivider exactly) ─────────────
-
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
     );
   }
 }

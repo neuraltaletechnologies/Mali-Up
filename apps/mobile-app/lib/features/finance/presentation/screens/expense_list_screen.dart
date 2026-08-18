@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -154,7 +153,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             onNext: _nextMonth,
             canGoNext: canGoNext,
           ),
-          const SizedBox(height: _ExpenseDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           // Category filter pills
           _CategoryPills(
             categories: categories,
@@ -268,8 +267,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ExpenseDarkHeader extends StatelessWidget {
-  static const double _pillHalf = 22.0;
-
   final DateTime month;
   final double total;
   final int withReceipt;
@@ -290,132 +287,82 @@ class _ExpenseDarkHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Expenses', 'Matumizi'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Month navigation
-                  GestureDetector(
-                    onTap: onPrev,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Colors.white12,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Colors.white70,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _monthLabel(month),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: canGoNext ? onNext : null,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Colors.white12,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        color: canGoNext ? Colors.white70 : Colors.white24,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Expenses', 'Matumizi'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onPrev,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _PillStat(
-                    label: _tr('Spent', 'Imetumika'),
-                    value: 'TZS ${_fmtShort(total)}',
-                    color: AppColors.error,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    label: _tr('Entries', 'Rekodi'),
-                    value: '$expenseCount',
-                    color: AppColors.navyPrimary,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    label: _tr('Receipts', 'Risiti'),
-                    value: '$withReceipt',
-                    color: AppColors.tealAccent,
-                  ),
-                ],
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                color: Colors.white70,
+                size: 22,
               ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            _monthLabel(month),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: canGoNext ? onNext : null,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: canGoNext ? Colors.white70 : Colors.white24,
+                size: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+      pill: HeaderStatsPill(
+        stats: [
+          HeaderPillStat(
+            label: _tr('Spent', 'Imetumika'),
+            value: 'TZS ${_fmtShort(total)}',
+            color: AppColors.error,
+          ),
+          HeaderPillStat(
+            label: _tr('Entries', 'Rekodi'),
+            value: '$expenseCount',
+            color: AppColors.navyPrimary,
+          ),
+          HeaderPillStat(
+            label: _tr('Receipts', 'Risiti'),
+            value: '$withReceipt',
+            color: AppColors.tealAccent,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -681,55 +628,6 @@ class _ExpenseCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pill sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

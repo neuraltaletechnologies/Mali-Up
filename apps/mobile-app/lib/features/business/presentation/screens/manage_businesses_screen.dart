@@ -17,7 +17,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -1548,7 +1547,7 @@ class _ManageBusinessesScreenState
                           }
                         }),
                       ),
-                      const SizedBox(height: _BusinessDarkHeader._pillHalf + 8),
+                      const SizedBox(height: HeaderStatsPill.pillHalf + 8),
                       if (!isOnline) const _OfflineBusinessBanner(),
                       Expanded(
                         child: businesses.isEmpty
@@ -1599,8 +1598,6 @@ class _BusinessDarkHeader extends StatelessWidget {
     required this.onToggleSearch,
   });
 
-  static const double _pillHalf = 22.0;
-
   String get _tierLabel {
     switch (tier) {
       case PlanTier.starter:
@@ -1616,228 +1613,54 @@ class _BusinessDarkHeader extends StatelessWidget {
     }
   }
 
-  Widget _buildPill() {
+  List<HeaderPillStat> _stats() {
     final isStarter = tier == PlanTier.starter;
     final atLimit = maxBusinesses != -1 && businessCount >= maxBusinesses;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return [
+      HeaderPillStat(
+        label: _tr('Businesses', 'Biashara'),
+        value: '$businessCount',
+        color: AppColors.tealAccent,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PillStat(
-            label: _tr('Businesses', 'Biashara'),
-            value: '$businessCount',
-            color: AppColors.tealAccent,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Plan', 'Mpango'),
-            value: _tierLabel,
-            color: isStarter ? AppColors.textMuted : AppColors.navyPrimary,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Limit', 'Kikomo'),
-            value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
-            color: atLimit ? AppColors.warning : AppColors.success,
-          ),
-        ],
+      HeaderPillStat(
+        label: _tr('Plan', 'Mpango'),
+        value: _tierLabel,
+        color: isStarter ? AppColors.textMuted : AppColors.navyPrimary,
       ),
-    );
+      HeaderPillStat(
+        label: _tr('Limit', 'Kikomo'),
+        value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
+        color: atLimit ? AppColors.warning : AppColors.success,
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Businesses', 'Biashara'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: onToggleSearch,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextField(
-                            controller: searchCtrl,
-                            autofocus: true,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Search by name or category…',
-                                'Tafuta kwa jina au kategoria…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.white38,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                size: 18,
-                                color: Colors.white54,
-                              ),
-                              filled: true,
-                              fillColor: Colors.white12,
-                              contentPadding: EdgeInsets.zero,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.white24,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: AppColors.yellowBrand,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Businesses', 'Biashara'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPill()),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
+      ),
+      actions: HeaderIconButton(
+        icon: searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+        active: searchExpanded,
+        onTap: onToggleSearch,
+      ),
+      expandable: HeaderSearchField(
+        controller: searchCtrl,
+        autofocus: true,
+        onChanged: (_) {},
+        hintText: _tr('Search by name or category…', 'Tafuta kwa jina au kategoria…'),
+        showClear: searchCtrl.text.isNotEmpty,
+      ),
+      expanded: searchExpanded,
+      pill: HeaderStatsPill(stats: _stats()),
     );
   }
 }

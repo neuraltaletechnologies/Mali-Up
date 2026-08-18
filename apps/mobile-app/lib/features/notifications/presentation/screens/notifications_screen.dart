@@ -12,7 +12,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/notification_prefs.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/notification_prefs_provider.dart';
@@ -119,7 +118,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             onSearchChanged: (v) => setState(() => _query = v),
             onSettingsTap: () => _openSettingsSheet(context),
           ),
-          const SizedBox(height: _NotificationsDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           if (hasAnyUnread)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
@@ -218,255 +217,75 @@ class _NotificationsDarkHeader extends StatelessWidget {
     required this.onSettingsTap,
   });
 
-  static const double _pillHalf = 22.0;
-
-  Widget _buildPill() {
+  List<HeaderPillStat> _stats() {
     final total = items.length;
     final unread = items.where((n) => n.isRead == 0).length;
     final read = total - unread;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return [
+      HeaderPillStat(
+        label: _tr('Jumla', 'Jumla'),
+        value: '$total',
+        color: AppColors.tealAccent,
       ),
-      child: Row(
+      HeaderPillStat(
+        label: _tr('Mapya', 'Mapya'),
+        value: '$unread',
+        color: unread > 0 ? AppColors.warning : AppColors.success,
+      ),
+      HeaderPillStat(
+        label: _tr('Zamani', 'Zamani'),
+        value: '$read',
+        color: AppColors.navyPrimary,
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DarkHeaderShell(
+      leading: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+            size: 20, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: Text(
+        _tr('Notifications', 'Arifa'),
+        style: GoogleFonts.dmSans(
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
+        ),
+      ),
+      actions: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _PillStat(
-            label: _tr('Jumla', 'Jumla'),
-            value: '$total',
-            color: AppColors.tealAccent,
+          HeaderIconButton(
+            icon: searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+            active: searchExpanded,
+            onTap: onToggleSearch,
           ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Mapya', 'Mapya'),
-            value: '$unread',
-            color: unread > 0 ? AppColors.warning : AppColors.success,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Zamani', 'Zamani'),
-            value: '$read',
-            color: AppColors.navyPrimary,
+          const SizedBox(width: 10),
+          // Settings (gear) button — same position as the Inventory/Customers
+          // filter button; opens notification preferences as a slide-up sheet.
+          HeaderIconButton(
+            icon: Icons.settings_rounded,
+            onTap: onSettingsTap,
           ),
         ],
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-              20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 20, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _tr('Notifications', 'Arifa'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search button — same position as Inventory/Customers.
-                  GestureDetector(
-                    onTap: onToggleSearch,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color:
-                            searchExpanded ? AppColors.yellowBrand : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Settings (gear) button — same position as the
-                  // Inventory/Customers filter button; opens notification
-                  // preferences as a slide-up sheet.
-                  GestureDetector(
-                    onTap: onSettingsTap,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white12,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.settings_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextField(
-                            controller: searchCtrl,
-                            autofocus: true,
-                            onChanged: onSearchChanged,
-                            style:
-                                GoogleFonts.dmSans(fontSize: 14, color: Colors.white),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Search notifications…',
-                                'Tafuta arifa…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                  fontSize: 14, color: Colors.white38),
-                              prefixIcon: const Icon(Icons.search_rounded,
-                                  size: 18, color: Colors.white54),
-                              suffixIcon: query.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        searchCtrl.clear();
-                                        onSearchChanged('');
-                                      },
-                                      child: const Icon(Icons.close_rounded,
-                                          size: 16, color: Colors.white54),
-                                    )
-                                  : null,
-                              filled: true,
-                              fillColor: Colors.white12,
-                              contentPadding: EdgeInsets.zero,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: AppColors.yellowBrand, width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPill()),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-              fontSize: 13, fontWeight: FontWeight.w800, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(
-        width: 1,
-        height: 28,
-        color: AppColors.border,
+      expandable: HeaderSearchField(
+        controller: searchCtrl,
+        autofocus: true,
+        onChanged: onSearchChanged,
+        hintText: _tr('Search notifications…', 'Tafuta arifa…'),
+        showClear: query.isNotEmpty,
       ),
+      expanded: searchExpanded,
+      pill: HeaderStatsPill(stats: _stats()),
     );
   }
 }

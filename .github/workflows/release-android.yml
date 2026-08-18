@@ -1,13 +1,17 @@
-name: Release Android (Play Store)
+name: Release Android (Open Testing)
 
-# Auto-releases the mobile app to Google Play's production track at a 20%
-# staged rollout. Deliberately scoped to the `production` branch only --
-# pushes to `main` never trigger a store release; promotion happens via the
-# PR opened by promote-to-production.yml.
+# Auto-releases the mobile app to Google Play's Open Testing track (the
+# Play Developer API still calls this track id "beta"; Play Console's UI
+# label is "Open testing"). Deliberately scoped to the `production` branch
+# only -- pushes to `main` never trigger a store release; promotion happens
+# via the PR opened by promote-to-production.yml. The branch is still named
+# `production` for now to keep this a minimal change; it gates a release to
+# testers, not to the Play Store production track.
 #
-# Staged (not 100% instant) on purpose: Google Play's automatic bad-release
-# detection can only halt a rollout that hasn't already reached everyone.
-# Advancing a healthy release to 100% is a manual step in Play Console.
+# To actually ship to the Play Store production track, promote a build from
+# Open Testing to Production manually in Play Console once it's been
+# verified by testers. There is currently no automated production-track
+# release in this repo.
 on:
   push:
     branches: [production]
@@ -70,15 +74,14 @@ jobs:
         # forever and needs no manual bookkeeping.
         run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 ))
 
-      - name: Publish to Play Store (staged rollout)
+      - name: Publish to Play Store (Open Testing)
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.neuraltale.maliup
           releaseFiles: apps/mobile-app/build/app/outputs/bundle/release/app-release.aab
-          track: production
-          userFraction: 0.2
-          status: inProgress
+          track: beta
+          status: completed
 
       - name: Remove decoded keystore
         if: always()
