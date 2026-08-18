@@ -22,6 +22,11 @@ const PLAN_COLORS: Record<string, string> = {
   lifetime: '#16244D',
 }
 
+const CLICKPESA_TIER_COLORS: Record<string, string> = {
+  growth: '#1A6E8A',
+  business: '#0D1B3E',
+}
+
 function normalisePlan(raw: string | undefined | null): string {
   const p = (raw ?? '').toLowerCase()
   if (p === 'trial') return 'starter'
@@ -70,7 +75,7 @@ export async function GET() {
 
 async function computeAnalytics() {
   // ── Fetch in parallel ──────────────────────────────────────────────────
-  const [userCountSnap, bizSnap, recentUsersSnap] = await Promise.all([
+  const [userCountSnap, bizSnap, recentUsersSnap, clickPesaSnap] = await Promise.all([
     adminFirestore.collection('users').count().get(),
     adminFirestore
       .collectionGroup('businesses')
@@ -79,6 +84,15 @@ async function computeAnalytics() {
       .collection('users')
       .orderBy('createdAt', 'desc')
       .limit(10)
+      .get(),
+    // Real payment records — written by functions/src/clickpesa.ts
+    // (initiateClickPesaPayment creates them, verifyClickPesaPayment updates
+    // status once ClickPesa confirms). Ordered desc so recentClickPesaPayments
+    // and the trend/totals below all read off the same freshest slice.
+    adminFirestore
+      .collection('clickpesa_payments')
+      .orderBy('createdAt', 'desc')
+      .limit(2000)
       .get(),
   ])
 
@@ -139,6 +153,83 @@ async function computeAnalytics() {
     }
   })
 
+  // ── Real ClickPesa transactions ─────────────────────────────────────────
+  type ClickPesaRow = {
+    id: string
+    uid: string
+    tier: string
+    amount: number
+    currency: string
+    channel: string | null
+    phoneNumber: string
+    status: 'pending' | 'completed' | 'failed'
+    createdAtMs: number
+    completedAtMs: number
+  }
+  const clickPesaRows: ClickPesaRow[] = clickPesaSnap.docs.map((doc) => {
+    const d = doc.data()
+    return {
+      id: doc.id,
+      uid: (d.uid as string) || '',
+      tier: (d.tier as string) || '',
+      amount: typeof d.amount === 'number' ? d.amount : Number(d.amount) || 0,
+      currency: (d.currency as string) || 'TZS',
+      channel: (d.channel as string) || null,
+      phoneNumber: (d.phoneNumber as string) || '',
+      status: ((d.status as string) || 'pending') as ClickPesaRow['status'],
+      createdAtMs: toMs(d.createdAt),
+      completedAtMs: toMs(d.completedAt),
+    }
+  })
+
+  const completedPayments = clickPesaRows.filter((p) => p.status === 'completed')
+  const nowDate = new Date()
+  const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).getTime()
+
+  const clickPesaRevenueAllTime = completedPayments.reduce((sum, p) => sum + p.amount, 0)
+  const clickPesaRevenueThisMonth = completedPayments
+    .filter((p) => p.completedAtMs >= monthStart)
+    .reduce((sum, p) => sum + p.amount, 0)
+
+  const clickPesaRevenueTrend = months.map(({ label, endMs }) => {
+    const startMs = new Date(new Date(endMs).getFullYear(), new Date(endMs).getMonth(), 1).getTime()
+    const value = completedPayments
+      .filter((p) => p.completedAtMs >= startMs && p.completedAtMs <= endMs)
+      .reduce((sum, p) => sum + p.amount, 0)
+    return { month: label, value }
+  })
+
+  const byTier: Record<string, { value: number; count: number }> = {}
+  for (const p of completedPayments) {
+    const key = p.tier || 'unknown'
+    byTier[key] ??= { value: 0, count: 0 }
+    byTier[key].value += p.amount
+    byTier[key].count += 1
+  }
+  const clickPesaRevenueByTier = Object.entries(byTier).map(([tier, agg]) => ({
+    name: tier.charAt(0).toUpperCase() + tier.slice(1),
+    value: agg.value,
+    count: agg.count,
+    color: CLICKPESA_TIER_COLORS[tier] ?? '#94A3B8',
+  }))
+
+  const clickPesaSuccessCount = completedPayments.length
+  const clickPesaFailedCount = clickPesaRows.filter((p) => p.status === 'failed').length
+  const clickPesaPendingCount = clickPesaRows.filter((p) => p.status === 'pending').length
+
+  const recentClickPesaPayments = clickPesaRows.slice(0, 20).map((p) => ({
+    id: p.id,
+    uid: p.uid,
+    tier: p.tier,
+    amount: p.amount,
+    currency: p.currency,
+    channel: p.channel,
+    phoneNumber: p.phoneNumber,
+    status: p.status,
+    createdAt: p.createdAtMs ? new Date(p.createdAtMs).toISOString() : '',
+    completedAt: p.completedAtMs ? new Date(p.completedAtMs).toISOString() : '',
+  }))
+
   return {
     totalUsers,
     totalBusinesses,
@@ -147,5 +238,13 @@ async function computeAnalytics() {
     planDistribution,
     mrrTrend,
     recentSignups,
+    clickPesaRevenueThisMonth,
+    clickPesaRevenueAllTime,
+    clickPesaRevenueTrend,
+    clickPesaRevenueByTier,
+    clickPesaSuccessCount,
+    clickPesaFailedCount,
+    clickPesaPendingCount,
+    recentClickPesaPayments,
   }
 }

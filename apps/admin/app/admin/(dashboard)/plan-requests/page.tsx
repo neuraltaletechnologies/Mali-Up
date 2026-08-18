@@ -16,7 +16,7 @@ import { formatDate, formatTZS, calculateRefund } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
   Check, X, AlertCircle, ChevronRight, ChevronDown, ChevronUp, Building2, Phone,
-  Briefcase, Receipt, Rocket, DollarSign,
+  Briefcase, Rocket, DollarSign,
 } from 'lucide-react'
 
 function initialTab(): 'requests' | 'refunds' {
@@ -40,18 +40,6 @@ function StatusBadge({ status }: { status: PlanRequest['status'] }) {
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cfg[status] ?? cfg.pending}`}>
       {label[status] ?? status}
-    </span>
-  )
-}
-
-function TypeBadge({ type }: { type: PlanRequest['type'] }) {
-  return type === 'enterprise_inquiry' ? (
-    <span className="inline-flex items-center gap-1 text-[11px] text-purple-600">
-      <Briefcase className="h-3 w-3" />Enterprise
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-[11px] text-blue-600">
-      <Receipt className="h-3 w-3" />Payment
     </span>
   )
 }
@@ -103,12 +91,9 @@ function RequestDetailDrawer({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--line)] px-6 py-4">
           <div className="flex items-center gap-2">
-            {request.type === 'enterprise_inquiry'
-              ? <Briefcase className="h-4 w-4 text-[var(--ink-muted)]" />
-              : <Receipt className="h-4 w-4 text-[var(--ink-muted)]" />
-            }
+            <Briefcase className="h-4 w-4 text-[var(--ink-muted)]" />
             <span className="font-semibold text-[var(--ink)] text-[15px]">
-              {request.type === 'enterprise_inquiry' ? 'Enterprise Inquiry' : 'Payment Confirmation'}
+              Enterprise Inquiry
             </span>
           </div>
           <button onClick={onClose} className="rounded p-1 hover:bg-[var(--surface-hover)] transition-colors">
@@ -143,12 +128,6 @@ function RequestDetailDrawer({
                 <>
                   <div className="text-[var(--ink-muted)]">Resolved</div>
                   <div className="text-[var(--ink)]">{formatDate(request.resolvedAt)}</div>
-                </>
-              )}
-              {request.paymentRef && (
-                <>
-                  <div className="text-[var(--ink-muted)]">Payment ref</div>
-                  <div className="font-mono text-[10px] text-blue-600">{request.paymentRef}</div>
                 </>
               )}
               <div className="text-[var(--ink-muted)]">UID</div>
@@ -287,11 +266,6 @@ function RequestsTab() {
 
   const columns: ColumnDef<PlanRequest, unknown>[] = [
     {
-      id: 'type',
-      header: 'Type',
-      cell: ({ row }) => <TypeBadge type={row.original.type} />,
-    },
-    {
       accessorKey: 'name',
       header: 'Requester',
       cell: ({ row }) => (
@@ -312,13 +286,6 @@ function RequestsTab() {
       accessorKey: 'requestedTier',
       header: 'Plan',
       cell: ({ row }) => <PlanBadge tier={row.original.requestedTier} />,
-    },
-    {
-      accessorKey: 'paymentRef',
-      header: 'Payment Ref',
-      cell: ({ row }) => row.original.paymentRef
-        ? <span className="font-mono text-[10px] text-blue-600">{row.original.paymentRef}</span>
-        : <span className="text-[var(--ink-faint)]">—</span>,
     },
     {
       accessorKey: 'createdAt',
@@ -392,7 +359,7 @@ function RequestsTab() {
               <p className="text-[var(--ink-muted)] text-[13px]">No {statusFilter} requests</p>
               <p className="text-[var(--ink-faint)] text-[12px] mt-1">
                 {statusFilter === 'pending'
-                  ? 'Enterprise inquiries and payment confirmations from the mobile app will appear here'
+                  ? 'Enterprise inquiries from the mobile app will appear here'
                   : `No requests with status "${statusFilter}"`}
               </p>
             </div>
@@ -629,12 +596,12 @@ export default function RequestsPage() {
     <div>
       <PageHeader
         title="Requests"
-        description={tab === 'requests' ? 'Enterprise inquiries and payment confirmations' : 'Lifetime subscription refund queue'}
+        description={tab === 'requests' ? 'Enterprise inquiries' : 'Lifetime subscription refund queue'}
       />
 
       <Tabs
         tabs={[
-          { id: 'requests', label: 'Plan Requests' },
+          { id: 'requests', label: 'Enterprise Inquiries' },
           { id: 'refunds', label: 'Refunds' },
         ]}
         active={tab}
