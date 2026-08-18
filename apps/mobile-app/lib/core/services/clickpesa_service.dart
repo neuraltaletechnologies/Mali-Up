@@ -69,21 +69,47 @@ class ClickPesaService {
   /// [maxAttempts] is reached — i.e. while the user is entering their PIN on
   /// the USSD prompt. Returns the completed result; throws on failure or
   /// timeout.
+  ///
+  /// [maxAttempts] x [interval] is the hard timer on how long this will
+  /// wait — 40 x 3s = 2 minutes by default — after which it throws rather
+  /// than polling forever. Pass [isCancelled] so the caller can stop the
+  /// polling immediately (e.g. the UI showing progress was dismissed)
+  /// instead of continuing to call the server in the background until that
+  /// timer runs out; a cancelled wait throws [ClickPesaCancelledException]
+  /// rather than a generic failure, so callers can tell the two apart.
   static Future<ClickPesaVerifyResult> waitForPayment({
     required String orderReference,
     int maxAttempts = 40,
     Duration interval = const Duration(seconds: 3),
+    bool Function()? isCancelled,
   }) async {
     for (int i = 0; i < maxAttempts; i++) {
+      if (isCancelled?.call() ?? false) {
+        throw const ClickPesaCancelledException();
+      }
       final result = await verifyPayment(orderReference);
       if (result.status == ClickPesaStatus.completed) return result;
       if (result.status == ClickPesaStatus.failed) {
         throw Exception('Payment failed');
       }
+      if (isCancelled?.call() ?? false) {
+        throw const ClickPesaCancelledException();
+      }
       await Future.delayed(interval);
     }
     throw Exception('Payment verification timeout');
   }
+}
+
+/// Thrown by [ClickPesaService.waitForPayment] when its `isCancelled`
+/// callback reports true — e.g. the screen showing payment progress was
+/// dismissed while still waiting. Distinct from a real payment failure so
+/// callers can stay silent instead of surfacing an error message for
+/// something the user chose to walk away from.
+class ClickPesaCancelledException implements Exception {
+  const ClickPesaCancelledException();
+  @override
+  String toString() => 'ClickPesaCancelledException: payment wait cancelled';
 }
 
 enum ClickPesaStatus { completed, pending, failed }

@@ -21,6 +21,8 @@
 // loop and the jump into the success section are handled, and why a
 // perfectly seamless loop-to-success transition isn't possible with this
 // particular file.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -93,9 +95,21 @@ class PaymentPosAnimationController extends ChangeNotifier {
 
   bool get isReady => _composition != null;
 
+  // `Lottie.asset` parses the JSON and calls attachComposition
+  // asynchronously via its onLoaded callback, which lands after this
+  // controller's widget first builds. Without this, a startPayment() call
+  // made right when the widget mounts (the normal case: it's created the
+  // moment a payment begins) would see isReady == false and silently
+  // no-op — the bug where neither the card nor the waiting rotation ever
+  // appeared. startPayment() now awaits this instead of bailing out.
+  final Completer<void> _readyCompleter = Completer<void>();
+
   void attachComposition(LottieComposition composition) {
     _composition = composition;
     _controller.duration = composition.duration;
+    if (!_readyCompleter.isCompleted) {
+      _readyCompleter.complete();
+    }
   }
 
   double _progressOf(int frame) {
@@ -119,8 +133,11 @@ class PaymentPosAnimationController extends ChangeNotifier {
   /// 1. Payment starts: play the card-enters-POS intro once, then move
   /// straight into the indefinitely-looping waiting state.
   Future<void> startPayment() async {
-    if (!isReady) return;
     final session = ++_sessionId;
+    if (!isReady) {
+      await _readyCompleter.future;
+      if (session != _sessionId) return; // superseded while we waited
+    }
     _status = PaymentAnimStatus.intro;
     notifyListeners();
 

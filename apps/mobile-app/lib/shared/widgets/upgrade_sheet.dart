@@ -88,13 +88,22 @@ extension PlanFeatureKeyX on PlanFeatureKey {
 
 /// Shows the upgrade / paywall bottom sheet.
 /// Returns the selected [PlanTier] if the user proceeds to payment, or null.
+///
+/// This is two separate bottom sheets chained together, not one: the plan
+/// picker + phone-number form pops with a [_PaymentHandoff] once the user
+/// submits a number, and only then does a second, independent sheet
+/// ([_ClickPesaPaymentSheet]) open to run the actual ClickPesa request and
+/// show its POS animation. Keeping them separate means the payment sheet's
+/// AnimationController/Lottie composition is created fresh for that one
+/// request instead of living inside (and being torn down by) the plan
+/// sheet's own rebuilds.
 Future<PlanTier?> showUpgradeSheet(
   BuildContext context, {
   PlanStatus? currentStatus,
   String? triggerReason,
   PlanFeatureKey? featureKey,
-}) {
-  return showAppSheet<PlanTier>(
+}) async {
+  final result = await showAppSheet<Object>(
     context,
     builder: (_) => _UpgradeSheetWrapper(
       currentStatus: currentStatus,
@@ -102,6 +111,35 @@ Future<PlanTier?> showUpgradeSheet(
       featureKey: featureKey,
     ),
   );
+  if (result is! _PaymentHandoff) {
+    return result as PlanTier?;
+  }
+  if (!context.mounted) return null;
+  return showAppSheet<PlanTier>(
+    context,
+    builder: (_) => _ClickPesaPaymentSheet(
+      tier: result.tier,
+      phoneNumber: result.phoneNumber,
+      priceCycle: result.priceCycle,
+      cycleMonths: result.cycleMonths,
+    ),
+  );
+}
+
+/// Carries the plan + phone number chosen in the first sheet across to the
+/// second, payment-processing sheet. See [showUpgradeSheet].
+class _PaymentHandoff {
+  final PlanTier tier;
+  final String phoneNumber;
+  final int priceCycle;
+  final int cycleMonths;
+
+  const _PaymentHandoff({
+    required this.tier,
+    required this.phoneNumber,
+    required this.priceCycle,
+    required this.cycleMonths,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,30 +346,11 @@ class _UpgradeSheet extends StatefulWidget {
   State<_UpgradeSheet> createState() => _UpgradeSheetState();
 }
 
-class _UpgradeSheetState extends State<_UpgradeSheet>
-    with SingleTickerProviderStateMixin {
+class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
-  bool _paymentSubmitted = false;
-  bool _paymentFailed = false;
-  bool _processingClickPesa = false;
-  String _orderReference = '';
   String? _prefillPhone;
-  String? _failureMessage;
-
-  // Owned here (not by the processing/success card) so the card + POS
-  // animation stays a single mounted widget across the processing ->
-  // success transition instead of unmounting and re-loading the Lottie
-  // composition when the state flips.
-  late final PaymentPosAnimationController _paymentAnim =
-      PaymentPosAnimationController(vsync: this);
-
-  @override
-  void dispose() {
-    _paymentAnim.dispose();
-    super.dispose();
-  }
 
   bool get _isMultiBusiness =>
       widget.featureKey == PlanFeatureKey.multiBusiness;
@@ -382,81 +401,23 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle => _selLimits.pricePerCycle;
 
+  /// The phone form only collects a number here — actually sending the USSD
+  /// push and watching for confirmation happens in a separate sheet (see
+  /// [_ClickPesaPaymentSheet]) so that sheet's Lottie animation isn't torn
+  /// down and rebuilt every time this plan-selection sheet's own state
+  /// changes. Popping with a [_PaymentHandoff] tells [showUpgradeSheet] to
+  /// open that second sheet next.
   Future<void> _sendPaymentRequest(String phoneNumber) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-
-    setState(() {
-      _showPhoneConfirm = false;
-      _paymentFailed = false;
-      _processingClickPesa = true;
-      _prefillPhone = phoneNumber;
-    });
-
-    // Reset in case this is a retry after a previous failure (the
-    // controller would otherwise still be sitting frozen mid wait-loop),
-    // then play the card-into-POS intro and settle into the indefinitely
-    // looping waiting animation — driven by this real request, not a timer.
-    _paymentAnim.reset();
-    unawaited(_paymentAnim.startPayment());
-
-    try {
-      // Push a USSD payment prompt to the user's phone. The amount is
-      // decided server-side (from the admin-configured price), not by the
-      // client — see functions/src/clickpesa.ts.
-      final initiated = await ClickPesaService.initiatePayment(
+    Navigator.pop(
+      context,
+      _PaymentHandoff(
         tier: _selected,
         phoneNumber: phoneNumber,
-      );
-      _orderReference = initiated.orderReference;
-
-      if (!mounted) return;
-
-      // Poll the server while the user confirms the PIN prompt on their
-      // phone. Plan activation happens server-side the moment this reports
-      // "completed" — there is nothing left for the client to write.
-      await ClickPesaService.waitForPayment(orderReference: initiated.orderReference);
-
-      if (!mounted) return;
-
-      setState(() {
-        _processingClickPesa = false;
-        _paymentSubmitted = true;
-      });
-      unawaited(_paymentAnim.setSuccess());
-    } catch (e) {
-      debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
-      if (!mounted) return;
-      // Freezes wherever the wait loop currently is — the green checkmark
-      // frames are never reached on failure.
-      _paymentAnim.setFailed();
-      setState(() {
-        _processingClickPesa = false;
-        _paymentFailed = true;
-        _failureMessage = _friendlyFailureMessage(e);
-      });
-    }
-  }
-
-  /// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
-  /// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
-  /// actually act on instead of the raw error string.
-  String _friendlyFailureMessage(Object e) {
-    final raw = e.toString();
-    if (raw.contains('Payment verification timeout')) {
-      return _t(
-        "We didn't get a confirmation in time. If you entered your PIN, "
-            'check your balance before retrying — you may already have been '
-            'charged.',
-        'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
-            'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
-      );
-    }
-    return _t(
-      'The payment was declined or not completed on your phone. No charge '
-          'was made — you can try again.',
-      'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
-          'unaweza kujaribu tena.',
+        priceCycle: _priceCycle,
+        cycleMonths: _selLimits.cycleMonths,
+      ),
     );
   }
 
@@ -548,35 +509,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
               const SizedBox(height: 16),
 
               // ── CTA / Payment / Enterprise request ───────────────────────
-              // Processing and success share one card so the POS Lottie
-              // animation (and its AnimationController) never unmounts
-              // between "waiting" and "success" — only the text/buttons
-              // below it swap. This also means an in-flight ClickPesa
-              // request can no longer be silently abandoned by tapping the
-              // Enterprise card underneath it.
-              if (_paymentSubmitted || _processingClickPesa) ...[
-                _ClickPesaPaymentCard(
-                  animController: _paymentAnim,
-                  succeeded: _paymentSubmitted,
-                  tier: _selected,
-                  priceCycle: _priceCycle,
-                  cycleMonths: _selLimits.cycleMonths,
-                  paymentRef: _orderReference,
-                  onDone: () => Navigator.pop(context, _selected),
-                ),
-              ] else if (_showEnterprise) ...[
+              if (_showEnterprise) ...[
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
-                ),
-              ] else if (_paymentFailed) ...[
-                _PaymentFailedCard(
-                  message: _failureMessage ??
-                      _t('Something went wrong.', 'Hitilafu imetokea.'),
-                  onRetry: () => setState(() {
-                    _paymentFailed = false;
-                    _showPhoneConfirm = true;
-                  }),
-                  onCancel: () => setState(() => _paymentFailed = false),
                 ),
               ] else if (_showPhoneConfirm) ...[
                 _PhonePaymentForm(
@@ -1490,6 +1425,180 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
       ],
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClickPesa payment sheet — its own bottom sheet (see showUpgradeSheet), so
+// its AnimationController/Lottie composition has a clean lifecycle: created
+// when this sheet opens, torn down when it closes, never shared with the
+// plan-picker sheet underneath it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ClickPesaPaymentSheet extends StatefulWidget {
+  final PlanTier tier;
+  final String phoneNumber;
+  final int priceCycle;
+  final int cycleMonths;
+
+  const _ClickPesaPaymentSheet({
+    required this.tier,
+    required this.phoneNumber,
+    required this.priceCycle,
+    required this.cycleMonths,
+  });
+
+  @override
+  State<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
+}
+
+class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
+    with SingleTickerProviderStateMixin {
+  late final PaymentPosAnimationController _paymentAnim =
+      PaymentPosAnimationController(vsync: this);
+
+  bool _succeeded = false;
+  bool _failed = false;
+  String _orderReference = '';
+  String? _failureMessage;
+
+  // Flipped in dispose() so an in-flight ClickPesaService.waitForPayment
+  // poll loop notices (via isCancelled) and stops calling the server the
+  // moment this sheet is closed, instead of continuing to fire requests in
+  // the background for up to its full timeout.
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_runPayment());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _paymentAnim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runPayment() async {
+    if (!mounted) return;
+    setState(() {
+      _failed = false;
+      _failureMessage = null;
+    });
+    // Reset in case this is a retry after a previous failure (the
+    // controller would otherwise still be sitting frozen mid wait-loop),
+    // then play the card-into-POS intro and settle into the indefinitely
+    // looping waiting animation — driven by this real request, not a timer.
+    _paymentAnim.reset();
+    unawaited(_paymentAnim.startPayment());
+
+    try {
+      // Push a USSD payment prompt to the user's phone. The amount is
+      // decided server-side (from the admin-configured price), not by the
+      // client — see functions/src/clickpesa.ts.
+      final initiated = await ClickPesaService.initiatePayment(
+        tier: widget.tier,
+        phoneNumber: widget.phoneNumber,
+      );
+      if (_disposed) return;
+      _orderReference = initiated.orderReference;
+
+      // Poll the server while the user confirms the PIN prompt on their
+      // phone. Plan activation happens server-side the moment this reports
+      // "completed" — there is nothing left for the client to write. This
+      // is capped at 40 attempts x 3s (2 minutes total) inside
+      // waitForPayment, and stops polling immediately — rather than
+      // continuing in the background up to that cap — if this sheet is
+      // dismissed before then, via isCancelled.
+      await ClickPesaService.waitForPayment(
+        orderReference: initiated.orderReference,
+        isCancelled: () => _disposed,
+      );
+      if (_disposed || !mounted) return;
+
+      setState(() => _succeeded = true);
+      unawaited(_paymentAnim.setSuccess());
+    } on ClickPesaCancelledException {
+      // The sheet was dismissed mid-poll — nothing to show, nothing to log.
+    } catch (e) {
+      if (_disposed) return;
+      debugPrint('[ClickPesaPaymentSheet] payment error: $e');
+      // Freezes wherever the wait loop currently is — the green checkmark
+      // frames are never reached on failure.
+      _paymentAnim.setFailed();
+      if (!mounted) return;
+      setState(() {
+        _failed = true;
+        _failureMessage = _friendlyClickPesaFailureMessage(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              const SizedBox(height: 14),
+              if (_failed)
+                _PaymentFailedCard(
+                  message: _failureMessage ??
+                      _t('Something went wrong.', 'Hitilafu imetokea.'),
+                  onRetry: () => unawaited(_runPayment()),
+                  onCancel: () => Navigator.pop(context),
+                )
+              else
+                _ClickPesaPaymentCard(
+                  animController: _paymentAnim,
+                  succeeded: _succeeded,
+                  tier: widget.tier,
+                  priceCycle: widget.priceCycle,
+                  cycleMonths: widget.cycleMonths,
+                  paymentRef: _orderReference,
+                  onDone: () => Navigator.pop(context, widget.tier),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
+/// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
+/// actually act on instead of the raw error string.
+String _friendlyClickPesaFailureMessage(Object e) {
+  final raw = e.toString();
+  if (raw.contains('Payment verification timeout')) {
+    return _t(
+      "We didn't get a confirmation in time. If you entered your PIN, "
+          'check your balance before retrying — you may already have been '
+          'charged.',
+      'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
+          'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
+    );
+  }
+  return _t(
+    'The payment was declined or not completed on your phone. No charge '
+        'was made — you can try again.',
+    'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
+        'unaweza kujaribu tena.',
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
