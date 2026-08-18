@@ -91,10 +91,16 @@ async function getClickPesaToken(): Promise<string> {
   if (!data.token) {
     throw new HttpsError("internal", "Payment provider returned no token.");
   }
+  // ClickPesa's response already includes the "Bearer " prefix in the token
+  // string itself (e.g. `"token": "Bearer eyJhbGc..."`) — strip it here so
+  // every caller can uniformly do `Authorization: Bearer ${token}` without
+  // ending up with a malformed doubled-up "Bearer Bearer ..." header (which
+  // ClickPesa's API silently rejects with a 401, not a helpful error).
+  const rawToken = data.token.replace(/^Bearer\s+/i, "");
   // Refresh a few minutes early so a call never lands right at the edge of
   // expiry.
-  cachedToken = {token: data.token, expiresAt: now + 50 * 60 * 1000};
-  return data.token;
+  cachedToken = {token: rawToken, expiresAt: now + 50 * 60 * 1000};
+  return rawToken;
 }
 
 /** Recursively sorts object keys — required before hashing, per ClickPesa's
