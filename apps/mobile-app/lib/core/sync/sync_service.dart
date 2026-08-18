@@ -52,6 +52,14 @@ class SyncService extends ChangeNotifier {
   final String businessId;
   final OfflinePolicyNotifier? offlinePolicy;
 
+  /// Non-null when the signed-in user is a team member with `DataScope.own`
+  /// (see team_member.dart) — their own Firebase Auth UID. Pulls for
+  /// sales/expenses/inventory are then filtered to only the records they
+  /// created (or, for inventory, are assigned to), matching what
+  /// firestore.rules actually grants them read access to. Null pulls
+  /// everything the account has permission to see, as before.
+  final String? scopeReadsToUid;
+
   late final SyncQueueDao _queue;
   late final SettingsDao _settings;
   late final ConflictResolver _conflicts;
@@ -89,6 +97,7 @@ class SyncService extends ChangeNotifier {
     required this.uid,
     required this.businessId,
     this.offlinePolicy,
+    this.scopeReadsToUid,
   }) {
     _queue = db.syncQueueDao;
     _settings = db.settingsDao;
@@ -556,7 +565,10 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<int?> _pullInvoices(int sinceMs) async {
-    final updates = await _remoteInvoice.fetchUpdatedSince(sinceMs);
+    final updates = await _remoteInvoice.fetchUpdatedSince(
+      sinceMs,
+      scopeToUid: scopeReadsToUid,
+    );
     var maxTs = 0;
     for (final update in updates) {
       final serverTs = _extractTimestampMs(update.data['updatedAt']);
@@ -606,7 +618,10 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<int?> _pullExpenses(int sinceMs) async {
-    final updates = await _remoteExpense.fetchUpdatedSince(sinceMs);
+    final updates = await _remoteExpense.fetchUpdatedSince(
+      sinceMs,
+      scopeToUid: scopeReadsToUid,
+    );
     var maxTs = 0;
     for (final update in updates) {
       final serverTs = _extractTimestampMs(update.data['updatedAt']);
@@ -633,7 +648,10 @@ class SyncService extends ChangeNotifier {
     // pending delta (same guard as customers/cash accounts).
     if (await _queue.hasPendingForType('inventory_item')) return null;
 
-    final updates = await _remoteInventory.fetchUpdatedSince(sinceMs);
+    final updates = await _remoteInventory.fetchUpdatedSince(
+      sinceMs,
+      scopeToDriverUid: scopeReadsToUid,
+    );
     var maxTs = 0;
     for (final update in updates) {
       final serverTs = _extractTimestampMs(update.data['updatedAt']);

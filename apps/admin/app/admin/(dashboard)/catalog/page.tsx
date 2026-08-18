@@ -197,9 +197,15 @@ export default function CatalogPage() {
   // Review: surface products whose business types don't overlap their own category's
   const [showMismatchesOnly, setShowMismatchesOnly] = useState(false)
 
+  // Always fetch the full, unscoped catalog. Business-type filtering for the
+  // table view (`selectedType`) is applied client-side below via
+  // visibleCats/visibleProds — scoping the fetch itself used to mean the Add
+  // Product drawer's category dropdown only ever saw categories matching
+  // whatever type happened to be selected in the page-level filter, leaving
+  // it empty for any other business type the admin picked on the form.
   const { data, loading, revalidating, error, refetch } = useAdminFetch(
-    useCallback(() => fetchCatalog(selectedType || undefined), [selectedType]),
-    { key: `catalog-${selectedType || 'all'}` },
+    useCallback(() => fetchCatalog(), []),
+    { key: 'catalog-all' },
   )
 
   const categories     = data?.categories ?? []
@@ -359,6 +365,25 @@ export default function CatalogPage() {
       ...f,
       tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
     }))
+  }
+
+  // Lets the admin create the category a product needs without leaving the
+  // Add/Edit Product drawer. New category is scoped to whatever business
+  // types are already picked on the product form and is selected immediately.
+  async function handleInlineAddCategory(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || productForm.businessTypes.length === 0) return
+    const categorySlug = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    await postCatalogCategory({
+      categoryName:   trimmed,
+      categoryNameSw: '',
+      categorySlug,
+      icon:           'inventory_2',
+      displayOrder:   999,
+      businessTypes:  productForm.businessTypes,
+    })
+    await refetch()
+    setProductForm((f) => ({ ...f, categorySlug }))
   }
 
   // ── Column defs ───────────────────────────────────────────────────────────────
@@ -767,6 +792,7 @@ export default function CatalogPage() {
           onCancel={() => { setShowAddProduct(false); setProductForm(EMPTY_PRODUCT) }}
           submitLabel="Add Product"
           toggleTag={toggleTag}
+          onAddCategory={handleInlineAddCategory}
         />
       </DetailDrawer>
 
@@ -789,6 +815,7 @@ export default function CatalogPage() {
           onCancel={() => { setEditProduct(null); setProductForm(EMPTY_PRODUCT) }}
           submitLabel="Save Changes"
           toggleTag={toggleTag}
+          onAddCategory={handleInlineAddCategory}
         />
       </DetailDrawer>
 
@@ -973,7 +1000,7 @@ function CategoryForm({
 
 function ProductForm({
   form, setForm, allTypes, formCats, saving, formError,
-  onSubmit, onCancel, submitLabel, toggleTag,
+  onSubmit, onCancel, submitLabel, toggleTag, onAddCategory,
 }: {
   form: ProductForm
   setForm: React.Dispatch<React.SetStateAction<ProductForm>>
@@ -985,7 +1012,28 @@ function ProductForm({
   onCancel: () => void
   submitLabel: string
   toggleTag: (tag: string) => void
+  onAddCategory: (name: string) => Promise<void>
 }) {
+  const [showAddCat, setShowAddCat] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [addCatSaving, setAddCatSaving] = useState(false)
+  const [addCatError, setAddCatError] = useState('')
+
+  async function handleAddCat() {
+    if (!newCatName.trim()) return
+    setAddCatSaving(true)
+    setAddCatError('')
+    try {
+      await onAddCategory(newCatName)
+      setNewCatName('')
+      setShowAddCat(false)
+    } catch (err) {
+      setAddCatError((err as Error).message ?? 'Could not add category')
+    } finally {
+      setAddCatSaving(false)
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
       {formError && (
@@ -1037,8 +1085,44 @@ function ProductForm({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>Category</label>
-            {formCats.length > 0 ? (
+            <div className="flex items-center justify-between">
+              <label className={labelCls}>Category</label>
+              <button
+                type="button"
+                disabled={form.businessTypes.length === 0}
+                onClick={() => { setShowAddCat((v) => !v); setAddCatError('') }}
+                className="text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-40 disabled:no-underline"
+              >
+                {showAddCat ? 'Cancel' : '+ New category'}
+              </button>
+            </div>
+
+            {showAddCat ? (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="e.g. Painkillers & Antipyretics"
+                    className={inputCls}
+                  />
+                  <button
+                    type="button"
+                    disabled={addCatSaving || !newCatName.trim()}
+                    onClick={handleAddCat}
+                    style={{ backgroundColor: '#0D1B3E' }}
+                    className="shrink-0 rounded-md px-3 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {addCatSaving ? 'Adding…' : 'Add'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-[var(--ink-faint)]">
+                  Creates a master category under: {form.businessTypes.join(', ')}
+                </p>
+                {addCatError && <p className="text-[11px] text-[var(--status-bad)]">{addCatError}</p>}
+              </div>
+            ) : formCats.length > 0 ? (
               <select value={form.categorySlug}
                 onChange={(e) => setForm((f) => ({ ...f, categorySlug: e.target.value }))}
                 className={selectCls}>
@@ -1052,7 +1136,7 @@ function ProductForm({
             ) : (
               <input value={form.categorySlug}
                 onChange={(e) => setForm((f) => ({ ...f, categorySlug: e.target.value }))}
-                placeholder={form.businessTypes.length > 0 ? 'Category slug' : 'Select type(s) first'}
+                placeholder={form.businessTypes.length > 0 ? 'No categories yet for this type — type a slug, or add one above' : 'Select type(s) first'}
                 disabled={form.businessTypes.length === 0} className={inputCls} />
             )}
           </div>

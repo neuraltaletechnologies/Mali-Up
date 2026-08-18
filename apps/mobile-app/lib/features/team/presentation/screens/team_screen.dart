@@ -1038,6 +1038,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
   TeamRole _selectedRole = TeamRole.cashier;
   Set<AppPermission> _customPerms = {};
+  bool _ownRecordsOnly = false;
   bool _isSaving = false;
 
   late final AnimationController _animCtrl;
@@ -1071,6 +1072,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       _selectedRole = r;
       if (r != TeamRole.custom) {
         _customPerms = Set.of(defaultPermissionsFor(r));
+        _ownRecordsOnly = false;
       }
     });
   }
@@ -1138,6 +1140,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           'invitedBy': user.uid,
           if (_notesCtrl.text.trim().isNotEmpty)
             'notes': _notesCtrl.text.trim(),
+          'dataScope':
+              (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+                  ? DataScope.own.name
+                  : DataScope.all.name,
         },
       );
 
@@ -1185,6 +1191,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           notes: _notesCtrl.text.trim().isNotEmpty
               ? _notesCtrl.text.trim()
               : null,
+          dataScope: (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+              ? DataScope.own
+              : DataScope.all,
         );
         await db.teamDao.upsert(
           TeamMemberMapper.toCompanion(
@@ -1393,6 +1402,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                   setState(() => _customPerms = p),
                             ),
                             const SizedBox(height: 16),
+                            _OwnRecordsOnlyToggle(
+                              value: _ownRecordsOnly,
+                              onChanged: (v) =>
+                                  setState(() => _ownRecordsOnly = v),
+                            ),
+                            const SizedBox(height: 16),
                           ] else ...[
                             _PermissionSummary(role: _selectedRole),
                             const SizedBox(height: 16),
@@ -1477,6 +1492,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
   TeamRole _pendingRole = TeamRole.cashier;
   Set<AppPermission> _pendingPerms = {};
+  DataScope _pendingDataScope = DataScope.all;
 
   @override
   void initState() {
@@ -1484,6 +1500,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     _member = widget.member;
     _pendingRole = _member.role;
     _pendingPerms = Set.of(_member.customPermissions);
+    _pendingDataScope = _member.dataScope;
   }
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
@@ -1568,6 +1585,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
               ? TeamRole.fromString(data['role'] as String)
               : null,
           status: data['status'] as String?,
+          dataScope: data.containsKey('dataScope')
+              ? DataScope.fromString(data['dataScope'] as String)
+              : null,
         );
         _isSaving = false;
         _editingRole = false;
@@ -1753,6 +1773,13 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                             onChanged: (p) =>
                                 setState(() => _pendingPerms = p),
                           ),
+                          const SizedBox(height: 8),
+                          _OwnRecordsOnlyToggle(
+                            value: _pendingDataScope == DataScope.own,
+                            onChanged: (v) => setState(() =>
+                                _pendingDataScope =
+                                    v ? DataScope.own : DataScope.all),
+                          ),
                         ],
                         const SizedBox(height: 8),
                         SizedBox(
@@ -1765,11 +1792,19 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                                         ? _pendingPerms
                                         : defaultPermissionsFor(_pendingRole);
                                     final permNames = effectivePerms.map((p) => p.name).toList();
+                                    // Non-custom roles always carry their view-all
+                                    // permission alongside create/manage (see
+                                    // _roleDefaults), so 'own' scoping only makes
+                                    // sense for custom roles — reset otherwise.
+                                    final scope = _pendingRole == TeamRole.custom
+                                        ? _pendingDataScope
+                                        : DataScope.all;
                                     _updateMember({
                                       'role': _pendingRole.name,
                                       'customPermissions': permNames,
                                       // Keep flat list in sync for isStaffWithAny() rules.
                                       'permissions': permNames,
+                                      'dataScope': scope.name,
                                     });
                                   },
                             style: ElevatedButton.styleFrom(
@@ -2006,6 +2041,71 @@ class _RoleCard extends StatelessWidget {
 }
 
 // ── Permission editor (custom role) ───────────────────────────────────────────
+
+// Restricts a custom-role member to only the records they created (sales,
+// expenses) or are assigned to (inventory) instead of everything in the
+// business — e.g. a driver who should see only their own vehicle's
+// collections. See DataScope in team_member.dart and firestore.rules.
+class _OwnRecordsOnlyToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _OwnRecordsOnlyToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.visibility_outlined,
+              size: 20, color: AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Own records only', 'Rekodi zake tu'),
+                  style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _tr(
+                    'Sees only sales/expenses they created and inventory '
+                    'assigned to them — not the rest of the business.',
+                    'Ataona mauzo/matumizi aliyoingiza na bidhaa '
+                    'alizopangiwa tu — si biashara nzima.',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PermissionEditor extends StatelessWidget {
   final Set<AppPermission> perms;

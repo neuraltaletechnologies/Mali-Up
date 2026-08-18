@@ -8,6 +8,11 @@ class BusinessProductConfig {
   final bool showWarrantyPeriod;
   final bool showBrand;
   final bool showStock;
+  // 'stock' | 'service' | 'manufactured' — which product-type pill the Add
+  // Product form pre-selects for a brand-new item. Matches ProductType.name
+  // in inventory_screen.dart (kept as a string here to avoid pulling a
+  // presentation-layer enum into this domain model).
+  final String defaultProductType;
 
   const BusinessProductConfig({
     this.showCategory = true,
@@ -17,6 +22,7 @@ class BusinessProductConfig {
     this.showWarrantyPeriod = false,
     this.showBrand = false,
     this.showStock = true,
+    this.defaultProductType = 'stock',
   });
 
   static BusinessProductConfig forBusinessType(String businessType) {
@@ -51,6 +57,18 @@ class BusinessProductConfig {
 
       case 'agriculture':
         return const BusinessProductConfig(showExpiryDate: true);
+
+      // Service-first verticals: most items added are billed services
+      // (a haircut, a consulting hour), not physical stock. 'service' is
+      // the generic bucket _normalizeBusinessType() folds cleaning,
+      // security, education, travel, ICT, financial services, etc. into —
+      // see category_providers.dart. Deliberately NOT 'transport': that
+      // bucket also holds Automotive & Spare Parts / Fuel & Lubricants,
+      // which sell physical goods, so defaulting it to Service would be
+      // wrong for those.
+      case 'salon':
+      case 'service':
+        return const BusinessProductConfig(defaultProductType: 'service');
 
       default:
         return const BusinessProductConfig();

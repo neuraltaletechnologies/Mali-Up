@@ -8,12 +8,15 @@ import '../../team/domain/models/team_member.dart';
 class PermissionService {
   final Set<AppPermission> _permissions;
   final bool _isOwner;
+  final DataScope _dataScope;
 
   const PermissionService._({
     required Set<AppPermission> permissions,
     required bool isOwner,
+    DataScope dataScope = DataScope.all,
   })  : _permissions = permissions,
-        _isOwner = isOwner;
+        _isOwner = isOwner,
+        _dataScope = dataScope;
 
   /// Full access — the authenticated user is a business owner.
   factory PermissionService.owner() => const PermissionService._(
@@ -22,10 +25,14 @@ class PermissionService {
       );
 
   /// Permission set derived from a team member's role / custom permissions.
-  factory PermissionService.forMember(Set<AppPermission> permissions) =>
+  factory PermissionService.forMember(
+    Set<AppPermission> permissions, {
+    DataScope dataScope = DataScope.all,
+  }) =>
       PermissionService._(
         permissions: permissions,
         isOwner: false,
+        dataScope: dataScope,
       );
 
   /// No access — used while permissions are loading or the user is suspended.
@@ -38,6 +45,11 @@ class PermissionService {
 
   bool get isOwner => _isOwner;
   bool get isTeamMember => !_isOwner;
+
+  /// True when this member is restricted to only their own records
+  /// (sales/expenses they created, inventory assigned to them) rather than
+  /// everything in the business. Always false for owners.
+  bool get isOwnRecordsOnly => !_isOwner && _dataScope == DataScope.own;
 
   // ── Core check ────────────────────────────────────────────────────────────
 

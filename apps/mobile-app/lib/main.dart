@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
+import 'package:mali_up/core/services/app_rating_service.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
 import 'package:mali_up/core/services/notification_service.dart';
@@ -73,6 +74,8 @@ Future<void> _startApp() async {
   // Fire-and-forget: checks this build against the remote version gate.
   // Never awaited — must not delay startup, and fails open on any error.
   unawaited(VersionGateService.initialize());
+  // Seeds the install date used to gate the "rate us" prompt.
+  unawaited(AppRatingService.recordFirstLaunchIfNeeded());
 
   final prefs = await prefsFuture;
   await Future.wait([

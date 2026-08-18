@@ -19,6 +19,8 @@ class TeamMembersTable extends Table {
   TextColumn get invitedBy => text().withDefault(const Constant(''))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   TextColumn get userId => text().withDefault(const Constant(''))();
+  // 'all' (default) or 'own' — see DataScope in team_member.dart.
+  TextColumn get dataScope => text().withDefault(const Constant('all'))();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
