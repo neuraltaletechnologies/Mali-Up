@@ -3170,6 +3170,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   String _unit = 'pcs';
   bool _saving = false;
+  // Tracks whether the user has manually picked a type pill, so the
+  // business-type default (below) never overrides a deliberate choice.
+  bool _typeUserSet = false;
+  // Guards the business-type default so it applies once, the moment the
+  // business type resolves — not on every rebuild.
+  bool _defaultTypeApplied = false;
   InventoryItem?
   _restockTarget; // non-null = form is in restock mode for this product
 
@@ -4138,6 +4144,27 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final allInventory =
         ref.watch(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
 
+    // Business-type default: the first time the business type resolves for
+    // a brand-new (not edit, not restock) item, pre-select Service instead
+    // of Stock for service-first verticals (salon, cleaning, security,
+    // etc. — see BusinessProductConfig.forBusinessType). Never overrides a
+    // type the user already picked themselves.
+    ref.listen<AsyncValue<String>>(currentBusinessTypeProvider, (_, next) {
+      if (_defaultTypeApplied || _typeUserSet) return;
+      if (_isEdit || _restockTarget != null) return;
+      final resolved = next.valueOrNull;
+      if (resolved == null || resolved.isEmpty) return;
+      _defaultTypeApplied = true;
+      final defaultConfig = BusinessProductConfig.forBusinessType(resolved);
+      if (defaultConfig.defaultProductType == 'service' &&
+          _type != ProductType.service) {
+        setState(() {
+          _type = ProductType.service;
+          if (_unit == 'pcs') _unit = 'units';
+        });
+      }
+    });
+
     // Live name suggestions from both the user's inventory and the cached
     // master catalog. Inventory matches restock; catalog matches start the
     // normal import flow with the catalog data pre-filled.
@@ -4263,6 +4290,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             return Expanded(
                               child: GestureDetector(
                                 onTap: () => setState(() {
+                                  _typeUserSet = true;
                                   if (t != _type &&
                                       t == ProductType.service &&
                                       _unit == 'pcs') {
