@@ -329,6 +329,7 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     const results = (await response.json()) as Array<{
       status?: string;
       collectedAmount?: number | string;
+      channel?: string;
     }>;
     const payment = results[0];
     if (!payment) {
@@ -337,7 +338,10 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
 
     const status = String(payment.status ?? "").toUpperCase();
     if (status === "FAILED") {
-      await paymentRef.set({status: "failed"}, {merge: true});
+      await paymentRef.set(
+        {status: "failed", channel: payment.channel ?? null},
+        {merge: true},
+      );
       return {status: "failed"};
     }
     if (status !== "SUCCESS" && status !== "SETTLED") {
@@ -361,10 +365,29 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     const cycleMonths = paymentDoc.cycleMonths as number;
     const expiresAt = new Date(Date.now() + 30 * cycleMonths * 24 * 60 * 60 * 1000);
     const expiresAtIso = expiresAt.toISOString();
+    const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
     await db.runTransaction(async (tx) => {
+      // All reads must happen before any writes in a Firestore transaction.
       const freshSnap = await tx.get(paymentRef);
       if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
+
+      // A subscription belongs to the owner, not a single business — mirror
+      // the plan onto every business this uid owns, exactly like the admin
+      // portal's manual assignPlan does (app/api/admin/plans/assign). Without
+      // this, businesses/{bizId}.plan — what admin analytics reads for plan
+      // distribution and MRR — never reflects a ClickPesa-driven upgrade.
+      const ownedBizSnap = await tx.get(
+        db.collection("businesses").where("ownerUid", "==", uid),
+      );
+
+      const planFields = {
+        plan: tier,
+        planExpiresAt: expiresAtTs,
+        subscriptionStatus: "active",
+        planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
 
       tx.set(
         paymentRef,
@@ -372,26 +395,29 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
           status: "completed",
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
           planExpiresAt: expiresAtIso,
+          channel: payment.channel ?? null,
         },
         {merge: true},
       );
       tx.set(
         db.collection("users").doc(uid),
         {
-          plan: tier,
-          planExpiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...planFields,
           lastPayment: {
             reference: orderReference,
             amount: paymentDoc.amount,
             currency: paymentDoc.currency ?? "TZS",
             paymentId: paymentDoc.clickPesaId ?? orderReference,
+            channel: payment.channel ?? null,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             provider: "clickpesa",
           },
         },
         {merge: true},
       );
+      for (const bizDoc of ownedBizSnap.docs) {
+        tx.set(bizDoc.ref, planFields, {merge: true});
+      }
     });
 
     console.log(`[ClickPesa] Plan activated for user ${uid}: ${tier}`);

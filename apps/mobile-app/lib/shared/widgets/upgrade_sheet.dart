@@ -1763,9 +1763,11 @@ class _PulsingIcon extends StatefulWidget {
 
 class _PulsingIconState extends State<_PulsingIcon>
     with SingleTickerProviderStateMixin {
+  // Slower and more contained than a typical "loading" pulse — restraint
+  // reads as premium/deliberate rather than energetic/consumer-app.
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1800),
+    duration: const Duration(milliseconds: 2400),
   )..repeat();
 
   @override
@@ -1791,13 +1793,13 @@ class _PulsingIconState extends State<_PulsingIcon>
                   color: widget.color,
                 ),
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: widget.color,
                 ),
-                child: Icon(widget.icon, color: Colors.white, size: 22),
+                child: Icon(widget.icon, color: Colors.white, size: 20),
               ),
             ],
           );
@@ -1815,7 +1817,11 @@ class _PulseRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = 48.0 + progress * 24.0;
+    // Ease the expansion so the ring decelerates as it grows, rather than
+    // drifting outward at a constant rate — a small detail that separates a
+    // "deliberate" pulse from a mechanical one.
+    final eased = Curves.easeOut.transform(progress);
+    final size = 44.0 + eased * 16.0;
     final opacity = (1.0 - progress).clamp(0.0, 1.0);
     return Container(
       width: size,
@@ -1823,8 +1829,8 @@ class _PulseRing extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: color.withValues(alpha: opacity * 0.55),
-          width: 2,
+          color: color.withValues(alpha: opacity * 0.4),
+          width: 1.5,
         ),
       ),
     );
@@ -1846,12 +1852,17 @@ class _BounceInIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Curves.easeOutBack gives one restrained overshoot (~8%) and settles —
+    // Curves.elasticOut (the previous curve) oscillates several times before
+    // settling, which reads as playful/toy-like rather than premium.
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 550),
-      curve: Curves.elasticOut,
-      builder: (context, value, child) =>
-          Transform.scale(scale: value.clamp(0.0, 1.4), child: child),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Opacity(
+        opacity: value.clamp(0.0, 1.0),
+        child: Transform.scale(scale: value, child: child),
+      ),
       child: Container(
         width: 56,
         height: 56,
