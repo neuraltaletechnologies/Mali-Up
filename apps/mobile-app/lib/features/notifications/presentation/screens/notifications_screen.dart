@@ -66,41 +66,43 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final read = items.where((n) => n.isRead == 1).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_rounded),
-              color: AppColors.navyPrimary,
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              _tr('Notifications', 'Arifa'),
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
+      backgroundColor: AppColors.surface,
+      // Same navy app bar every other pushed page in the app uses (invoice
+      // detail, customer detail, sync diagnostics, …) instead of the
+      // previous one-off white SliverAppBar.
+      appBar: AppBar(
+        backgroundColor: AppColors.navyPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _tr('Notifications', 'Arifa'),
+          style: GoogleFonts.dmSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
+        ),
+        actions: [
+          if (unread.isNotEmpty)
+            TextButton(
+              onPressed: _markAllRead,
+              child: Text(
+                _tr('Mark all read', 'Weka zote kama zimesomwa'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.yellowBrand,
+                ),
               ),
             ),
-            actions: [
-              if (unread.isNotEmpty)
-                TextButton(
-                  onPressed: _markAllRead,
-                  child: Text(
-                    _tr('Mark all read', 'Weka zote kama zimesomwa'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tealAccent,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        ],
+      ),
+      body: CustomScrollView(
+        slivers: [
           if (itemsAsync.isLoading && items.isEmpty)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),

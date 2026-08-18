@@ -4,6 +4,7 @@ import type {
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
+  PushBroadcast, BroadcastAudience, BroadcastCategory,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -403,6 +404,24 @@ export async function attachCatalogToBusiness(
 
 export async function fetchNotifications(): Promise<{ notifications: AdminNotification[]; count: number }> {
   return apiFetch('/api/admin/notifications')
+}
+
+// ─── Push Notifications (admin → mobile app broadcasts) ──────────────────────
+
+export async function fetchPushBroadcasts(): Promise<{ broadcasts: PushBroadcast[]; total: number }> {
+  return apiFetch('/api/admin/push-notifications')
+}
+
+export async function sendPushBroadcast(data: {
+  titleEn: string
+  bodyEn: string
+  titleSw?: string
+  bodySw?: string
+  category: BroadcastCategory
+  route?: string
+  audience: BroadcastAudience
+}): Promise<{ id: string }> {
+  return apiFetch('/api/admin/push-notifications', { method: 'POST', body: JSON.stringify(data) })
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────

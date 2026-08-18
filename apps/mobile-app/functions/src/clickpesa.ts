@@ -91,10 +91,16 @@ async function getClickPesaToken(): Promise<string> {
   if (!data.token) {
     throw new HttpsError("internal", "Payment provider returned no token.");
   }
+  // ClickPesa's response already includes the "Bearer " prefix in the token
+  // string itself (e.g. `"token": "Bearer eyJhbGc..."`) — strip it here so
+  // every caller can uniformly do `Authorization: Bearer ${token}` without
+  // ending up with a malformed doubled-up "Bearer Bearer ..." header (which
+  // ClickPesa's API silently rejects with a 401, not a helpful error).
+  const rawToken = data.token.replace(/^Bearer\s+/i, "");
   // Refresh a few minutes early so a call never lands right at the edge of
   // expiry.
-  cachedToken = {token: data.token, expiresAt: now + 50 * 60 * 1000};
-  return data.token;
+  cachedToken = {token: rawToken, expiresAt: now + 50 * 60 * 1000};
+  return rawToken;
 }
 
 /** Recursively sorts object keys — required before hashing, per ClickPesa's
@@ -189,10 +195,15 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
 
     const {pricePerCycle, cycleMonths} = await getPlanPricing(tier);
 
-    // Alphanumeric only, per ClickPesa's orderReference requirement.
-    const orderReference = `MALIUP${tier.toUpperCase()}${Date.now().toString().slice(-8)}${uid
-      .slice(0, 6)
-      .toUpperCase()}`.replace(/[^A-Z0-9]/gi, "");
+    // Alphanumeric only, and ClickPesa caps this at 20 characters — base36
+    // the timestamp to keep it compact: "MP" + tier initial (1) + ms epoch
+    // in base36 (~8) + a slice of the uid (4) = ~15 chars, comfortably under
+    // the limit while staying unique and still traceable back to the user.
+    const orderReference = `MP${tier === "growth" ? "G" : "B"}${Date.now()
+      .toString(36)}${uid.slice(0, 4)}`
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 20);
 
     const token = await getClickPesaToken();
     const body: Record<string, unknown> = {
@@ -318,6 +329,7 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     const results = (await response.json()) as Array<{
       status?: string;
       collectedAmount?: number | string;
+      channel?: string;
     }>;
     const payment = results[0];
     if (!payment) {
@@ -326,7 +338,10 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
 
     const status = String(payment.status ?? "").toUpperCase();
     if (status === "FAILED") {
-      await paymentRef.set({status: "failed"}, {merge: true});
+      await paymentRef.set(
+        {status: "failed", channel: payment.channel ?? null},
+        {merge: true},
+      );
       return {status: "failed"};
     }
     if (status !== "SUCCESS" && status !== "SETTLED") {
@@ -350,10 +365,29 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     const cycleMonths = paymentDoc.cycleMonths as number;
     const expiresAt = new Date(Date.now() + 30 * cycleMonths * 24 * 60 * 60 * 1000);
     const expiresAtIso = expiresAt.toISOString();
+    const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
     await db.runTransaction(async (tx) => {
+      // All reads must happen before any writes in a Firestore transaction.
       const freshSnap = await tx.get(paymentRef);
       if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
+
+      // A subscription belongs to the owner, not a single business — mirror
+      // the plan onto every business this uid owns, exactly like the admin
+      // portal's manual assignPlan does (app/api/admin/plans/assign). Without
+      // this, businesses/{bizId}.plan — what admin analytics reads for plan
+      // distribution and MRR — never reflects a ClickPesa-driven upgrade.
+      const ownedBizSnap = await tx.get(
+        db.collection("businesses").where("ownerUid", "==", uid),
+      );
+
+      const planFields = {
+        plan: tier,
+        planExpiresAt: expiresAtTs,
+        subscriptionStatus: "active",
+        planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
 
       tx.set(
         paymentRef,
@@ -361,26 +395,29 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
           status: "completed",
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
           planExpiresAt: expiresAtIso,
+          channel: payment.channel ?? null,
         },
         {merge: true},
       );
       tx.set(
         db.collection("users").doc(uid),
         {
-          plan: tier,
-          planExpiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...planFields,
           lastPayment: {
             reference: orderReference,
             amount: paymentDoc.amount,
             currency: paymentDoc.currency ?? "TZS",
             paymentId: paymentDoc.clickPesaId ?? orderReference,
+            channel: payment.channel ?? null,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             provider: "clickpesa",
           },
         },
         {merge: true},
       );
+      for (const bizDoc of ownedBizSnap.docs) {
+        tx.set(bizDoc.ref, planFields, {merge: true});
+      }
     });
 
     console.log(`[ClickPesa] Plan activated for user ${uid}: ${tier}`);

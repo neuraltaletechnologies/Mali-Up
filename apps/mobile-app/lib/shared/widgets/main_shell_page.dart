@@ -20,17 +20,19 @@ import '../../core/theme/app_motion.dart';
 import '../../config/routing.dart';
 import '../../core/providers/business_id_provider.dart';
 import '../../core/providers/connectivity_provider.dart';
+import '../../core/providers/push_notification_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/business_profile_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/notifications/data/notification_aggregator.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/data/role_cache_service.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
 import 'nav_aware_fab.dart';
-import 'notification_bell_button.dart';
 import 'plan_activated_dialog.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
@@ -85,6 +87,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     VersionGateService.statusNotifier.addListener(_versionGateListener);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeShowUpdateBanner(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowInitialOfflineBanner(),
     );
   }
 
@@ -166,6 +171,85 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
   }
 
+  // ── Connectivity banners ────────────────────────────────────────────────
+  // Cold-start case: the app can be opened while already offline, which
+  // isOnlineProvider's transition listener in build() never sees (it only
+  // fires on a genuine flip after this shell has mounted). Checked once,
+  // after first frame, alongside the other post-frame checks in initState.
+  void _maybeShowInitialOfflineBanner() {
+    if (!mounted) return;
+    if (!ref.read(isOnlineProvider)) _showOfflineBanner();
+  }
+
+  void _showOfflineBanner() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearMaterialBanners()
+      ..showMaterialBanner(
+        MaterialBanner(
+          backgroundColor: AppColors.warningBg,
+          leading: const Icon(Icons.wifi_off_rounded, color: AppColors.warning),
+          content: Text(
+            _tr(
+              "You're offline. No worries — everything you do here is "
+                  'saved on this device and will sync automatically the '
+                  "moment you're back online.",
+              'Huna mtandao. Usijali — kila unachofanya kinahifadhiwa '
+                  'kwenye kifaa chako na kitasawazishwa kiotomatiki '
+                  'ukirudi mtandaoni.',
+            ),
+            style: GoogleFonts.dmSans(
+              color: AppColors.warning,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+              child: Text(_tr('Got it', 'Sawa')),
+            ),
+          ],
+        ),
+      );
+  }
+
+  void _showBackOnlineBanner() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearMaterialBanners()
+      ..showMaterialBanner(
+        MaterialBanner(
+          backgroundColor: AppColors.successBg,
+          leading: const Icon(Icons.wifi_rounded, color: AppColors.success),
+          content: Text(
+            _tr(
+              "You're back online — syncing your data now…",
+              'Umerudi mtandaoni — inasawazisha data yako sasa…',
+            ),
+            style: GoogleFonts.dmSans(
+              color: AppColors.success,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+              child: Text(_tr('Got it', 'Sawa')),
+            ),
+          ],
+        ),
+      );
+    // This one is a confirmation, not a standing reminder like the offline
+    // banner above — it clears itself so it doesn't linger once read.
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+    });
+  }
+
   bool get _isSwahili => LocalizationService.isSwahili;
 
   String _tr(String en, String sw) {
@@ -204,11 +288,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                   ? entry['city'] as String
                   : (entry['placeOfBusiness'] as String?)?.trim()) ??
               '';
+          final logoUrl = (entry['logoUrl'] as String?)?.trim() ?? '';
           return <String, dynamic>{
             'id': (entry['id'] as String?)?.trim() ?? '',
             'name': name,
             'category': category,
             'placeOfBusiness': place,
+            'logoUrl': logoUrl,
           };
         })
         .where((entry) => (entry['id'] as String).isNotEmpty)
@@ -445,6 +531,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     rootContext.go(route);
   }
 
+  // Notifications isn't a GoRouter destination (it's a stack-top page you
+  // dismiss back to wherever you were, like a sheet would be), so it's
+  // pushed on the root Navigator instead of routed with the other panel
+  // items above.
+  static Future<void> _closeNavigationPanelThenOpenNotifications(
+    BuildContext sheetContext,
+    BuildContext rootContext,
+  ) async {
+    Navigator.of(sheetContext).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!rootContext.mounted) return;
+    Navigator.of(rootContext, rootNavigator: true).push(
+      MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+    );
+  }
+
   Future<void> _openNavigationPanel({
     required BuildContext context,
     required String location,
@@ -646,6 +748,28 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 context,
                                 AppRouter.dashboardPath,
                               ),
+                            ),
+                            ValueListenableBuilder<int>(
+                              valueListenable:
+                                  NotificationService.unreadCountNotifier,
+                              builder: (context, unreadCount, _) =>
+                                  _DrawerItemLight(
+                                    icon: Icons.notifications_outlined,
+                                    iconColor: AppColors.secondary,
+                                    label: _tr('Notifications', 'Arifa'),
+                                    semanticsLabel: unreadCount > 0
+                                        ? _tr(
+                                            'Notifications, $unreadCount unread',
+                                            'Arifa, $unreadCount hazijasomwa',
+                                          )
+                                        : _tr('Notifications', 'Arifa'),
+                                    trailingBadgeCount: unreadCount,
+                                    onTap: () =>
+                                        _closeNavigationPanelThenOpenNotifications(
+                                          dialogContext,
+                                          context,
+                                        ),
+                                  ),
                             ),
                             if (ps.canViewSales ||
                                 ps.canViewInventory ||
@@ -1285,6 +1409,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     ref.watch(
       notificationAggregatorActivatorProvider,
     ); // starts alert detection (low stock, overdue debt/invoice, sync issues)
+    ref.watch(
+      pushTokenRegistrarProvider,
+    ); // registers this device's FCM token for admin-broadcast push notifications
+    // Open the relevant screen when the user taps an admin-broadcast push
+    // notification that carries a deep link.
+    ref.listen<AsyncValue<String>>(pushNotificationRouteProvider, (prev, next) {
+      final route = next.valueOrNull;
+      if (route != null && route.isNotEmpty) context.go(route);
+    });
     // Drive the Dynamic Island Live Activity whenever the sync state changes.
     ref.listen<SyncState>(syncStateProvider, (prev, next) {
       if (prev == next) return;
@@ -1298,6 +1431,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // connectivity change event. Sync-specific issues surface separately
     // via SyncStatusBanner.
     final isOnline = ref.watch(isOnlineProvider);
+    // Reassure the user the moment connectivity flips either way — the
+    // header pill's red/green dot is easy to miss, so a real message says
+    // it plainly: nothing is lost offline, and reconnecting kicks off a
+    // real sync rather than leaving them guessing.
+    ref.listen<bool>(isOnlineProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _showOfflineBanner();
+      } else if (prev == false && next == true) {
+        _showBackOnlineBanner();
+      }
+    });
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
@@ -1388,12 +1532,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.menu_rounded,
-                            color: AppColors.secondary,
-                            size: 28,
-                          ),
+                        // Notifications moved into the nav panel itself (see
+                        // _openNavigationPanel) — this small pulsing dot is
+                        // the only thing left in the top bar, just enough to
+                        // say "there's something waiting for you in there".
+                        _MenuToggleButton(
                           tooltip: _tr(
                             'Open navigation menu',
                             'Fungua menyu ya urambazaji',
@@ -1410,8 +1553,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const NotificationBellButton(),
-                            const SizedBox(width: 2),
                             Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: _FinanceContextSwitcher(
@@ -1695,6 +1836,101 @@ class _NavDestination {
   );
 }
 
+/// The hamburger menu toggle, with a small pulsing dot at its top-right
+/// corner whenever there's an unread notification waiting in the nav panel.
+class _MenuToggleButton extends StatelessWidget {
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _MenuToggleButton({required this.tooltip, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: NotificationService.unreadCountNotifier,
+      builder: (context, unreadCount, _) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: AppColors.secondary,
+                size: 28,
+              ),
+              tooltip: tooltip,
+              onPressed: onPressed,
+            ),
+            if (unreadCount > 0)
+              const Positioned(
+                top: 6,
+                right: 6,
+                child: _PulsingNotificationDot(),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Small breathing dot — gently scales and fades in a loop — just enough to
+/// catch the eye without shouting. The actual count lives on the
+/// Notifications item inside the nav panel this button opens.
+class _PulsingNotificationDot extends StatefulWidget {
+  const _PulsingNotificationDot();
+
+  @override
+  State<_PulsingNotificationDot> createState() =>
+      _PulsingNotificationDotState();
+}
+
+class _PulsingNotificationDotState extends State<_PulsingNotificationDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = AppMotion.reduceMotion(context);
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, child) {
+          final t = reduceMotion ? 1.0 : _ctrl.value;
+          return Transform.scale(
+            scale: 0.85 + t * 0.3,
+            child: Opacity(opacity: 0.55 + t * 0.45, child: child),
+          );
+        },
+        child: Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.error,
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.error.withValues(alpha: 0.5),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
@@ -1884,6 +2120,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
     final label = rawName.isNotEmpty
         ? _shortName(rawName)
         : tr('Business', 'Biashara');
+    final logoUrl = (selectedBusiness?['logoUrl'] as String?)?.trim() ?? '';
+    final avatarInitial = rawName.isNotEmpty
+        ? rawName[0].toUpperCase()
+        : 'M';
 
     return Stack(
       clipBehavior: Clip.none,
@@ -1911,11 +2151,11 @@ class _FinanceContextSwitcher extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.business_center_rounded,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
+                // Same avatar treatment as the Mali Up hero card — the
+                // business's actual logo (falling back to its initial) so
+                // the current business profile is recognizable at a glance,
+                // not just a generic briefcase icon.
+                _BusinessPillAvatar(logoUrl: logoUrl, initial: avatarInitial),
                 const SizedBox(width: 8),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 130),
@@ -1976,6 +2216,49 @@ class _FinanceContextSwitcher extends StatelessWidget {
   }
 }
 
+/// Small circular business avatar for the top-bar pill — the logo when the
+/// business has one, otherwise its initial letter, same fallback styling as
+/// [_BusinessLogoFallback] on the Mali Up hero card.
+class _BusinessPillAvatar extends StatelessWidget {
+  final String logoUrl;
+  final String initial;
+
+  const _BusinessPillAvatar({required this.logoUrl, required this.initial});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.yellowBrand,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl.isNotEmpty
+          ? Image.network(
+              logoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _initialLabel(),
+            )
+          : _initialLabel(),
+    );
+  }
+
+  Widget _initialLabel() {
+    return Center(
+      child: Text(
+        initial,
+        style: GoogleFonts.dmSans(
+          color: AppColors.navyPrimary,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class _HeaderTag extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -2025,6 +2308,7 @@ class _DrawerItemLight extends StatelessWidget {
   final String semanticsLabel;
   final bool selected;
   final Color iconColor;
+  final int trailingBadgeCount;
 
   const _DrawerItemLight({
     required this.icon,
@@ -2033,6 +2317,7 @@ class _DrawerItemLight extends StatelessWidget {
     required this.semanticsLabel,
     required this.iconColor,
     this.selected = false,
+    this.trailingBadgeCount = 0,
   });
 
   @override
@@ -2102,7 +2387,30 @@ class _DrawerItemLight extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (selected)
+                  if (trailingBadgeCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : AppColors.yellowBrand,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        trailingBadgeCount > 99 ? '99+' : '$trailingBadgeCount',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: selected
+                              ? Colors.white
+                              : AppColors.navyPrimary,
+                        ),
+                      ),
+                    )
+                  else if (selected)
                     Container(
                       width: 6,
                       height: 6,

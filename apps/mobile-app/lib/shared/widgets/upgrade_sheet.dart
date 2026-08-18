@@ -310,9 +310,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
   bool _paymentSubmitted = false;
+  bool _paymentFailed = false;
   bool _processingClickPesa = false;
   String _orderReference = '';
   String? _prefillPhone;
+  String? _failureMessage;
 
   bool get _isMultiBusiness =>
       widget.featureKey == PlanFeatureKey.multiBusiness;
@@ -369,7 +371,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 
     setState(() {
       _showPhoneConfirm = false;
+      _paymentFailed = false;
       _processingClickPesa = true;
+      _prefillPhone = phoneNumber;
     });
 
     try {
@@ -398,21 +402,33 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
     } catch (e) {
       debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
       if (!mounted) return;
-      setState(() => _processingClickPesa = false);
-      _showErrorSnackBar(_t(
-        'Payment failed: ${e.toString()}',
-        'Malipo yameshindikana: ${e.toString()}',
-      ));
+      setState(() {
+        _processingClickPesa = false;
+        _paymentFailed = true;
+        _failureMessage = _friendlyFailureMessage(e);
+      });
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ),
+  /// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
+  /// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
+  /// actually act on instead of the raw error string.
+  String _friendlyFailureMessage(Object e) {
+    final raw = e.toString();
+    if (raw.contains('Payment verification timeout')) {
+      return _t(
+        "We didn't get a confirmation in time. If you entered your PIN, "
+            'check your balance before retrying — you may already have been '
+            'charged.',
+        'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
+            'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
+      );
+    }
+    return _t(
+      'The payment was declined or not completed on your phone. No charge '
+          'was made — you can try again.',
+      'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
+          'unaweza kujaribu tena.',
     );
   }
 
@@ -519,6 +535,16 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   tier: _selected,
                   priceCycle: _priceCycle,
                   cycleMonths: _selLimits.cycleMonths,
+                ),
+              ] else if (_paymentFailed) ...[
+                _PaymentFailedCard(
+                  message: _failureMessage ??
+                      _t('Something went wrong.', 'Hitilafu imetokea.'),
+                  onRetry: () => setState(() {
+                    _paymentFailed = false;
+                    _showPhoneConfirm = true;
+                  }),
+                  onCancel: () => setState(() => _paymentFailed = false),
                 ),
               ] else if (_showPhoneConfirm) ...[
                 _PhonePaymentForm(
@@ -1461,13 +1487,9 @@ class _ClickPesaProcessingCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const SizedBox(
-            width: 48,
-            height: 48,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: AppColors.navyPrimary,
-            ),
+          const _PulsingIcon(
+            icon: Icons.phone_android_rounded,
+            color: AppColors.navyPrimary,
           ),
           const SizedBox(height: 16),
           Text(
@@ -1557,10 +1579,9 @@ class _PaymentSuccessCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.check_circle_rounded,
+          const _BounceInIcon(
+            icon: Icons.check_rounded,
             color: AppColors.success,
-            size: 36,
           ),
           const SizedBox(height: 10),
           Text(
@@ -1610,6 +1631,246 @@ class _PaymentSuccessCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment failed — shown when the USSD push was declined, timed out, or
+// otherwise didn't complete. No charge was made in any of these cases (the
+// server only activates a plan after ClickPesa confirms success), so the
+// copy is reassuring rather than alarming, with a direct way to retry.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PaymentFailedCard extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onCancel;
+
+  const _PaymentFailedCard({
+    required this.message,
+    required this.onRetry,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          const _BounceInIcon(
+            icon: Icons.close_rounded,
+            color: AppColors.error,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _t('Payment not completed', 'Malipo Hayakukamilika'),
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: OutlinedButton(
+                    onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _t('Cancel', 'Ghairi'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: onRetry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navyPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _t('Try Again', 'Jaribu Tena'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pulsing icon — concentric rings expanding outward from a static icon.
+// Used for "waiting on something outside the app" (confirming on the phone),
+// where a plain spinner doesn't communicate what's actually being waited on.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PulsingIcon extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+
+  const _PulsingIcon({required this.icon, required this.color});
+
+  @override
+  State<_PulsingIcon> createState() => _PulsingIconState();
+}
+
+class _PulsingIconState extends State<_PulsingIcon>
+    with SingleTickerProviderStateMixin {
+  // Slower and more contained than a typical "loading" pulse — restraint
+  // reads as premium/deliberate rather than energetic/consumer-app.
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              for (final phaseOffset in [0.0, 0.5])
+                _PulseRing(
+                  progress: (_controller.value + phaseOffset) % 1.0,
+                  color: widget.color,
+                ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.color,
+                ),
+                child: Icon(widget.icon, color: Colors.white, size: 20),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PulseRing extends StatelessWidget {
+  final double progress; // 0..1, one full expand-and-fade cycle
+  final Color color;
+
+  const _PulseRing({required this.progress, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    // Ease the expansion so the ring decelerates as it grows, rather than
+    // drifting outward at a constant rate — a small detail that separates a
+    // "deliberate" pulse from a mechanical one.
+    final eased = Curves.easeOut.transform(progress);
+    final size = 44.0 + eased * 16.0;
+    final opacity = (1.0 - progress).clamp(0.0, 1.0);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withValues(alpha: opacity * 0.4),
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bounce-in icon — a filled circle + icon that pops in with an elastic
+// overshoot. Used for the one-shot success/failure moment at the end of a
+// payment attempt, where a static icon reads as flat after the pulsing
+// "waiting" animation that precedes it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BounceInIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _BounceInIcon({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    // Curves.easeOutBack gives one restrained overshoot (~8%) and settles —
+    // Curves.elasticOut (the previous curve) oscillates several times before
+    // settling, which reads as playful/toy-like rather than premium.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Opacity(
+        opacity: value.clamp(0.0, 1.0),
+        child: Transform.scale(scale: value, child: child),
+      ),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+        ),
+        child: Icon(icon, color: color, size: 32),
       ),
     );
   }

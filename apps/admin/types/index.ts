@@ -147,6 +147,31 @@ export interface AuditEntry {
   ip?: string
 }
 
+export type BroadcastCategory = 'reminder' | 'promotion' | 'update' | 'general'
+export type BroadcastStatus = 'pending' | 'sent' | 'failed'
+export type BroadcastAudience =
+  | { kind: 'all' }
+  | { kind: 'businesses'; businessIds: string[]; businessNames: string[] }
+
+export interface PushBroadcast {
+  id: string
+  titleEn: string
+  bodyEn: string
+  titleSw?: string
+  bodySw?: string
+  category: BroadcastCategory
+  audience: BroadcastAudience
+  route?: string
+  status: BroadcastStatus
+  targetCount: number
+  sentCount: number
+  failureCount: number
+  createdAt: string
+  sentAt?: string
+  createdByAdminId: string
+  createdByAdminName: string
+}
+
 export interface ServiceHealth {
   name: string
   displayName: string
@@ -225,9 +250,12 @@ export interface AnalyticsOverview {
   totalUsers: number
   totalBusinesses: number
   activeBusinesses: number
+  // Estimated recurring value (plan count × configured price) — still used
+  // by the main dashboard's KPI card. The Revenue page itself no longer
+  // shows this; it shows the real clickPesa* fields below instead.
   mrr: number
-  planDistribution: { name: string; value: number; color: string }[]
   mrrTrend: { month: string; value: number }[]
+  planDistribution: { name: string; value: number; color: string }[]
   recentSignups: {
     uid: string
     name: string
@@ -235,6 +263,32 @@ export interface AnalyticsOverview {
     businessName: string
     createdAt: string
   }[]
+  // Real ClickPesa transaction data (clickpesa_payments collection) — actual
+  // money collected, not a plan-count × price projection.
+  clickPesaRevenueThisMonth: number
+  clickPesaRevenueAllTime: number
+  clickPesaRevenueTrend: { month: string; value: number }[]
+  clickPesaRevenueByTier: { name: string; value: number; count: number; color: string }[]
+  clickPesaSuccessCount: number
+  clickPesaFailedCount: number
+  clickPesaPendingCount: number
+  recentClickPesaPayments: ClickPesaPaymentRecord[]
+}
+
+// One row from the clickpesa_payments collection (functions/src/clickpesa.ts
+// is the only writer — created by initiateClickPesaPayment, updated by
+// verifyClickPesaPayment once ClickPesa confirms a status).
+export interface ClickPesaPaymentRecord {
+  id: string // orderReference
+  uid: string
+  tier: string
+  amount: number
+  currency: string
+  channel: string | null
+  phoneNumber: string
+  status: 'pending' | 'completed' | 'failed'
+  createdAt: string
+  completedAt: string
 }
 
 export interface CommunitySubmission {
@@ -290,7 +344,10 @@ export interface PlanAssignment {
   cycleMonths: number
 }
 
-// Upgrade / enterprise requests submitted from the mobile app (plan_requests collection)
+// Enterprise inquiries submitted from the mobile app (plan_requests
+// collection). The manual "payment confirmation" claim type this also used
+// to carry was retired once ClickPesa started activating plans
+// automatically — see app/api/admin/plan-requests/route.ts.
 export interface PlanRequest {
   id: string
   uid: string
@@ -299,9 +356,8 @@ export interface PlanRequest {
   businessId: string
   businessName: string
   requestedTier: PlanTier
-  type: 'enterprise_inquiry' | 'payment_claim'
+  type: 'enterprise_inquiry'
   note: string
-  paymentRef: string
   status: 'pending' | 'approved' | 'rejected'
   activated: boolean
   adminNotes: string

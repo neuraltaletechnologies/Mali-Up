@@ -28,26 +28,32 @@ export async function GET(request: Request) {
       .limit(500)
       .get()
 
-    const requests: PlanRequest[] = snap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        id:            doc.id,
-        uid:           (d.uid as string) || '',
-        name:          (d.name as string) || '',
-        phone:         (d.phone as string) || '',
-        businessId:    (d.businessId as string) || '',
-        businessName:  (d.businessName as string) || '',
-        requestedTier: (d.requestedTier as PlanRequest['requestedTier']) || 'growth',
-        type:          (d.type as PlanRequest['type']) || 'enterprise_inquiry',
-        note:          (d.note as string) || '',
-        paymentRef:    (d.paymentRef as string) || '',
-        status:        (d.status as PlanRequest['status']) || 'pending',
-        activated:     Boolean(d.activated),
-        adminNotes:    (d.adminNotes as string) || '',
-        createdAt:     toIso(d.createdAt),
-        resolvedAt:    toIso(d.resolvedAt),
-      }
-    })
+    const requests: PlanRequest[] = snap.docs
+      // The mobile app's manual "payment confirmation" claim flow was
+      // retired once ClickPesa started activating plans automatically —
+      // any payment_claim docs left over from before that point are
+      // historical only and no longer surfaced here. Enterprise inquiries
+      // are unrelated to ClickPesa and still go through manual review.
+      .filter((doc) => (doc.data().type as string | undefined) !== 'payment_claim')
+      .map((doc) => {
+        const d = doc.data()
+        return {
+          id:            doc.id,
+          uid:           (d.uid as string) || '',
+          name:          (d.name as string) || '',
+          phone:         (d.phone as string) || '',
+          businessId:    (d.businessId as string) || '',
+          businessName:  (d.businessName as string) || '',
+          requestedTier: (d.requestedTier as PlanRequest['requestedTier']) || 'growth',
+          type:          'enterprise_inquiry' as const,
+          note:          (d.note as string) || '',
+          status:        (d.status as PlanRequest['status']) || 'pending',
+          activated:     Boolean(d.activated),
+          adminNotes:    (d.adminNotes as string) || '',
+          createdAt:     toIso(d.createdAt),
+          resolvedAt:    toIso(d.resolvedAt),
+        }
+      })
 
     const filtered = statusFilter
       ? requests.filter((r) => r.status === statusFilter)

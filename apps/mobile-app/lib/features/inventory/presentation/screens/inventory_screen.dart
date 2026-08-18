@@ -8,7 +8,6 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/app_motion.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -347,10 +346,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ctx,
       builder: (_) => _SelectSaleForReturnSheet(
         onSaleSelected: (invoice) {
-          Navigator.of(ctx, rootNavigator: true).push(
-            AppMotion.taskRoute<void>(
-              builder: (_) => SalesReturnScreen(originalInvoice: invoice),
-            ),
+          // Presented as a slide-up sheet — same as every other return entry
+          // point (e.g. InvoiceDetailScreen) — instead of a full-page push,
+          // so the height and motion stay consistent across the app.
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showAppSheet<void>(
+            ctx,
+            maxHeightFactor: 0.92,
+            builder: (_) => SalesReturnScreen(originalInvoice: invoice),
           );
         },
       ),

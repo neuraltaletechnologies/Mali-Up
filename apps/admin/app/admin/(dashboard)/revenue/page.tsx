@@ -6,9 +6,10 @@ import { KPICard } from '@/components/ui/kpi-card'
 import { MRRTrendChart } from '@/components/charts/mrr-trend-chart'
 import { FreeVsPaidChart } from '@/components/charts/free-vs-paid-chart'
 import { KPIRowSkeleton, ChartSkeleton, RevalidatingBar, SkeletonTable } from '@/components/ui/skeleton'
+import { StatusDot } from '@/components/ui/status-dot'
 import { fetchAnalytics, fetchConfig, saveConfig, fetchPlans } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
-import { formatTZS, formatTZSCompact } from '@/lib/format'
+import { formatTZS, formatTZSCompact, formatPhone, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react'
 import type { PlatformConfig } from '@/types'
@@ -140,19 +141,15 @@ export default function RevenuePage() {
     }
   }
 
-  // Analytics derived values
-  const planBreakdown = (data?.planDistribution ?? [])
-    .filter((p) => (planFees[p.name.toLowerCase()] ?? 0) > 0)
-    .map((p) => ({
-      ...p,
-      fee: planFees[p.name.toLowerCase()] ?? 0,
-      contribution: (planFees[p.name.toLowerCase()] ?? 0) * p.value,
-    }))
-
-  const maxContribution = Math.max(...planBreakdown.map((p) => p.contribution), 1)
-  const avgRevenuePerBusiness = (data?.totalBusinesses ?? 0) > 0
-    ? Math.round((data?.mrr ?? 0) / (data?.totalBusinesses ?? 1))
-    : 0
+  // Real ClickPesa revenue breakdown — actual completed transactions, not a
+  // plan-count × price estimate.
+  const revenueByTier = data?.clickPesaRevenueByTier ?? []
+  const maxTierRevenue = Math.max(...revenueByTier.map((t) => t.value), 1)
+  const totalClickPesaAttempts =
+    (data?.clickPesaSuccessCount ?? 0) + (data?.clickPesaFailedCount ?? 0)
+  const clickPesaSuccessRate = totalClickPesaAttempts > 0
+    ? Math.round(((data?.clickPesaSuccessCount ?? 0) / totalClickPesaAttempts) * 100)
+    : null
 
   // Free (Starter/Trial) vs paid — how much of the base is still to be converted
   const totalBusinesses = data?.totalBusinesses ?? 0
@@ -165,7 +162,7 @@ export default function RevenuePage() {
     <div>
       <PageHeader
         title="Revenue"
-        description="MRR analytics and platform-wide billing settings"
+        description="Real ClickPesa transactions and platform-wide billing settings"
       />
       {revalidating && <RevalidatingBar />}
 
@@ -185,77 +182,125 @@ export default function RevenuePage() {
         </div>
       ) : data && (
         <>
-          {/* KPI row */}
+          {/* KPI row — real completed ClickPesa transactions, not a projection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard
-              label="Current MRR"
-              value={`TZS ${formatTZSCompact(data.mrr)}`}
-              deltaLabel="monthly recurring"
+              label="ClickPesa Revenue (Month)"
+              value={`TZS ${formatTZSCompact(data.clickPesaRevenueThisMonth)}`}
+              deltaLabel="completed this calendar month"
             />
             <KPICard
-              label="Est. Annual Revenue"
-              value={`TZS ${formatTZSCompact(data.mrr * 12)}`}
+              label="ClickPesa Revenue (All Time)"
+              value={`TZS ${formatTZSCompact(data.clickPesaRevenueAllTime)}`}
             />
             <KPICard
-              label="Avg Revenue / Business"
-              value={avgRevenuePerBusiness > 0 ? formatTZS(avgRevenuePerBusiness) : '—'}
-            />
-            <KPICard
-              label="Paying Businesses"
-              value={planBreakdown.reduce((s, p) => s + p.value, 0).toLocaleString()}
+              label="Successful Payments"
+              value={data.clickPesaSuccessCount.toLocaleString()}
               mono={false}
+            />
+            <KPICard
+              label="Success Rate"
+              value={clickPesaSuccessRate !== null ? `${clickPesaSuccessRate}%` : '—'}
+              deltaLabel={
+                totalClickPesaAttempts > 0
+                  ? `${data.clickPesaFailedCount} declined of ${totalClickPesaAttempts}`
+                  : 'no attempts yet'
+              }
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* MRR trend */}
+            {/* ClickPesa revenue trend */}
             <div className="lg:col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
-              <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">MRR Trend</h2>
-              <p className="text-[12px] text-[var(--ink-muted)] mb-4">Cumulative over last 12 months</p>
-              <MRRTrendChart data={data.mrrTrend} />
+              <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">ClickPesa Revenue Trend</h2>
+              <p className="text-[12px] text-[var(--ink-muted)] mb-4">Actual money collected per month, last 12 months</p>
+              <MRRTrendChart data={data.clickPesaRevenueTrend} />
             </div>
 
-            {/* Per-plan revenue breakdown */}
+            {/* Per-plan revenue breakdown — real completed payments, not price × count */}
             <div className="lg:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">Revenue by Plan</h2>
-              <p className="text-[12px] text-[var(--ink-muted)] mb-5">Monthly contribution per tier</p>
+              <p className="text-[12px] text-[var(--ink-muted)] mb-5">Completed ClickPesa payments, all time</p>
 
-              {planBreakdown.length === 0 ? (
-                <p className="text-[13px] text-[var(--ink-faint)] pt-4">No paid businesses yet.</p>
+              {revenueByTier.length === 0 ? (
+                <p className="text-[13px] text-[var(--ink-faint)] pt-4">No completed ClickPesa payments yet.</p>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {planBreakdown.map(({ name, value, fee, contribution, color }) => (
+                  {revenueByTier.map(({ name, value, count, color }) => (
                     <div key={name} className="flex items-center gap-3">
                       <div className="w-24 shrink-0">
                         <div className="text-[12px] font-medium text-[var(--ink)]">{name}</div>
-                        <div className="text-[11px] text-[var(--ink-faint)]">{value} biz × {formatTZSCompact(fee)}</div>
+                        <div className="text-[11px] text-[var(--ink-faint)]">{count} payment{count === 1 ? '' : 's'}</div>
                       </div>
                       <div className="flex-1 h-6 rounded overflow-hidden bg-[var(--canvas)]">
                         <div
                           className="h-full rounded transition-all"
                           style={{
-                            width: `${(contribution / maxContribution) * 100}%`,
+                            width: `${(value / maxTierRevenue) * 100}%`,
                             background: color,
                             opacity: 0.85,
                           }}
                         />
                       </div>
                       <span className="font-mono text-[12px] w-24 text-right shrink-0 text-[var(--ink)]">
-                        TZS {formatTZSCompact(contribution)}
+                        TZS {formatTZSCompact(value)}
                       </span>
                     </div>
                   ))}
 
                   {/* Total */}
                   <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between">
-                    <span className="text-[12px] font-semibold text-[var(--ink)]">Total MRR</span>
+                    <span className="text-[12px] font-semibold text-[var(--ink)]">Total Collected</span>
                     <span className="font-mono text-[13px] font-semibold text-[var(--ink)]">
-                      TZS {formatTZSCompact(data.mrr)}
+                      TZS {formatTZSCompact(data.clickPesaRevenueAllTime)}
                     </span>
                   </div>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Recent ClickPesa transactions — real ledger, not an estimate */}
+          <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">Recent Transactions</h2>
+            <p className="text-[12px] text-[var(--ink-muted)] mb-4">Most recent ClickPesa payment attempts, newest first</p>
+            {data.recentClickPesaPayments.length === 0 ? (
+              <p className="text-[13px] text-[var(--ink-faint)] py-4">No ClickPesa payments yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[var(--line)] text-left text-[11px] uppercase tracking-wide text-[var(--ink-faint)]">
+                      <th className="py-2 pr-4 font-medium">Plan</th>
+                      <th className="py-2 pr-4 font-medium">Amount</th>
+                      <th className="py-2 pr-4 font-medium">Channel</th>
+                      <th className="py-2 pr-4 font-medium">Phone</th>
+                      <th className="py-2 pr-4 font-medium">Status</th>
+                      <th className="py-2 pr-4 font-medium">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recentClickPesaPayments.map((p) => (
+                      <tr key={p.id} className="border-b border-[var(--line)] last:border-0">
+                        <td className="py-2.5 pr-4 text-[var(--ink)] capitalize">{p.tier || '—'}</td>
+                        <td className="py-2.5 pr-4 font-mono text-[var(--ink)]">{formatTZS(p.amount)}</td>
+                        <td className="py-2.5 pr-4 text-[var(--ink-muted)]">{p.channel || '—'}</td>
+                        <td className="py-2.5 pr-4 font-mono text-[var(--ink-muted)]">{formatPhone(p.phoneNumber) || '—'}</td>
+                        <td className="py-2.5 pr-4">
+                          <StatusDot
+                            status={p.status === 'completed' ? 'good' : p.status === 'failed' ? 'bad' : 'warn'}
+                            label={p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                          />
+                        </td>
+                        <td className="py-2.5 pr-4 text-[var(--ink-muted)]">
+                          {p.createdAt ? formatDate(p.createdAt) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Free vs Paid conversion opportunity */}

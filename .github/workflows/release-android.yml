@@ -18,6 +18,11 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Explicit ceiling so a stuck/oversized build fails with a clear
+    # "timeout" verdict instead of an ambiguous runner shutdown/cancellation
+    # (exit 143) partway through -- see run 32095946540 (Aug 18 2026), where
+    # bundleRelease had been running 977s with no such signal.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: apps/mobile-app
