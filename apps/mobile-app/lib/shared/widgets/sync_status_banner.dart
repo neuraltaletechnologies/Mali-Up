@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/sync/offline_policy_notifier.dart';
@@ -29,6 +32,13 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner>
   late final AnimationController _controller;
   late final Animation<double> _fade;
 
+  // A few seconds of "you're back — syncing" confirmation right after the
+  // device regains connectivity, overriding the ordinary state-driven strip
+  // below so reconnecting actually registers instead of just quietly
+  // clearing the offline strip.
+  Timer? _reconnectTimer;
+  bool _showReconnectFlash = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +52,7 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner>
   @override
   void dispose() {
     _controller.dispose();
+    _reconnectTimer?.cancel();
     super.dispose();
   }
 
@@ -51,7 +62,26 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner>
     final pendingCount = ref.watch(pendingSyncCountProvider).valueOrNull ?? 0;
     final policy = ref.watch(offlinePolicyProvider);
 
-    final config = _resolveConfig(syncState, pendingCount, policy);
+    ref.listen<bool>(isOnlineProvider, (prev, next) {
+      if (prev != false || next != true) return;
+      _reconnectTimer?.cancel();
+      setState(() => _showReconnectFlash = true);
+      _reconnectTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _showReconnectFlash = false);
+      });
+    });
+
+    final config = _showReconnectFlash
+        ? _BannerConfig(
+            color: AppColors.successBg,
+            textColor: AppColors.success,
+            icon: Icons.wifi_rounded,
+            spin: false,
+            label: LocalizationService.isSwahili
+                ? 'Mtandao umerudi — inasawazisha data yako…'
+                : "You're back online — syncing your data…",
+          )
+        : _resolveConfig(syncState, pendingCount, policy);
 
     if (config == null) {
       _controller.reverse();
@@ -111,9 +141,11 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner>
     if (policy.isOffline || syncState == SyncState.offline) {
       final label = pendingCount > 0
           ? (sw
-              ? 'Bila mtandao — mabadiliko $pendingCount yamehifadhiwa.'
-              : 'Offline — $pendingCount change${pendingCount == 1 ? '' : 's'} saved locally.')
-          : (sw ? 'Bila mtandao — data imehifadhiwa.' : 'Offline — data saved locally.');
+              ? 'Huna mtandao — mabadiliko $pendingCount yamehifadhiwa, yatasawazishwa ukirudi mtandaoni.'
+              : 'You\'re offline — $pendingCount change${pendingCount == 1 ? '' : 's'} saved here, will sync once you\'re back online.')
+          : (sw
+              ? 'Huna mtandao — kazi yako imehifadhiwa, itasawazishwa ukirudi mtandaoni.'
+              : 'You\'re offline — your work is saved and will sync once you\'re back online.');
       return _BannerConfig(
         color: AppColors.warningBg,
         textColor: AppColors.warning,

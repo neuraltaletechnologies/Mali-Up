@@ -21,7 +21,6 @@ import '../../../../shared/widgets/rate_app_dialog.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/data/finance_providers.dart';
-import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/models/expense.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -289,16 +288,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       orElse: () => 0,
     );
     final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
-    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(
-      cashAccountListProvider,
-    );
     final expenseItems = expenses.maybeWhen(
       data: (items) => items,
       orElse: () => const <Expense>[],
-    );
-    final cashAccountItems = cashAccounts.maybeWhen(
-      data: (items) => items,
-      orElse: () => const <CashAccount>[],
     );
     final now2 = DateTime.now();
     // Rejected expenses are excluded, matching the P&L / expense reports.
@@ -317,12 +309,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           return d != null && d.year == now2.year;
         })
         .fold<double>(0, (t, e) => t + _numericValue(e.amount));
-    final totalCash = cashAccountItems.fold<double>(0, (t, a) => t + a.balance);
+    // All-time total, regardless of the period selector above — this is the
+    // figure the Mali Up hero card's "EXPENSES" stat reads.
+    final allTimeExpenses = countedExpenses.fold<double>(
+      0,
+      (t, e) => t + _numericValue(e.amount),
+    );
     final salesAsyncValue = ref.watch(salesInvoiceListProvider);
     final salesItems = salesAsyncValue.maybeWhen(
       data: (items) => items,
       orElse: () => const <Map<String, dynamic>>[],
     );
+    // Cash actually on hand: every shilling collected against a sale/invoice
+    // (amountPaid — set at sale time for cash sales, incremented by
+    // recordPayment for credit collections) minus every recorded expense,
+    // all-time. Previously this summed a separate "cash accounts" ledger
+    // (Cash Flow feature) that most businesses never touch, so it showed 0
+    // or a stale number even after real sales and payments went through.
+    final allTimeCollected = salesItems.fold<double>(
+      0,
+      (t, inv) => t + parseNumericAmount(inv['amountPaid']),
+    );
+    final totalCash = allTimeCollected - allTimeExpenses;
     final activityLoading = expenses.isLoading || salesAsyncValue.isLoading;
     final inventoryItems = ref
         .watch(inventoryItemListProvider)
@@ -497,7 +505,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   _UnifiedHeroCard(
                     totalCash: totalCash,
                     monthRevenue: monthRevenue,
-                    monthExpenses: monthExpenses,
+                    monthExpenses: allTimeExpenses,
                     yearNetProfit: yearRevenue - yearExpenses,
                     customerCount: customerCount,
                     businessName: _getBusinessName(_profile),
@@ -962,6 +970,9 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
 class _UnifiedHeroCard extends StatefulWidget {
   final double totalCash;
   final double monthRevenue;
+  // All-time total, despite the field name inherited from the constructor
+  // call site — the "EXPENSES" stat below reads the whole business history,
+  // not just the current month.
   final double monthExpenses;
   final double yearNetProfit;
   final int customerCount;

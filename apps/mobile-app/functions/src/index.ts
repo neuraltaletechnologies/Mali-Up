@@ -5,6 +5,7 @@ import {GoogleAuth} from "google-auth-library";
 admin.initializeApp();
 
 export {initiateClickPesaPayment, verifyClickPesaPayment} from "./clickpesa";
+export {sendAdminBroadcast} from "./notifications";
 
 // Must match `applicationId` in android/app/build.gradle.kts.
 const PACKAGE_NAME = "com.neuraltale.maliup";
