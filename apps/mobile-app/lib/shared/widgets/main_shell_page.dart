@@ -1863,9 +1863,9 @@ class _MenuToggleButton extends StatelessWidget {
             ),
             if (unreadCount > 0)
               const Positioned(
-                top: 6,
-                right: 6,
-                child: _PulsingNotificationDot(),
+                top: 2,
+                right: 2,
+                child: _PulsingBellIcon(),
               ),
           ],
         );
@@ -1874,18 +1874,18 @@ class _MenuToggleButton extends StatelessWidget {
   }
 }
 
-/// Small breathing dot — gently scales and fades in a loop — just enough to
-/// catch the eye without shouting. The actual count lives on the
-/// Notifications item inside the nav panel this button opens.
-class _PulsingNotificationDot extends StatefulWidget {
-  const _PulsingNotificationDot();
+/// Small floating bell icon that gently breathes (scale + fade) in a loop —
+/// just enough to say "there's a notification waiting for you in there"
+/// without duplicating the full Notifications entry point, which lives
+/// inside the nav panel this button opens.
+class _PulsingBellIcon extends StatefulWidget {
+  const _PulsingBellIcon();
 
   @override
-  State<_PulsingNotificationDot> createState() =>
-      _PulsingNotificationDotState();
+  State<_PulsingBellIcon> createState() => _PulsingBellIconState();
 }
 
-class _PulsingNotificationDotState extends State<_PulsingNotificationDot>
+class _PulsingBellIconState extends State<_PulsingBellIcon>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
@@ -1911,20 +1911,16 @@ class _PulsingNotificationDotState extends State<_PulsingNotificationDot>
             child: Opacity(opacity: 0.55 + t * 0.45, child: child),
           );
         },
-        child: Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.error,
-            border: Border.all(color: Colors.white, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.error.withValues(alpha: 0.5),
-                blurRadius: 4,
-              ),
-            ],
-          ),
+        child: Icon(
+          Icons.notifications_rounded,
+          size: 14,
+          color: AppColors.error,
+          shadows: [
+            Shadow(
+              color: AppColors.error.withValues(alpha: 0.5),
+              blurRadius: 4,
+            ),
+          ],
         ),
       ),
     );
@@ -2116,14 +2112,15 @@ class _FinanceContextSwitcher extends StatelessWidget {
         }
       }
     }
-    final rawName = (selectedBusiness?['name'] as String?)?.trim() ?? '';
+    // Fall back to the first business on file so the pill always shows a
+    // real business name instead of the generic "Business"/"Biashara"
+    // placeholder while the selection is still resolving.
+    final displayBusiness =
+        selectedBusiness ?? (businesses.isNotEmpty ? businesses.first : null);
+    final rawName = (displayBusiness?['name'] as String?)?.trim() ?? '';
     final label = rawName.isNotEmpty
         ? _shortName(rawName)
         : tr('Business', 'Biashara');
-    final logoUrl = (selectedBusiness?['logoUrl'] as String?)?.trim() ?? '';
-    final avatarInitial = rawName.isNotEmpty
-        ? rawName[0].toUpperCase()
-        : 'M';
 
     return Stack(
       clipBehavior: Clip.none,
@@ -2148,39 +2145,20 @@ class _FinanceContextSwitcher extends StatelessWidget {
                     : AppColors.border,
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Same avatar treatment as the Mali Up hero card — the
-                // business's actual logo (falling back to its initial) so
-                // the current business profile is recognizable at a glance,
-                // not just a generic briefcase icon.
-                _BusinessPillAvatar(logoUrl: logoUrl, initial: avatarInitial),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 130),
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.dmSans(
-                      color: canSwitch
-                          ? AppColors.primary
-                          : AppColors.secondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+            // No logo/avatar, no chevron — just the business name, always in
+            // the same navy the menu toggle button on the left uses.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 130),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.dmSans(
+                  color: AppColors.secondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                 ),
-                if (canSwitch) ...[
-                  const SizedBox(width: 6),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         ),
@@ -2212,49 +2190,6 @@ class _FinanceContextSwitcher extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Small circular business avatar for the top-bar pill — the logo when the
-/// business has one, otherwise its initial letter, same fallback styling as
-/// [_BusinessLogoFallback] on the Mali Up hero card.
-class _BusinessPillAvatar extends StatelessWidget {
-  final String logoUrl;
-  final String initial;
-
-  const _BusinessPillAvatar({required this.logoUrl, required this.initial});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.yellowBrand,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: logoUrl.isNotEmpty
-          ? Image.network(
-              logoUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _initialLabel(),
-            )
-          : _initialLabel(),
-    );
-  }
-
-  Widget _initialLabel() {
-    return Center(
-      child: Text(
-        initial,
-        style: GoogleFonts.dmSans(
-          color: AppColors.navyPrimary,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
     );
   }
 }

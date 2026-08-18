@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -1226,7 +1227,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
       ));
-    } catch (_) {
+    } catch (e, st) {
+      // Swallowed to a generic message for the user, but reported so a
+      // recurring cause (e.g. a Firestore rule not yet deployed for the
+      // staff/pendingInvites collections) is visible instead of only ever
+      // showing up as "try again" support tickets.
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(

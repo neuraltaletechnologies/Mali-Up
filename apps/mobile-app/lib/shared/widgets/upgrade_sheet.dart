@@ -120,8 +120,6 @@ Future<PlanTier?> showUpgradeSheet(
     builder: (_) => _ClickPesaPaymentSheet(
       tier: result.tier,
       phoneNumber: result.phoneNumber,
-      priceCycle: result.priceCycle,
-      cycleMonths: result.cycleMonths,
     ),
   );
 }
@@ -131,15 +129,8 @@ Future<PlanTier?> showUpgradeSheet(
 class _PaymentHandoff {
   final PlanTier tier;
   final String phoneNumber;
-  final int priceCycle;
-  final int cycleMonths;
 
-  const _PaymentHandoff({
-    required this.tier,
-    required this.phoneNumber,
-    required this.priceCycle,
-    required this.cycleMonths,
-  });
+  const _PaymentHandoff({required this.tier, required this.phoneNumber});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -412,12 +403,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
     if (!mounted) return;
     Navigator.pop(
       context,
-      _PaymentHandoff(
-        tier: _selected,
-        phoneNumber: phoneNumber,
-        priceCycle: _priceCycle,
-        cycleMonths: _selLimits.cycleMonths,
-      ),
+      _PaymentHandoff(tier: _selected, phoneNumber: phoneNumber),
     );
   }
 
@@ -1437,15 +1423,8 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
 class _ClickPesaPaymentSheet extends StatefulWidget {
   final PlanTier tier;
   final String phoneNumber;
-  final int priceCycle;
-  final int cycleMonths;
 
-  const _ClickPesaPaymentSheet({
-    required this.tier,
-    required this.phoneNumber,
-    required this.priceCycle,
-    required this.cycleMonths,
-  });
+  const _ClickPesaPaymentSheet({required this.tier, required this.phoneNumber});
 
   @override
   State<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
@@ -1458,7 +1437,6 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
 
   bool _succeeded = false;
   bool _failed = false;
-  String _orderReference = '';
   String? _failureMessage;
 
   // Flipped in dispose() so an in-flight ClickPesaService.waitForPayment
@@ -1502,7 +1480,6 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
         phoneNumber: widget.phoneNumber,
       );
       if (_disposed) return;
-      _orderReference = initiated.orderReference;
 
       // Poll the server while the user confirms the PIN prompt on their
       // phone. Plan activation happens server-side the moment this reports
@@ -1517,8 +1494,16 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
       );
       if (_disposed || !mounted) return;
 
+      debugPrint('[ClickPesaPaymentSheet] payment confirmed: ${initiated.orderReference}');
       setState(() => _succeeded = true);
-      unawaited(_paymentAnim.setSuccess());
+      // Wait for the checkmark to actually be on screen, hold a beat so
+      // it registers, then close on its own — there's nothing else on
+      // this sheet to tap.
+      await _paymentAnim.setSuccess();
+      if (_disposed || !mounted) return;
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (_disposed || !mounted) return;
+      Navigator.pop(context, widget.tier);
     } on ClickPesaCancelledException {
       // The sheet was dismissed mid-poll — nothing to show, nothing to log.
     } catch (e) {
@@ -1537,9 +1522,12 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
 
   @override
   Widget build(BuildContext context) {
+    // Transparent, not the white Material card the plan-picker sheet below
+    // uses — the failed state still needs a readable surface behind its
+    // text/buttons, but the normal processing/success state is nothing but
+    // the animation, so there's no card to paint a background on.
     return Material(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1547,30 +1535,27 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
             20,
             12,
             20,
-            20 + MediaQuery.of(context).viewInsets.bottom,
+            32 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SheetHandle(),
-              const SizedBox(height: 14),
-              if (_failed)
+              if (_failed) ...[
+                const SizedBox(height: 14),
                 _PaymentFailedCard(
                   message: _failureMessage ??
                       _t('Something went wrong.', 'Hitilafu imetokea.'),
                   onRetry: () => unawaited(_runPayment()),
                   onCancel: () => Navigator.pop(context),
-                )
-              else
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
                 _ClickPesaPaymentCard(
                   animController: _paymentAnim,
                   succeeded: _succeeded,
-                  tier: widget.tier,
-                  priceCycle: widget.priceCycle,
-                  cycleMonths: widget.cycleMonths,
-                  paymentRef: _orderReference,
-                  onDone: () => Navigator.pop(context, widget.tier),
                 ),
+              ],
             ],
           ),
         ),
@@ -1602,155 +1587,51 @@ String _friendlyClickPesaFailureMessage(Object e) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ClickPesa payment card — processing and success share this single widget
-// so PaymentPosAnimation (and the AnimationController driving it) stays
-// mounted across the waiting -> success handoff instead of being disposed
-// and recreated, which would re-load the Lottie composition and flash.
-// Only the tint, heading, and body below the animation change with
-// [succeeded]; see PaymentPosAnimationController for how the animation
-// itself is driven off real ClickPesa status rather than a timer.
+// ClickPesa payment card — no box, no description copy, nothing to read.
+// A single small status word up top and the POS Lottie animation doing all
+// the actual communicating below it. Stays one mounted widget across the
+// waiting -> success handoff (only [succeeded] flips) so PaymentPosAnimation
+// and its AnimationController are never disposed/recreated mid-flow; see
+// PaymentPosAnimationController for how the animation itself is driven off
+// real ClickPesa status rather than a timer. There's no button here — the
+// sheet closes itself a beat after the checkmark lands (_runPayment).
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ClickPesaPaymentCard extends StatelessWidget {
   final PaymentPosAnimationController animController;
   final bool succeeded;
-  final PlanTier tier;
-  final int priceCycle;
-  final int cycleMonths;
-  final String paymentRef;
-  final VoidCallback onDone;
 
   const _ClickPesaPaymentCard({
     required this.animController,
     required this.succeeded,
-    required this.tier,
-    required this.priceCycle,
-    required this.cycleMonths,
-    required this.paymentRef,
-    required this.onDone,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    final tint = succeeded ? AppColors.success : AppColors.navyPrimary;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: succeeded ? 0.06 : 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tint.withValues(alpha: succeeded ? 0.25 : 0.2)),
-      ),
-      child: Column(
-        children: [
-          PaymentPosAnimation(controller: animController, size: 160),
-          const SizedBox(height: 12),
-          if (succeeded) ...[
-            Text(
-              _t('Payment successful!', 'Malipo yamefanikiwa!'),
-              style: GoogleFonts.dmSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyPrimary,
-              ),
+    // 80% of screen width, not a fixed pixel size, so the animation reads
+    // as the dominant thing on the sheet on every phone size rather than
+    // looking small on larger screens or cramped on small ones.
+    final animSize = MediaQuery.sizeOf(context).width * 0.8;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            succeeded
+                ? _t('Payment successful', 'Malipo Yamefanikiwa')
+                : _t('Check Your Phone', 'Angalia Simu Yako'),
+            key: ValueKey(succeeded),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.1,
             ),
-            const SizedBox(height: 4),
-            Text(
-              _t(
-                'Your $tierName plan is now active ($paymentRef). Enjoy the '
-                    'new features right away.',
-                'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
-                    'vipengele vipya mara moja.',
-              ),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton(
-                onPressed: onDone,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  _t('OK', 'Sawa'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ] else ...[
-            Text(
-              _t('Check Your Phone', 'Angalia Simu Yako'),
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _t(
-                "We've sent a payment prompt to your phone — enter your mobile "
-                    'money PIN there to confirm. This closes automatically once '
-                    "you've confirmed.",
-                'Tumetuma ombi la malipo kwenye simu yako — weka PIN yako ya pesa '
-                    'ya simu hapo kuthibitisha. Hii itafunga yenyewe mara '
-                    'utakapothibitisha.',
-              ),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    _t('$tierName Plan', '$tierName Mpango'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+          ),
+        ),
+        PaymentPosAnimation(controller: animController, size: animSize),
+      ],
     );
   }
 }

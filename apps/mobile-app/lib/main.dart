@@ -20,6 +20,7 @@ import 'package:mali_up/core/services/notification_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/core/services/version_gate_service.dart';
+import 'package:mali_up/core/providers/sync_provider.dart';
 import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
     show
         onboardingBootstrapProvider,
@@ -239,6 +240,14 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       SecurityService.lockApp();
+    } else if (state == AppLifecycleState.resumed) {
+      // SyncService otherwise only runs on cold start or a connectivity
+      // blip — without this, changes made on another device (e.g. a
+      // customer or product added elsewhere) don't appear here until one
+      // of those happens to fire. Pull on every foreground instead.
+      if (FirebaseAuth.instance.currentUser != null) {
+        unawaited(ref.read(syncServiceProvider).syncNow());
+      }
     }
   }
 

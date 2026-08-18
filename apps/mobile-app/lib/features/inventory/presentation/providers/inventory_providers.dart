@@ -17,7 +17,16 @@ final inventoryRepositoryProvider =
       '';
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
   final policy = ref.watch(offlinePolicyProvider);
-  return SyncInventoryRepository(db: db, uid: uid, businessId: bizId, policy: policy);
+  return SyncInventoryRepository(
+    db: db,
+    uid: uid,
+    businessId: bizId,
+    policy: policy,
+    // Push immediately after a write instead of waiting for the next app
+    // launch or connectivity blip — otherwise a product added on one
+    // device can sit queued locally until something else triggers a sync.
+    onWrite: () => ref.read(syncServiceProvider).syncNow(),
+  );
 });
 
 /// Live stream of all active non-deleted inventory items, ordered by name.

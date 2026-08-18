@@ -121,7 +121,15 @@ final customerRepositoryProvider = Provider<SyncCustomerRepository>((ref) {
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
   final policy = ref.watch(offlinePolicyProvider);
   return SyncCustomerRepository(
-      db: db, uid: uid, businessId: bizId, policy: policy);
+    db: db,
+    uid: uid,
+    businessId: bizId,
+    policy: policy,
+    // Push immediately after a write instead of waiting for the next app
+    // launch or connectivity blip — otherwise a customer added on one
+    // device can sit queued locally until something else triggers a sync.
+    onWrite: () => ref.read(syncServiceProvider).syncNow(),
+  );
 });
 
 // Invoices belonging to a specific customer — read from Drift (offline-first).

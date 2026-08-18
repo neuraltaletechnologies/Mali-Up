@@ -1596,3 +1596,381 @@ class SheetHandle extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeaderStatsPill — the white stats capsule straddling the bottom edge of a
+// screen's navy header (Inventory, Customers, Sales, Team, Debt Tracker,
+// Notifications, Manage Business, Expenses, Cash Flow). Used together with
+// DarkHeaderShell below. Previously each screen re-implemented this itself
+// (`_PillStat`/`_PillDivider`/`_buildPill()`), which let padding, fonts and
+// layout drift apart between screens — this is the single shared definition.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum HeaderPillLayout {
+  /// Capsule hugs its content and sits centered under the header.
+  centered,
+
+  /// Capsule stretches edge-to-edge between fixed side margins.
+  stretched,
+}
+
+class HeaderPillStat {
+  final String label;
+  final String value;
+  final Color color;
+  const HeaderPillStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+}
+
+class HeaderStatsPill extends StatelessWidget {
+  /// Half the capsule's resting height — how far it overlaps the header
+  /// below its bottom edge. Shared with DarkHeaderShell's positioning math.
+  static const double pillHalf = 22.0;
+
+  final List<HeaderPillStat> stats;
+  final HeaderPillLayout layout;
+
+  const HeaderStatsPill({
+    super.key,
+    required this.stats,
+    this.layout = HeaderPillLayout.centered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < stats.length; i++) {
+      if (i > 0) children.add(const _HeaderPillDivider());
+      children.add(_HeaderPillStatView(stat: stats[i]));
+    }
+
+    final stretched = layout == HeaderPillLayout.stretched;
+    final row = Row(
+      mainAxisSize: stretched ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisAlignment: stretched
+          ? MainAxisAlignment.spaceEvenly
+          : MainAxisAlignment.center,
+      children: children,
+    );
+
+    if (stretched) {
+      return Container(
+        height: pillHalf * 2,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(pillHalf),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navyPrimary.withValues(alpha: 0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: row,
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: row,
+    );
+  }
+}
+
+class _HeaderPillStatView extends StatelessWidget {
+  final HeaderPillStat stat;
+  const _HeaderPillStatView({required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          stat.value,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: stat.color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          stat.label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeaderPillDivider extends StatelessWidget {
+  const _HeaderPillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: AppColors.border,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeaderIconButton — the recurring 40x40 circular icon button used in every
+// navy header (search toggle, filter with alert dot, settings gear, back).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+  final Color? dotColor;
+  final double size;
+
+  const HeaderIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+    this.dotColor,
+    this.size = 40,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: active
+            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+            : Colors.white12,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? AppColors.yellowBrand : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: active ? AppColors.yellowBrand : Colors.white,
+        size: 20,
+      ),
+    );
+
+    return GestureDetector(
+      onTap: onTap,
+      child: dotColor == null
+          ? button
+          : Stack(
+              clipBehavior: Clip.none,
+              children: [
+                button,
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.navyPrimary,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeaderSearchField — the inline search TextField that expands under a navy
+// header's title row (Inventory, Customers, Sales, Team, Debt Tracker,
+// Manage Business, Notifications).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class HeaderSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  final bool showClear;
+
+  const HeaderSearchField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+    this.focusNode,
+    this.autofocus = false,
+    this.showClear = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        autofocus: autofocus,
+        onChanged: onChanged,
+        style: GoogleFonts.dmSans(fontSize: 14, color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: GoogleFonts.dmSans(fontSize: 14, color: Colors.white38),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 18,
+            color: Colors.white54,
+          ),
+          suffixIcon: showClear
+              ? GestureDetector(
+                  onTap: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Colors.white54,
+                  ),
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white12,
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white24),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: AppColors.yellowBrand,
+              width: 1.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DarkHeaderShell — the navy rounded-bottom header card shared by Inventory,
+// Customers, Sales, Team, Debt Tracker, Notifications, Manage Business,
+// Expenses and Cash Flow. Screen-specific bits (title, leading, actions,
+// expandable search field, stats pill) are passed in as slots; this widget
+// owns only the shared chrome: background, padding, and pill positioning.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class DarkHeaderShell extends StatelessWidget {
+  final Widget title;
+  final Widget? leading;
+  final Widget actions;
+  final Widget? expandable;
+  final bool expanded;
+  final Widget pill;
+  final bool stretchPill;
+
+  const DarkHeaderShell({
+    super.key,
+    required this.title,
+    this.leading,
+    required this.actions,
+    this.expandable,
+    this.expanded = false,
+    required this.pill,
+    this.stretchPill = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            HeaderStatsPill.pillHalf + 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (leading != null) ...[leading!, const SizedBox(width: 8)],
+                  Expanded(child: title),
+                  actions,
+                ],
+              ),
+              if (expandable != null)
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: expanded
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: expandable!,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -HeaderStatsPill.pillHalf,
+          left: stretchPill ? 24 : 0,
+          right: stretchPill ? 24 : 0,
+          child: stretchPill ? pill : Center(child: pill),
+        ),
+      ],
+    );
+  }
+}

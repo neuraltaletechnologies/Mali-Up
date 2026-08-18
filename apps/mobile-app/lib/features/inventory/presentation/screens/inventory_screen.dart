@@ -450,7 +450,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       onFilterTap: () => _openFilterSort(context, items),
                     ),
                     // Space for the pill's lower half that overflows the header
-                    const SizedBox(height: _InventoryDarkHeader._pillHalf + 8),
+                    const SizedBox(height: HeaderStatsPill.pillHalf + 8),
 
                     // ── Active filter chips ──────────────────────────────
                     if (_typeFilter.isNotEmpty ||
@@ -516,9 +516,7 @@ class _InventoryDarkHeader extends StatelessWidget {
     required this.items,
   });
 
-  static const double _pillHalf = 22.0;
-
-  Widget _buildPill() {
+  List<HeaderPillStat> _stats() {
     double stockVal = 0, revenue = 0;
     int low = 0, out = 0;
     for (final item in items) {
@@ -535,303 +533,72 @@ class _InventoryDarkHeader extends StatelessWidget {
     final profit = revenue - stockVal;
     final alertCount = low + out;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return [
+      HeaderPillStat(
+        label: _tr('Bidhaa', 'Bidhaa'),
+        value: '${items.length}',
+        color: AppColors.tealAccent,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PillStat(
-            label: _tr('Bidhaa', 'Bidhaa'),
-            value: '${items.length}',
-            color: AppColors.tealAccent,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Thamani', 'Thamani'),
-            value: 'TSh ${_fmtShort(stockVal)}',
-            color: AppColors.navyPrimary,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Faida', 'Faida'),
-            value: 'TSh ${_fmtShort(profit)}',
-            color: profit >= 0 ? AppColors.success : AppColors.error,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Tahadhari', 'Tahadhari'),
-            value: '$alertCount',
-            color: alertCount > 0 ? AppColors.warning : AppColors.success,
-          ),
-        ],
+      HeaderPillStat(
+        label: _tr('Thamani', 'Thamani'),
+        value: 'TSh ${_fmtShort(stockVal)}',
+        color: AppColors.navyPrimary,
       ),
-    );
+      HeaderPillStat(
+        label: _tr('Faida', 'Faida'),
+        value: 'TSh ${_fmtShort(profit)}',
+        color: profit >= 0 ? AppColors.success : AppColors.error,
+      ),
+      HeaderPillStat(
+        label: _tr('Tahadhari', 'Tahadhari'),
+        value: '$alertCount',
+        color: alertCount > 0 ? AppColors.warning : AppColors.success,
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
     final hasAlerts = items.any((i) => _fullStatusLevel(i) >= 2);
     final showDot = hasAlerts || activeFilters > 0;
     final dotColor = hasAlerts ? AppColors.error : AppColors.yellowBrand;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Dark rounded card
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Inventory', 'Bidhaa'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search button
-                  GestureDetector(
-                    onTap: onToggleSearch,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter button
-                  GestureDetector(
-                    onTap: onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: activeFilters > 0
-                                  ? AppColors.yellowBrand
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (showDot)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: dotColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.navyPrimary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextField(
-                            controller: searchCtrl,
-                            autofocus: true,
-                            onChanged: onSearchChanged,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Search products…',
-                                'Tafuta bidhaa…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.white38,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                size: 18,
-                                color: Colors.white54,
-                              ),
-                              suffixIcon: query.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        searchCtrl.clear();
-                                        onSearchChanged('');
-                                      },
-                                      child: const Icon(
-                                        Icons.close_rounded,
-                                        size: 16,
-                                        color: Colors.white54,
-                                      ),
-                                    )
-                                  : null,
-                              filled: true,
-                              fillColor: Colors.white12,
-                              contentPadding: EdgeInsets.zero,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.white24,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: AppColors.yellowBrand,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Inventory', 'Bidhaa'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Pill straddling the rounded bottom edge
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPill()),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+            active: searchExpanded,
+            onTap: onToggleSearch,
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: activeFilters > 0,
+            onTap: onFilterTap,
+            dotColor: showDot ? dotColor : null,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: searchCtrl,
+        autofocus: true,
+        onChanged: onSearchChanged,
+        hintText: _tr('Search products…', 'Tafuta bidhaa…'),
+        showClear: query.isNotEmpty,
+      ),
+      expanded: searchExpanded,
+      pill: HeaderStatsPill(stats: _stats()),
     );
   }
 }

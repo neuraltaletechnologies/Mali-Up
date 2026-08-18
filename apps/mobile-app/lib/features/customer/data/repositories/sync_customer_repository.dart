@@ -19,11 +19,17 @@ class SyncCustomerRepository implements CustomerRepository {
   final SyncQueueDao _queue;
   final OfflinePolicyNotifier _policy;
 
+  /// Fired (fire-and-forget) after a write lands in the sync queue, so the
+  /// push cycle kicks off immediately instead of waiting for the next app
+  /// launch or connectivity blip. See [SyncService.syncNow].
+  final void Function()? onWrite;
+
   SyncCustomerRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
     required OfflinePolicyNotifier policy,
+    this.onWrite,
   })  : _db = db,
         _local = LocalCustomerRepository(db, businessId: businessId),
         remote = RemoteCustomerRepository(uid: uid, businessId: businessId),
@@ -105,6 +111,7 @@ class SyncCustomerRepository implements CustomerRepository {
         ),
       );
     });
+    onWrite?.call();
     return toSave;
   }
 
@@ -134,6 +141,7 @@ class SyncCustomerRepository implements CustomerRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 
   @override
@@ -158,5 +166,6 @@ class SyncCustomerRepository implements CustomerRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 }

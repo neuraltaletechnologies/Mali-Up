@@ -178,7 +178,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
             onFilterTap: () => _openFilterSheet(context),
             showFinancials: showFinancials,
           ),
-          const SizedBox(height: _CustomerDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           if (_segment != _Segment.all)
             _ActiveCustomerFilterChip(
               label: _segment.label,

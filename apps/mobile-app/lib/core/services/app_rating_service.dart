@@ -104,9 +104,9 @@ class AppRatingService {
     if (await inAppReview.isAvailable()) {
       await inAppReview.requestReview();
     } else {
-      await inAppReview.openStoreListing(
-        
-      );
+      // No appStoreId passed: Android resolves the Play listing from the
+      // package name alone. Add appStoreId once the iOS App Store id exists.
+      await inAppReview.openStoreListing();
     }
   }
 }

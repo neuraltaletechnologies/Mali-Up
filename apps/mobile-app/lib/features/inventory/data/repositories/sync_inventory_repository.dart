@@ -19,11 +19,17 @@ class SyncInventoryRepository implements InventoryRepository {
   final SyncQueueDao _queue;
   final OfflinePolicyNotifier _policy;
 
+  /// Fired (fire-and-forget) after a write lands in the sync queue, so the
+  /// push cycle kicks off immediately instead of waiting for the next app
+  /// launch or connectivity blip. See [SyncService.syncNow].
+  final void Function()? onWrite;
+
   SyncInventoryRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
     required OfflinePolicyNotifier policy,
+    this.onWrite,
   })  : _db = db,
         _local = LocalInventoryRepository(db, businessId: businessId),
         remote = RemoteInventoryRepository(uid: uid, businessId: businessId),
@@ -126,6 +132,7 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 
   @override
@@ -150,6 +157,7 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 
   /// Adjusts stock quantity and queues a delta-based sync entry so concurrent
@@ -176,5 +184,6 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 }
