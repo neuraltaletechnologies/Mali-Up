@@ -155,7 +155,9 @@ class AppStrings {
 
   static const String businessToday = "Here's what's happening in your business today";
   static const String businessTodaySw = 'Haya ndiyo yanayoendelea kwenye biashara yako leo';
-  
+  static const String personalPulse = "Here's what's happening in your personal finances today";
+  static const String personalPulseSw = 'Haya ndiyo yanayoendelea kwenye fedha zako binafsi leo';
+
   // Dashboard Metrics
   static const String todayRevenue = 'Today Revenue';
   static const String todayRevenueSw = 'Mapato ya Leo';

@@ -10091,6 +10091,18 @@ class $TeamMembersTableTable extends TeamMembersTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _dataScopeMeta = const VerificationMeta(
+    'dataScope',
+  );
+  @override
+  late final GeneratedColumn<String> dataScope = GeneratedColumn<String>(
+    'data_scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('all'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -10163,6 +10175,7 @@ class $TeamMembersTableTable extends TeamMembersTable
     invitedBy,
     notes,
     userId,
+    dataScope,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -10269,6 +10282,12 @@ class $TeamMembersTableTable extends TeamMembersTable
         userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
       );
     }
+    if (data.containsKey('data_scope')) {
+      context.handle(
+        _dataScopeMeta,
+        dataScope.isAcceptableOrUnknown(data['data_scope']!, _dataScopeMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -10367,6 +10386,10 @@ class $TeamMembersTableTable extends TeamMembersTable
         DriftSqlType.string,
         data['${effectivePrefix}user_id'],
       )!,
+      dataScope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_scope'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -10411,6 +10434,7 @@ class TeamMembersTableData extends DataClass
   final String invitedBy;
   final String notes;
   final String userId;
+  final String dataScope;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -10430,6 +10454,7 @@ class TeamMembersTableData extends DataClass
     required this.invitedBy,
     required this.notes,
     required this.userId,
+    required this.dataScope,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -10454,6 +10479,7 @@ class TeamMembersTableData extends DataClass
     map['invited_by'] = Variable<String>(invitedBy);
     map['notes'] = Variable<String>(notes);
     map['user_id'] = Variable<String>(userId);
+    map['data_scope'] = Variable<String>(dataScope);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -10481,6 +10507,7 @@ class TeamMembersTableData extends DataClass
       invitedBy: Value(invitedBy),
       notes: Value(notes),
       userId: Value(userId),
+      dataScope: Value(dataScope),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -10510,6 +10537,7 @@ class TeamMembersTableData extends DataClass
       invitedBy: serializer.fromJson<String>(json['invitedBy']),
       notes: serializer.fromJson<String>(json['notes']),
       userId: serializer.fromJson<String>(json['userId']),
+      dataScope: serializer.fromJson<String>(json['dataScope']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -10534,6 +10562,7 @@ class TeamMembersTableData extends DataClass
       'invitedBy': serializer.toJson<String>(invitedBy),
       'notes': serializer.toJson<String>(notes),
       'userId': serializer.toJson<String>(userId),
+      'dataScope': serializer.toJson<String>(dataScope),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -10556,6 +10585,7 @@ class TeamMembersTableData extends DataClass
     String? invitedBy,
     String? notes,
     String? userId,
+    String? dataScope,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -10575,6 +10605,7 @@ class TeamMembersTableData extends DataClass
     invitedBy: invitedBy ?? this.invitedBy,
     notes: notes ?? this.notes,
     userId: userId ?? this.userId,
+    dataScope: dataScope ?? this.dataScope,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -10604,6 +10635,7 @@ class TeamMembersTableData extends DataClass
       invitedBy: data.invitedBy.present ? data.invitedBy.value : this.invitedBy,
       notes: data.notes.present ? data.notes.value : this.notes,
       userId: data.userId.present ? data.userId.value : this.userId,
+      dataScope: data.dataScope.present ? data.dataScope.value : this.dataScope,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -10632,6 +10664,7 @@ class TeamMembersTableData extends DataClass
           ..write('invitedBy: $invitedBy, ')
           ..write('notes: $notes, ')
           ..write('userId: $userId, ')
+          ..write('dataScope: $dataScope, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -10656,6 +10689,7 @@ class TeamMembersTableData extends DataClass
     invitedBy,
     notes,
     userId,
+    dataScope,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -10679,6 +10713,7 @@ class TeamMembersTableData extends DataClass
           other.invitedBy == this.invitedBy &&
           other.notes == this.notes &&
           other.userId == this.userId &&
+          other.dataScope == this.dataScope &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -10700,6 +10735,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
   final Value<String> invitedBy;
   final Value<String> notes;
   final Value<String> userId;
+  final Value<String> dataScope;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -10720,6 +10756,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     this.invitedBy = const Value.absent(),
     this.notes = const Value.absent(),
     this.userId = const Value.absent(),
+    this.dataScope = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -10741,6 +10778,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     this.invitedBy = const Value.absent(),
     this.notes = const Value.absent(),
     this.userId = const Value.absent(),
+    this.dataScope = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -10768,6 +10806,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     Expression<String>? invitedBy,
     Expression<String>? notes,
     Expression<String>? userId,
+    Expression<String>? dataScope,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -10789,6 +10828,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
       if (invitedBy != null) 'invited_by': invitedBy,
       if (notes != null) 'notes': notes,
       if (userId != null) 'user_id': userId,
+      if (dataScope != null) 'data_scope': dataScope,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -10812,6 +10852,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     Value<String>? invitedBy,
     Value<String>? notes,
     Value<String>? userId,
+    Value<String>? dataScope,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -10833,6 +10874,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
       invitedBy: invitedBy ?? this.invitedBy,
       notes: notes ?? this.notes,
       userId: userId ?? this.userId,
+      dataScope: dataScope ?? this.dataScope,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -10884,6 +10926,9 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
     }
+    if (dataScope.present) {
+      map['data_scope'] = Variable<String>(dataScope.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -10921,6 +10966,7 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
           ..write('invitedBy: $invitedBy, ')
           ..write('notes: $notes, ')
           ..write('userId: $userId, ')
+          ..write('dataScope: $dataScope, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -15109,9 +15155,7 @@ class $NotificationLogTableTable extends NotificationLogTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _isReadMeta = const VerificationMeta(
-    'isRead',
-  );
+  static const VerificationMeta _isReadMeta = const VerificationMeta('isRead');
   @override
   late final GeneratedColumn<int> isRead = GeneratedColumn<int>(
     'is_read',
@@ -15293,7 +15337,12 @@ class NotificationLogTableData extends DataClass
     implements Insertable<NotificationLogTableData> {
   final String id;
   final String businessId;
+
+  /// 'low_stock' | 'overdue_debt' | 'overdue_invoice' | 'sync_failure'
   final String type;
+
+  /// The inventory/debt/invoice id this alert refers to. Null for
+  /// sync_failure, which is a single per-business row, not per-entity.
   final String? entityId;
   final String title;
   final String body;
@@ -20610,6 +20659,7 @@ typedef $$TeamMembersTableTableCreateCompanionBuilder =
       Value<String> invitedBy,
       Value<String> notes,
       Value<String> userId,
+      Value<String> dataScope,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -20632,6 +20682,7 @@ typedef $$TeamMembersTableTableUpdateCompanionBuilder =
       Value<String> invitedBy,
       Value<String> notes,
       Value<String> userId,
+      Value<String> dataScope,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -20711,6 +20762,11 @@ class $$TeamMembersTableTableFilterComposer
 
   ColumnFilters<String> get userId => $composableBuilder(
     column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataScope => $composableBuilder(
+    column: $table.dataScope,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20814,6 +20870,11 @@ class $$TeamMembersTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get dataScope => $composableBuilder(
+    column: $table.dataScope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -20894,6 +20955,9 @@ class $$TeamMembersTableTableAnnotationComposer
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
 
+  GeneratedColumn<String> get dataScope =>
+      $composableBuilder(column: $table.dataScope, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20964,6 +21028,7 @@ class $$TeamMembersTableTableTableManager
                 Value<String> invitedBy = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<String> userId = const Value.absent(),
+                Value<String> dataScope = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -20984,6 +21049,7 @@ class $$TeamMembersTableTableTableManager
                 invitedBy: invitedBy,
                 notes: notes,
                 userId: userId,
+                dataScope: dataScope,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -21006,6 +21072,7 @@ class $$TeamMembersTableTableTableManager
                 Value<String> invitedBy = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<String> userId = const Value.absent(),
+                Value<String> dataScope = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -21026,6 +21093,7 @@ class $$TeamMembersTableTableTableManager
                 invitedBy: invitedBy,
                 notes: notes,
                 userId: userId,
+                dataScope: dataScope,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -23081,6 +23149,300 @@ typedef $$MasterProductsTableTableProcessedTableManager =
       MasterProductsTableData,
       PrefetchHooks Function()
     >;
+typedef $$NotificationLogTableTableCreateCompanionBuilder =
+    NotificationLogTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String type,
+      Value<String?> entityId,
+      required String title,
+      required String body,
+      Value<int> isRead,
+      required int createdAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$NotificationLogTableTableUpdateCompanionBuilder =
+    NotificationLogTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> type,
+      Value<String?> entityId,
+      Value<String> title,
+      Value<String> body,
+      Value<int> isRead,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$NotificationLogTableTableFilterComposer
+    extends Composer<_$AppDatabase, $NotificationLogTableTable> {
+  $$NotificationLogTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotificationLogTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotificationLogTableTable> {
+  $$NotificationLogTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotificationLogTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotificationLogTableTable> {
+  $$NotificationLogTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get isRead =>
+      $composableBuilder(column: $table.isRead, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$NotificationLogTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NotificationLogTableTable,
+          NotificationLogTableData,
+          $$NotificationLogTableTableFilterComposer,
+          $$NotificationLogTableTableOrderingComposer,
+          $$NotificationLogTableTableAnnotationComposer,
+          $$NotificationLogTableTableCreateCompanionBuilder,
+          $$NotificationLogTableTableUpdateCompanionBuilder,
+          (
+            NotificationLogTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $NotificationLogTableTable,
+              NotificationLogTableData
+            >,
+          ),
+          NotificationLogTableData,
+          PrefetchHooks Function()
+        > {
+  $$NotificationLogTableTableTableManager(
+    _$AppDatabase db,
+    $NotificationLogTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotificationLogTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotificationLogTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$NotificationLogTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> entityId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> isRead = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotificationLogTableCompanion(
+                id: id,
+                businessId: businessId,
+                type: type,
+                entityId: entityId,
+                title: title,
+                body: body,
+                isRead: isRead,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String type,
+                Value<String?> entityId = const Value.absent(),
+                required String title,
+                required String body,
+                Value<int> isRead = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NotificationLogTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                type: type,
+                entityId: entityId,
+                title: title,
+                body: body,
+                isRead: isRead,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotificationLogTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NotificationLogTableTable,
+      NotificationLogTableData,
+      $$NotificationLogTableTableFilterComposer,
+      $$NotificationLogTableTableOrderingComposer,
+      $$NotificationLogTableTableAnnotationComposer,
+      $$NotificationLogTableTableCreateCompanionBuilder,
+      $$NotificationLogTableTableUpdateCompanionBuilder,
+      (
+        NotificationLogTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $NotificationLogTableTable,
+          NotificationLogTableData
+        >,
+      ),
+      NotificationLogTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -23120,4 +23482,6 @@ class $AppDatabaseManager {
       $$MasterCategoriesTableTableTableManager(_db, _db.masterCategoriesTable);
   $$MasterProductsTableTableTableManager get masterProductsTable =>
       $$MasterProductsTableTableTableManager(_db, _db.masterProductsTable);
+  $$NotificationLogTableTableTableManager get notificationLogTable =>
+      $$NotificationLogTableTableTableManager(_db, _db.notificationLogTable);
 }

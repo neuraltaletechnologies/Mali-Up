@@ -400,6 +400,34 @@ class _CurrentPlanBlock extends StatelessWidget {
                 ],
               ),
             ),
+          ] else if (status.tier == PlanTier.growth) ...[
+            // No usage bar here — Growth already has unlimited invoices.
+            // Business is the natural next step up, so still surface a
+            // direct path to it instead of leaving Growth subscribers with
+            // no upgrade affordance on their own plan card.
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: onUpgradeTap,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _t('Upgrade to Business', 'Panda hadi Business'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 15,
+                    color: AppColors.navyPrimary,
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),

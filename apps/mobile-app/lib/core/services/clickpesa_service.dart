@@ -3,53 +3,58 @@ import 'package:flutter/foundation.dart';
 
 import 'plan_service.dart';
 
-/// Client for the `createClickPesaPayment` / `verifyClickPesaPayment` Cloud
+/// Client for the `initiateClickPesaPayment` / `verifyClickPesaPayment` Cloud
 /// Functions (`functions/src/clickpesa.ts`).
 ///
-/// The app never talks to ClickPesa directly and never holds a ClickPesa API
-/// key: both the create-payment call and the payment-status poll are proxied
-/// through Cloud Functions, which hold the real secret and are the only code
-/// path allowed to write `plan`/`planExpiresAt`/`lastPayment` on the user's
-/// Firestore doc (see firestore.rules — client writes to those fields are
-/// rejected). This also means the amount charged always comes from the
-/// admin-configured price on the server, never from anything the client says.
+/// Uses ClickPesa's USSD-Push flow: the server pushes a mobile-money PIN
+/// prompt straight to the user's phone (M-Pesa/Tigo Pesa/Airtel Money/
+/// HaloPesa) — there is no checkout page or browser hop. The app never talks
+/// to ClickPesa directly and never holds a ClickPesa API key: both calls are
+/// proxied through Cloud Functions, which hold the real secret and are the
+/// only code path allowed to write `plan`/`planExpiresAt`/`lastPayment` on
+/// the user's Firestore doc (see firestore.rules — client writes to those
+/// fields are rejected). This also means the amount charged always comes
+/// from the admin-configured price on the server, never from anything the
+/// client says.
 class ClickPesaService {
   static final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
-  /// Creates a ClickPesa payment for [tier] and returns the URL to open.
-  static Future<ClickPesaPaymentResponse> createPayment({
+  /// Pushes a payment prompt to [phoneNumber] for [tier]. Accepts common
+  /// Tanzanian phone formats (0712345678, +255712345678, 255712345678) —
+  /// the server normalizes and validates it.
+  static Future<ClickPesaInitiateResult> initiatePayment({
     required PlanTier tier,
-    String? returnUrl,
+    required String phoneNumber,
   }) async {
     if (tier != PlanTier.growth && tier != PlanTier.business) {
       throw ArgumentError.value(tier, 'tier', 'Must be growth or business.');
     }
     try {
-      debugPrint('[ClickPesa] Creating payment for ${tier.name}');
-      final callable = _functions.httpsCallable('createClickPesaPayment');
+      debugPrint('[ClickPesa] Initiating USSD push for ${tier.name}');
+      final callable = _functions.httpsCallable('initiateClickPesaPayment');
       final result = await callable.call<Map<String, dynamic>>({
         'tier': tier.name,
-        'returnUrl': ?returnUrl,
+        'phoneNumber': phoneNumber,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
-      debugPrint('[ClickPesa] Payment created: ${data['paymentId']}');
-      return ClickPesaPaymentResponse.fromJson(data);
+      debugPrint('[ClickPesa] Push sent: ${data['orderReference']}');
+      return ClickPesaInitiateResult.fromJson(data);
     } on FirebaseFunctionsException catch (e) {
-      debugPrint('[ClickPesa] Error creating payment: ${e.code} ${e.message}');
+      debugPrint('[ClickPesa] Error initiating payment: ${e.code} ${e.message}');
       rethrow;
     }
   }
 
-  /// Checks the real ClickPesa status for [paymentId] via the server. The
-  /// first time this reports `completed`, the plan has already been
+  /// Checks the real ClickPesa status for [orderReference] via the server.
+  /// The first time this reports `completed`, the plan has already been
   /// activated server-side — there is no separate client-side activation
   /// step.
-  static Future<ClickPesaVerifyResult> verifyPayment(String paymentId) async {
+  static Future<ClickPesaVerifyResult> verifyPayment(String orderReference) async {
     try {
       final callable = _functions.httpsCallable('verifyClickPesaPayment');
       final result = await callable.call<Map<String, dynamic>>({
-        'paymentId': paymentId,
+        'orderReference': orderReference,
       });
       return ClickPesaVerifyResult.fromJson(
         Map<String, dynamic>.from(result.data as Map),
@@ -61,22 +66,19 @@ class ClickPesaService {
   }
 
   /// Polls [verifyPayment] until the payment completes, fails, or
-  /// [maxAttempts] is reached. Returns the completed result; throws on
-  /// failure or timeout.
+  /// [maxAttempts] is reached — i.e. while the user is entering their PIN on
+  /// the USSD prompt. Returns the completed result; throws on failure or
+  /// timeout.
   static Future<ClickPesaVerifyResult> waitForPayment({
-    required String paymentId,
-    int maxAttempts = 30,
+    required String orderReference,
+    int maxAttempts = 40,
     Duration interval = const Duration(seconds: 3),
   }) async {
     for (int i = 0; i < maxAttempts; i++) {
-      try {
-        final result = await verifyPayment(paymentId);
-        if (result.status == ClickPesaStatus.completed) return result;
-        if (result.status == ClickPesaStatus.failed) {
-          throw Exception('Payment failed');
-        }
-      } on FirebaseFunctionsException {
-        rethrow;
+      final result = await verifyPayment(orderReference);
+      if (result.status == ClickPesaStatus.completed) return result;
+      if (result.status == ClickPesaStatus.failed) {
+        throw Exception('Payment failed');
       }
       await Future.delayed(interval);
     }
@@ -86,29 +88,19 @@ class ClickPesaService {
 
 enum ClickPesaStatus { completed, pending, failed }
 
-/// Response from creating a payment.
-class ClickPesaPaymentResponse {
-  final String paymentId;
-  final String paymentUrl;
-  final String reference;
-  final int amount;
-  final String currency;
+/// Result of an `initiateClickPesaPayment` call.
+class ClickPesaInitiateResult {
+  final String orderReference;
+  final String status;
+  final String? channel;
 
-  ClickPesaPaymentResponse({
-    required this.paymentId,
-    required this.paymentUrl,
-    required this.reference,
-    required this.amount,
-    required this.currency,
-  });
+  ClickPesaInitiateResult({required this.orderReference, required this.status, this.channel});
 
-  factory ClickPesaPaymentResponse.fromJson(Map<String, dynamic> json) {
-    return ClickPesaPaymentResponse(
-      paymentId: json['paymentId'] as String,
-      paymentUrl: json['paymentUrl'] as String,
-      reference: json['reference'] as String,
-      amount: (json['amount'] as num).toInt(),
-      currency: json['currency'] as String,
+  factory ClickPesaInitiateResult.fromJson(Map<String, dynamic> json) {
+    return ClickPesaInitiateResult(
+      orderReference: json['orderReference'] as String,
+      status: json['status'] as String? ?? 'PROCESSING',
+      channel: json['channel'] as String?,
     );
   }
 }

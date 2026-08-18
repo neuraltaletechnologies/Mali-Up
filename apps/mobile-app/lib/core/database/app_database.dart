@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   /// Removes account and business data cached on this device.
   ///
@@ -201,6 +201,15 @@ class AppDatabase extends _$AppDatabase {
             // is re-derived on-device, so there's nothing to push or pull.
             await m.createTable(notificationLogTable);
             await _createV11Indexes();
+          }
+          if (from < 12) {
+            // Per-member data scoping (RBAC): a team member can be restricted
+            // to only the records they created/are assigned to (e.g. a driver
+            // who should see only their own vehicle's sales), instead of every
+            // record in the business. See DataScope in team_member.dart.
+            await customStatement(
+              "ALTER TABLE team_members ADD COLUMN data_scope TEXT NOT NULL DEFAULT 'all'",
+            );
           }
         },
         beforeOpen: (details) async {

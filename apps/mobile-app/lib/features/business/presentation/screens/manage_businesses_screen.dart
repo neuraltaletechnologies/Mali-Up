@@ -437,6 +437,11 @@ class _ManageBusinessesScreenState
     File? pickedLogoFile;
     final existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
 
+    // Set only if this save should also become the active business
+    // (first business ever, or adding a new one). Persisted after the sheet
+    // is fully closed — see the comment at the save button below.
+    String? pendingSelectId;
+
     final result = await showAppSheet<bool>(
       context,
       builder: (sheetCtx) {
@@ -1026,7 +1031,7 @@ class _ManageBusinessesScreenState
                                   ? null
                                   : () async {
                                       setS(() => localSaving = true);
-                                      final saved = await _saveBusinessForm(
+                                      final savedId = await _saveBusinessForm(
                                         profile: profile,
                                         businessId: businessId,
                                         name: nameCtrl.text.trim(),
@@ -1058,18 +1063,42 @@ class _ManageBusinessesScreenState
                                         existingLogoUrl: existingLogoUrl,
                                       );
                                       if (!mounted) return;
-                                      // Delay the pop by one post-frame callback.
-                                      // The Firestore write triggers a Riverpod
-                                      // provider cascade (currentBusinessIdProvider
-                                      // → syncServiceProvider → MainShellPage)
-                                      // that schedules widget rebuilds. If the pop
-                                      // starts in the same frame those rebuilds are
-                                      // processed, an InheritedElement is deactivated
-                                      // while the sheet's elements are still
-                                      // registered as dependents → _dependents.isEmpty
-                                      // assertion. Deferring to the next frame lets
-                                      // those rebuilds flush cleanly first.
-                                      if (saved) {
+                                      if (savedId != null) {
+                                        // Only stage the "make this the
+                                        // active business" write here — it
+                                        // is NOT sent yet. Writing
+                                        // selectedBusinessId now (while the
+                                        // sheet is still open/closing) is
+                                        // what used to trip Flutter's
+                                        // '_dependents.isEmpty' assertion:
+                                        // once Firestore's snapshot listener
+                                        // echoes the write back (persistence
+                                        // cache is disabled app-wide, so
+                                        // this always requires a real
+                                        // network round trip and can land at
+                                        // an arbitrary later frame), it
+                                        // cascades currentBusinessIdProvider
+                                        // → syncServiceProvider →
+                                        // MainShellPage rebuilds. If that
+                                        // cascade lands while this sheet's
+                                        // elements are still being torn
+                                        // down, the framework finds an
+                                        // InheritedElement deactivated with
+                                        // dependents still registered. So we
+                                        // hold the write until after the
+                                        // sheet has fully closed (see below,
+                                        // once `result == true`).
+                                        final currentSelected =
+                                            _selectedBusinessId(profile);
+                                        if (currentSelected == null ||
+                                            currentSelected.isEmpty ||
+                                            businessId == null) {
+                                          pendingSelectId = savedId;
+                                        }
+                                        // Also defer the pop itself by one
+                                        // frame as cheap extra insurance
+                                        // against any other rebuild already
+                                        // scheduled this frame.
                                         WidgetsBinding.instance
                                             .addPostFrameCallback((_) {
                                               if (dlgCtx.mounted) {
@@ -1122,6 +1151,19 @@ class _ManageBusinessesScreenState
     websiteCtrl.dispose();
 
     if (result == true && mounted) {
+      // Now that the sheet is fully closed, it's safe to fire the write
+      // that switches the active business (see the comment above this
+      // block's onPressed handler for why this is deferred to here).
+      if (pendingSelectId != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await _persistSelectedBusiness(
+            userId: user.uid,
+            selectedBusinessId: pendingSelectId,
+          );
+        }
+      }
+      if (!mounted) return;
       setState(() => _profileFuture = _loadProfile());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1143,7 +1185,12 @@ class _ManageBusinessesScreenState
 
   // ─── Save ─────────────────────────────────────────────────────────────────────
 
-  Future<bool> _saveBusinessForm({
+  /// Returns the saved business's id on success, or null on failure.
+  ///
+  /// Deliberately does NOT persist `selectedBusinessId` here — see the call
+  /// site in [_openBusinessFormSheet] for why that write is deferred until
+  /// after the sheet has fully closed.
+  Future<String?> _saveBusinessForm({
     required Map<String, dynamic>? profile,
     required String? businessId,
     required String name,
@@ -1162,7 +1209,7 @@ class _ManageBusinessesScreenState
     String? existingLogoUrl,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    if (user == null) return null;
 
     if (name.isEmpty || place.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1175,7 +1222,7 @@ class _ManageBusinessesScreenState
           ),
         ),
       );
-      return false;
+      return null;
     }
 
     try {
@@ -1248,24 +1295,13 @@ class _ManageBusinessesScreenState
         if (businessId == null) 'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Keep selectedBusinessId current on the user profile.
-      final currentSelected = _selectedBusinessId(profile);
-      if (currentSelected == null ||
-          currentSelected.isEmpty ||
-          businessId == null) {
-        await _persistSelectedBusiness(
-          userId: user.uid,
-          selectedBusinessId: resolvedId,
-        );
-      }
-
       // Let the dashboard Hero card (and any other cached views) know to refresh.
       BusinessProfileService.notifyUpdated();
 
-      return true;
+      return resolvedId;
     } on FirebaseException catch (e) {
       debugPrint('Business save failed: ${e.code} ${e.message}');
-      if (!mounted) return false;
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1276,10 +1312,10 @@ class _ManageBusinessesScreenState
           ),
         ),
       );
-      return false;
+      return null;
     } catch (e) {
       debugPrint('Business save failed: $e');
-      if (!mounted) return false;
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1290,7 +1326,7 @@ class _ManageBusinessesScreenState
           ),
         ),
       );
-      return false;
+      return null;
     }
   }
 
