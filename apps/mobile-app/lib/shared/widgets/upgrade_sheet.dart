@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +14,7 @@ import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
+import 'payment_pos_animation.dart';
 import 'skeleton_widgets.dart';
 import 'smart_skeleton.dart';
 
@@ -85,13 +88,22 @@ extension PlanFeatureKeyX on PlanFeatureKey {
 
 /// Shows the upgrade / paywall bottom sheet.
 /// Returns the selected [PlanTier] if the user proceeds to payment, or null.
+///
+/// This is two separate bottom sheets chained together, not one: the plan
+/// picker + phone-number form pops with a [_PaymentHandoff] once the user
+/// submits a number, and only then does a second, independent sheet
+/// ([_ClickPesaPaymentSheet]) open to run the actual ClickPesa request and
+/// show its POS animation. Keeping them separate means the payment sheet's
+/// AnimationController/Lottie composition is created fresh for that one
+/// request instead of living inside (and being torn down by) the plan
+/// sheet's own rebuilds.
 Future<PlanTier?> showUpgradeSheet(
   BuildContext context, {
   PlanStatus? currentStatus,
   String? triggerReason,
   PlanFeatureKey? featureKey,
-}) {
-  return showAppSheet<PlanTier>(
+}) async {
+  final result = await showAppSheet<Object>(
     context,
     builder: (_) => _UpgradeSheetWrapper(
       currentStatus: currentStatus,
@@ -99,6 +111,35 @@ Future<PlanTier?> showUpgradeSheet(
       featureKey: featureKey,
     ),
   );
+  if (result is! _PaymentHandoff) {
+    return result as PlanTier?;
+  }
+  if (!context.mounted) return null;
+  return showAppSheet<PlanTier>(
+    context,
+    builder: (_) => _ClickPesaPaymentSheet(
+      tier: result.tier,
+      phoneNumber: result.phoneNumber,
+      priceCycle: result.priceCycle,
+      cycleMonths: result.cycleMonths,
+    ),
+  );
+}
+
+/// Carries the plan + phone number chosen in the first sheet across to the
+/// second, payment-processing sheet. See [showUpgradeSheet].
+class _PaymentHandoff {
+  final PlanTier tier;
+  final String phoneNumber;
+  final int priceCycle;
+  final int cycleMonths;
+
+  const _PaymentHandoff({
+    required this.tier,
+    required this.phoneNumber,
+    required this.priceCycle,
+    required this.cycleMonths,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -309,12 +350,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
-  bool _paymentSubmitted = false;
-  bool _paymentFailed = false;
-  bool _processingClickPesa = false;
-  String _orderReference = '';
   String? _prefillPhone;
-  String? _failureMessage;
 
   bool get _isMultiBusiness =>
       widget.featureKey == PlanFeatureKey.multiBusiness;
@@ -365,70 +401,23 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle => _selLimits.pricePerCycle;
 
+  /// The phone form only collects a number here — actually sending the USSD
+  /// push and watching for confirmation happens in a separate sheet (see
+  /// [_ClickPesaPaymentSheet]) so that sheet's Lottie animation isn't torn
+  /// down and rebuilt every time this plan-selection sheet's own state
+  /// changes. Popping with a [_PaymentHandoff] tells [showUpgradeSheet] to
+  /// open that second sheet next.
   Future<void> _sendPaymentRequest(String phoneNumber) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-
-    setState(() {
-      _showPhoneConfirm = false;
-      _paymentFailed = false;
-      _processingClickPesa = true;
-      _prefillPhone = phoneNumber;
-    });
-
-    try {
-      // Push a USSD payment prompt to the user's phone. The amount is
-      // decided server-side (from the admin-configured price), not by the
-      // client — see functions/src/clickpesa.ts.
-      final initiated = await ClickPesaService.initiatePayment(
+    Navigator.pop(
+      context,
+      _PaymentHandoff(
         tier: _selected,
         phoneNumber: phoneNumber,
-      );
-      _orderReference = initiated.orderReference;
-
-      if (!mounted) return;
-
-      // Poll the server while the user confirms the PIN prompt on their
-      // phone. Plan activation happens server-side the moment this reports
-      // "completed" — there is nothing left for the client to write.
-      await ClickPesaService.waitForPayment(orderReference: initiated.orderReference);
-
-      if (!mounted) return;
-
-      setState(() {
-        _processingClickPesa = false;
-        _paymentSubmitted = true;
-      });
-    } catch (e) {
-      debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
-      if (!mounted) return;
-      setState(() {
-        _processingClickPesa = false;
-        _paymentFailed = true;
-        _failureMessage = _friendlyFailureMessage(e);
-      });
-    }
-  }
-
-  /// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
-  /// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
-  /// actually act on instead of the raw error string.
-  String _friendlyFailureMessage(Object e) {
-    final raw = e.toString();
-    if (raw.contains('Payment verification timeout')) {
-      return _t(
-        "We didn't get a confirmation in time. If you entered your PIN, "
-            'check your balance before retrying — you may already have been '
-            'charged.',
-        'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
-            'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
-      );
-    }
-    return _t(
-      'The payment was declined or not completed on your phone. No charge '
-          'was made — you can try again.',
-      'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
-          'unaweza kujaribu tena.',
+        priceCycle: _priceCycle,
+        cycleMonths: _selLimits.cycleMonths,
+      ),
     );
   }
 
@@ -520,31 +509,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SizedBox(height: 16),
 
               // ── CTA / Payment / Enterprise request ───────────────────────
-              if (_paymentSubmitted) ...[
-                _PaymentSuccessCard(
-                  tier: _selected,
-                  paymentRef: _orderReference,
-                  onDone: () => Navigator.pop(context, _selected),
-                ),
-              ] else if (_showEnterprise) ...[
+              if (_showEnterprise) ...[
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
-                ),
-              ] else if (_processingClickPesa) ...[
-                _ClickPesaProcessingCard(
-                  tier: _selected,
-                  priceCycle: _priceCycle,
-                  cycleMonths: _selLimits.cycleMonths,
-                ),
-              ] else if (_paymentFailed) ...[
-                _PaymentFailedCard(
-                  message: _failureMessage ??
-                      _t('Something went wrong.', 'Hitilafu imetokea.'),
-                  onRetry: () => setState(() {
-                    _paymentFailed = false;
-                    _showPhoneConfirm = true;
-                  }),
-                  onCancel: () => setState(() => _paymentFailed = false),
                 ),
               ] else if (_showPhoneConfirm) ...[
                 _PhonePaymentForm(
@@ -1461,108 +1428,204 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ClickPesa payment processing card
+// ClickPesa payment sheet — its own bottom sheet (see showUpgradeSheet), so
+// its AnimationController/Lottie composition has a clean lifecycle: created
+// when this sheet opens, torn down when it closes, never shared with the
+// plan-picker sheet underneath it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ClickPesaProcessingCard extends StatelessWidget {
+class _ClickPesaPaymentSheet extends StatefulWidget {
   final PlanTier tier;
+  final String phoneNumber;
   final int priceCycle;
   final int cycleMonths;
 
-  const _ClickPesaProcessingCard({
+  const _ClickPesaPaymentSheet({
     required this.tier,
+    required this.phoneNumber,
     required this.priceCycle,
     required this.cycleMonths,
   });
 
   @override
+  State<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
+}
+
+class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
+    with SingleTickerProviderStateMixin {
+  late final PaymentPosAnimationController _paymentAnim =
+      PaymentPosAnimationController(vsync: this);
+
+  bool _succeeded = false;
+  bool _failed = false;
+  String _orderReference = '';
+  String? _failureMessage;
+
+  // Flipped in dispose() so an in-flight ClickPesaService.waitForPayment
+  // poll loop notices (via isCancelled) and stops calling the server the
+  // moment this sheet is closed, instead of continuing to fire requests in
+  // the background for up to its full timeout.
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_runPayment());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _paymentAnim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runPayment() async {
+    if (!mounted) return;
+    setState(() {
+      _failed = false;
+      _failureMessage = null;
+    });
+    // Reset in case this is a retry after a previous failure (the
+    // controller would otherwise still be sitting frozen mid wait-loop),
+    // then play the card-into-POS intro and settle into the indefinitely
+    // looping waiting animation — driven by this real request, not a timer.
+    _paymentAnim.reset();
+    unawaited(_paymentAnim.startPayment());
+
+    try {
+      // Push a USSD payment prompt to the user's phone. The amount is
+      // decided server-side (from the admin-configured price), not by the
+      // client — see functions/src/clickpesa.ts.
+      final initiated = await ClickPesaService.initiatePayment(
+        tier: widget.tier,
+        phoneNumber: widget.phoneNumber,
+      );
+      if (_disposed) return;
+      _orderReference = initiated.orderReference;
+
+      // Poll the server while the user confirms the PIN prompt on their
+      // phone. Plan activation happens server-side the moment this reports
+      // "completed" — there is nothing left for the client to write. This
+      // is capped at 40 attempts x 3s (2 minutes total) inside
+      // waitForPayment, and stops polling immediately — rather than
+      // continuing in the background up to that cap — if this sheet is
+      // dismissed before then, via isCancelled.
+      await ClickPesaService.waitForPayment(
+        orderReference: initiated.orderReference,
+        isCancelled: () => _disposed,
+      );
+      if (_disposed || !mounted) return;
+
+      setState(() => _succeeded = true);
+      unawaited(_paymentAnim.setSuccess());
+    } on ClickPesaCancelledException {
+      // The sheet was dismissed mid-poll — nothing to show, nothing to log.
+    } catch (e) {
+      if (_disposed) return;
+      debugPrint('[ClickPesaPaymentSheet] payment error: $e');
+      // Freezes wherever the wait loop currently is — the green checkmark
+      // frames are never reached on failure.
+      _paymentAnim.setFailed();
+      if (!mounted) return;
+      setState(() {
+        _failed = true;
+        _failureMessage = _friendlyClickPesaFailureMessage(e);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.navyPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.navyPrimary.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          const _PulsingIcon(
-            icon: Icons.phone_android_rounded,
-            color: AppColors.navyPrimary,
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
           ),
-          const SizedBox(height: 16),
-          Text(
-            _t('Check Your Phone', 'Angalia Simu Yako'),
-            style: GoogleFonts.dmSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _t(
-              "We've sent a payment prompt to your phone — enter your mobile "
-                  'money PIN there to confirm. This closes automatically once '
-                  "you've confirmed.",
-              'Tumetuma ombi la malipo kwenye simu yako — weka PIN yako ya pesa '
-                  'ya simu hapo kuthibitisha. Hii itafunga yenyewe mara '
-                  'utakapothibitisha.',
-            ),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  _t('$tierName Plan', '$tierName Mpango'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              const SizedBox(height: 14),
+              if (_failed)
+                _PaymentFailedCard(
+                  message: _failureMessage ??
+                      _t('Something went wrong.', 'Hitilafu imetokea.'),
+                  onRetry: () => unawaited(_runPayment()),
+                  onCancel: () => Navigator.pop(context),
+                )
+              else
+                _ClickPesaPaymentCard(
+                  animController: _paymentAnim,
+                  succeeded: _succeeded,
+                  tier: widget.tier,
+                  priceCycle: widget.priceCycle,
+                  cycleMonths: widget.cycleMonths,
+                  paymentRef: _orderReference,
+                  onDone: () => Navigator.pop(context, widget.tier),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
+/// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
+/// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
+/// actually act on instead of the raw error string.
+String _friendlyClickPesaFailureMessage(Object e) {
+  final raw = e.toString();
+  if (raw.contains('Payment verification timeout')) {
+    return _t(
+      "We didn't get a confirmation in time. If you entered your PIN, "
+          'check your balance before retrying — you may already have been '
+          'charged.',
+      'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
+          'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
+    );
+  }
+  return _t(
+    'The payment was declined or not completed on your phone. No charge '
+        'was made — you can try again.',
+    'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
+        'unaweza kujaribu tena.',
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Payment claim submitted — "we're processing it" confirmation
+// ClickPesa payment card — processing and success share this single widget
+// so PaymentPosAnimation (and the AnimationController driving it) stays
+// mounted across the waiting -> success handoff instead of being disposed
+// and recreated, which would re-load the Lottie composition and flash.
+// Only the tint, heading, and body below the animation change with
+// [succeeded]; see PaymentPosAnimationController for how the animation
+// itself is driven off real ClickPesa status rather than a timer.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PaymentSuccessCard extends StatelessWidget {
+class _ClickPesaPaymentCard extends StatelessWidget {
+  final PaymentPosAnimationController animController;
+  final bool succeeded;
   final PlanTier tier;
+  final int priceCycle;
+  final int cycleMonths;
   final String paymentRef;
   final VoidCallback onDone;
 
-  const _PaymentSuccessCard({
+  const _ClickPesaPaymentCard({
+    required this.animController,
+    required this.succeeded,
     required this.tier,
+    required this.priceCycle,
+    required this.cycleMonths,
     required this.paymentRef,
     required this.onDone,
   });
@@ -1570,66 +1633,122 @@ class _PaymentSuccessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    return Container(
-      padding: const EdgeInsets.all(18),
+    final tint = succeeded ? AppColors.success : AppColors.navyPrimary;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.06),
+        color: tint.withValues(alpha: succeeded ? 0.06 : 0.04),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+        border: Border.all(color: tint.withValues(alpha: succeeded ? 0.25 : 0.2)),
       ),
       child: Column(
         children: [
-          const _BounceInIcon(
-            icon: Icons.check_rounded,
-            color: AppColors.success,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _t('Payment successful!', 'Malipo yamefanikiwa!'),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              'Your $tierName plan is now active ($paymentRef). Enjoy the '
-                  'new features right away.',
-              'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
-                  'vipengele vipya mara moja.',
-            ),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton(
-              onPressed: onDone,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navyPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                _t('OK', 'Sawa'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+          PaymentPosAnimation(controller: animController, size: 160),
+          const SizedBox(height: 12),
+          if (succeeded) ...[
+            Text(
+              _t('Payment successful!', 'Malipo yamefanikiwa!'),
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
               ),
             ),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              _t(
+                'Your $tierName plan is now active ($paymentRef). Enjoy the '
+                    'new features right away.',
+                'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
+                    'vipengele vipya mara moja.',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: onDone,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  _t('OK', 'Sawa'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            Text(
+              _t('Check Your Phone', 'Angalia Simu Yako'),
+              style: GoogleFonts.dmSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _t(
+                "We've sent a payment prompt to your phone — enter your mobile "
+                    'money PIN there to confirm. This closes automatically once '
+                    "you've confirmed.",
+                'Tumetuma ombi la malipo kwenye simu yako — weka PIN yako ya pesa '
+                    'ya simu hapo kuthibitisha. Hii itafunga yenyewe mara '
+                    'utakapothibitisha.',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    _t('$tierName Plan', '$tierName Mpango'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1746,102 +1865,10 @@ class _PaymentFailedCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pulsing icon — concentric rings expanding outward from a static icon.
-// Used for "waiting on something outside the app" (confirming on the phone),
-// where a plain spinner doesn't communicate what's actually being waited on.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PulsingIcon extends StatefulWidget {
-  final IconData icon;
-  final Color color;
-
-  const _PulsingIcon({required this.icon, required this.color});
-
-  @override
-  State<_PulsingIcon> createState() => _PulsingIconState();
-}
-
-class _PulsingIconState extends State<_PulsingIcon>
-    with SingleTickerProviderStateMixin {
-  // Slower and more contained than a typical "loading" pulse — restraint
-  // reads as premium/deliberate rather than energetic/consumer-app.
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              for (final phaseOffset in [0.0, 0.5])
-                _PulseRing(
-                  progress: (_controller.value + phaseOffset) % 1.0,
-                  color: widget.color,
-                ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.color,
-                ),
-                child: Icon(widget.icon, color: Colors.white, size: 20),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _PulseRing extends StatelessWidget {
-  final double progress; // 0..1, one full expand-and-fade cycle
-  final Color color;
-
-  const _PulseRing({required this.progress, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    // Ease the expansion so the ring decelerates as it grows, rather than
-    // drifting outward at a constant rate — a small detail that separates a
-    // "deliberate" pulse from a mechanical one.
-    final eased = Curves.easeOut.transform(progress);
-    final size = 44.0 + eased * 16.0;
-    final opacity = (1.0 - progress).clamp(0.0, 1.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: color.withValues(alpha: opacity * 0.4),
-          width: 1.5,
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Bounce-in icon — a filled circle + icon that pops in with an elastic
-// overshoot. Used for the one-shot success/failure moment at the end of a
-// payment attempt, where a static icon reads as flat after the pulsing
-// "waiting" animation that precedes it.
+// overshoot. Used for the one-shot failure moment at the end of a payment
+// attempt (the success moment now uses PaymentPosAnimation's checkmark
+// instead, via _ClickPesaPaymentCard).
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BounceInIcon extends StatelessWidget {
