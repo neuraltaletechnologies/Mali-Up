@@ -56,7 +56,7 @@ abstract final class InventoryMapper {
       bomIngredients: _decodeBomIngredients(meta['bomIngredients']),
       bomOverheads: _decodeBomOverheads(meta['bomOverheads']),
       bomBatchYield: (meta['bomBatchYield'] as num?)?.toDouble() ?? 1,
-      assignedDriverUid: meta['assignedDriverUid'] as String? ?? '',
+      assignedToUserId: meta['assignedToUserId'] as String? ?? '',
     );
   }
 
@@ -88,7 +88,7 @@ abstract final class InventoryMapper {
       'bomIngredients': item.bomIngredients.map((i) => i.toJson()).toList(),
       'bomOverheads': item.bomOverheads.map((o) => o.toJson()).toList(),
       'bomBatchYield': item.bomBatchYield,
-      'assignedDriverUid': item.assignedDriverUid,
+      'assignedToUserId': item.assignedToUserId,
     });
     return InventoryTableCompanion(
       id: Value(id),

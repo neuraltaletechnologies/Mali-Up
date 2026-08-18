@@ -62,18 +62,18 @@ class RemoteInventoryRepository {
   }
 
   /// See [RemoteInvoiceRepository.fetchUpdatedSince] for the DataScope.own
-  /// contract. Inventory items don't have a `createdBy` — a driver's own
-  /// items are the ones assigned to them via `assignedDriverUid`.
+  /// contract. Inventory items don't have a `createdBy` — a member's own
+  /// items are the ones assigned to them via `assignedToUserId`.
   Future<List<({String id, Map<String, dynamic> data})>> fetchUpdatedSince(
     int sinceMs, {
-    String? scopeToDriverUid,
+    String? scopeToUid,
   }) async {
     Query<Map<String, dynamic>> query = _collection.where(
       'updatedAt',
       isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(sinceMs),
     );
-    if (scopeToDriverUid != null && scopeToDriverUid.isNotEmpty) {
-      query = query.where('assignedDriverUid', isEqualTo: scopeToDriverUid);
+    if (scopeToUid != null && scopeToUid.isNotEmpty) {
+      query = query.where('assignedToUserId', isEqualTo: scopeToUid);
     }
     final snap = await query.get();
     return snap.docs.map((d) => (id: d.id, data: d.data())).toList();

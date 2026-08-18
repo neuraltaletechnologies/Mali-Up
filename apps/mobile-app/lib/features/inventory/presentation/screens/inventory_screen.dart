@@ -7,7 +7,6 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -2953,9 +2952,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   String _selectedCategoryId = '';
   String _selectedCategoryName = '';
 
-  // Assigned driver (service-type items only, e.g. a vehicle) — scopes
-  // Firestore reads for team members with DataScope.own. See firestore.rules.
-  String _assignedDriverUid = '';
+  // Assigned team member (service-type items only, e.g. a haircut or a
+  // vehicle) — scopes Firestore reads for team members with DataScope.own.
+  // See firestore.rules.
+  String _assignedToUserId = '';
 
   // Expiry date state
   DateTime? _expiryDate;
@@ -3036,7 +3036,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryId = (item['categoryId'] ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
-      _assignedDriverUid = (item['assignedDriverUid'] ?? '').toString();
+      _assignedToUserId = (item['assignedToUserId'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3478,8 +3478,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedDriverUid:
-            _type == ProductType.service ? _assignedDriverUid : '',
+        assignedToUserId:
+            _type == ProductType.service ? _assignedToUserId : '',
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -3828,18 +3828,19 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   void _snack(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
-  // Assigns a service-type item (e.g. a vehicle) to a team member — used to
-  // scope Firestore reads for team members with DataScope.own, so a driver
-  // sees only their own vehicle's product record. See firestore.rules.
-  Future<void> _openDriverPicker() async {
+  // Assigns a service-type item (e.g. a haircut or a vehicle) to a team
+  // member — used to scope Firestore reads for team members with
+  // DataScope.own, so they see only their own assigned item(s). See
+  // firestore.rules.
+  Future<void> _openAssigneePicker() async {
     // '' (empty string) means the user explicitly chose "Unassigned";
     // null means the sheet was dismissed without a choice.
     final result = await showAppSheet<String?>(
       context,
-      builder: (_) => _DriverPickerSheet(selectedUid: _assignedDriverUid),
+      builder: (_) => _AssigneePickerSheet(selectedUid: _assignedToUserId),
     );
     if (result != null) {
-      setState(() => _assignedDriverUid = result);
+      setState(() => _assignedToUserId = result);
     }
   }
 
@@ -4546,12 +4547,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
                       if (_type == ProductType.service) ...[
                         _FormLabel(_tr(
-                            'Assigned driver (optional)',
-                            'Dereva aliyepangiwa (hiari)')),
+                            'Assigned to (optional)',
+                            'Amepangiwa kwa (hiari)')),
                         const SizedBox(height: 6),
-                        _AssignedDriverField(
-                          selectedUid: _assignedDriverUid,
-                          onTap: _openDriverPicker,
+                        _AssignedToField(
+                          selectedUid: _assignedToUserId,
+                          onTap: _openAssigneePicker,
                         ),
                         const SizedBox(height: 14),
                       ],
@@ -6503,13 +6504,13 @@ class _AddRowButton extends StatelessWidget {
 
 // ── Category dropdown button ──────────────────────────────────────────────────
 
-// Shows the currently assigned driver's name (resolved from the local team
-// list) or "Unassigned" — tapping opens _DriverPickerSheet.
-class _AssignedDriverField extends ConsumerWidget {
+// Shows the currently assigned team member's name (resolved from the local
+// team list) or "Unassigned" — tapping opens _AssigneePickerSheet.
+class _AssignedToField extends ConsumerWidget {
   final String selectedUid;
   final VoidCallback onTap;
 
-  const _AssignedDriverField({required this.selectedUid, required this.onTap});
+  const _AssignedToField({required this.selectedUid, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -6565,10 +6566,10 @@ class _AssignedDriverField extends ConsumerWidget {
   }
 }
 
-class _DriverPickerSheet extends ConsumerWidget {
+class _AssigneePickerSheet extends ConsumerWidget {
   final String selectedUid;
 
-  const _DriverPickerSheet({required this.selectedUid});
+  const _AssigneePickerSheet({required this.selectedUid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -6594,7 +6595,7 @@ class _DriverPickerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Text(
-                _tr('Assign driver', 'Mpangie dereva'),
+                _tr('Assign to', 'Mpangie'),
                 style: GoogleFonts.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,

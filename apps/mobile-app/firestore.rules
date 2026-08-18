@@ -54,8 +54,8 @@ service cloud.firestore {
     // Per-member data scoping (DataScope.own in team_member.dart): a staff
     // member who lacks the broad "view all" permission may still read a
     // single record if they hold `narrowPermission` AND the record's
-    // `ownerField` matches their own UID — e.g. a driver with `createSale`
-    // but not `viewSales` can read only the sales they created.
+    // `ownerField` matches their own UID — e.g. a staff member with
+    // `createSale` but not `viewSales` can read only the sales they created.
     // Full-access holders (owner, or staff with `permissions`) are handled by
     // the caller pairing this with isOwnerOrStaffWithAny separately.
     function isOwnRecord(bizId, narrowPermission, ownerField) {
@@ -316,8 +316,8 @@ service cloud.firestore {
 
       // ── Sales invoices ─────────────────────────────────────────────────────
       match /sales_invoices/{invoiceId} {
-        // Full visibility via viewSales; createSale-only staff (e.g. a driver
-        // with DataScope.own) fall back to reading only their own sales.
+        // Full visibility via viewSales; createSale-only staff (e.g. a
+        // DataScope.own member) fall back to reading only their own sales.
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales'])
           || isOwnRecord(bizId, 'createSale', 'createdBy');
         allow create: if isOwnerOrStaffWithAny(bizId, ['createSale']) &&
@@ -377,11 +377,11 @@ service cloud.firestore {
       // ── Inventory ──────────────────────────────────────────────────────────
       match /inventory_items/{itemId} {
         // Full visibility via viewInventory; createSale-only staff (e.g. a
-        // driver with DataScope.own) fall back to reading only the item(s)
-        // assigned to them (assignedDriverUid) — needed so a sale can look
-        // up their own vehicle's product record.
+        // DataScope.own member) fall back to reading only the item(s)
+        // assigned to them (assignedToUserId) — needed so a sale can look
+        // up their own assigned product/service record.
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewInventory'])
-          || isOwnRecord(bizId, 'createSale', 'assignedDriverUid');
+          || isOwnRecord(bizId, 'createSale', 'assignedToUserId');
 
         // Full product creation (from the add-product form).
         allow create: if isOwnerOrStaffWithAny(bizId, ['addStock']) &&
@@ -409,7 +409,7 @@ service cloud.firestore {
       // ── Expenses ───────────────────────────────────────────────────────────
       match /expenses/{expenseId} {
         // Full visibility via viewFinancialReports; manageExpenses-only staff
-        // (e.g. a driver with DataScope.own) fall back to their own entries.
+        // (e.g. a DataScope.own member) fall back to their own entries.
         // Built-in roles that grant manageExpenses (owner/manager/accountant)
         // also grant viewFinancialReports, so this is not a behavior change
         // for them — only for custom roles missing the broader permission.

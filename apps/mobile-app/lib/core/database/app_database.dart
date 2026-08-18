@@ -204,9 +204,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 12) {
             // Per-member data scoping (RBAC): a team member can be restricted
-            // to only the records they created/are assigned to (e.g. a driver
-            // who should see only their own vehicle's sales), instead of every
-            // record in the business. See DataScope in team_member.dart.
+            // to only the records they created/are assigned to (e.g. a stylist
+            // who should see only their own sales, or a driver who should see
+            // only their own vehicle's), instead of every record in the
+            // business. See DataScope in team_member.dart.
             await customStatement(
               "ALTER TABLE team_members ADD COLUMN data_scope TEXT NOT NULL DEFAULT 'all'",
             );

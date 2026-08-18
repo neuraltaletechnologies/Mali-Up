@@ -110,10 +110,11 @@ class InventoryItem {
   final List<BomIngredient> bomIngredients;
   final List<BomOverheadCost> bomOverheads;
   final double bomBatchYield;  // How many finished units one batch produces
-  // Firebase Auth UID of the team member this item (e.g. a vehicle modeled
-  // as a service item) is assigned to. Empty when unassigned. Used to scope
-  // Firestore reads for team members with DataScope.own — see firestore.rules.
-  final String assignedDriverUid;
+  // Firebase Auth UID of the team member this item (e.g. a service like a
+  // haircut or a vehicle) is assigned to. Empty when unassigned. Used to
+  // scope Firestore reads for team members with DataScope.own — see
+  // firestore.rules. Named to match Customer.assignedToUserId.
+  final String assignedToUserId;
 
   InventoryItem({
     required this.id,
@@ -143,7 +144,7 @@ class InventoryItem {
     this.bomIngredients = const [],
     this.bomOverheads = const [],
     this.bomBatchYield = 1,
-    this.assignedDriverUid = '',
+    this.assignedToUserId = '',
   });
 
   factory InventoryItem.fromFirestore(Map<String, dynamic> data, String id) {
@@ -184,7 +185,7 @@ class InventoryItem {
       bomIngredients: _parseBomIngredients(data['bomIngredients']),
       bomOverheads: _parseBomOverheads(data['bomOverheads']),
       bomBatchYield: (data['bomBatchYield'] as num?)?.toDouble() ?? 1,
-      assignedDriverUid: data['assignedDriverUid'] as String? ?? '',
+      assignedToUserId: data['assignedToUserId'] as String? ?? '',
     );
   }
 
@@ -243,7 +244,7 @@ class InventoryItem {
       'bomIngredients': bomIngredients.map((i) => i.toJson()).toList(),
       'bomOverheads': bomOverheads.map((o) => o.toJson()).toList(),
       'bomBatchYield': bomBatchYield,
-      'assignedDriverUid': assignedDriverUid,
+      'assignedToUserId': assignedToUserId,
     };
   }
 
@@ -275,7 +276,7 @@ class InventoryItem {
     List<BomIngredient>? bomIngredients,
     List<BomOverheadCost>? bomOverheads,
     double? bomBatchYield,
-    String? assignedDriverUid,
+    String? assignedToUserId,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -305,7 +306,7 @@ class InventoryItem {
       bomIngredients: bomIngredients ?? this.bomIngredients,
       bomOverheads: bomOverheads ?? this.bomOverheads,
       bomBatchYield: bomBatchYield ?? this.bomBatchYield,
-      assignedDriverUid: assignedDriverUid ?? this.assignedDriverUid,
+      assignedToUserId: assignedToUserId ?? this.assignedToUserId,
     );
   }
 

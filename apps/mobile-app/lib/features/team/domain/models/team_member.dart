@@ -69,7 +69,7 @@ enum TeamRole {
 //
 // Controls whether a member sees every record in the business or only the
 // ones tied to them. Applies to entities with an owner-like field:
-// sales/expenses use `createdBy`, inventory items use `assignedDriverUid`.
+// sales/expenses use `createdBy`, inventory items use `assignedToUserId`.
 // Only meaningful for members who lack the matching "view all" permission
 // (viewSales / viewFinancialReports / viewInventory) — a member who has both
 // simply sees everything, `own` is a fallback, not a restriction on top.
@@ -79,8 +79,9 @@ enum DataScope {
   all,
 
   /// Sees only records they created (sales/expenses) or that are assigned
-  /// to them (inventory) — e.g. a driver who should see their own vehicle's
-  /// collections but not other drivers'.
+  /// to them (inventory) — e.g. a stylist who should see their own sales,
+  /// or a driver who should see only their own vehicle's, but not other
+  /// members'.
   own;
 
   static DataScope fromString(String s) => switch (s) {

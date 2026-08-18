@@ -650,7 +650,7 @@ class SyncService extends ChangeNotifier {
 
     final updates = await _remoteInventory.fetchUpdatedSince(
       sinceMs,
-      scopeToDriverUid: scopeReadsToUid,
+      scopeToUid: scopeReadsToUid,
     );
     var maxTs = 0;
     for (final update in updates) {

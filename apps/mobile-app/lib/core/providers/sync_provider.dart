@@ -25,9 +25,10 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
   final offlinePolicy = ref.read(offlinePolicyProvider);
 
-  // DataScope.own team members (e.g. a driver who should only see their own
-  // vehicle's records) sync against their own Firebase Auth UID rather than
-  // the full tenant — see SyncService.scopeReadsToUid and firestore.rules.
+  // DataScope.own team members (e.g. a staff member who should only see
+  // their own sales/expenses/assigned items) sync against their own
+  // Firebase Auth UID rather than the full tenant — see
+  // SyncService.scopeReadsToUid and firestore.rules.
   final member = ref.watch(currentMemberProvider).valueOrNull;
   final scopeReadsToUid = member?.dataScope == DataScope.own
       ? FirebaseAuth.instance.currentUser?.uid
