@@ -22,6 +22,19 @@ abstract final class ReceiptPdfService {
   static const _yellow = PdfColor.fromInt(0xFFFFC107);
   static const _muted = PdfColor.fromInt(0xFF667085);
   static const _line = PdfColor.fromInt(0xFFE4E7EC);
+  static const _cream = PdfColor.fromInt(0xFFFBF9F4);
+
+  /// A tall, narrow "ticket" page that auto-sizes to its content (no fixed
+  /// bottom edge, no pagination) — the same shape as an 80mm receipt-roll
+  /// printout, which also makes it print cleanly on small POS printers.
+  static const _ticketFormat = PdfPageFormat(
+    80 * PdfPageFormat.mm,
+    double.infinity,
+    marginLeft: 16,
+    marginRight: 16,
+    marginTop: 22,
+    marginBottom: 20,
+  );
 
   static Future<Map<String, String>> loadMeta({
     required String uid,
@@ -244,283 +257,284 @@ abstract final class ReceiptPdfService {
       subject: t('Customer sale receipt', 'Risiti ya mauzo ya mteja'),
     );
     document.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a5,
-        margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 24),
+      pw.Page(
+        pageFormat: _ticketFormat,
         theme: pw.ThemeData.withFont(
           base: pw.Font.helvetica(),
           bold: pw.Font.helveticaBold(),
+          italic: pw.Font.helveticaOblique(),
         ),
-        footer: (context) => pw.Container(
-          padding: const pw.EdgeInsets.only(top: 10),
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(top: pw.BorderSide(color: _line, width: 0.7)),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Row(
-                children: [
-                  pw.Text(
-                    '${t("Powered by", "Imetengenezwa na")} ',
-                    style: const pw.TextStyle(fontSize: 7, color: _muted),
-                  ),
-                  if (maliUpLogo != null)
-                    pw.Image(maliUpLogo, width: 22, height: 22)
-                  else
-                    pw.Text(
-                      'Mali Up',
+        build: (_) => pw.Column(
+          mainAxisSize: pw.MainAxisSize.min,
+          children: [
+            _perforationDots(),
+            pw.SizedBox(height: 14),
+            pw.Container(
+              width: 42,
+              height: 42,
+              alignment: pw.Alignment.center,
+              decoration: pw.BoxDecoration(
+                shape: pw.BoxShape.circle,
+                border: pw.Border.all(color: _teal, width: 1.1),
+              ),
+              child: businessLogo != null
+                  ? pw.ClipOval(
+                      child: pw.Image(
+                        businessLogo,
+                        width: 42,
+                        height: 42,
+                        fit: pw.BoxFit.cover,
+                      ),
+                    )
+                  : pw.Text(
+                      _businessInitial(businessName),
                       style: pw.TextStyle(
-                        fontSize: 8,
-                        color: _navy,
+                        color: _teal,
+                        fontSize: 15,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
-                ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Text(
+              businessName.isEmpty || businessName == 'Business'
+                  ? t('Business', 'Biashara')
+                  : businessName,
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                color: _navy,
+                fontSize: 13.5,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 0.2,
               ),
+            ),
+            if (businessAddress.isNotEmpty ||
+                businessPhone.isNotEmpty ||
+                businessEmail.isNotEmpty) ...[
+              pw.SizedBox(height: 4),
               pw.Text(
-                '${t("Page", "Ukurasa")} ${context.pageNumber}/${context.pagesCount}',
-                style: const pw.TextStyle(fontSize: 8, color: _muted),
+                [
+                  businessAddress,
+                  businessPhone,
+                  businessEmail,
+                ].where((value) => value.isNotEmpty).join('  •  '),
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(color: _muted, fontSize: 7.3),
               ),
             ],
-          ),
-        ),
-        build: (_) => [
-          pw.Container(
-            padding: const pw.EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
+            pw.SizedBox(height: 12),
+            pw.Container(width: 32, height: 2, color: _yellow),
+            pw.SizedBox(height: 12),
+            pw.Text(
+              documentTitle,
+              style: pw.TextStyle(
+                color: _teal,
+                fontSize: 9.5,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 2,
+              ),
             ),
-            decoration: pw.BoxDecoration(
-              color: _navy,
-              borderRadius: pw.BorderRadius.circular(9),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              '${t("No.", "Namba")} $invoiceNumber',
+              style: const pw.TextStyle(color: _muted, fontSize: 8.3),
             ),
-            child: pw.Row(
+            pw.SizedBox(height: 14),
+            _dottedRule(),
+            pw.SizedBox(height: 12),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Container(
-                  width: 38,
-                  height: 38,
-                  alignment: pw.Alignment.center,
-                  decoration: const pw.BoxDecoration(
-                    color: _yellow,
-                    shape: pw.BoxShape.circle,
-                  ),
-                  child: businessLogo != null
-                      ? pw.ClipOval(
-                          child: pw.Image(
-                            businessLogo,
-                            width: 38,
-                            height: 38,
-                            fit: pw.BoxFit.cover,
-                          ),
-                        )
-                      : pw.Text(
-                          _businessInitial(businessName),
-                          style: pw.TextStyle(
-                            color: _navy,
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                ),
-                pw.SizedBox(width: 12),
                 pw.Expanded(
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
+                      _smallLabel(t('CUSTOMER', 'MTEJA')),
+                      pw.SizedBox(height: 3),
                       pw.Text(
-                        businessName.isEmpty || businessName == 'Business'
-                            ? t('Business', 'Biashara')
-                            : businessName,
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 15,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                        customer,
+                        style: const pw.TextStyle(fontSize: 9.5),
                       ),
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        documentTitle,
-                        style: const pw.TextStyle(
-                          color: _yellow,
-                          fontSize: 8.5,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      if (businessAddress.isNotEmpty ||
-                          businessPhone.isNotEmpty ||
-                          businessEmail.isNotEmpty) ...[
-                        pw.SizedBox(height: 3),
+                      if (customerPhone.isNotEmpty)
                         pw.Text(
-                          [
-                            businessAddress,
-                            businessPhone,
-                            businessEmail,
-                          ].where((value) => value.isNotEmpty).join('  |  '),
+                          customerPhone,
                           style: const pw.TextStyle(
-                            color: PdfColors.white,
-                            fontSize: 6.8,
+                            fontSize: 7.8,
+                            color: _muted,
                           ),
                         ),
-                      ],
                     ],
                   ),
+                ),
+                pw.SizedBox(width: 10),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    if (createdAt != null) ...[
+                      _smallLabel(t('DATE', 'TAREHE')),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        _formatDateTime(createdAt),
+                        style: const pw.TextStyle(fontSize: 9),
+                      ),
+                    ],
+                    if (dueDate != null && !isQuotation) ...[
+                      pw.SizedBox(height: 6),
+                      _smallLabel(t('DUE', 'MWISHO')),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        _formatDate(dueDate),
+                        style: const pw.TextStyle(fontSize: 9),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
-          ),
-          pw.SizedBox(height: 16),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Expanded(
-                child: _infoBlock(t('BILLED TO', 'MTEJA'), [
-                  customer,
-                  if (customerPhone.isNotEmpty) customerPhone,
-                ]),
-              ),
-              pw.SizedBox(width: 18),
-              pw.Expanded(
-                child: _infoBlock(t('RECEIPT DETAILS', 'TAARIFA ZA RISITI'), [
-                  '${t("Receipt no.", "Namba ya risiti")}: $invoiceNumber',
-                  if (createdAt != null)
-                    '${t("Date", "Tarehe")}: ${_formatDateTime(createdAt)}',
-                  if (dueDate != null && !isQuotation)
-                    '${t("Due", "Mwisho")}: ${_formatDate(dueDate)}',
-                ]),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 22),
-          pw.Table(
-            border: const pw.TableBorder(
-              horizontalInside: pw.BorderSide(color: _line, width: 0.6),
-              bottom: pw.BorderSide(color: _line, width: 0.8),
+            pw.SizedBox(height: 14),
+            _dottedRule(),
+            pw.SizedBox(height: 12),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: displayItems.isEmpty
+                  ? [
+                      _ticketItemRow(
+                        t('Sale item', 'Bidhaa ya mauzo'),
+                        1,
+                        amount,
+                        amount,
+                      ),
+                    ]
+                  : displayItems
+                        .map(
+                          (item) => _ticketItemRow(
+                            item.name,
+                            item.quantity,
+                            item.unitPrice,
+                            item.total,
+                          ),
+                        )
+                        .toList(),
             ),
-            columnWidths: const {
-              0: pw.FlexColumnWidth(4.4),
-              1: pw.FlexColumnWidth(1.1),
-              2: pw.FlexColumnWidth(2.1),
-              3: pw.FlexColumnWidth(2.1),
-            },
-            children: [
-              pw.TableRow(
-                decoration: const pw.BoxDecoration(color: _teal),
+            _dottedRule(),
+            pw.SizedBox(height: 10),
+            pw.Column(
+              children: [
+                _totalRow(t('Subtotal', 'Jumla ndogo'), subtotal),
+                if (discount > 0)
+                  _totalRow(t('Discount', 'Punguzo'), -discount),
+                if (vat > 0) _totalRow('VAT (18%)', vat),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+              decoration: pw.BoxDecoration(
+                color: _cream,
+                borderRadius: pw.BorderRadius.circular(5),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  _headerCell(t('ITEM', 'BIDHAA')),
-                  _headerCell(t('QTY', 'IDADI'), align: pw.TextAlign.center),
-                  _headerCell(
-                    t('UNIT PRICE', 'BEI'),
-                    align: pw.TextAlign.right,
+                  pw.Text(
+                    t('TOTAL', 'JUMLA KUU'),
+                    style: pw.TextStyle(
+                      color: _navy,
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
                   ),
-                  _headerCell(t('AMOUNT', 'KIASI'), align: pw.TextAlign.right),
+                  pw.Text(
+                    _money(amount),
+                    style: pw.TextStyle(
+                      color: _navy,
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
-              if (displayItems.isEmpty)
-                pw.TableRow(
-                  children: [
-                    _bodyCell(t('Sale item', 'Bidhaa ya mauzo')),
-                    _bodyCell('1', align: pw.TextAlign.center),
-                    _bodyCell(_money(amount), align: pw.TextAlign.right),
-                    _bodyCell(_money(amount), align: pw.TextAlign.right),
-                  ],
-                )
-              else
-                ...displayItems.map(
-                  (item) => pw.TableRow(
-                    children: [
-                      _bodyCell(item.name),
-                      _bodyCell(
-                        _quantity(item.quantity),
-                        align: pw.TextAlign.center,
-                      ),
-                      _bodyCell(
-                        _money(item.unitPrice),
-                        align: pw.TextAlign.right,
-                      ),
-                      _bodyCell(_money(item.total), align: pw.TextAlign.right),
-                    ],
-                  ),
+            ),
+            if (!isQuotation) ...[
+              pw.SizedBox(height: 8),
+              _totalRow(t('Paid', 'Imelipwa'), amountPaid),
+              if (balance > 0)
+                _totalRow(
+                  t('Balance due', 'Baki'),
+                  balance,
+                  emphasized: true,
                 ),
             ],
-          ),
-          pw.SizedBox(height: 18),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    if (!isQuotation && paymentMethod.isNotEmpty) ...[
-                      _smallLabel(t('PAYMENT', 'MALIPO')),
-                      pw.SizedBox(height: 5),
-                      pw.Text(
-                        paymentMethod,
-                        style: const pw.TextStyle(fontSize: 10),
-                      ),
-                      if (paymentReference.isNotEmpty)
-                        pw.Text(
-                          '${t("Reference", "Kumbukumbu")}: $paymentReference',
-                          style: const pw.TextStyle(fontSize: 9, color: _muted),
-                        ),
-                    ],
-                    if (notes.isNotEmpty) ...[
-                      pw.SizedBox(height: 14),
-                      _smallLabel(t('NOTES', 'MAELEZO')),
-                      pw.SizedBox(height: 5),
-                      pw.Text(notes, style: const pw.TextStyle(fontSize: 9)),
-                    ],
-                  ],
+            if (!isQuotation && paymentMethod.isNotEmpty) ...[
+              pw.SizedBox(height: 14),
+              _dottedRule(),
+              pw.SizedBox(height: 12),
+              _smallLabel(t('PAYMENT', 'MALIPO')),
+              pw.SizedBox(height: 3),
+              pw.Text(paymentMethod, style: const pw.TextStyle(fontSize: 9.5)),
+              if (paymentReference.isNotEmpty)
+                pw.Text(
+                  '${t("Ref", "Kumb")}: $paymentReference',
+                  style: const pw.TextStyle(fontSize: 8, color: _muted),
                 ),
+            ],
+            if (notes.isNotEmpty) ...[
+              pw.SizedBox(height: 12),
+              _smallLabel(t('NOTES', 'MAELEZO')),
+              pw.SizedBox(height: 3),
+              pw.Text(
+                notes,
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(fontSize: 8.3),
               ),
-              pw.SizedBox(width: 18),
-              pw.SizedBox(
-                width: 170,
-                child: pw.Column(
-                  children: [
-                    _totalRow(t('Subtotal', 'Jumla ndogo'), subtotal),
-                    if (discount > 0)
-                      _totalRow(t('Discount', 'Punguzo'), -discount),
-                    if (vat > 0) _totalRow('VAT (18%)', vat),
-                    pw.Divider(color: _navy, thickness: 1.4),
-                    _totalRow(
-                      t('TOTAL', 'JUMLA KUU'),
-                      amount,
-                      emphasized: true,
+            ],
+            pw.SizedBox(height: 16),
+            _dottedRule(),
+            pw.SizedBox(height: 14),
+            pw.Text(
+              t('Thank you for your business!', 'Asante kwa kutuamini!'),
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                color: _teal,
+                fontSize: 9.5,
+                fontStyle: pw.FontStyle.italic,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              '${t("Recorded by", "Imerekodiwa na")} ${printedBy.isEmpty || printedBy == "User" ? t("User", "Mtumiaji") : printedBy}',
+              textAlign: pw.TextAlign.center,
+              style: const pw.TextStyle(fontSize: 7.3, color: _muted),
+            ),
+            pw.SizedBox(height: 14),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Text(
+                  '${t("Powered by", "Imetengenezwa na")} ',
+                  style: const pw.TextStyle(fontSize: 6.6, color: _muted),
+                ),
+                if (maliUpLogo != null)
+                  pw.Image(maliUpLogo, width: 18, height: 18)
+                else
+                  pw.Text(
+                    'Mali Up',
+                    style: pw.TextStyle(
+                      fontSize: 7.3,
+                      color: _navy,
+                      fontWeight: pw.FontWeight.bold,
                     ),
-                    if (!isQuotation) ...[
-                      _totalRow(t('Paid', 'Imelipwa'), amountPaid),
-                      if (balance > 0)
-                        _totalRow(
-                          t('Balance due', 'Baki'),
-                          balance,
-                          emphasized: true,
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 26),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 10,
+                  ),
+              ],
             ),
-            decoration: pw.BoxDecoration(
-              color: const PdfColor.fromInt(0xFFF8FAFC),
-              borderRadius: pw.BorderRadius.circular(6),
-              border: pw.Border.all(color: _line),
-            ),
-            child: pw.Text(
-              '${t("Recorded by", "Imerekodiwa na")}: ${printedBy.isEmpty || printedBy == "User" ? t("User", "Mtumiaji") : printedBy}',
-              style: const pw.TextStyle(fontSize: 9, color: _muted),
-            ),
-          ),
-        ],
+            pw.SizedBox(height: 14),
+            _perforationDots(),
+          ],
+        ),
       ),
     );
 
@@ -615,20 +629,6 @@ abstract final class ReceiptPdfService {
     return value.isEmpty ? 'B' : value.substring(0, 1).toUpperCase();
   }
 
-  static pw.Widget _infoBlock(String title, List<String> lines) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      _smallLabel(title),
-      pw.SizedBox(height: 7),
-      ...lines.map(
-        (line) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 3),
-          child: pw.Text(line, style: const pw.TextStyle(fontSize: 10)),
-        ),
-      ),
-    ],
-  );
-
   static pw.Widget _smallLabel(String value) => pw.Text(
     value,
     style: pw.TextStyle(
@@ -639,31 +639,75 @@ abstract final class ReceiptPdfService {
     ),
   );
 
-  static pw.Widget _headerCell(
-    String value, {
-    pw.TextAlign align = pw.TextAlign.left,
-  }) => pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-    child: pw.Text(
-      value,
-      textAlign: align,
-      style: pw.TextStyle(
-        color: PdfColors.white,
-        fontSize: 8,
-        fontWeight: pw.FontWeight.bold,
+  /// A thin dotted rule — the classic ticket-stub divider between sections.
+  static pw.Widget _dottedRule({PdfColor color = _line}) => pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: List.generate(
+        34,
+        (_) => pw.Container(width: 2, height: 1.2, color: color),
       ),
     ),
   );
 
-  static pw.Widget _bodyCell(
-    String value, {
-    pw.TextAlign align = pw.TextAlign.left,
-  }) => pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 9),
-    child: pw.Text(
-      value,
-      textAlign: align,
-      style: const pw.TextStyle(fontSize: 9),
+  /// A row of small dots mimicking the perforated edge of a paper ticket.
+  static pw.Widget _perforationDots() => pw.Row(
+    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    children: List.generate(
+      16,
+      (_) => pw.Container(
+        width: 4,
+        height: 4,
+        decoration: const pw.BoxDecoration(
+          color: _line,
+          shape: pw.BoxShape.circle,
+        ),
+      ),
+    ),
+  );
+
+  /// One line item: name + amount on the first line, qty × unit price below.
+  static pw.Widget _ticketItemRow(
+    String name,
+    double quantity,
+    double unitPrice,
+    double total,
+  ) => pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 9),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Text(
+                name,
+                style: pw.TextStyle(
+                  color: _navy,
+                  fontSize: 9.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 8),
+            pw.Text(
+              _money(total),
+              style: pw.TextStyle(
+                color: _navy,
+                fontSize: 9.5,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          '${_quantity(quantity)} x ${_money(unitPrice)}',
+          style: const pw.TextStyle(fontSize: 7.8, color: _muted),
+        ),
+      ],
     ),
   );
 

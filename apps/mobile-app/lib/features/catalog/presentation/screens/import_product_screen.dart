@@ -1,19 +1,35 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../inventory/domain/models/inventory_item.dart';
-import '../../../inventory/presentation/providers/inventory_providers.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
+import '../../../inventory/domain/models/inventory_item.dart';
+import '../../../inventory/presentation/providers/inventory_providers.dart';
+import '../../../inventory/presentation/widgets/category_picker_sheet.dart';
+import '../../domain/models/master_category.dart';
 import '../../domain/models/master_product.dart';
+import '../../providers/master_catalog_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+enum _ErrorField { name, cost, sell, payment, general }
 
 /// Screen shown after the user taps "Import" on a master product.
 ///
@@ -39,14 +55,23 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
   bool _saving = false;
 
+  // Kategoria: null = tumia kategoria ya bidhaa asili kutoka katalogi kuu;
+  // ikichaguliwa, hii inabatilisha kategoria wakati wa kuingiza.
+  MasterCategory? _categoryOverride;
+
   // Asili ya Stoo: 'existing' = stoki niliyo nayo, 'purchased' = nimenunua
-  String _stockOrigin = 'existing';
-  // Malipo: 'paid' = nimelipia, 'partial' = nimelipa kiasi, 'unpaid' = sijalipia
+  String _stockOrigin = 'purchased';
+  // Malipo: 'paid' = nimelipia kikamilifu, 'partial' = nimelipa kiasi
+  // (kiasi cha 0 kinamaanisha sijalipia kabisa).
   String _paymentStatus = 'paid';
+  CashAccount? _selectedAccount;
 
   final _supplierNameCtrl = TextEditingController();
   final _supplierPhoneCtrl = TextEditingController();
   final _amountPaidCtrl = TextEditingController(text: '0');
+
+  String? _errorMsg;
+  _ErrorField _errorField = _ErrorField.general;
 
   @override
   void initState() {
@@ -56,7 +81,9 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
     _costCtrl = TextEditingController();
     _sellCtrl = TextEditingController();
     _stockCtrl = TextEditingController(text: '1');
-    _skuCtrl = TextEditingController();
+    _skuCtrl = TextEditingController(
+      text: p.commonBarcodes.isNotEmpty ? p.commonBarcodes.first : '',
+    );
   }
 
   @override
@@ -77,31 +104,112 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
   double get _sellVal =>
       double.tryParse(_sellCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
   double get _stockVal => double.tryParse(_stockCtrl.text) ?? 1;
+  double get _purchaseTotal => _costVal * _stockVal;
 
   double get _margin => _sellVal > 0 && _costVal > 0
       ? ((_sellVal - _costVal) / _sellVal) * 100
       : 0;
 
+  bool get _isPurchased => _stockOrigin == 'purchased';
+
+  /// Finds the [MasterCategory] whose slug matches this product's original
+  /// catalog category, so the picker starts pre-selected on the right one.
+  MasterCategory? _matchingCategory(List<MasterCategory> categories) {
+    for (final c in categories) {
+      if (c.categorySlug == widget.product.categorySlug) return c;
+    }
+    return null;
+  }
+
+  /// The category to save with — the user's override if they picked one
+  /// (including a brand-new custom category), otherwise the product's
+  /// original catalog category.
+  ({String slug, String name}) _resolveCategory(List<MasterCategory> categories) {
+    final category = _categoryOverride ?? _matchingCategory(categories);
+    if (category != null) {
+      return (slug: category.categorySlug, name: category.displayName);
+    }
+    return (slug: widget.product.categorySlug, name: widget.product.categorySlug);
+  }
+
+  Future<void> _scanSku() async {
+    final scanned = await BarcodeScannerScreen.show(
+      context,
+      title: _tr('Scan Barcode', 'Skani Nambari'),
+    );
+    if (scanned == null || scanned.isEmpty || !mounted) return;
+    setState(() => _skuCtrl.text = scanned);
+  }
+
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    final result = await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+    if (result == true && mounted) {
+      _showError(
+        _tr(
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated',
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa',
+        ),
+        _ErrorField.payment,
+      );
+    }
+  }
+
   Future<void> _import() async {
+    if (_errorMsg != null) setState(() => _errorMsg = null);
+
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
+      _showError(_tr('Enter product name', 'Ingiza jina la bidhaa'), _ErrorField.name);
+      return;
+    }
+    if (_costVal <= 0) {
+      _showError(_tr('Enter a cost price', 'Ingiza bei ya kununua'), _ErrorField.cost);
       return;
     }
     if (_sellVal <= 0) {
-      _snack(_tr('Enter a selling price', 'Ingiza bei ya kuuza'));
+      _showError(_tr('Enter a selling price', 'Ingiza bei ya kuuza'), _ErrorField.sell);
       return;
     }
+
+    // How much money actually leaves an account right now.
+    double amountPaid = 0;
+    if (_isPurchased && _purchaseTotal > 0) {
+      if (_paymentStatus == 'paid') {
+        amountPaid = _purchaseTotal;
+      } else {
+        final entered = double.tryParse(
+                _amountPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+            0;
+        amountPaid = entered.clamp(0.0, _purchaseTotal);
+      }
+      // Money paid now must land in a chosen, activated payment account —
+      // PaymentAccountChips only lets an activated built-in or custom
+      // account become selected.
+      if (amountPaid > 0 && _selectedAccount == null) {
+        _showError(
+          _tr('Select a payment account', 'Chagua akaunti ya malipo'),
+          _ErrorField.payment,
+        );
+        return;
+      }
+    }
+
     setState(() => _saving = true);
     final nav = Navigator.of(context);
     final msg = ScaffoldMessenger.of(context);
     try {
       final now = DateTime.now().toIso8601String();
+      final categories =
+          ref.read(masterCategoriesProvider).valueOrNull ?? const <MasterCategory>[];
+      final resolvedCategory = _resolveCategory(categories);
       final item = InventoryItem(
         id: '',
         name: name,
-        category: widget.product.categorySlug,
-        categoryName: widget.product.categorySlug,
+        category: resolvedCategory.slug,
+        categoryName: resolvedCategory.name,
         sku: _skuCtrl.text.trim(),
         currentStock: _stockVal,
         reorderPoint: 5,
@@ -114,36 +222,45 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
-      // Create payable debt when purchased and not fully paid
-      final hasDebt = _stockOrigin == 'purchased' &&
-          (_paymentStatus == 'unpaid' || _paymentStatus == 'partial');
-      if (hasDebt && _costVal > 0 && _stockVal > 0) {
-        final total = _costVal * _stockVal;
-        final alreadyPaid = _paymentStatus == 'partial'
-            ? (double.tryParse(
-                    _amountPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                0)
-            : 0.0;
-        final debtAmount = (total - alreadyPaid).clamp(0.0, total);
-        if (debtAmount > 0) {
-          final dueDate = DateTime.now().add(const Duration(days: 30));
-          final dueDateStr =
-              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
-          await ref.read(debtRepositoryProvider).save(Debt(
-            id: '',
-            partyName: _supplierNameCtrl.text.trim(),
-            partyPhone: _supplierPhoneCtrl.text.trim(),
-            type: 'payable',
-            originalAmount: debtAmount,
-            dueDate: dueDateStr,
-            note: _tr(
-                'Purchase: ${_nameCtrl.text.trim()}',
-                'Ununuzi: ${_nameCtrl.text.trim()}'),
-            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
-            createdAt: DateTime.now().toIso8601String(),
-          ));
-        }
+      final user = FirebaseAuth.instance.currentUser;
+      final debtAmount =
+          _isPurchased ? (_purchaseTotal - amountPaid).clamp(0.0, _purchaseTotal) : 0.0;
+      final hasDebt = debtAmount > 0;
+
+      // Money paid now leaves the chosen account — Drift balance moves
+      // instantly, the queued op replays on Firestore idempotently.
+      if (_isPurchased && amountPaid > 0 && _selectedAccount != null) {
+        await moveMoneyForAccount(
+          ref,
+          accountId: _selectedAccount!.id,
+          amount: amountPaid,
+          isDeposit: false,
+          description: _tr('Purchase: $name', 'Ununuzi: $name'),
+          reference: _skuCtrl.text.trim(),
+          createdBy: user?.uid ?? '',
+        );
       }
+
+      // Create payable debt for whatever remains unpaid.
+      if (hasDebt) {
+        final dueDate = DateTime.now().add(const Duration(days: 30));
+        final dueDateStr =
+            '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+        await ref.read(debtRepositoryProvider).save(Debt(
+              id: '',
+              partyName: _supplierNameCtrl.text.trim(),
+              partyPhone: _supplierPhoneCtrl.text.trim(),
+              type: 'payable',
+              originalAmount: _purchaseTotal,
+              paidAmount: amountPaid,
+              dueDate: dueDateStr,
+              note: _tr('Purchase: $name', 'Ununuzi: $name'),
+              createdBy: user?.uid ?? '',
+              createdAt: DateTime.now().toIso8601String(),
+            ));
+      }
+
+      unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (!mounted) return;
       msg.showSnackBar(SnackBar(
@@ -164,20 +281,23 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        _snack(_tr('Failed to import product', 'Imeshindikana kuingiza bidhaa'));
+        _showError(
+          _tr('Failed to import product', 'Imeshindikana kuingiza bidhaa'),
+          _ErrorField.general,
+        );
       }
     }
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.navyPrimary,
-      ),
-    );
-  }
+  void _showError(String message, _ErrorField field) => setState(() {
+        _errorMsg = message;
+        _errorField = field;
+      });
+
+  Widget _banner(_ErrorField field) => ValidationBanner(
+        message: _errorField == field ? _errorMsg : null,
+        onDismiss: () => setState(() => _errorMsg = null),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -190,14 +310,14 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
         children: [
           const SheetHandle(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     _tr('Import Product', 'Ingiza Bidhaa'),
                     style: GoogleFonts.dmSans(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                       color: AppColors.navyPrimary,
                     ),
@@ -217,451 +337,380 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
           Container(height: 1, color: AppColors.border),
           Expanded(
             child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            // ── Source info card ──────────────────────────────────────────
-            _SourceCard(product: widget.product),
-            const SizedBox(height: 24),
-
-            // ── Section: Product details ──────────────────────────────────
-            _SectionLabel(_tr('Product Details', 'Maelezo ya Bidhaa')),
-            const SizedBox(height: 12),
-
-            _FieldLabel(_tr('Product Name', 'Jina la Bidhaa')),
-            const SizedBox(height: 6),
-            _TextField(
-              controller: _nameCtrl,
-              hint: _tr('Enter product name', 'Ingiza jina la bidhaa'),
-            ),
-            const SizedBox(height: 14),
-
-            _FieldLabel(_tr('SKU (Optional)', 'SKU (Hiari)')),
-            const SizedBox(height: 6),
-            _TextField(
-              controller: _skuCtrl,
-              hint: _tr('Leave blank to auto-generate', 'Acha tupu ili izalishwe otomatiki'),
-            ),
-            const SizedBox(height: 24),
-
-            // ── Section: Pricing ──────────────────────────────────────────
-            _SectionLabel(_tr('Pricing', 'Bei')),
-            const SizedBox(height: 4),
-            Text(
-              _tr(
-                'Set your own cost and selling prices for this product.',
-                'Weka bei yako ya kununua na kuuza kwa bidhaa hii.',
-              ),
-              style:
-                  GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FieldLabel(_tr('Cost Price (TSh)', 'Bei ya Kununua (TSh)')),
-                      const SizedBox(height: 6),
-                      _NumericField(
-                        controller: _costCtrl,
-                        hint: '0',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ],
+              padding: EdgeInsets.fromLTRB(20, 18, 20, bottom + 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Product name ──────────────────────────────────────────
+                  _FieldLabel(_tr('Product Name', 'Jina la Bidhaa')),
+                  const SizedBox(height: 6),
+                  _TextField(
+                    controller: _nameCtrl,
+                    hint: _tr('Enter product name', 'Ingiza jina la bidhaa'),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+                  _banner(_ErrorField.name),
+                  const SizedBox(height: 14),
+
+                  // ── SKU / barcode ────────────────────────────────────────
+                  _FieldLabel(_tr('SKU / Barcode (Optional)', 'SKU / Barcode (Hiari)')),
+                  const SizedBox(height: 6),
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _FieldLabel(_tr('Selling Price (TSh)', 'Bei ya Kuuza (TSh)')),
-                      const SizedBox(height: 6),
-                      _NumericField(
-                        controller: _sellCtrl,
-                        hint: '0',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            // Margin indicator
-            if (_sellVal > 0 && _costVal > 0) ...[
-              const SizedBox(height: 10),
-              _MarginBadge(margin: _margin),
-            ],
-
-            const SizedBox(height: 24),
-
-            // ── Section: Stock ────────────────────────────────────────────
-            _SectionLabel(_tr('Initial Stock', 'Stoo ya Awali')),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FieldLabel(
-                        _tr(
-                          'Quantity (${widget.product.unit})',
-                          'Idadi (${widget.product.unit})',
+                      Expanded(
+                        child: _TextField(
+                          controller: _skuCtrl,
+                          hint: _tr('Scan or enter manually', 'Skani au ingiza mwenyewe'),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      _NumericField(
-                        controller: _stockCtrl,
-                        hint: '1',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FieldLabel(_tr('Unit', 'Kitengo')),
-                      const SizedBox(height: 6),
-                      Container(
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 48,
                         height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FC),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Text(
-                          widget.product.unit,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            color: AppColors.navyPrimary,
-                            fontWeight: FontWeight.w500,
+                        child: OutlinedButton(
+                          onPressed: _scanSku,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            side: const BorderSide(color: AppColors.tealAccent),
+                            foregroundColor: AppColors.tealAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
+                          child: const Icon(Icons.qr_code_scanner_rounded, size: 21),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-            // ── Section: Asili ya Stoo ────────────────────────────────────
-            _SectionLabel(_tr('Stock Origin', 'Asili ya Stoo')),
-            const SizedBox(height: 10),
-            _OriginOption(
-              value: 'existing',
-              groupValue: _stockOrigin,
-              label: _tr('Stock I already had', 'Stoki niliyo nayo'),
-              subtitle: _tr(
-                'This stock was already in my possession',
-                'Stoki hii ilikuwepo kwangu tayari',
-              ),
-              icon: Icons.inventory_2_outlined,
-              iconColor: AppColors.tealAccent,
-              onChanged: (v) => setState(() => _stockOrigin = v!),
-            ),
-            const SizedBox(height: 8),
-            _OriginOption(
-              value: 'purchased',
-              groupValue: _stockOrigin,
-              label: _tr('I purchased it', 'Nimenunua'),
-              subtitle: _tr(
-                'I bought this stock from a supplier',
-                'Nilinunua stoo hii kutoka kwa muuzaji',
-              ),
-              icon: Icons.shopping_cart_outlined,
-              iconColor: AppColors.navyPrimary,
-              onChanged: (v) => setState(() {
-                _stockOrigin = v!;
-                // default to paid when first switching to purchased
-                _paymentStatus = 'paid';
-              }),
-            ),
+                  // ── Category ─────────────────────────────────────────────
+                  _FieldLabel(_tr('Category', 'Kategoria')),
+                  const SizedBox(height: 6),
+                  Builder(builder: (context) {
+                    final categoriesAsync = ref.watch(masterCategoriesProvider);
+                    final categories =
+                        categoriesAsync.valueOrNull ?? const <MasterCategory>[];
+                    final selected = _categoryOverride ?? _matchingCategory(categories);
+                    return _CategoryField(
+                      label: selected?.displayName ?? widget.product.categorySlug,
+                      loading: categoriesAsync.isLoading,
+                      onTap: () async {
+                        final result = await showCategoryPicker(
+                          context: context,
+                          categories: categories,
+                          selected: selected,
+                        );
+                        if (result != null) {
+                          setState(() => _categoryOverride = result);
+                        }
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 20),
 
-            // ── Payment status (shown only when purchased) ────────────────
-            if (_stockOrigin == 'purchased') ...[
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: _paymentStatus == 'unpaid'
-                      ? AppColors.error.withValues(alpha: 0.05)
-                      : const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _paymentStatus == 'unpaid'
-                        ? AppColors.error.withValues(alpha: 0.3)
-                        : AppColors.success.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-                      child: Text(
-                        _tr('Payment Status', 'Hali ya Malipo'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ),
-                    _PaymentOption(
-                      value: 'paid',
-                      groupValue: _paymentStatus,
-                      label: _tr('Already paid in full', 'Nimelipia'),
-                      subtitle: _tr(
-                        'Payment completed at time of purchase',
-                        'Nililipa kikamilifu wakati wa ununuzi',
-                      ),
-                      color: AppColors.success,
-                      onChanged: (v) =>
-                          setState(() => _paymentStatus = v!),
-                    ),
-                    const Divider(height: 1, indent: 14, endIndent: 14,
-                        color: Color(0xFFE2E8F0)),
-                    _PaymentOption(
-                      value: 'partial',
-                      groupValue: _paymentStatus,
-                      label: _tr('Partially paid', 'Nimelipa kiasi'),
-                      subtitle: _tr(
-                        'I paid some – remaining balance is a debt',
-                        'Nililipa kiasi – baki ni deni',
-                      ),
-                      color: AppColors.warning,
-                      onChanged: (v) => setState(() {
-                        _paymentStatus = v!;
-                        _amountPaidCtrl.text = '0';
-                      }),
-                    ),
-                    const Divider(height: 1, indent: 14, endIndent: 14,
-                        color: Color(0xFFE2E8F0)),
-                    _PaymentOption(
-                      value: 'unpaid',
-                      groupValue: _paymentStatus,
-                      label: _tr('Not paid at all', 'Sijalipia'),
-                      subtitle: _tr(
-                        'Full amount is owed – record as payable debt',
-                        'Deni la jumla – rekodia kama deni la kulipa',
-                      ),
-                      color: AppColors.error,
-                      onChanged: (v) =>
-                          setState(() => _paymentStatus = v!),
-                    ),
-
-                    // Supplier + amount fields (shown when partial or unpaid)
-                    if (_paymentStatus == 'partial' ||
-                        _paymentStatus == 'unpaid') ...[
-                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  // ── Pricing ──────────────────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TextFormField(
-                              controller: _supplierNameCtrl,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  color: AppColors.navyPrimary),
-                              decoration: InputDecoration(
-                                labelText: _tr(
-                                    'Supplier Name (Optional)',
-                                    'Jina la Muuzaji (Hiari)'),
-                                prefixIcon: const Icon(
-                                    Icons.person_outline_rounded,
-                                    size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              controller: _supplierPhoneCtrl,
-                              keyboardType: TextInputType.phone,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  color: AppColors.navyPrimary),
-                              decoration: InputDecoration(
-                                labelText: _tr(
-                                    'Supplier Phone (Optional)',
-                                    'Simu ya Muuzaji (Hiari)'),
-                                prefixIcon: const Icon(
-                                    Icons.phone_outlined, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-
-                            // Amount paid field (partial only)
-                            if (_paymentStatus == 'partial') ...[
-                              const SizedBox(height: 10),
-                              TextFormField(
-                                controller: _amountPaidCtrl,
-                                keyboardType: const TextInputType
-                                    .numberWithOptions(decimal: true),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[0-9.]')),
-                                ],
-                                onChanged: (_) => setState(() {}),
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    color: AppColors.navyPrimary,
-                                    fontWeight: FontWeight.w600),
-                                decoration: InputDecoration(
-                                  labelText: _tr(
-                                    'Amount already paid (TZS)',
-                                    'Kiasi ulicholipa tayari (TZS)',
-                                  ),
-                                  prefixIcon: const Icon(
-                                      Icons.payments_outlined, size: 20),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            // Debt summary
-                            if (_costVal > 0 && _stockVal > 0) ...[
-                              const SizedBox(height: 10),
-                              Builder(builder: (_) {
-                                final total = _costVal * _stockVal;
-                                final paid = _paymentStatus == 'partial'
-                                    ? (double.tryParse(
-                                            _amountPaidCtrl.text
-                                                .replaceAll(
-                                                    RegExp(r'[^0-9.]'),
-                                                    '')) ??
-                                        0)
-                                    : 0.0;
-                                final debt =
-                                    (total - paid).clamp(0.0, total);
-                                return Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error
-                                        .withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (_paymentStatus == 'partial')
-                                        Text(
-                                          _tr(
-                                            'Total: TZS ${total.toStringAsFixed(0)}  |  Paid: TZS ${paid.toStringAsFixed(0)}',
-                                            'Jumla: TZS ${total.toStringAsFixed(0)}  |  Ulicholipa: TZS ${paid.toStringAsFixed(0)}',
-                                          ),
-                                          style: GoogleFonts.dmSans(
-                                              fontSize: 12,
-                                              color: AppColors.textMuted),
-                                        ),
-                                      if (_paymentStatus == 'partial')
-                                        const SizedBox(height: 4),
-                                      Text(
-                                        _tr(
-                                          'Debt to record: TZS ${debt.toStringAsFixed(0)}',
-                                          'Deni la kurekodi: TZS ${debt.toStringAsFixed(0)}',
-                                        ),
-                                        style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.error),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                            _FieldLabel(_tr('Cost Price (TSh)', 'Bei ya Kununua (TSh)')),
+                            const SizedBox(height: 6),
+                            _NumericField(
+                              controller: _costCtrl,
+                              hint: '0',
+                              onChanged: (_) => setState(() {
+                                if (_errorField == _ErrorField.cost) _errorMsg = null;
                               }),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _FieldLabel(_tr('Selling Price (TSh)', 'Bei ya Kuuza (TSh)')),
+                            const SizedBox(height: 6),
+                            _NumericField(
+                              controller: _sellCtrl,
+                              hint: '0',
+                              onChanged: (_) => setState(() {
+                                if (_errorField == _ErrorField.sell) _errorMsg = null;
+                              }),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-
-            // ── Import button ─────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _import,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.download_rounded, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            _tr('Import to My Inventory',
-                                'Ingiza kwenye Stoo Yangu'),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                  _banner(_ErrorField.cost),
+                  _banner(_ErrorField.sell),
+                  if (_sellVal > 0 && _costVal > 0) ...[
+                    const SizedBox(height: 10),
+                    _MarginBadge(margin: _margin),
+                  ],
+                  const SizedBox(height: 20),
+
+                  // ── Stock ────────────────────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _FieldLabel(
+                              _tr(
+                                'Quantity (${widget.product.unit})',
+                                'Idadi (${widget.product.unit})',
+                              ),
                             ),
+                            const SizedBox(height: 6),
+                            _NumericField(
+                              controller: _stockCtrl,
+                              hint: '1',
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _FieldLabel(_tr('Unit', 'Kitengo')),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FC),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                widget.product.unit,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 15,
+                                  color: AppColors.navyPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Stock origin ─────────────────────────────────────────
+                  _FieldLabel(_tr('Stock Origin', 'Asili ya Stoo')),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        _SegButton(
+                          label: _tr('Already had', 'Niliyo nayo'),
+                          icon: Icons.inventory_2_outlined,
+                          active: _stockOrigin == 'existing',
+                          activeColor: AppColors.tealAccent,
+                          onTap: () => setState(() => _stockOrigin = 'existing'),
+                        ),
+                        const SizedBox(width: 4),
+                        _SegButton(
+                          label: _tr('Purchased', 'Nimenunua'),
+                          icon: Icons.shopping_cart_outlined,
+                          active: _stockOrigin == 'purchased',
+                          activeColor: AppColors.navyPrimary,
+                          onTap: () => setState(() {
+                            _stockOrigin = 'purchased';
+                            _paymentStatus = 'paid';
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Payment (shown only when purchased) ─────────────────
+                  if (_isPurchased) ...[
+                    const SizedBox(height: 20),
+                    _FieldLabel(_tr('Payment Status', 'Hali ya Malipo')),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: [
+                          _SegButton(
+                            label: _tr('Paid in full', 'Nimelipia'),
+                            icon: Icons.check_circle_outline_rounded,
+                            active: _paymentStatus == 'paid',
+                            activeColor: AppColors.success,
+                            onTap: () => setState(() => _paymentStatus = 'paid'),
+                          ),
+                          const SizedBox(width: 4),
+                          _SegButton(
+                            label: _tr('Partially paid', 'Nimelipa kiasi'),
+                            icon: Icons.timelapse_rounded,
+                            active: _paymentStatus == 'partial',
+                            activeColor: AppColors.warning,
+                            onTap: () => setState(() {
+                              _paymentStatus = 'partial';
+                              _amountPaidCtrl.text = '0';
+                            }),
                           ),
                         ],
                       ),
-              ),
-            ),
+                    ),
 
-            const SizedBox(height: 12),
-            Text(
-              _tr(
-                'This creates an independent product in your inventory. '
-                'Changes here do not affect the master catalog.',
-                'Hii inaunda bidhaa huru kwenye stoo yako. '
-                'Mabadiliko hapa hayaathiri katalogi kuu.',
+                    if (_paymentStatus == 'partial') ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _amountPaidCtrl,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        onChanged: (_) => setState(() {}),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          color: AppColors.navyPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: _tr(
+                            // A 0 here just means nothing has been paid yet.
+                            'Amount paid now (0 = not paid at all)',
+                            'Kiasi ulicholipa sasa (0 = sijalipia kabisa)',
+                          ),
+                          prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _supplierNameCtrl,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.navyPrimary),
+                        decoration: InputDecoration(
+                          labelText:
+                              _tr('Supplier Name (Optional)', 'Jina la Muuzaji (Hiari)'),
+                          prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _supplierPhoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.navyPrimary),
+                        decoration: InputDecoration(
+                          labelText:
+                              _tr('Supplier Phone (Optional)', 'Simu ya Muuzaji (Hiari)'),
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      if (_purchaseTotal > 0) ...[
+                        const SizedBox(height: 10),
+                        _DebtSummary(
+                          total: _purchaseTotal,
+                          paid: (double.tryParse(_amountPaidCtrl.text
+                                      .replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                                  0)
+                              .clamp(0.0, _purchaseTotal),
+                        ),
+                      ],
+                    ],
+
+                    // Money leaving now (full or partial) needs an account.
+                    if (_paymentStatus == 'paid' || _paymentStatus == 'partial') ...[
+                      const SizedBox(height: 16),
+                      _FieldLabel(_tr('Payment Method', 'Njia ya Malipo')),
+                      const SizedBox(height: 8),
+                      PaymentAccountChips(
+                        selectedAccountId: _selectedAccount?.id,
+                        onSelectAccount: (account) => setState(() {
+                          _selectedAccount = account;
+                          if (_errorField == _ErrorField.payment) _errorMsg = null;
+                        }),
+                        onActivationRequired: (message) =>
+                            _showError(message, _ErrorField.payment),
+                        onActivateMethod: (spec) => _showActivateAccountSheet(spec),
+                      ),
+                      _banner(_ErrorField.payment),
+                    ],
+                  ],
+
+                  const SizedBox(height: 24),
+                  _banner(_ErrorField.general),
+
+                  // ── Import button ────────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _import,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navyPrimary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.download_rounded, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _tr('Import to My Inventory', 'Ingiza kwenye Stoo Yangu'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
               ),
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: AppColors.textMuted,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
             ),
-          ],
-            ),
-          ),
           ),
         ],
       ),
@@ -671,95 +720,50 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
 // ── Reusable small widgets ────────────────────────────────────────────────────
 
-class _SourceCard extends StatelessWidget {
-  final MasterProduct product;
-  const _SourceCard({required this.product});
+class _SegButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  const _SegButton({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.activeColor,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE0F2F7),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.menu_book_rounded,
-              color: AppColors.tealAccent, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Importing from Master Catalog',
-                      'Inaingizwa kutoka Katalogi Kuu'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.tealAccent,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  product.productName,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (product.productNameSw.isNotEmpty &&
-                    product.productNameSw != product.productName)
-                  Text(
-                    product.productNameSw,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12, color: AppColors.textMuted),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (product.genericName.isNotEmpty)
-                  Text(
-                    product.genericName,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                        fontStyle: FontStyle.italic),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (product.brandNames.isNotEmpty)
-                  Text(
-                    product.brandNames.take(3).join(', '),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11, color: AppColors.textMuted),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: active ? activeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.dmSans(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: AppColors.navyPrimary,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: active ? Colors.white : AppColors.textMuted),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: active ? Colors.white : AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -822,6 +826,55 @@ class _TextField extends StatelessWidget {
   }
 }
 
+class _CategoryField extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _CategoryField({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.dmSans(
+                  fontSize: 15,
+                  color: AppColors.navyPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.expand_more_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NumericField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
@@ -873,155 +926,6 @@ class _NumericField extends StatelessWidget {
   }
 }
 
-class _OriginOption extends StatelessWidget {
-  final String value;
-  final String groupValue;
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final ValueChanged<String?> onChanged;
-
-  const _OriginOption({
-    required this.value,
-    required this.groupValue,
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = value == groupValue;
-    return GestureDetector(
-      onTap: () => onChanged(value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected
-              ? iconColor.withValues(alpha: 0.07)
-              : const Color(0xFFF8F9FC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? iconColor : const Color(0xFFE2E8F0),
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: selected
-                    ? iconColor.withValues(alpha: 0.15)
-                    : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon,
-                  size: 20,
-                  color: selected ? iconColor : AppColors.textMuted),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? iconColor : AppColors.navyPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            Radio<String>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              activeColor: iconColor,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PaymentOption extends StatelessWidget {
-  final String value;
-  final String groupValue;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final ValueChanged<String?> onChanged;
-
-  const _PaymentOption({
-    required this.value,
-    required this.groupValue,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = value == groupValue;
-    return InkWell(
-      onTap: () => onChanged(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              activeColor: color,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? color : AppColors.navyPrimary,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MarginBadge extends StatelessWidget {
   final double margin;
   const _MarginBadge({required this.margin});
@@ -1058,6 +962,46 @@ class _MarginBadge extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: color,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DebtSummary extends StatelessWidget {
+  final double total;
+  final double paid;
+  const _DebtSummary({required this.total, required this.paid});
+
+  @override
+  Widget build(BuildContext context) {
+    final debt = (total - paid).clamp(0.0, total);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _tr(
+              'Total: TZS ${total.toStringAsFixed(0)}  |  Paid: TZS ${paid.toStringAsFixed(0)}',
+              'Jumla: TZS ${total.toStringAsFixed(0)}  |  Ulicholipa: TZS ${paid.toStringAsFixed(0)}',
+            ),
+            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _tr(
+              'Debt to record: TZS ${debt.toStringAsFixed(0)}',
+              'Deni la kurekodi: TZS ${debt.toStringAsFixed(0)}',
+            ),
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
           ),
         ],
       ),
