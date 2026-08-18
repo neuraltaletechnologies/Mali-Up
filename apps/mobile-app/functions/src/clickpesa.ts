@@ -91,10 +91,16 @@ async function getClickPesaToken(): Promise<string> {
   if (!data.token) {
     throw new HttpsError("internal", "Payment provider returned no token.");
   }
+  // ClickPesa's response already includes the "Bearer " prefix in the token
+  // string itself (e.g. `"token": "Bearer eyJhbGc..."`) — strip it here so
+  // every caller can uniformly do `Authorization: Bearer ${token}` without
+  // ending up with a malformed doubled-up "Bearer Bearer ..." header (which
+  // ClickPesa's API silently rejects with a 401, not a helpful error).
+  const rawToken = data.token.replace(/^Bearer\s+/i, "");
   // Refresh a few minutes early so a call never lands right at the edge of
   // expiry.
-  cachedToken = {token: data.token, expiresAt: now + 50 * 60 * 1000};
-  return data.token;
+  cachedToken = {token: rawToken, expiresAt: now + 50 * 60 * 1000};
+  return rawToken;
 }
 
 /** Recursively sorts object keys — required before hashing, per ClickPesa's
@@ -189,10 +195,15 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
 
     const {pricePerCycle, cycleMonths} = await getPlanPricing(tier);
 
-    // Alphanumeric only, per ClickPesa's orderReference requirement.
-    const orderReference = `MALIUP${tier.toUpperCase()}${Date.now().toString().slice(-8)}${uid
-      .slice(0, 6)
-      .toUpperCase()}`.replace(/[^A-Z0-9]/gi, "");
+    // Alphanumeric only, and ClickPesa caps this at 20 characters — base36
+    // the timestamp to keep it compact: "MP" + tier initial (1) + ms epoch
+    // in base36 (~8) + a slice of the uid (4) = ~15 chars, comfortably under
+    // the limit while staying unique and still traceable back to the user.
+    const orderReference = `MP${tier === "growth" ? "G" : "B"}${Date.now()
+      .toString(36)}${uid.slice(0, 4)}`
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 20);
 
     const token = await getClickPesaToken();
     const body: Record<string, unknown> = {
