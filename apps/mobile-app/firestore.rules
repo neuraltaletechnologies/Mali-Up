@@ -452,6 +452,20 @@ service cloud.firestore {
         allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
       }
 
+      // RemoteCashRepository syncs these as siblings of cash_accounts (same
+      // viewCashFlow-gated visibility); without explicit rules here they'd
+      // fall through to the isBusinessOwner-only fallback below and deny
+      // every staff member who can otherwise see the cash accounts screen.
+      match /cash_transactions/{transactionId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      match /daily_reconciliations/{reconciliationId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
       match /budgets/{budgetId} {
         allow read, update, delete: if isSignedIn() && isBusinessOwner(bizId);
         allow create: if isSignedIn() && isBusinessOwner(bizId) && isValidBudget(request.resource.data);
