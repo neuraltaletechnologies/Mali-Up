@@ -10,6 +10,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -207,6 +208,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 
   Future<void> _tryInvite(BuildContext ctx) async {
+    // Checked here, at the very first tap, so an offline user is told
+    // immediately instead of filling in the whole invite form only to have
+    // Save fail at the end.
+    if (!await OnlineGuard.ensureOnline(ctx)) return;
+    if (!ctx.mounted) return;
     final plan = await ref.read(planStatusProvider.future);
     if (!ctx.mounted) return;
     final maxUsers = plan.limits.maxUsers;
@@ -298,20 +304,20 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         targetName: member.name,
       ));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('${member.name} removed.', '${member.name} ameondolewa.')),
-          behavior: SnackBarBehavior.floating,
-        ));
+        AppNotification.success(
+          context,
+          _tr('${member.name} removed.', '${member.name} ameondolewa.'),
+        );
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(_tr(
+        AppNotification.error(
+          context,
+          _tr(
             'Could not remove member. Please try again.',
             'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-          )),
-        ));
+          ),
+        );
       }
     }
   }
@@ -933,7 +939,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -951,53 +957,66 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
       final permNames = permsToStore.map((p) => p.name).toList();
 
+      // OnlineGuard only checks that a network interface is up (e.g.
+      // connectivity_plus), not that Firestore is actually reachable — a
+      // weak/captive-portal connection passes that check and then hangs
+      // here indefinitely. A hard timeout turns that into a clear, fast
+      // failure instead of a spinner that never resolves.
+      const writeTimeout = Duration(seconds: 15);
+
       // Write team_member record (for team management UI)
-      final memberRef = await repo.addTeamMember(
-        uid: user.uid,
-        context: ctx,
-        data: {
-          'name': name,
-          'email': '',
-          'phone': storedPhone,
-          'role': _selectedRole.name,
-          'customPermissions': permNames,
-          // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
-          'permissions': permNames,
-          'status': 'pending',
-          'invitedAt': FieldValue.serverTimestamp(),
-          'invitedBy': user.uid,
-          if (_notesCtrl.text.trim().isNotEmpty)
-            'notes': _notesCtrl.text.trim(),
-          'dataScope':
-              (_selectedRole == TeamRole.custom && _ownRecordsOnly)
-                  ? DataScope.own.name
-                  : DataScope.all.name,
-        },
-      );
+      final memberRef = await repo
+          .addTeamMember(
+            uid: user.uid,
+            context: ctx,
+            data: {
+              'name': name,
+              'email': '',
+              'phone': storedPhone,
+              'role': _selectedRole.name,
+              'customPermissions': permNames,
+              // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
+              'permissions': permNames,
+              'status': 'pending',
+              'invitedAt': FieldValue.serverTimestamp(),
+              'invitedBy': user.uid,
+              if (_notesCtrl.text.trim().isNotEmpty)
+                'notes': _notesCtrl.text.trim(),
+              'dataScope':
+                  (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+                      ? DataScope.own.name
+                      : DataScope.all.name,
+            },
+          )
+          .timeout(writeTimeout);
 
       // Write pendingInvite for fast phone-based lookup during staff login
       if (normalizedPhone.isNotEmpty) {
         final bizId = ctx.businessId ?? '';
         // Ensure we have a valid businessId; fetch businessName using an explicit context
         final bizName = bizId.isNotEmpty
-            ? await repo.getBusinessName(uid: user.uid, context: ResolvedFinanceContext.business(bizId))
+            ? await repo
+                .getBusinessName(uid: user.uid, context: ResolvedFinanceContext.business(bizId))
+                .timeout(writeTimeout, onTimeout: () => '')
             : '';
-        await repo.writePendingInvite(
-          inviteData: {
-            'businessId': bizId,
-            'businessName': bizName,
-            'fullName': name,
-            'phoneNumber': normalizedPhone,
-            'email': '',
-            'role': _selectedRole.name,
-            'invitedBy': user.uid,
-            'ownerUid': user.uid,
-            'memberId': memberRef.id,
-            'status': 'pending',
-            'pinCreated': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          },
-        );
+        await repo
+            .writePendingInvite(
+              inviteData: {
+                'businessId': bizId,
+                'businessName': bizName,
+                'fullName': name,
+                'phoneNumber': normalizedPhone,
+                'email': '',
+                'role': _selectedRole.name,
+                'invitedBy': user.uid,
+                'ownerUid': user.uid,
+                'memberId': memberRef.id,
+                'status': 'pending',
+                'pinCreated': false,
+                'createdAt': FieldValue.serverTimestamp(),
+              },
+            )
+            .timeout(writeTimeout);
       }
 
       // Write to Drift immediately so the member appears in the list right away.
@@ -1048,12 +1067,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       ));
 
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-            _tr('$name added to the team!', '$name ameongezwa kwenye timu!')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('$name added to the team!', '$name ameongezwa kwenye timu!'),
+        type: AppNotificationType.success,
+      );
     } catch (e, st) {
       // Swallowed to a generic message for the user, but reported so a
       // recurring cause (e.g. a Firestore rule not yet deployed for the
@@ -1062,16 +1080,20 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr(
-            'Could not add team member. Please try again.',
-            'Imeshindikana kuongeza mwanachama. Jaribu tena.'))));
+      final message = e is TimeoutException
+          ? _tr(
+              'Your connection is too weak to add a team member right now. Try again on a stronger connection.',
+              'Muunganisho wako ni dhaifu kuongeza mwanachama sasa. Jaribu tena kwenye muunganisho imara zaidi.',
+            )
+          : _tr(
+              'Could not add team member. Please try again.',
+              'Imeshindikana kuongeza mwanachama. Jaribu tena.',
+            );
+      AppNotification.showVia(overlay, message, type: AppNotificationType.error);
     }
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) => AppNotification.info(context, msg);
 
   @override
   Widget build(BuildContext context) {
@@ -1338,7 +1360,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception();
@@ -1428,9 +1450,11 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr('Could not update role. Please try again.', 'Imeshindikana kusasisha jukumu. Jaribu tena.'))));
+      AppNotification.showVia(
+        overlay,
+        _tr('Could not update role. Please try again.', 'Imeshindikana kusasisha jukumu. Jaribu tena.'),
+        type: AppNotificationType.error,
+      );
     }
   }
 
@@ -1457,7 +1481,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     if (confirmed != true || !mounted) return;
 
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception();
@@ -1478,15 +1502,17 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
         targetName: _member.name,
       ));
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr(
-            '${_member.name} removed.', '${_member.name} ameondolewa.')),
-        behavior: SnackBarBehavior.floating,
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('${_member.name} removed.', '${_member.name} ameondolewa.'),
+        type: AppNotificationType.success,
+      );
     } catch (_) {
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr('Could not remove member. Please try again.', 'Imeshindikana kuondoa mwanachama. Jaribu tena.'))));
+      AppNotification.showVia(
+        overlay,
+        _tr('Could not remove member. Please try again.', 'Imeshindikana kuondoa mwanachama. Jaribu tena.'),
+        type: AppNotificationType.error,
+      );
     }
   }
 

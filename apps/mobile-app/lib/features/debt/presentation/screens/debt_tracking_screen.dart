@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -709,16 +710,9 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     await adjustCustomerBalanceForDebtChange(ref, before: debt);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            _tr(
-              'Could not delete entry. Please try again.',
-              'Imeshindwa kufuta rekodi. Jaribu tena.',
-            ),
-          ),
-        ),
+      AppNotification.error(
+        context,
+        _tr('Could not delete entry. Please try again.', 'Imeshindwa kufuta rekodi. Jaribu tena.'),
       );
     }
   }

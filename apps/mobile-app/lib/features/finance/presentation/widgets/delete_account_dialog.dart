@@ -7,6 +7,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
+import '../../../../shared/widgets/app_notification.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -85,27 +86,16 @@ Future<bool> confirmAndDeleteCashAccount(
   try {
     await ref.read(cashRepositoryProvider).deleteAccount(account.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_t('Account deleted', 'Akaunti imefutwa')),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppNotification.success(context, _t('Account deleted', 'Akaunti imefutwa'));
     }
     return true;
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _t(
-              'Could not delete the account. Please try again.',
-              'Imeshindikana kufuta akaunti. Jaribu tena.',
-            ),
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
+      AppNotification.error(
+        context,
+        _t(
+          'Could not delete the account. Please try again.',
+          'Imeshindikana kufuta akaunti. Jaribu tena.',
         ),
       );
     }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../data/reports_providers.dart';
 import '../../services/report_export_service.dart';
 import 'reports_hub_screen.dart';
@@ -251,14 +252,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                 ReportExportService.balanceSheetCsv(report),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
-                    ),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
+                AppNotification.success(context, _tr('CSV copied to clipboard', 'CSV imenakiliwa'));
               }
             },
           ),

@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -199,7 +200,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
     setState(() => _saving = true);
     final nav = Navigator.of(context);
-    final msg = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     try {
       final now = DateTime.now().toIso8601String();
       final categories =
@@ -263,18 +264,16 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
       unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (!mounted) return;
-      msg.showSnackBar(SnackBar(
-        content: Text(
-          hasDebt
-              ? _tr(
-                  'Product imported – debt recorded in Payables',
-                  'Bidhaa imeingizwa – deni limerekodiwa kwenye Madeni',
-                )
-              : _tr('Product imported successfully!', 'Bidhaa imeingizwa kwa mafanikio!'),
-        ),
-        backgroundColor: hasDebt ? AppColors.warning : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
+      AppNotification.showVia(
+        overlay,
+        hasDebt
+            ? _tr(
+                'Product imported – debt recorded in Payables',
+                'Bidhaa imeingizwa – deni limerekodiwa kwenye Madeni',
+              )
+            : _tr('Product imported successfully!', 'Bidhaa imeingizwa kwa mafanikio!'),
+        type: hasDebt ? AppNotificationType.warning : AppNotificationType.success,
+      );
       // Pop back to catalog, then pop catalog to return to inventory
       nav.pop();
       nav.pop();

@@ -244,13 +244,6 @@ class _NotificationsDarkHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DarkHeaderShell(
-      leading: IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-            size: 20, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
       title: Text(
         _tr('Notifications', 'Arifa'),
         style: GoogleFonts.dmSans(

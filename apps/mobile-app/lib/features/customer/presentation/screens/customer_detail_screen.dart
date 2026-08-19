@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
@@ -405,12 +406,13 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
 
   void _showSnack(String msg, {Color? color}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    final type = switch (color) {
+      AppColors.success => AppNotificationType.success,
+      AppColors.error => AppNotificationType.error,
+      AppColors.warning => AppNotificationType.warning,
+      _ => AppNotificationType.info,
+    };
+    AppNotification.show(context, msg, type: type);
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
@@ -1704,12 +1706,7 @@ class _ContactCard extends StatelessWidget {
   }
 
   void _toast(BuildContext ctx, String msg) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-      content: Text(msg),
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    AppNotification.info(ctx, msg, duration: const Duration(seconds: 2));
   }
 }
 
@@ -2827,14 +2824,10 @@ class _EditCustomerFullSheetState
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        content: Text(_tr(
-          'Could not save changes. Please try again.',
-          'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.',
-        )),
-      ));
+      AppNotification.error(
+        context,
+        _tr('Could not save changes. Please try again.', 'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.'),
+      );
     }
   }
 
@@ -3177,13 +3170,10 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to record payment', 'Imeshindwa kurekodi malipo')),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        AppNotification.error(
+          context,
+          _tr('Failed to record payment', 'Imeshindwa kurekodi malipo'),
+        );
       }
     }
   }

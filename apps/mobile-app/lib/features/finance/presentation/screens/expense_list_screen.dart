@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,16 +5,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/expense_category.dart';
 import '../expense_category_style.dart';
+import '../providers/expense_providers.dart';
 import '../widgets/manage_expense_categories_sheet.dart';
 import 'add_expense_screen.dart';
 import 'expense_detail_screen.dart';
@@ -237,28 +237,22 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     );
     if (confirmed != true) return;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-            uid: user.uid,
-            context: ctx,
-            childCollection: 'expenses',
-          )
-          .doc(expense.id)
-          .delete();
+      // Goes through the Drift + sync-queue repository — this is what makes
+      // it work fully offline. It used to delete straight from Firestore
+      // here, which hangs/fails while offline since Firestore's own
+      // persistence cache is disabled (see main.dart).
+      await ref.read(expenseRepositoryProvider).delete(expense.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Expense deleted', 'Gharama imefutwa')),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.success(context, _tr('Expense deleted', 'Gharama imefutwa'));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        AppNotification.error(
+          context,
+          _tr('Could not delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.'),
         );
       }
-    } catch (_) {}
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/payment_method_accounts.dart';
@@ -222,25 +223,14 @@ class _ActivateAccountSheetState extends ConsumerState<ActivateAccountSheet> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_t(
-              '${widget.spec.nameEn} activated',
-              '${widget.spec.nameSw} imewashwa',
-            )),
-            backgroundColor: AppColors.success,
-          ),
+        AppNotification.success(
+          context,
+          _t('${widget.spec.nameEn} activated', '${widget.spec.nameSw} imewashwa'),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text(_t('Error: ${e.toString()}', 'Kosa: ${e.toString()}')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppNotification.error(context, _t('Error: ${e.toString()}', 'Kosa: ${e.toString()}'));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

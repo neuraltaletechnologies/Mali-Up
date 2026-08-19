@@ -17,6 +17,7 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -250,16 +251,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.error,
-            content: Text(
-              _tr(
-                'Could not delete invoice. Please try again.',
-                'Imeshindwa kufuta ankara. Jaribu tena.',
-              ),
-            ),
-          ),
+        AppNotification.error(
+          context,
+          _tr('Could not delete invoice. Please try again.', 'Imeshindwa kufuta ankara. Jaribu tena.'),
         );
       }
     }
@@ -616,16 +610,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         );
       } catch (_) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not create the receipt PDF. Please try again.',
-                'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
-              ),
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.error(
+          context,
+          _tr('Could not create the receipt PDF. Please try again.', 'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.'),
         );
       }
     }
@@ -706,16 +693,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (!ok) throw Exception('no handler');
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'No app available to open this share option.',
-              'Hakuna programu ya kufungua chaguo hili la kushiriki.',
-            ),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppNotification.error(
+        context,
+        _tr('No app available to open this share option.', 'Hakuna programu ya kufungua chaguo hili la kushiriki.'),
       );
     }
   }
@@ -4542,13 +4522,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppNotification.info(context, msg);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────────

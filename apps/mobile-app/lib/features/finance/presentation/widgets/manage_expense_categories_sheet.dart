@@ -8,6 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense_category.dart';
@@ -171,9 +172,7 @@ class _ManageExpenseCategoriesSheetState
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    AppNotification.info(context, message);
   }
 
   @override

@@ -71,6 +71,8 @@ import '../features/reports/presentation/screens/inventory_valuation_screen.dart
     deferred as screen_inv_val;
 import '../features/settings/presentation/screens/sync_diagnostics_screen.dart'
     deferred as screen_sync_diagnostics;
+import '../features/notifications/presentation/screens/notifications_screen.dart'
+    deferred as screen_notifications;
 import '../features/rbac/data/rbac_providers.dart'
     show
         permissionServiceProvider,
@@ -109,6 +111,7 @@ abstract final class AppRoutes {
   static const businesses = '/businesses';
   static const reports = '/reports';
   static const syncDiagnostics = '/sync-diagnostics';
+  static const notifications = '/notifications';
   static const login = '/login';
   static const accessDenied = '/access-denied';
 
@@ -562,6 +565,16 @@ List<RouteBase> _buildRoutes() {
               _primaryPage(state, const AccessDeniedScreen()),
         ),
         GoRoute(
+          path: AppRoutes.notifications,
+          pageBuilder: (context, state) => _primaryPage(
+            state,
+            _deferred(
+              load: screen_notifications.loadLibrary,
+              build: () => screen_notifications.NotificationsScreen(),
+            ),
+          ),
+        ),
+        GoRoute(
           path: AppRoutes.syncDiagnostics,
           pageBuilder: (context, state) => _primaryPage(
             state,
@@ -783,6 +796,7 @@ class AppRouter {
   static const businessesPath = AppRoutes.businesses;
   static const reportsPath = AppRoutes.reports;
   static const syncDiagnosticsPath = AppRoutes.syncDiagnostics;
+  static const notificationsPath = AppRoutes.notifications;
 
   static GoRouter createRouter({
     required bool showLanguageSelection,

@@ -8067,6 +8067,54 @@ class $DebtsTableTable extends DebtsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _interestRatePercentMeta =
+      const VerificationMeta('interestRatePercent');
+  @override
+  late final GeneratedColumn<double> interestRatePercent =
+      GeneratedColumn<double>(
+        'interest_rate_percent',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _interestPeriodMeta = const VerificationMeta(
+    'interestPeriod',
+  );
+  @override
+  late final GeneratedColumn<String> interestPeriod = GeneratedColumn<String>(
+    'interest_period',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('monthly'),
+  );
+  static const VerificationMeta _interestTypeMeta = const VerificationMeta(
+    'interestType',
+  );
+  @override
+  late final GeneratedColumn<String> interestType = GeneratedColumn<String>(
+    'interest_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('simple'),
+  );
+  static const VerificationMeta _loanDateMeta = const VerificationMeta(
+    'loanDate',
+  );
+  @override
+  late final GeneratedColumn<String> loanDate = GeneratedColumn<String>(
+    'loan_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -8156,6 +8204,10 @@ class $DebtsTableTable extends DebtsTable
     writeOffReason,
     writtenOffBy,
     writtenOffAt,
+    interestRatePercent,
+    interestPeriod,
+    interestType,
+    loanDate,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -8310,6 +8362,39 @@ class $DebtsTableTable extends DebtsTable
         ),
       );
     }
+    if (data.containsKey('interest_rate_percent')) {
+      context.handle(
+        _interestRatePercentMeta,
+        interestRatePercent.isAcceptableOrUnknown(
+          data['interest_rate_percent']!,
+          _interestRatePercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('interest_period')) {
+      context.handle(
+        _interestPeriodMeta,
+        interestPeriod.isAcceptableOrUnknown(
+          data['interest_period']!,
+          _interestPeriodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('interest_type')) {
+      context.handle(
+        _interestTypeMeta,
+        interestType.isAcceptableOrUnknown(
+          data['interest_type']!,
+          _interestTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('loan_date')) {
+      context.handle(
+        _loanDateMeta,
+        loanDate.isAcceptableOrUnknown(data['loan_date']!, _loanDateMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -8437,6 +8522,22 @@ class $DebtsTableTable extends DebtsTable
         DriftSqlType.string,
         data['${effectivePrefix}written_off_at'],
       )!,
+      interestRatePercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}interest_rate_percent'],
+      )!,
+      interestPeriod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}interest_period'],
+      )!,
+      interestType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}interest_type'],
+      )!,
+      loanDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}loan_date'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -8489,6 +8590,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
   final String writeOffReason;
   final String writtenOffBy;
   final String writtenOffAt;
+  final double interestRatePercent;
+  final String interestPeriod;
+  final String interestType;
+  final String loanDate;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -8514,6 +8619,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
     required this.writeOffReason,
     required this.writtenOffBy,
     required this.writtenOffAt,
+    required this.interestRatePercent,
+    required this.interestPeriod,
+    required this.interestType,
+    required this.loanDate,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -8542,6 +8651,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
     map['write_off_reason'] = Variable<String>(writeOffReason);
     map['written_off_by'] = Variable<String>(writtenOffBy);
     map['written_off_at'] = Variable<String>(writtenOffAt);
+    map['interest_rate_percent'] = Variable<double>(interestRatePercent);
+    map['interest_period'] = Variable<String>(interestPeriod);
+    map['interest_type'] = Variable<String>(interestType);
+    map['loan_date'] = Variable<String>(loanDate);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -8573,6 +8686,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
       writeOffReason: Value(writeOffReason),
       writtenOffBy: Value(writtenOffBy),
       writtenOffAt: Value(writtenOffAt),
+      interestRatePercent: Value(interestRatePercent),
+      interestPeriod: Value(interestPeriod),
+      interestType: Value(interestType),
+      loanDate: Value(loanDate),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -8608,6 +8725,12 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
       writeOffReason: serializer.fromJson<String>(json['writeOffReason']),
       writtenOffBy: serializer.fromJson<String>(json['writtenOffBy']),
       writtenOffAt: serializer.fromJson<String>(json['writtenOffAt']),
+      interestRatePercent: serializer.fromJson<double>(
+        json['interestRatePercent'],
+      ),
+      interestPeriod: serializer.fromJson<String>(json['interestPeriod']),
+      interestType: serializer.fromJson<String>(json['interestType']),
+      loanDate: serializer.fromJson<String>(json['loanDate']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -8638,6 +8761,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
       'writeOffReason': serializer.toJson<String>(writeOffReason),
       'writtenOffBy': serializer.toJson<String>(writtenOffBy),
       'writtenOffAt': serializer.toJson<String>(writtenOffAt),
+      'interestRatePercent': serializer.toJson<double>(interestRatePercent),
+      'interestPeriod': serializer.toJson<String>(interestPeriod),
+      'interestType': serializer.toJson<String>(interestType),
+      'loanDate': serializer.toJson<String>(loanDate),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -8666,6 +8793,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
     String? writeOffReason,
     String? writtenOffBy,
     String? writtenOffAt,
+    double? interestRatePercent,
+    String? interestPeriod,
+    String? interestType,
+    String? loanDate,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -8691,6 +8822,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
     writeOffReason: writeOffReason ?? this.writeOffReason,
     writtenOffBy: writtenOffBy ?? this.writtenOffBy,
     writtenOffAt: writtenOffAt ?? this.writtenOffAt,
+    interestRatePercent: interestRatePercent ?? this.interestRatePercent,
+    interestPeriod: interestPeriod ?? this.interestPeriod,
+    interestType: interestType ?? this.interestType,
+    loanDate: loanDate ?? this.loanDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -8740,6 +8875,16 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
       writtenOffAt: data.writtenOffAt.present
           ? data.writtenOffAt.value
           : this.writtenOffAt,
+      interestRatePercent: data.interestRatePercent.present
+          ? data.interestRatePercent.value
+          : this.interestRatePercent,
+      interestPeriod: data.interestPeriod.present
+          ? data.interestPeriod.value
+          : this.interestPeriod,
+      interestType: data.interestType.present
+          ? data.interestType.value
+          : this.interestType,
+      loanDate: data.loanDate.present ? data.loanDate.value : this.loanDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -8776,6 +8921,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
           ..write('writeOffReason: $writeOffReason, ')
           ..write('writtenOffBy: $writtenOffBy, ')
           ..write('writtenOffAt: $writtenOffAt, ')
+          ..write('interestRatePercent: $interestRatePercent, ')
+          ..write('interestPeriod: $interestPeriod, ')
+          ..write('interestType: $interestType, ')
+          ..write('loanDate: $loanDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -8806,6 +8955,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
     writeOffReason,
     writtenOffBy,
     writtenOffAt,
+    interestRatePercent,
+    interestPeriod,
+    interestType,
+    loanDate,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -8835,6 +8988,10 @@ class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
           other.writeOffReason == this.writeOffReason &&
           other.writtenOffBy == this.writtenOffBy &&
           other.writtenOffAt == this.writtenOffAt &&
+          other.interestRatePercent == this.interestRatePercent &&
+          other.interestPeriod == this.interestPeriod &&
+          other.interestType == this.interestType &&
+          other.loanDate == this.loanDate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -8862,6 +9019,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
   final Value<String> writeOffReason;
   final Value<String> writtenOffBy;
   final Value<String> writtenOffAt;
+  final Value<double> interestRatePercent;
+  final Value<String> interestPeriod;
+  final Value<String> interestType;
+  final Value<String> loanDate;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -8888,6 +9049,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
     this.writeOffReason = const Value.absent(),
     this.writtenOffBy = const Value.absent(),
     this.writtenOffAt = const Value.absent(),
+    this.interestRatePercent = const Value.absent(),
+    this.interestPeriod = const Value.absent(),
+    this.interestType = const Value.absent(),
+    this.loanDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -8915,6 +9080,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
     this.writeOffReason = const Value.absent(),
     this.writtenOffBy = const Value.absent(),
     this.writtenOffAt = const Value.absent(),
+    this.interestRatePercent = const Value.absent(),
+    this.interestPeriod = const Value.absent(),
+    this.interestType = const Value.absent(),
+    this.loanDate = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -8949,6 +9118,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
     Expression<String>? writeOffReason,
     Expression<String>? writtenOffBy,
     Expression<String>? writtenOffAt,
+    Expression<double>? interestRatePercent,
+    Expression<String>? interestPeriod,
+    Expression<String>? interestType,
+    Expression<String>? loanDate,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -8976,6 +9149,11 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
       if (writeOffReason != null) 'write_off_reason': writeOffReason,
       if (writtenOffBy != null) 'written_off_by': writtenOffBy,
       if (writtenOffAt != null) 'written_off_at': writtenOffAt,
+      if (interestRatePercent != null)
+        'interest_rate_percent': interestRatePercent,
+      if (interestPeriod != null) 'interest_period': interestPeriod,
+      if (interestType != null) 'interest_type': interestType,
+      if (loanDate != null) 'loan_date': loanDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -9005,6 +9183,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
     Value<String>? writeOffReason,
     Value<String>? writtenOffBy,
     Value<String>? writtenOffAt,
+    Value<double>? interestRatePercent,
+    Value<String>? interestPeriod,
+    Value<String>? interestType,
+    Value<String>? loanDate,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -9032,6 +9214,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
       writeOffReason: writeOffReason ?? this.writeOffReason,
       writtenOffBy: writtenOffBy ?? this.writtenOffBy,
       writtenOffAt: writtenOffAt ?? this.writtenOffAt,
+      interestRatePercent: interestRatePercent ?? this.interestRatePercent,
+      interestPeriod: interestPeriod ?? this.interestPeriod,
+      interestType: interestType ?? this.interestType,
+      loanDate: loanDate ?? this.loanDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -9099,6 +9285,20 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
     if (writtenOffAt.present) {
       map['written_off_at'] = Variable<String>(writtenOffAt.value);
     }
+    if (interestRatePercent.present) {
+      map['interest_rate_percent'] = Variable<double>(
+        interestRatePercent.value,
+      );
+    }
+    if (interestPeriod.present) {
+      map['interest_period'] = Variable<String>(interestPeriod.value);
+    }
+    if (interestType.present) {
+      map['interest_type'] = Variable<String>(interestType.value);
+    }
+    if (loanDate.present) {
+      map['loan_date'] = Variable<String>(loanDate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -9144,6 +9344,10 @@ class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
           ..write('writeOffReason: $writeOffReason, ')
           ..write('writtenOffBy: $writtenOffBy, ')
           ..write('writtenOffAt: $writtenOffAt, ')
+          ..write('interestRatePercent: $interestRatePercent, ')
+          ..write('interestPeriod: $interestPeriod, ')
+          ..write('interestType: $interestType, ')
+          ..write('loanDate: $loanDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -19685,6 +19889,10 @@ typedef $$DebtsTableTableCreateCompanionBuilder =
       Value<String> writeOffReason,
       Value<String> writtenOffBy,
       Value<String> writtenOffAt,
+      Value<double> interestRatePercent,
+      Value<String> interestPeriod,
+      Value<String> interestType,
+      Value<String> loanDate,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -19713,6 +19921,10 @@ typedef $$DebtsTableTableUpdateCompanionBuilder =
       Value<String> writeOffReason,
       Value<String> writtenOffBy,
       Value<String> writtenOffAt,
+      Value<double> interestRatePercent,
+      Value<String> interestPeriod,
+      Value<String> interestType,
+      Value<String> loanDate,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -19818,6 +20030,26 @@ class $$DebtsTableTableFilterComposer
 
   ColumnFilters<String> get writtenOffAt => $composableBuilder(
     column: $table.writtenOffAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get interestRatePercent => $composableBuilder(
+    column: $table.interestRatePercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get interestPeriod => $composableBuilder(
+    column: $table.interestPeriod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get interestType => $composableBuilder(
+    column: $table.interestType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get loanDate => $composableBuilder(
+    column: $table.loanDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19951,6 +20183,26 @@ class $$DebtsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get interestRatePercent => $composableBuilder(
+    column: $table.interestRatePercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get interestPeriod => $composableBuilder(
+    column: $table.interestPeriod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get interestType => $composableBuilder(
+    column: $table.interestType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get loanDate => $composableBuilder(
+    column: $table.loanDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -20065,6 +20317,24 @@ class $$DebtsTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get interestRatePercent => $composableBuilder(
+    column: $table.interestRatePercent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get interestPeriod => $composableBuilder(
+    column: $table.interestPeriod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get interestType => $composableBuilder(
+    column: $table.interestType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get loanDate =>
+      $composableBuilder(column: $table.loanDate, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20139,6 +20409,10 @@ class $$DebtsTableTableTableManager
                 Value<String> writeOffReason = const Value.absent(),
                 Value<String> writtenOffBy = const Value.absent(),
                 Value<String> writtenOffAt = const Value.absent(),
+                Value<double> interestRatePercent = const Value.absent(),
+                Value<String> interestPeriod = const Value.absent(),
+                Value<String> interestType = const Value.absent(),
+                Value<String> loanDate = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -20165,6 +20439,10 @@ class $$DebtsTableTableTableManager
                 writeOffReason: writeOffReason,
                 writtenOffBy: writtenOffBy,
                 writtenOffAt: writtenOffAt,
+                interestRatePercent: interestRatePercent,
+                interestPeriod: interestPeriod,
+                interestType: interestType,
+                loanDate: loanDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -20193,6 +20471,10 @@ class $$DebtsTableTableTableManager
                 Value<String> writeOffReason = const Value.absent(),
                 Value<String> writtenOffBy = const Value.absent(),
                 Value<String> writtenOffAt = const Value.absent(),
+                Value<double> interestRatePercent = const Value.absent(),
+                Value<String> interestPeriod = const Value.absent(),
+                Value<String> interestType = const Value.absent(),
+                Value<String> loanDate = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -20219,6 +20501,10 @@ class $$DebtsTableTableTableManager
                 writeOffReason: writeOffReason,
                 writtenOffBy: writtenOffBy,
                 writtenOffAt: writtenOffAt,
+                interestRatePercent: interestRatePercent,
+                interestPeriod: interestPeriod,
+                interestType: interestType,
+                loanDate: loanDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,

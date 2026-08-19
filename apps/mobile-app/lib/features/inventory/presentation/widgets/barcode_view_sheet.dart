@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
@@ -116,12 +117,10 @@ class BarcodeViewSheet extends StatelessWidget {
                       label: Text(_t('Copy Code', 'Nakili Nambari')),
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: sku));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_t('Barcode copied to clipboard',
-                                'Barcode imenakiliwa')),
-                            duration: const Duration(seconds: 2),
-                          ),
+                        AppNotification.info(
+                          context,
+                          _t('Barcode copied to clipboard', 'Barcode imenakiliwa'),
+                          duration: const Duration(seconds: 2),
                         );
                       },
                     ),
@@ -148,19 +147,17 @@ class BarcodeViewSheet extends StatelessWidget {
   }
 
   void _printLabel(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _t(
-              'Label: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
-              'Use your label printer app to print this barcode.',
-              'Lebo: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
-              'Tumia programu yako ya kuchapisha lebo kuchapisha barcode hii.'),
-        ),
-        action: SnackBarAction(
-          label: _t('OK', 'Sawa'),
-          onPressed: () {},
-        ),
+    AppNotification.info(
+      context,
+      _t(
+          'Label: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
+          'Use your label printer app to print this barcode.',
+          'Lebo: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
+          'Tumia programu yako ya kuchapisha lebo kuchapisha barcode hii.'),
+      action: SnackBarAction(
+        label: _t('OK', 'Sawa'),
+        textColor: AppColors.inverseText,
+        onPressed: () {},
       ),
     );
   }

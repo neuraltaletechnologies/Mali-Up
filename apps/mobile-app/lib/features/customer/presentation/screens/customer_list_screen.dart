@@ -10,6 +10,7 @@ import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -642,21 +643,14 @@ class _CustomerCard extends ConsumerWidget {
             customerName: customer.name,
           );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Customer deleted', 'Mteja amefutwa')),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        AppNotification.success(context, _tr('Customer deleted', 'Mteja amefutwa'));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(_tr(
-            'Could not delete customer. Please try again.',
-            'Imeshindwa kufuta mteja. Jaribu tena.',
-          )),
-        ));
+        AppNotification.error(
+          context,
+          _tr('Could not delete customer. Please try again.', 'Imeshindwa kufuta mteja. Jaribu tena.'),
+        );
       }
     }
   }
@@ -1033,7 +1027,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     final nav = Navigator.of(context);
-    final msg = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
 
     try {
       final limit = double.tryParse(_creditLimitCtrl.text) ?? 0;
@@ -1056,21 +1050,19 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
           );
 
       nav.pop();
-      msg.showSnackBar(SnackBar(
-        content: Text(_tr('Customer updated', 'Mteja amesasishwa')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('Customer updated', 'Mteja amesasishwa'),
+        type: AppNotificationType.success,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      msg.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr(
-          'Could not save changes. Please try again.',
-          'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.',
-        )),
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('Could not save changes. Please try again.', 'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.'),
+        type: AppNotificationType.error,
+      );
     }
   }
 
@@ -1939,13 +1931,11 @@ class _SheetInfoRow extends StatelessWidget {
           onTap: () async {
             await Clipboard.setData(ClipboardData(text: value));
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(_tr('$label copied', '$label imenakiliwa')),
+              AppNotification.info(
+                context,
+                _tr('$label copied', '$label imenakiliwa'),
                 duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ));
+              );
             }
           },
           borderRadius: BorderRadius.vertical(

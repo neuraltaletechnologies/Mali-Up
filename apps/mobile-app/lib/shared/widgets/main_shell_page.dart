@@ -26,7 +26,6 @@ import '../../core/services/business_profile_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/notifications/data/notification_aggregator.dart';
-import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/data/role_cache_service.dart';
 import '../../features/rbac/domain/permission_service.dart';
@@ -531,22 +530,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     rootContext.go(route);
   }
 
-  // Notifications isn't a GoRouter destination (it's a stack-top page you
-  // dismiss back to wherever you were, like a sheet would be), so it's
-  // pushed on the root Navigator instead of routed with the other panel
-  // items above.
-  static Future<void> _closeNavigationPanelThenOpenNotifications(
-    BuildContext sheetContext,
-    BuildContext rootContext,
-  ) async {
-    Navigator.of(sheetContext).pop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    if (!rootContext.mounted) return;
-    Navigator.of(rootContext, rootNavigator: true).push(
-      MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
-    );
-  }
-
   Future<void> _openNavigationPanel({
     required BuildContext context,
     required String location,
@@ -764,11 +747,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                           )
                                         : _tr('Notifications', 'Arifa'),
                                     trailingBadgeCount: unreadCount,
-                                    onTap: () =>
-                                        _closeNavigationPanelThenOpenNotifications(
-                                          dialogContext,
-                                          context,
-                                        ),
+                                    selected: _isSelected(
+                                      location,
+                                      AppRouter.notificationsPath,
+                                    ),
+                                    onTap: () => _closeNavigationPanelThenNavigate(
+                                      dialogContext,
+                                      context,
+                                      AppRouter.notificationsPath,
+                                    ),
                                   ),
                             ),
                             if (ps.canViewSales ||
@@ -1906,18 +1893,15 @@ class _PulsingBellIconState extends State<_PulsingBellIcon>
         animation: _ctrl,
         builder: (context, child) {
           final t = reduceMotion ? 1.0 : _ctrl.value;
-          return Transform.scale(
-            scale: 0.85 + t * 0.3,
-            child: Opacity(opacity: 0.55 + t * 0.45, child: child),
-          );
+          return Opacity(opacity: 0.55 + t * 0.45, child: child);
         },
         child: Icon(
           Icons.notifications_rounded,
           size: 14,
-          color: AppColors.error,
+          color: AppColors.yellowBrand,
           shadows: [
             Shadow(
-              color: AppColors.error.withValues(alpha: 0.5),
+              color: AppColors.yellowBrand.withValues(alpha: 0.5),
               blurRadius: 4,
             ),
           ],
@@ -2162,33 +2146,31 @@ class _FinanceContextSwitcher extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          top: -3,
-          right: -3,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            padding: isOnline
-                ? EdgeInsets.zero
-                : const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: isOnline ? AppColors.success : AppColors.error,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white, width: 1.5),
+        // Online is the default, unremarkable state — nothing to show.
+        // Offline is the one worth flagging, so only it gets a badge.
+        if (!isOnline)
+          Positioned(
+            top: -3,
+            right: -3,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: Text(
+                tr('Offline', 'Offline'),
+                style: GoogleFonts.dmSans(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  height: 1.2,
+                ),
+              ),
             ),
-            child: isOnline
-                ? const SizedBox(width: 6, height: 6)
-                : Text(
-                    tr('Offline', 'Offline'),
-                    style: GoogleFonts.dmSans(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                      height: 1.2,
-                    ),
-                  ),
           ),
-        ),
       ],
     );
   }

@@ -219,20 +219,24 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   }
 
   void _openAddNew() async {
-    final result = await showDialog<Customer>(
-      context: context,
+    // AddCustomerDialog is built as a bottom sheet (SheetHandle, rounded top
+    // corners, unbounded-height inner scroll view) — it must be presented via
+    // showAppSheet, which gives it a bounded height. Presenting it with
+    // showDialog instead centers it with unbounded constraints and crashes
+    // with a RenderFlex "unbounded height" error the moment it lays out.
+    Customer? added;
+    await showAppSheet<void>(
+      context,
       builder: (_) => AddCustomerDialog(
         initialName: _query.trim(),
-        onAdded: (c) {
-          setState(() {
-            _customers = [c, ..._customers];
-            _query = '';
-          });
-        },
+        onAdded: (c) => added = c,
       ),
     );
-    if (result != null && mounted) {
-      Navigator.of(context).pop(result);
+    // AddCustomerDialog closes itself (Navigator.pop with no value) once the
+    // customer is saved — the created customer comes back via onAdded above,
+    // not via the sheet's own result.
+    if (added != null && mounted) {
+      Navigator.of(context).pop(added);
     }
   }
 

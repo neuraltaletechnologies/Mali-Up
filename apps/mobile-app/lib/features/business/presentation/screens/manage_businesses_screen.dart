@@ -18,6 +18,7 @@ import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
@@ -390,9 +391,7 @@ class _ManageBusinessesScreenState
       GoRouter.of(context).go(AppRouter.dashboardPath);
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_tr('Business deleted.', 'Biashara imefutwa.'))),
-    );
+    AppNotification.success(context, _tr('Business deleted.', 'Biashara imefutwa.'));
   }
 
   // ─── Form sheet ───────────────────────────────────────────────────────────────
@@ -1164,20 +1163,11 @@ class _ManageBusinessesScreenState
       }
       if (!mounted) return;
       setState(() => _profileFuture = _loadProfile());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isEditing
-                ? _tr('Business updated.', 'Biashara imesasishwa.')
-                : _tr('Business added.', 'Biashara imeongezwa.'),
-          ),
-          backgroundColor: AppColors.navyPrimary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
+      AppNotification.success(
+        context,
+        isEditing
+            ? _tr('Business updated.', 'Biashara imesasishwa.')
+            : _tr('Business added.', 'Biashara imeongezwa.'),
       );
     }
   }
@@ -1211,14 +1201,11 @@ class _ManageBusinessesScreenState
     if (user == null) return null;
 
     if (name.isEmpty || place.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Business name and city are required.',
-              'Jina la biashara na mji vinahitajika.',
-            ),
-          ),
+      AppNotification.error(
+        context,
+        _tr(
+          'Business name and city are required.',
+          'Jina la biashara na mji vinahitajika.',
         ),
       );
       return null;
@@ -1245,7 +1232,7 @@ class _ManageBusinessesScreenState
 
       String? newLogoUrl = existingLogoUrl;
       if (pickedLogoFile != null) {
-        final messenger = ScaffoldMessenger.of(context);
+        final overlay = Overlay.of(context, rootOverlay: true);
         try {
           newLogoUrl = await _uploadBusinessLogo(
             userId: user.uid,
@@ -1255,15 +1242,13 @@ class _ManageBusinessesScreenState
         } on FirebaseException catch (e) {
           debugPrint('Logo upload failed: ${e.code} ${e.message}');
           if (mounted) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  _tr(
-                    'Logo upload failed. Business saved without logo change.',
-                    'Kupakia nembo kumeshindikana. Biashara imehifadhiwa bila kubadilisha nembo.',
-                  ),
-                ),
+            AppNotification.showVia(
+              overlay,
+              _tr(
+                'Logo upload failed. Business saved without logo change.',
+                'Kupakia nembo kumeshindikana. Biashara imehifadhiwa bila kubadilisha nembo.',
               ),
+              type: AppNotificationType.warning,
             );
           }
         }
@@ -1301,28 +1286,22 @@ class _ManageBusinessesScreenState
     } on FirebaseException catch (e) {
       debugPrint('Business save failed: ${e.code} ${e.message}');
       if (!mounted) return null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Could not save business right now. Please try again.',
-              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
-            ),
-          ),
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not save business right now. Please try again.',
+          'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
         ),
       );
       return null;
     } catch (e) {
       debugPrint('Business save failed: $e');
       if (!mounted) return null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Could not save business right now. Please try again.',
-              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
-            ),
-          ),
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not save business right now. Please try again.',
+          'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
         ),
       );
       return null;

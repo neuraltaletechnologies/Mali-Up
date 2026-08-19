@@ -26,6 +26,10 @@ abstract final class DebtMapper {
       writeOffReason: row.writeOffReason,
       writtenOffBy: row.writtenOffBy,
       writtenOffAt: row.writtenOffAt,
+      interestRatePercent: row.interestRatePercent,
+      interestPeriod: row.interestPeriod,
+      interestType: row.interestType,
+      loanDate: row.loanDate,
     );
   }
 
@@ -60,6 +64,10 @@ abstract final class DebtMapper {
       writeOffReason: Value(debt.writeOffReason),
       writtenOffBy: Value(debt.writtenOffBy),
       writtenOffAt: Value(debt.writtenOffAt),
+      interestRatePercent: Value(debt.interestRatePercent),
+      interestPeriod: Value(debt.interestPeriod),
+      interestType: Value(debt.interestType),
+      loanDate: Value(debt.loanDate),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
       serverUpdatedAt: Value(serverUpdatedAt),

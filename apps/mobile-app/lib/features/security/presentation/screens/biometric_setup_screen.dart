@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 
@@ -212,25 +213,16 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
         setState(() => biometricEnabled = enabled);
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              enabled
-                  ? '${_getBiometricName()} ${_t("lock enabled", "kufuli imewashwa")}'
-                  : '${_getBiometricName()} ${_t("lock disabled", "kufuli imezimwa")}',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        AppNotification.success(
+          context,
+          enabled
+              ? '${_getBiometricName()} ${_t("lock enabled", "kufuli imewashwa")}'
+              : '${_getBiometricName()} ${_t("lock disabled", "kufuli imezimwa")}',
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_t("Error", "Hitilafu")}: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppNotification.error(context, '${_t("Error", "Hitilafu")}: $e');
     }
   }
 }

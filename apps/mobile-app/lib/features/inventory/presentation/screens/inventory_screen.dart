@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -23,7 +24,13 @@ import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
 import '../../../finance/data/finance_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_transaction.dart';
+import '../../../finance/domain/models/expense.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/providers/expense_providers.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
@@ -739,25 +746,16 @@ class _ProductRow extends ConsumerWidget {
     try {
       await ref.read(inventoryRepositoryProvider).delete(id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.success(
+          context,
+          _tr('Product deleted', 'Bidhaa imefutwa'),
         );
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Failed to delete. Try again.',
-                'Imeshindikana kufuta. Jaribu tena.',
-              ),
-            ),
-          ),
+        AppNotification.error(
+          context,
+          _tr('Failed to delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.'),
         );
       }
     }
@@ -1685,9 +1683,29 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
       if (mat != null) availableStock[matId] = mat.currentStock;
     }
 
+    // Real cash cost of this batch: overheads (labour, gas, electricity…)
+    // plus any ingredient typed in by hand rather than picked from stock —
+    // those aren't linked to an InventoryItem, so nothing else has ever
+    // accounted for their cost. Linked ingredients are not re-charged here;
+    // that money already left the business when the material was stocked in.
+    final overheadTotal = overheads.fold<double>(
+      0,
+      (s, o) => s + ((o['amount'] as num?)?.toDouble() ?? 0),
+    );
+    final manualIngredientTotal = ingredients
+        .where((i) => ((i['matId'] as String?) ?? '').isEmpty)
+        .fold<double>(
+          0,
+          (s, i) =>
+              s +
+              ((i['qty'] as num?)?.toDouble() ?? 0) *
+                  ((i['costPer'] as num?)?.toDouble() ?? 0),
+        );
+    final costToExpense = overheadTotal + manualIngredientTotal;
+
     // Show confirmation bottom sheet
     if (!mounted) return;
-    final confirmed = await showAppSheet<bool>(
+    final result = await showAppSheet<_ProductionConfirmResult>(
       context,
       builder: (_) => _RecordProductionConfirmSheet(
         productName: name,
@@ -1696,9 +1714,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         ingredients: ingredients,
         overheads: overheads,
         availableStock: availableStock,
+        costToExpense: costToExpense,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (result == null || !result.confirmed || !mounted) return;
 
     setState(() => _recording = true);
     try {
@@ -1717,6 +1736,49 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         await repo.adjustQuantity(productId, batchYield);
       }
 
+      // Log the batch's real cash cost as an expense and pull it out of the
+      // chosen payment account, exactly like any other expense.
+      if (costToExpense > 0 && result.paymentAccountId != null) {
+        final accountId = result.paymentAccountId!;
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final account = await ref
+            .read(cashRepositoryProvider)
+            .getAccountById(accountId);
+        final paymentMethodValue = switch (accountId) {
+          PaymentMethodAccounts.cashId => 'cash',
+          PaymentMethodAccounts.mpesaId => 'mpesa',
+          PaymentMethodAccounts.bankId => 'bank',
+          PaymentMethodAccounts.cardId => 'card',
+          _ => account?.name ?? '',
+        };
+        final today = DateTime.now();
+        final dateStr = '${today.year}'
+            '-${today.month.toString().padLeft(2, '0')}'
+            '-${today.day.toString().padLeft(2, '0')}';
+        final note = _tr('Production: $name', 'Uzalishaji: $name');
+        await ref.read(expenseRepositoryProvider).save(
+              Expense(
+                id: '',
+                category: 'supplies',
+                amount: costToExpense.toStringAsFixed(0),
+                date: dateStr,
+                note: note,
+                recipient: '',
+                paymentMethod: paymentMethodValue,
+                paymentAccountId: accountId,
+                createdBy: uid,
+              ),
+            );
+        await moveMoneyForAccount(
+          ref,
+          accountId: accountId,
+          amount: costToExpense,
+          isDeposit: false,
+          description: note,
+          createdBy: uid,
+        );
+      }
+
       _lastBatchYield = batchYield;
       if (mounted) {
         setState(() {
@@ -1731,13 +1793,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _recording = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
-          ),
-          backgroundColor: AppColors.error,
-        ),
+      AppNotification.error(
+        context,
+        _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
       );
     }
   }
@@ -2328,7 +2386,17 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
 
 // ── Record Production confirm sheet ──────────────────────────────────────────
 
-class _RecordProductionConfirmSheet extends StatelessWidget {
+/// What the confirm sheet handed back: whether production was confirmed,
+/// and — only when the batch has a real cash cost — which account it
+/// should be deducted from.
+class _ProductionConfirmResult {
+  final bool confirmed;
+  final String? paymentAccountId;
+
+  const _ProductionConfirmResult({required this.confirmed, this.paymentAccountId});
+}
+
+class _RecordProductionConfirmSheet extends ConsumerStatefulWidget {
   final String productName;
   final double batchYield;
   final String unit;
@@ -2336,6 +2404,10 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
   final List<Map<String, dynamic>> overheads;
   // On-hand stock per linked material id, for the shortage warning.
   final Map<String, double> availableStock;
+  // Overheads + any hand-typed (unlinked) ingredient cost — the part of
+  // this batch that is a real, new cash outflow. Zero for businesses that
+  // don't track production overhead, in which case no payment step shows.
+  final double costToExpense;
 
   const _RecordProductionConfirmSheet({
     required this.productName,
@@ -2344,18 +2416,52 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
     required this.ingredients,
     required this.overheads,
     this.availableStock = const {},
+    this.costToExpense = 0,
   });
+
+  @override
+  ConsumerState<_RecordProductionConfirmSheet> createState() =>
+      _RecordProductionConfirmSheetState();
+}
+
+class _RecordProductionConfirmSheetState
+    extends ConsumerState<_RecordProductionConfirmSheet> {
+  String? _selectedAccountId;
+  String? _paymentError;
 
   bool _isShort(Map<String, dynamic> i) {
     final matId = (i['matId'] as String?) ?? '';
     if (matId.isEmpty) return false;
-    final have = availableStock[matId];
+    final have = widget.availableStock[matId];
     if (have == null) return false;
     return ((i['qty'] as num?)?.toDouble() ?? 0) > have;
   }
 
+  void _confirm() {
+    if (widget.costToExpense > 0 && _selectedAccountId == null) {
+      setState(
+        () => _paymentError = _tr(
+          'Select where this cost is paid from',
+          'Chagua gharama hii inatoka wapi',
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _ProductionConfirmResult(
+        confirmed: true,
+        paymentAccountId: _selectedAccountId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ingredients = widget.ingredients;
+    final batchYield = widget.batchYield;
+    final unit = widget.unit;
+    final productName = widget.productName;
+    final availableStock = widget.availableStock;
     final linkedCount = ingredients
         .where((i) => ((i['matId'] as String?) ?? '').isNotEmpty)
         .length;
@@ -2490,6 +2596,51 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (widget.costToExpense > 0) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        _tr('Production cost:', 'Gharama ya uzalishaji:'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _fmtAmount(widget.costToExpense),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  PaymentAccountChips(
+                    selectedAccountId: _selectedAccountId,
+                    onSelectAccount: (a) => setState(() {
+                      _selectedAccountId = a.id;
+                      _paymentError = null;
+                    }),
+                    onActivationRequired: (message) =>
+                        setState(() => _paymentError = message),
+                  ),
+                  if (_paymentError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _paymentError!,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ],
                 if (hasShortage) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -2530,7 +2681,9 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
+                        onPressed: () => Navigator.of(context).pop(
+                          const _ProductionConfirmResult(confirmed: false),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textMuted,
                           side: const BorderSide(color: AppColors.border),
@@ -2551,7 +2704,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(true),
+                        onPressed: _confirm,
                         icon: const Icon(Icons.factory_rounded, size: 17),
                         label: Text(
                           _tr('Confirm', 'Thibitisha'),
@@ -3221,7 +3374,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     // Capture context-bound refs before any async gap.
     final nav = Navigator.of(context);
-    final msg = ScaffoldMessenger.of(context);
 
     // ── Restock mode: adjustQuantity on the tracked existing product ────────
     if (_restockTarget != null) {
@@ -3295,34 +3447,25 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         final qtyStr = qty % 1 == 0
             ? qty.toStringAsFixed(0)
             : qty.toStringAsFixed(2);
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
-                  ? _tr(
-                      'Restocked $qtyStr ${target.unit} – debt recorded',
-                      'Imeongezwa $qtyStr ${target.unit} – deni limerekodiwa',
-                    )
-                  : _tr(
-                      'Restocked $qtyStr ${target.unit}',
-                      'Imeongezwa $qtyStr ${target.unit}',
-                    ),
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.success(
+          context,
+          (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+              ? _tr(
+                  'Restocked $qtyStr ${target.unit} – debt recorded',
+                  'Imeongezwa $qtyStr ${target.unit} – deni limerekodiwa',
+                )
+              : _tr(
+                  'Restocked $qtyStr ${target.unit}',
+                  'Imeongezwa $qtyStr ${target.unit}',
+                ),
         );
         widget.onDone != null ? widget.onDone!() : nav.pop();
       } catch (_) {
         if (!mounted) return;
         setState(() => _saving = false);
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        AppNotification.error(
+          context,
+          _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
         );
       }
       return;
@@ -3379,16 +3522,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           _saving = false;
           _stockCtrl.text = '1';
         });
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                '"${matchedItem.name}" already exists — enter how many to add',
-                '"${matchedItem.name}" tayari ipo — ingiza kiasi cha kuongeza',
-              ),
-            ),
-            backgroundColor: AppColors.tealAccent,
-            behavior: SnackBarBehavior.floating,
+        AppNotification.info(
+          context,
+          _tr(
+            '"${matchedItem.name}" already exists — enter how many to add',
+            '"${matchedItem.name}" tayari ipo — ingiza kiasi cha kuongeza',
           ),
         );
         return;
@@ -3592,38 +3730,26 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         return;
       }
 
-      msg.showSnackBar(
-        SnackBar(
-          content: Text(
-            _isEdit
-                ? _tr('Product updated', 'Bidhaa imesasishwa')
-                : isReturn
-                ? _tr('Return recorded', 'Urejesho umerekodiwa')
-                : (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
-                ? _tr(
-                    'Product added – debt recorded in Payables',
-                    'Bidhaa imeongezwa – deni limerekodiwa kwenye Madeni',
-                  )
-                : _tr('Product added', 'Bidhaa imeongezwa'),
-          ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppNotification.success(
+        context,
+        _isEdit
+            ? _tr('Product updated', 'Bidhaa imesasishwa')
+            : isReturn
+            ? _tr('Return recorded', 'Urejesho umerekodiwa')
+            : (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+            ? _tr(
+                'Product added – debt recorded in Payables',
+                'Bidhaa imeongezwa – deni limerekodiwa kwenye Madeni',
+              )
+            : _tr('Product added', 'Bidhaa imeongezwa'),
       );
       widget.onDone != null ? widget.onDone!() : nav.pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      msg.showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            _tr(
-              'Could not save. Please try again.',
-              'Imeshindikana kuhifadhi. Jaribu tena.',
-            ),
-          ),
-        ),
+      AppNotification.error(
+        context,
+        _tr('Could not save. Please try again.', 'Imeshindikana kuhifadhi. Jaribu tena.'),
       );
     }
   }
@@ -3752,16 +3878,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           _restockTarget = match;
           _stockCtrl.text = '1';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                '"${match.name}" already exists — enter how many to add',
-                '"${match.name}" tayari ipo — ingiza kiasi cha kuongeza',
-              ),
-            ),
-            backgroundColor: AppColors.tealAccent,
-            behavior: SnackBarBehavior.floating,
+        AppNotification.info(
+          context,
+          _tr(
+            '"${match.name}" already exists — enter how many to add',
+            '"${match.name}" tayari ipo — ingiza kiasi cha kuongeza',
           ),
         );
       }
@@ -3825,8 +3946,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     );
   }
 
-  void _snack(String t) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
+  void _snack(String t) => AppNotification.info(context, t);
+
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based (SyncCashRepository) so it works fully offline;
+  // the sheet shows its own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+  }
 
   // Assigns a service-type item (e.g. a haircut or a vehicle) to a team
   // member — used to scope Firestore reads for team members with
@@ -5472,10 +5602,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ),
                             if (!_isPurchaseOnCredit) ...[
                               const SizedBox(height: 12),
-                              _AccountDropdown(
-                                selectedId: _selectedAccountId,
-                                onSelected: (id) =>
-                                    setState(() => _selectedAccountId = id),
+                              PaymentAccountChips(
+                                selectedAccountId: _selectedAccountId.isEmpty
+                                    ? null
+                                    : _selectedAccountId,
+                                onSelectAccount: (a) =>
+                                    setState(() => _selectedAccountId = a.id),
+                                onActivateMethod: (spec) =>
+                                    _showActivateAccountSheet(spec),
                               ),
                               Builder(
                                 builder: (context) {
@@ -6715,8 +6849,8 @@ class _CategoryDropdownButton extends StatelessWidget {
                           ? selectedName
                           : (categories.isEmpty
                                 ? _tr(
-                                    'No categories yet',
-                                    'Bado hakuna kategoria',
+                                    'Categories',
+                                    'Kategoria',
                                   )
                                 : _tr('category', 'kategoria')),
                       style: GoogleFonts.dmSans(
@@ -7891,120 +8025,3 @@ class _StockToggleOption extends StatelessWidget {
   }
 }
 
-// ── Account Dropdown ──────────────────────────────────────────────────────────
-
-class _AccountDropdown extends ConsumerWidget {
-  final String selectedId;
-  final ValueChanged<String> onSelected;
-  const _AccountDropdown({required this.selectedId, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final accountsAsync = ref.watch(cashAccountListProvider);
-    return accountsAsync.when(
-      loading: () => const LinearProgressIndicator(
-        color: AppColors.navyPrimary,
-        minHeight: 2,
-      ),
-      error: (_, _) => Text(
-        _tr('Could not load accounts', 'Imeshindwa kupakia akaunti'),
-        style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
-      ),
-      data: (accounts) {
-        if (accounts.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.warningBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: AppColors.warning,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _tr(
-                      'No active payment account. Activate Taslimu, M-Pesa, Benki or Kadi in Cash Flow first.',
-                      'Hakuna akaunti ya malipo iliyowashwa. Washa Taslimu, M-Pesa, Benki au Kadi katika Mtiririko wa Fedha kwanza.',
-                    ),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: AppColors.warning,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Auto-select first account on first render
-        if (selectedId.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => onSelected(accounts.first.id),
-          );
-        }
-
-        final effectiveId = selectedId.isEmpty ? accounts.first.id : selectedId;
-
-        return DropdownButtonFormField<String>(
-          key: ValueKey(effectiveId),
-          initialValue: effectiveId,
-          decoration: InputDecoration(
-            labelText: _tr('Pay from account', 'Lipa kutoka akaunti'),
-            labelStyle: GoogleFonts.dmSans(fontSize: 13),
-            prefixIcon: const Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 20,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: AppColors.navyPrimary,
-                width: 2,
-              ),
-            ),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
-            ),
-          ),
-          items: accounts.map((a) {
-            final icon = a.type == 'Bank'
-                ? Icons.account_balance_outlined
-                : a.type == 'Mobile'
-                ? Icons.smartphone_outlined
-                : Icons.payments_outlined;
-            return DropdownMenuItem(
-              value: a.id,
-              child: Row(
-                children: [
-                  Icon(icon, size: 16, color: AppColors.textMuted),
-                  const SizedBox(width: 8),
-                  Text(a.name, style: GoogleFonts.dmSans(fontSize: 13)),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (v) {
-            if (v != null) onSelected(v);
-          },
-        );
-      },
-    );
-  }
-}

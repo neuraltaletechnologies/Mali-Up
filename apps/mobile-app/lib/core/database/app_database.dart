@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   /// Removes account and business data cached on this device.
   ///
@@ -210,6 +210,24 @@ class AppDatabase extends _$AppDatabase {
             // business. See DataScope in team_member.dart.
             await customStatement(
               "ALTER TABLE team_members ADD COLUMN data_scope TEXT NOT NULL DEFAULT 'all'",
+            );
+          }
+          if (from < 13) {
+            // Money-lender support: per-debt interest rate, accrual period
+            // (daily/weekly/monthly), simple-vs-compound type, and the date
+            // interest starts counting from. Zero rate = no interest, so
+            // existing debts are unaffected.
+            await customStatement(
+              'ALTER TABLE debts ADD COLUMN interest_rate_percent REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN interest_period TEXT NOT NULL DEFAULT 'monthly'",
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN interest_type TEXT NOT NULL DEFAULT 'simple'",
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN loan_date TEXT NOT NULL DEFAULT ''",
             );
           }
         },

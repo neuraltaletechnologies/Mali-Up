@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/reports_providers.dart';
@@ -441,16 +442,9 @@ Future<void> exportReportPdf(
     await build();
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Could not generate PDF. Please try again.',
-              'Imeshindwa kutengeneza PDF. Jaribu tena.',
-            ),
-          ),
-          backgroundColor: AppColors.error,
-        ),
+      AppNotification.error(
+        context,
+        _tr('Could not generate PDF. Please try again.', 'Imeshindwa kutengeneza PDF. Jaribu tena.'),
       );
     }
   }

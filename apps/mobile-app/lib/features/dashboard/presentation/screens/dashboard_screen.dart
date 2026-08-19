@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/business_profile_service.dart';
@@ -2928,15 +2929,9 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
 
       final opened = await whatsappLaunch;
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not open WhatsApp. Please make sure it is installed.',
-                'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
-              ),
-            ),
-          ),
+        AppNotification.error(
+          context,
+          _tr('Could not open WhatsApp. Please make sure it is installed.', 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'),
         );
       }
       await Future.delayed(const Duration(milliseconds: 1600));
