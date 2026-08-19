@@ -1,4 +1,4 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, onRequest, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
@@ -290,13 +290,164 @@ interface VerifyPaymentResponse {
   planExpiresAt?: string; // ISO 8601
 }
 
+// Minimum time between two real ClickPesa status checks for the *same*
+// still-pending payment. Exists so a burst of duplicate webhook deliveries,
+// or a client that somehow polls too fast, can't multiply into repeated
+// ClickPesa API calls for one payment — see the module doc for why every
+// call here is precious (ClickPesa's free/pre-KYC tier caps at 100/day).
+const MIN_RECHECK_INTERVAL_MS = 5_000;
+
 /**
- * Checks a ClickPesa payment's real status and, the first time it is seen as
- * completed, activates the plan on the caller's own user doc via the Admin
- * SDK. Safe to call repeatedly (the mobile client polls this while the user
- * confirms the PIN prompt on their phone) — already-completed payments
- * short-circuit without re-writing anything, and a Firestore transaction
- * guards against two concurrent calls double-activating the same payment.
+ * The one place that ever calls ClickPesa to find out if a payment went
+ * through, and the one place that ever activates a plan off that answer.
+ * Both `verifyClickPesaPayment` (client poll, used as a fallback — see below)
+ * and `clickpesaWebhook` (ClickPesa's own push notification, the primary
+ * mechanism) call this after doing their own access checks; it doesn't know
+ * or care which one called it.
+ *
+ * Deliberately never trusts anything from a caller except which
+ * `orderReference` to look at — the webhook handler in particular receives
+ * an unauthenticated POST that could be replayed or forged, but that's
+ * harmless here: whatever a webhook claims, this function always re-derives
+ * the real status itself from an authenticated GET using our own server-held
+ * token, never from the request body. A forged webhook can make us re-check
+ * a payment early; it can't make us activate one that ClickPesa doesn't
+ * independently confirm.
+ */
+async function checkAndFinalizePayment(
+  orderReference: string,
+  paymentRef: FirebaseFirestore.DocumentReference,
+  paymentDoc: FirebaseFirestore.DocumentData,
+): Promise<VerifyPaymentResponse> {
+  if (paymentDoc.status === "completed") {
+    return {status: "completed", tier: paymentDoc.tier, planExpiresAt: paymentDoc.planExpiresAt};
+  }
+  if (paymentDoc.status === "failed") {
+    return {status: "failed"};
+  }
+
+  const lastCheckedAtMs = paymentDoc.lastCheckedAtMs as number | undefined;
+  if (lastCheckedAtMs && Date.now() - lastCheckedAtMs < MIN_RECHECK_INTERVAL_MS) {
+    return {status: "pending"};
+  }
+  await paymentRef.set({lastCheckedAtMs: Date.now()}, {merge: true});
+
+  const db = admin.firestore();
+  const token = await getClickPesaToken();
+  const response = await fetch(`${CLICKPESA_BASE_URL}/payments/${orderReference}`, {
+    headers: {"Authorization": `Bearer ${token}`},
+  });
+  if (!response.ok) {
+    console.error("[ClickPesa] query payment failed", response.status, await response.text());
+    throw new HttpsError("internal", "Failed to check payment status.");
+  }
+  // ClickPesa returns an array of payment attempts for this orderReference.
+  const results = (await response.json()) as Array<{
+    status?: string;
+    collectedAmount?: number | string;
+    channel?: string;
+  }>;
+  const payment = results[0];
+  if (!payment) {
+    return {status: "pending"};
+  }
+
+  const status = String(payment.status ?? "").toUpperCase();
+  if (status === "FAILED") {
+    await paymentRef.set(
+      {status: "failed", channel: payment.channel ?? null},
+      {merge: true},
+    );
+    return {status: "failed"};
+  }
+  if (status !== "SUCCESS" && status !== "SETTLED") {
+    return {status: "pending"};
+  }
+
+  const collectedAmount =
+    typeof payment.collectedAmount === "number"
+      ? payment.collectedAmount
+      : Number(payment.collectedAmount);
+  if (!Number.isFinite(collectedAmount) || collectedAmount !== paymentDoc.amount) {
+    console.error("[ClickPesa] amount mismatch — refusing to activate", {
+      orderReference,
+      collectedAmount,
+      expected: paymentDoc.amount,
+    });
+    throw new HttpsError("failed-precondition", "Payment amount mismatch.");
+  }
+
+  const uid = paymentDoc.uid as string;
+  const tier = paymentDoc.tier as PayableTier;
+  const cycleMonths = paymentDoc.cycleMonths as number;
+  const expiresAt = new Date(Date.now() + 30 * cycleMonths * 24 * 60 * 60 * 1000);
+  const expiresAtIso = expiresAt.toISOString();
+  const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
+
+  await db.runTransaction(async (tx) => {
+    // All reads must happen before any writes in a Firestore transaction.
+    const freshSnap = await tx.get(paymentRef);
+    if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
+
+    // A subscription belongs to the owner, not a single business — mirror
+    // the plan onto every business this uid owns, exactly like the admin
+    // portal's manual assignPlan does (app/api/admin/plans/assign). Without
+    // this, businesses/{bizId}.plan — what admin analytics reads for plan
+    // distribution and MRR — never reflects a ClickPesa-driven upgrade.
+    const ownedBizSnap = await tx.get(
+      db.collection("businesses").where("ownerUid", "==", uid),
+    );
+
+    const planFields = {
+      plan: tier,
+      planExpiresAt: expiresAtTs,
+      subscriptionStatus: "active",
+      planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    tx.set(
+      paymentRef,
+      {
+        status: "completed",
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        planExpiresAt: expiresAtIso,
+        channel: payment.channel ?? null,
+      },
+      {merge: true},
+    );
+    tx.set(
+      db.collection("users").doc(uid),
+      {
+        ...planFields,
+        lastPayment: {
+          reference: orderReference,
+          amount: paymentDoc.amount,
+          currency: paymentDoc.currency ?? "TZS",
+          paymentId: paymentDoc.clickPesaId ?? orderReference,
+          channel: payment.channel ?? null,
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          provider: "clickpesa",
+        },
+      },
+      {merge: true},
+    );
+    for (const bizDoc of ownedBizSnap.docs) {
+      tx.set(bizDoc.ref, planFields, {merge: true});
+    }
+  });
+
+  console.log(`[ClickPesa] Plan activated for user ${uid}: ${tier}`);
+  return {status: "completed", tier, planExpiresAt: expiresAtIso};
+}
+
+/**
+ * Client-side fallback poll — kept for when the ClickPesa webhook hasn't
+ * been configured yet, or a delivery gets lost. The app should mostly rely
+ * on watching the `clickpesa_payments/{orderReference}` Firestore doc
+ * directly (free, instant, zero API calls) and only fall back to calling
+ * this sparingly. See CLICKPESA_INTEGRATION.md for the webhook setup that
+ * makes this the exception path rather than the primary mechanism.
  */
 export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
@@ -311,8 +462,7 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
       throw new HttpsError("invalid-argument", "orderReference is required.");
     }
 
-    const db = admin.firestore();
-    const paymentRef = db.collection("clickpesa_payments").doc(orderReference);
+    const paymentRef = admin.firestore().collection("clickpesa_payments").doc(orderReference);
     const paymentSnap = await paymentRef.get();
     if (!paymentSnap.exists) {
       throw new HttpsError("not-found", "Unknown payment.");
@@ -322,121 +472,60 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
       throw new HttpsError("permission-denied", "This payment does not belong to you.");
     }
 
-    if (paymentDoc.status === "completed") {
-      return {
-        status: "completed",
-        tier: paymentDoc.tier,
-        planExpiresAt: paymentDoc.planExpiresAt,
-      };
-    }
-    if (paymentDoc.status === "failed") {
-      return {status: "failed"};
-    }
+    return checkAndFinalizePayment(orderReference, paymentRef, paymentDoc);
+  },
+);
 
-    const token = await getClickPesaToken();
-    const response = await fetch(`${CLICKPESA_BASE_URL}/payments/${orderReference}`, {
-      headers: {"Authorization": `Bearer ${token}`},
-    });
-    if (!response.ok) {
-      console.error("[ClickPesa] query payment failed", response.status, await response.text());
-      throw new HttpsError("internal", "Failed to check payment status.");
-    }
-    // ClickPesa returns an array of payment attempts for this orderReference.
-    const results = (await response.json()) as Array<{
-      status?: string;
-      collectedAmount?: number | string;
-      channel?: string;
-    }>;
-    const payment = results[0];
-    if (!payment) {
-      return {status: "pending"};
-    }
-
-    const status = String(payment.status ?? "").toUpperCase();
-    if (status === "FAILED") {
-      await paymentRef.set(
-        {status: "failed", channel: payment.channel ?? null},
-        {merge: true},
-      );
-      return {status: "failed"};
-    }
-    if (status !== "SUCCESS" && status !== "SETTLED") {
-      return {status: "pending"};
-    }
-
-    const collectedAmount =
-      typeof payment.collectedAmount === "number"
-        ? payment.collectedAmount
-        : Number(payment.collectedAmount);
-    if (!Number.isFinite(collectedAmount) || collectedAmount !== paymentDoc.amount) {
-      console.error("[ClickPesa] amount mismatch — refusing to activate", {
-        orderReference,
-        collectedAmount,
-        expected: paymentDoc.amount,
-      });
-      throw new HttpsError("failed-precondition", "Payment amount mismatch.");
-    }
-
-    const tier = paymentDoc.tier as PayableTier;
-    const cycleMonths = paymentDoc.cycleMonths as number;
-    const expiresAt = new Date(Date.now() + 30 * cycleMonths * 24 * 60 * 60 * 1000);
-    const expiresAtIso = expiresAt.toISOString();
-    const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
-
-    await db.runTransaction(async (tx) => {
-      // All reads must happen before any writes in a Firestore transaction.
-      const freshSnap = await tx.get(paymentRef);
-      if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
-
-      // A subscription belongs to the owner, not a single business — mirror
-      // the plan onto every business this uid owns, exactly like the admin
-      // portal's manual assignPlan does (app/api/admin/plans/assign). Without
-      // this, businesses/{bizId}.plan — what admin analytics reads for plan
-      // distribution and MRR — never reflects a ClickPesa-driven upgrade.
-      const ownedBizSnap = await tx.get(
-        db.collection("businesses").where("ownerUid", "==", uid),
-      );
-
-      const planFields = {
-        plan: tier,
-        planExpiresAt: expiresAtTs,
-        subscriptionStatus: "active",
-        planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      tx.set(
-        paymentRef,
-        {
-          status: "completed",
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          planExpiresAt: expiresAtIso,
-          channel: payment.channel ?? null,
-        },
-        {merge: true},
-      );
-      tx.set(
-        db.collection("users").doc(uid),
-        {
-          ...planFields,
-          lastPayment: {
-            reference: orderReference,
-            amount: paymentDoc.amount,
-            currency: paymentDoc.currency ?? "TZS",
-            paymentId: paymentDoc.clickPesaId ?? orderReference,
-            channel: payment.channel ?? null,
-            paidAt: admin.firestore.FieldValue.serverTimestamp(),
-            provider: "clickpesa",
-          },
-        },
-        {merge: true},
-      );
-      for (const bizDoc of ownedBizSnap.docs) {
-        tx.set(bizDoc.ref, planFields, {merge: true});
+/**
+ * ClickPesa's webhook — configure this URL in the ClickPesa dashboard under
+ * Settings → Developers → Application Webhooks, for the "PAYMENT RECEIVED"
+ * and "PAYMENT FAILED" events (see CLICKPESA_INTEGRATION.md). This is the
+ * primary way payment status reaches us now: instead of the app polling
+ * ClickPesa every few seconds for up to two minutes per payment (the
+ * previous design — see git history — which burns through the daily API
+ * call quota almost immediately at any real volume), ClickPesa pushes a
+ * single notification the moment a payment resolves, we re-verify it
+ * ourselves in one call, and the app just watches the Firestore doc this
+ * writes to — no polling, no extra API calls, near-instant UI update.
+ *
+ * Unauthenticated by necessity (ClickPesa calls this directly, not through
+ * Firebase's callable protocol) — see `checkAndFinalizePayment`'s doc for
+ * why that's safe. Always responds 2xx quickly, per ClickPesa's own
+ * requirement, regardless of outcome, so a bad/duplicate/unrecognized
+ * delivery doesn't trigger their retry logic into hammering us.
+ */
+export const clickpesaWebhook = onRequest(
+  {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
+  async (req, res) => {
+    try {
+      const body = req.body as
+        | {data?: {orderReference?: string}; orderReference?: string}
+        | undefined;
+      const orderReference = body?.data?.orderReference ?? body?.orderReference;
+      if (!orderReference || typeof orderReference !== "string") {
+        res.status(200).send("ignored: no orderReference");
+        return;
       }
-    });
 
-    console.log(`[ClickPesa] Plan activated for user ${uid}: ${tier}`);
-    return {status: "completed", tier, planExpiresAt: expiresAtIso};
+      const paymentRef = admin.firestore().collection("clickpesa_payments").doc(orderReference);
+      const paymentSnap = await paymentRef.get();
+      if (!paymentSnap.exists) {
+        // Unrecognized reference — could be a replay, a stale test event, or
+        // an unrelated ClickPesa application sharing the same webhook URL by
+        // mistake. Nothing to do; definitely don't spend a ClickPesa API
+        // call looking it up.
+        res.status(200).send("ignored: unknown payment");
+        return;
+      }
+
+      await checkAndFinalizePayment(orderReference, paymentRef, paymentSnap.data()!);
+      res.status(200).send("ok");
+    } catch (err) {
+      console.error("[ClickPesa] webhook handling failed", err);
+      // Still 200 — see the function doc. The next webhook retry or the
+      // client's fallback poll will pick it up; we don't want ClickPesa's
+      // own retry behavior turning a transient error into a call storm.
+      res.status(200).send("error logged");
+    }
   },
 );

@@ -428,29 +428,42 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SheetHandle(),
               const SizedBox(height: 14),
 
-              // ── Locked-feature notice ─────────────────────────────────────
-              _LockedFeatureNotice(
-                featureKey: widget.featureKey,
-                triggerReason: widget.triggerReason,
-              ),
-
               // ── Headline ─────────────────────────────────────────────────
-              Text(
-                _t('Grow Your Business', 'Inua Biashara Yako'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                  letterSpacing: -0.3,
-                ),
+              // When opened because a specific feature is locked, the
+              // headline itself becomes that feature's name (instead of the
+              // generic "Grow Your Business") with a PREMIUM tag beside it —
+              // replaces the old separate locked-feature notice box.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.featureKey != null
+                          ? (LocalizationService.isSwahili
+                                ? widget.featureKey!.labelSw
+                                : widget.featureKey!.labelEn)
+                          : _t('Grow Your Business', 'Inua Biashara Yako'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  if (widget.featureKey != null) ...[
+                    const SizedBox(width: 10),
+                    const _PremiumTag(),
+                  ],
+                ],
               ),
               const SizedBox(height: 3),
               Text(
-                _t(
-                  'Costs less than an hour of accountant fees — reach '
-                      'further every day.',
-                  'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
-                ),
+                widget.triggerReason ??
+                    _t(
+                      'Costs less than an hour of accountant fees — reach '
+                          'further every day.',
+                      'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
+                    ),
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textMuted,
@@ -572,103 +585,36 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Locked-feature notice — flat row, no gradient, brand colors only
+// Premium tag — small navy pill shown beside the headline when the sheet was
+// opened because a specific feature is locked (see [_UpgradeSheet.build]).
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LockedFeatureNotice extends StatelessWidget {
-  final PlanFeatureKey? featureKey;
-  final String? triggerReason;
-
-  const _LockedFeatureNotice({this.featureKey, this.triggerReason});
+class _PremiumTag extends StatelessWidget {
+  const _PremiumTag();
 
   @override
   Widget build(BuildContext context) {
-    if (featureKey == null && triggerReason == null) {
-      return const SizedBox.shrink();
-    }
-
-    final icon = featureKey?.icon ?? Icons.lock_rounded;
-    final label = LocalizationService.isSwahili
-        ? featureKey?.labelSw
-        : featureKey?.labelEn;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.navyPrimary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: AppColors.navyPrimary, size: 17),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            'PREMIUM',
+            style: GoogleFonts.dmSans(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 0.5,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (label != null) ...[
-                    Text(
-                      label,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                  ],
-                  Text(
-                    triggerReason ??
-                        _t(
-                          'This feature requires a higher plan.',
-                          'Kipengele hiki kinahitaji mpango wa juu.',
-                        ),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.navyPrimary,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
-                  const SizedBox(width: 3),
-                  Text(
-                    'PREMIUM',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -742,60 +688,64 @@ class _TierCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // Name + badge
+            // Name + badge on their own line, cycle price on the line below —
+            // stacked instead of crammed into one row so neither ever needs
+            // to ellipsize, without widening the card itself.
             Expanded(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Flexible(
-                    child: Text(
-                      isGrowth ? 'Growth' : 'Business',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.navyPrimary,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isGrowth ? 'Growth' : 'Business',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.navyPrimary,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (showBadge) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.yellowBrand.withValues(
+                              alpha: isSelected ? 0.2 : 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badgeLabel,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isSelected
+                                  ? AppColors.yellowBrand
+                                  : AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (showBadge) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.yellowBrand.withValues(
-                          alpha: isSelected ? 0.2 : 0.12,
-                        ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        badgeLabel,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? AppColors.yellowBrand
-                              : AppColors.navyPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      '${_fmtPrice(limits.pricePerCycle)} / '
-                      '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: isSelected
-                            ? Colors.white.withValues(alpha: 0.45)
-                            : AppColors.textMuted,
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_fmtPrice(limits.pricePerCycle)} / '
+                    '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.45)
+                          : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -1484,10 +1434,11 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
       // Poll the server while the user confirms the PIN prompt on their
       // phone. Plan activation happens server-side the moment this reports
       // "completed" — there is nothing left for the client to write. This
-      // is capped at 40 attempts x 3s (2 minutes total) inside
-      // waitForPayment, and stops polling immediately — rather than
-      // continuing in the background up to that cap — if this sheet is
-      // dismissed before then, via isCancelled.
+      // watches the payment doc in Firestore rather than polling ClickPesa
+      // (see ClickPesaService.waitForPayment), capped at a 3-minute overall
+      // timeout, and stops immediately — rather than continuing in the
+      // background up to that cap — if this sheet is dismissed before then,
+      // via isCancelled.
       await ClickPesaService.waitForPayment(
         orderReference: initiated.orderReference,
         isCancelled: () => _disposed,

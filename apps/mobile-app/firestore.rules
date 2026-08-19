@@ -628,6 +628,18 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // CLICKPESA PAYMENTS  (written only by functions/src/clickpesa.ts, via
+    // the Admin SDK — see initiateClickPesaPayment / checkAndFinalizePayment)
+    // =========================================================================
+    match /clickpesa_payments/{orderReference} {
+      // The app watches its own payment doc in real time instead of polling
+      // a Cloud Function — see ClickPesaService.waitForPayment. No client
+      // writes: status only ever changes via the webhook or the fallback
+      // poll, both server-side.
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // =========================================================================
     // DEFAULT DENY
     // =========================================================================
     match /{document=**} {
