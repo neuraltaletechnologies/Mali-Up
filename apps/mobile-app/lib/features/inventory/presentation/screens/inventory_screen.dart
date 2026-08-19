@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -13,7 +14,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
-import '../../../catalog/presentation/screens/catalog_search_screen.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
@@ -333,13 +334,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
         onCreateReturn: () => _openSelectSaleForReturn(ctx),
-        onOpenCatalog: () => _openCatalogSheet(ctx),
       ),
     );
-  }
-
-  void _openCatalogSheet(BuildContext ctx) {
-    showAppSheet<void>(ctx, builder: (_) => const CatalogSearchScreen());
   }
 
   void _openCustomProductForm(BuildContext ctx) {
@@ -479,18 +475,27 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
                     // ── List ─────────────────────────────────────────────
                     Expanded(
-                      child: filtered.isEmpty
-                          ? _EmptyPlaceholder(
-                              hasQuery: _query.isNotEmpty || activeFilters > 0,
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 120),
-                              itemCount: filtered.length,
-                              itemBuilder: (ctx, i) => _ProductRow(
-                                item: filtered[i],
-                                isLast: i == filtered.length - 1,
+                      child: SilentRefresh(
+                        onRefresh: () =>
+                            ref.read(syncServiceProvider).syncNow(),
+                        child: filtered.isEmpty
+                            ? SingleChildScrollView(
+                                physics: silentRefreshPhysics,
+                                child: _EmptyPlaceholder(
+                                  hasQuery:
+                                      _query.isNotEmpty || activeFilters > 0,
+                                ),
+                              )
+                            : ListView.builder(
+                                physics: silentRefreshPhysics,
+                                padding: const EdgeInsets.only(bottom: 120),
+                                itemCount: filtered.length,
+                                itemBuilder: (ctx, i) => _ProductRow(
+                                  item: filtered[i],
+                                  isLast: i == filtered.length - 1,
+                                ),
                               ),
-                            ),
+                      ),
                     ),
                   ],
                 );
@@ -759,7 +764,10 @@ class _ProductRow extends ConsumerWidget {
       if (context.mounted) {
         AppNotification.error(
           context,
-          _tr('Failed to delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.'),
+          _tr(
+            'Failed to delete. Try again.',
+            'Imeshindikana kufuta. Jaribu tena.',
+          ),
         );
       }
     }
@@ -1756,11 +1764,14 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
           _ => account?.name ?? '',
         };
         final today = DateTime.now();
-        final dateStr = '${today.year}'
+        final dateStr =
+            '${today.year}'
             '-${today.month.toString().padLeft(2, '0')}'
             '-${today.day.toString().padLeft(2, '0')}';
         final note = _tr('Production: $name', 'Uzalishaji: $name');
-        await ref.read(expenseRepositoryProvider).save(
+        await ref
+            .read(expenseRepositoryProvider)
+            .save(
               Expense(
                 id: '',
                 category: 'supplies',
@@ -2397,7 +2408,10 @@ class _ProductionConfirmResult {
   final bool confirmed;
   final String? paymentAccountId;
 
-  const _ProductionConfirmResult({required this.confirmed, this.paymentAccountId});
+  const _ProductionConfirmResult({
+    required this.confirmed,
+    this.paymentAccountId,
+  });
 }
 
 class _RecordProductionConfirmSheet extends ConsumerStatefulWidget {
@@ -2685,9 +2699,9 @@ class _RecordProductionConfirmSheetState
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(
-                          const _ProductionConfirmResult(confirmed: false),
-                        ),
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(const _ProductionConfirmResult(confirmed: false)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textMuted,
                           side: const BorderSide(color: AppColors.border),
@@ -3620,8 +3634,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedToUserId:
-            _type == ProductType.service ? _assignedToUserId : '',
+        assignedToUserId: _type == ProductType.service ? _assignedToUserId : '',
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -3635,7 +3648,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         if (uid.isNotEmpty) {
           final cachedCategories =
               ref.read(masterCategoriesProvider).valueOrNull ??
-                  const <MasterCategory>[];
+              const <MasterCategory>[];
           final matchedCategory = cachedCategories
               .where((c) => c.id == _selectedCategoryId)
               .toList();
@@ -3753,7 +3766,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       setState(() => _saving = false);
       AppNotification.error(
         context,
-        _tr('Could not save. Please try again.', 'Imeshindikana kuhifadhi. Jaribu tena.'),
+        _tr(
+          'Could not save. Please try again.',
+          'Imeshindikana kuhifadhi. Jaribu tena.',
+        ),
       );
     }
   }
@@ -3950,7 +3966,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   /// of stacking another slide-up sheet on top of this one.
   void _applyFromCatalog(MasterProduct product) {
     final categories =
-        ref.read(masterCategoriesProvider).valueOrNull ?? const <MasterCategory>[];
+        ref.read(masterCategoriesProvider).valueOrNull ??
+        const <MasterCategory>[];
     MasterCategory? matched;
     for (final c in categories) {
       if (c.categorySlug == product.categorySlug) {
@@ -4704,9 +4721,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       const SizedBox(height: 14),
 
                       if (_type == ProductType.service) ...[
-                        _FormLabel(_tr(
+                        _FormLabel(
+                          _tr(
                             'Assigned to (optional)',
-                            'Amepangiwa kwa (hiari)')),
+                            'Amepangiwa kwa (hiari)',
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _AssignedToField(
                           selectedUid: _assignedToUserId,
@@ -6697,19 +6717,22 @@ class _AssignedToField extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.person_outline_rounded,
-                size: 16,
-                color: selectedUid.isNotEmpty
-                    ? AppColors.tealAccent
-                    : AppColors.textDisabled),
+            Icon(
+              Icons.person_outline_rounded,
+              size: 16,
+              color: selectedUid.isNotEmpty
+                  ? AppColors.tealAccent
+                  : AppColors.textDisabled,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
-                  fontWeight:
-                      selectedUid.isNotEmpty ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: selectedUid.isNotEmpty
+                      ? FontWeight.w600
+                      : FontWeight.w400,
                   color: selectedUid.isNotEmpty
                       ? AppColors.navyPrimary
                       : AppColors.textDisabled,
@@ -6744,8 +6767,9 @@ class _AssigneePickerSheet extends ConsumerWidget {
         .toList();
 
     return ConstrainedBox(
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+      ),
       child: Material(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -6772,47 +6796,63 @@ class _AssigneePickerSheet extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.person_off_outlined,
-                        color: AppColors.textMuted),
+                    leading: const Icon(
+                      Icons.person_off_outlined,
+                      color: AppColors.textMuted,
+                    ),
                     title: Text(_tr('Unassigned', 'Hajapangiwa')),
                     trailing: selectedUid.isEmpty
-                        ? const Icon(Icons.check_circle_rounded,
-                            color: AppColors.tealAccent)
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.tealAccent,
+                          )
                         : null,
                     onTap: () => Navigator.pop(context, ''),
                   ),
                   if (assignable.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       child: Text(
                         _tr(
                           'No active team members yet. Invite one from Team settings first.',
                           'Bado hakuna wanachama wa timu amilifu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
                         ),
                         style: GoogleFonts.dmSans(
-                            fontSize: 13, color: AppColors.textMuted),
+                          fontSize: 13,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     )
                   else
-                    ...assignable.map((m) => ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                AppColors.tealAccent.withValues(alpha: 0.12),
-                            child: Text(m.initials,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.tealAccent)),
+                    ...assignable.map(
+                      (m) => ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.tealAccent.withValues(
+                            alpha: 0.12,
                           ),
-                          title: Text(m.name),
-                          subtitle: Text(m.role.label),
-                          trailing: selectedUid == m.userId
-                              ? const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.tealAccent)
-                              : null,
-                          onTap: () => Navigator.pop(context, m.userId ?? ''),
-                        )),
+                          child: Text(
+                            m.initials,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.tealAccent,
+                            ),
+                          ),
+                        ),
+                        title: Text(m.name),
+                        subtitle: Text(m.role.label),
+                        trailing: selectedUid == m.userId
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.tealAccent,
+                              )
+                            : null,
+                        onTap: () => Navigator.pop(context, m.userId ?? ''),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -6876,10 +6916,7 @@ class _CategoryDropdownButton extends StatelessWidget {
                       selectedName.isNotEmpty
                           ? selectedName
                           : (categories.isEmpty
-                                ? _tr(
-                                    'Categories',
-                                    'Kategoria',
-                                  )
+                                ? _tr('Categories', 'Kategoria')
                                 : _tr('category', 'kategoria')),
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
@@ -6989,273 +7026,291 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    // Tapping "Add New" reveals an autofocus TextField, which pops the
+    // keyboard open. Without accounting for MediaQuery's viewInsets here,
+    // the fixed (non-scrolling) header + add-category row above the
+    // category list never shrinks for the keyboard, leaving the sheet's
+    // Column to lay out against a stale height for a frame — bound the
+    // sheet height defensively (matching the shared category picker) and
+    // pad for the keyboard so that reveal never has to fight for space.
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
       ),
-      child: Column(
-        children: [
-          const SheetHandle(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _tr('Category', 'Kategoria'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    _showAdd = !_showAdd;
-                    _addError = null;
-                    if (!_showAdd) _newCtrl.clear();
-                  }),
-                  icon: Icon(
-                    _showAdd ? Icons.close_rounded : Icons.add_rounded,
-                    size: 18,
-                    color: AppColors.tealAccent,
-                  ),
-                  label: Text(
-                    _showAdd
-                        ? _tr('Cancel', 'Ghairi')
-                        : _tr('Add New', 'Ongeza Mpya'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tealAccent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          if (_showAdd) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _newCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      autofocus: true,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.navyPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: _tr('Category name', 'Jina la kategoria'),
-                        hintStyle: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: AppColors.textDisabled,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.tealAccent,
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _adding ? null : _addCommunityCategory,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.navyPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _adding
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _tr('Save', 'Hifadhi'),
-                              style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_addError != null)
+      child: Container(
+        margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            children: [
+              const SheetHandle(),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                child: Text(
-                  _addError!,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error,
-                  ),
-                ),
-              ),
-          ],
-
-          const SizedBox(height: 8),
-
-          // Search
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _query = v),
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                color: AppColors.navyPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: _tr('Search categories…', 'Tafuta kategoria…'),
-                hintStyle: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: AppColors.textDisabled,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 11,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // List
-          Expanded(
-            child: _filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.category_outlined,
-                          size: 36,
-                          color: AppColors.border,
+                padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tr('Category', 'Kategoria'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _tr(
-                            'No categories found.',
-                            'Hakuna kategoria zilizopatikana.',
-                          ),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                    itemCount: _filtered.length,
-                    itemBuilder: (_, i) {
-                      final cat = _filtered[i];
-                      final isSelected = cat.id == widget.selectedId;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
+                    TextButton.icon(
+                      onPressed: () => setState(() {
+                        _showAdd = !_showAdd;
+                        _addError = null;
+                        if (!_showAdd) _newCtrl.clear();
+                      }),
+                      icon: Icon(
+                        _showAdd ? Icons.close_rounded : Icons.add_rounded,
+                        size: 18,
+                        color: AppColors.tealAccent,
+                      ),
+                      label: Text(
+                        _showAdd
+                            ? _tr('Cancel', 'Ghairi')
+                            : _tr('Add New', 'Ongeza Mpya'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.tealAccent,
                         ),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.navyPrimary
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.navyPrimary
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.label_rounded,
-                            size: 18,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                        title: Text(
-                          cat.displayName,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_showAdd) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _newCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          autofocus: true,
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.navyPrimary,
                           ),
+                          decoration: InputDecoration(
+                            hintText: _tr('Category name', 'Jina la kategoria'),
+                            hintStyle: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              color: AppColors.textDisabled,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.tealAccent,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
                         ),
-                        trailing: isSelected
-                            ? const Icon(
-                                Icons.check_rounded,
-                                size: 20,
-                                color: AppColors.success,
-                              )
-                            : null,
-                        onTap: () => Navigator.of(context).pop(cat),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _adding ? null : _addCommunityCategory,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _adding
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _tr('Save', 'Hifadhi'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                if (_addError != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                    child: Text(
+                      _addError!,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ),
+              ],
+
+              const SizedBox(height: 8),
+
+              // Search
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    color: AppColors.navyPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: _tr('Search categories…', 'Tafuta kategoria…'),
+                    hintStyle: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: AppColors.textDisabled,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      size: 18,
+                      color: AppColors.textMuted,
+                    ),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // List
+              Expanded(
+                child: _filtered.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.category_outlined,
+                              size: 36,
+                              color: AppColors.border,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _tr(
+                                'No categories found.',
+                                'Hakuna kategoria zilizopatikana.',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                        itemCount: _filtered.length,
+                        itemBuilder: (_, i) {
+                          final cat = _filtered[i];
+                          final isSelected = cat.id == widget.selectedId;
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.navyPrimary
+                                    : AppColors.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.navyPrimary
+                                      : AppColors.border,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.label_rounded,
+                                size: 18,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                            title: Text(
+                              cat.displayName,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                            trailing: isSelected
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    size: 20,
+                                    color: AppColors.success,
+                                  )
+                                : null,
+                            onTap: () => Navigator.of(context).pop(cat),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -8052,4 +8107,3 @@ class _StockToggleOption extends StatelessWidget {
     );
   }
 }
-

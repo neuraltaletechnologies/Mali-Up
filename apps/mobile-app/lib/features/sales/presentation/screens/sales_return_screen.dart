@@ -795,7 +795,7 @@ class _BottomBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _tr('Credit Amount', 'Kiasi cha Mkopo'),
+                    _tr('Return Amount', 'Kiasi cha Kurudisha'),
                     style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.textMuted),
                   ),
@@ -830,7 +830,7 @@ class _BottomBar extends StatelessWidget {
             label: Text(
               saving
                   ? _tr('Saving…', 'Inahifadhi…')
-                  : _tr('Issue Credit Note', 'Toa Nota ya Mkopo'),
+                  : _tr('Confirm Return', 'Thibitisha Kurudisha'),
               style: GoogleFonts.dmSans(
                   fontSize: 14, fontWeight: FontWeight.w600),
             ),

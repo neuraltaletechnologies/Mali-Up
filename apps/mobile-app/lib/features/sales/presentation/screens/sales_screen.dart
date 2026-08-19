@@ -23,6 +23,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -253,7 +254,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (context.mounted) {
         AppNotification.error(
           context,
-          _tr('Could not delete invoice. Please try again.', 'Imeshindwa kufuta ankara. Jaribu tena.'),
+          _tr(
+            'Could not delete invoice. Please try again.',
+            'Imeshindwa kufuta ankara. Jaribu tena.',
+          ),
         );
       }
     }
@@ -399,43 +403,50 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   onRemove: () => setState(() => _filter = _SalesFilter.all),
                 ),
               Expanded(
-                child: filtered.isEmpty
-                    ? _EmptySalesState(filter: _filter)
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 104),
-                        itemCount: filtered.length,
-                        itemBuilder: (ctx, i) {
-                          final item = filtered[i];
-                          return ListSwipeCard(
-                            itemKey: ValueKey(item['id'] ?? i),
-                            onEdit: () => Navigator.of(ctx).push(
-                              MaterialPageRoute(
-                                builder: (_) => InvoiceDetailScreen(
-                                  invoice: Map<String, dynamic>.from(item),
+                child: SilentRefresh(
+                  onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+                  child: filtered.isEmpty
+                      ? SingleChildScrollView(
+                          physics: silentRefreshPhysics,
+                          child: _EmptySalesState(filter: _filter),
+                        )
+                      : ListView.builder(
+                          physics: silentRefreshPhysics,
+                          padding: const EdgeInsets.only(bottom: 104),
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final item = filtered[i];
+                            return ListSwipeCard(
+                              itemKey: ValueKey(item['id'] ?? i),
+                              onEdit: () => Navigator.of(ctx).push(
+                                MaterialPageRoute(
+                                  builder: (_) => InvoiceDetailScreen(
+                                    invoice: Map<String, dynamic>.from(item),
+                                  ),
                                 ),
                               ),
-                            ),
-                            onDelete: ps.canDeleteSale
-                                ? () => _deleteSale(ctx, ref, item)
-                                : null,
-                            child: _InvoiceCard(
-                              item: item,
-                              isLast: i == filtered.length - 1,
-                              onTap: () => showAppSheet<void>(
-                                ctx,
-                                builder: (_) => _SaleInfoSheet(
-                                  item: Map<String, dynamic>.from(item),
+                              onDelete: ps.canDeleteSale
+                                  ? () => _deleteSale(ctx, ref, item)
+                                  : null,
+                              child: _InvoiceCard(
+                                item: item,
+                                isLast: i == filtered.length - 1,
+                                onTap: () => showAppSheet<void>(
+                                  ctx,
+                                  builder: (_) => _SaleInfoSheet(
+                                    item: Map<String, dynamic>.from(item),
+                                  ),
+                                ),
+                                onReceiptAction: () => _openReceiptActions(
+                                  context: ctx,
+                                  sale: item,
+                                  ref: ref,
                                 ),
                               ),
-                              onReceiptAction: () => _openReceiptActions(
-                                context: ctx,
-                                sale: item,
-                                ref: ref,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
+                ),
               ),
             ],
           );
@@ -612,7 +623,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         if (!context.mounted) return;
         AppNotification.error(
           context,
-          _tr('Could not create the receipt PDF. Please try again.', 'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.'),
+          _tr(
+            'Could not create the receipt PDF. Please try again.',
+            'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+          ),
         );
       }
     }
@@ -695,7 +709,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (!context.mounted) return;
       AppNotification.error(
         context,
-        _tr('No app available to open this share option.', 'Hakuna programu ya kufungua chaguo hili la kushiriki.'),
+        _tr(
+          'No app available to open this share option.',
+          'Hakuna programu ya kufungua chaguo hili la kushiriki.',
+        ),
       );
     }
   }
@@ -2385,8 +2402,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // The account was activated, refresh will happen automatically via providers
       // Optionally show a confirmation message
       _snack(
-        _tr('${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated', 
-            '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa'),
+        _tr(
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated',
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa',
+        ),
         field: _ErrorField.payment,
       );
     }

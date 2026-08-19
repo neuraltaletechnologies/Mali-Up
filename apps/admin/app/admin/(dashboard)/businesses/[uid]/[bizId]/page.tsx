@@ -883,7 +883,8 @@ export default function BusinessDetailPage() {
   const [deleting, setDeleting] = useState(false)
 
   const { data, loading, error, refetch } = useAdminFetch(
-    useCallback(() => fetchBusiness(uid, bizId), [uid, bizId])
+    useCallback(() => fetchBusiness(uid, bizId), [uid, bizId]),
+    { key: `business-${uid}-${bizId}`, minStaleMs: 30_000 },
   )
 
   const business = data?.business

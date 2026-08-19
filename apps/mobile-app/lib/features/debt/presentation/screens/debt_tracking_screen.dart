@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
@@ -228,17 +230,20 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
               onRemove: () => setState(() => _filterBucket = null),
             ),
           Expanded(
-            child: TabBarView(
-              controller: _tabCtrl,
-              children: [
-                _ReceivablesTab(
-                  onTap: _openDetail,
-                  query: _query,
-                  filterBucket: _filterBucket,
-                  sort: _sort,
-                ),
-                _PayablesTab(onTap: _openDetail, query: _query, sort: _sort),
-              ],
+            child: SilentRefresh(
+              onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  _ReceivablesTab(
+                    onTap: _openDetail,
+                    query: _query,
+                    filterBucket: _filterBucket,
+                    sort: _sort,
+                  ),
+                  _PayablesTab(onTap: _openDetail, query: _query, sort: _sort),
+                ],
+              ),
             ),
           ),
         ],
@@ -308,7 +313,9 @@ class _DebtDarkHeader extends StatelessWidget {
           Row(
             children: [
               Icon(
-                net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                net >= 0
+                    ? Icons.trending_up_rounded
+                    : Icons.trending_down_rounded,
                 color: net >= 0 ? AppColors.success : AppColors.error,
                 size: 12,
               ),
@@ -480,6 +487,7 @@ class _ReceivablesTab extends ConsumerWidget {
     final filtered = _applyDebtFilters(receivables, query, filterBucket, sort);
 
     return CustomScrollView(
+      physics: silentRefreshPhysics,
       slivers: [
         if (isLoading)
           const SliverDebtListSkeleton()
@@ -591,6 +599,7 @@ class _PayablesTab extends ConsumerWidget {
       body = KeyedSubtree(
         key: const ValueKey('content'),
         child: CustomScrollView(
+          physics: silentRefreshPhysics,
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.only(top: 14),
@@ -712,7 +721,10 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     if (context.mounted) {
       AppNotification.error(
         context,
-        _tr('Could not delete entry. Please try again.', 'Imeshindwa kufuta rekodi. Jaribu tena.'),
+        _tr(
+          'Could not delete entry. Please try again.',
+          'Imeshindwa kufuta rekodi. Jaribu tena.',
+        ),
       );
     }
   }

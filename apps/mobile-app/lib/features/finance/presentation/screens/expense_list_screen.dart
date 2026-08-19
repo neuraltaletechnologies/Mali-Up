@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
@@ -162,41 +164,48 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             onManage: _openCategoryManager,
           ),
           Expanded(
-            child: isLoading
-                ? const ExpensePageSkeleton()
-                : filtered.isEmpty
-                ? EmptyState(
-                    icon: Icons.receipt_outlined,
-                    title: selectedCategory == null
-                        ? _tr(
-                            'No expenses this month',
-                            'Hakuna matumizi mwezi huu',
-                          )
-                        : _tr(
-                            'No ${selectedCategory.label} expenses',
-                            'Hakuna matumizi ya ${selectedCategory.label}',
-                          ),
-                    subtitle: _tr(
-                      'Tap + to log a purchase or bill.',
-                      'Bonyeza + kurekodi ununuzi au bili.',
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 120),
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) => _ExpenseCard(
-                      expense: filtered[i],
-                      category: categories.firstWhere(
-                        (category) => category.key == filtered[i].category,
-                        orElse: () =>
-                            ExpenseCategory.fallback(filtered[i].category),
+            child: SilentRefresh(
+              onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+              child: isLoading
+                  ? const ExpensePageSkeleton()
+                  : filtered.isEmpty
+                  ? SingleChildScrollView(
+                      physics: silentRefreshPhysics,
+                      child: EmptyState(
+                        icon: Icons.receipt_outlined,
+                        title: selectedCategory == null
+                            ? _tr(
+                                'No expenses this month',
+                                'Hakuna matumizi mwezi huu',
+                              )
+                            : _tr(
+                                'No ${selectedCategory.label} expenses',
+                                'Hakuna matumizi ya ${selectedCategory.label}',
+                              ),
+                        subtitle: _tr(
+                          'Tap + to log a purchase or bill.',
+                          'Bonyeza + kurekodi ununuzi au bili.',
+                        ),
                       ),
-                      isLast: i == filtered.length - 1,
-                      onTap: () => _openDetail(filtered[i]),
-                      onEdit: () => _openAdd(edit: filtered[i]),
-                      onDelete: () => _deleteExpense(ctx, filtered[i]),
+                    )
+                  : ListView.builder(
+                      physics: silentRefreshPhysics,
+                      padding: const EdgeInsets.only(bottom: 120),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _ExpenseCard(
+                        expense: filtered[i],
+                        category: categories.firstWhere(
+                          (category) => category.key == filtered[i].category,
+                          orElse: () =>
+                              ExpenseCategory.fallback(filtered[i].category),
+                        ),
+                        isLast: i == filtered.length - 1,
+                        onTap: () => _openDetail(filtered[i]),
+                        onEdit: () => _openAdd(edit: filtered[i]),
+                        onDelete: () => _deleteExpense(ctx, filtered[i]),
+                      ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),
@@ -243,13 +252,19 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       // persistence cache is disabled (see main.dart).
       await ref.read(expenseRepositoryProvider).delete(expense.id);
       if (context.mounted) {
-        AppNotification.success(context, _tr('Expense deleted', 'Gharama imefutwa'));
+        AppNotification.success(
+          context,
+          _tr('Expense deleted', 'Gharama imefutwa'),
+        );
       }
     } catch (_) {
       if (context.mounted) {
         AppNotification.error(
           context,
-          _tr('Could not delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.'),
+          _tr(
+            'Could not delete. Try again.',
+            'Imeshindikana kufuta. Jaribu tena.',
+          ),
         );
       }
     }

@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/shimmer.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -64,9 +66,12 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
           const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           _CashFlowTabBar(tabController: _tabController),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [_OverviewTab(), _StatementTab()],
+            child: SilentRefresh(
+              onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+              child: TabBarView(
+                controller: _tabController,
+                children: const [_OverviewTab(), _StatementTab()],
+              ),
             ),
           ),
         ],
@@ -265,6 +270,7 @@ class _OverviewTab extends ConsumerWidget {
     final recentTxns = ref.watch(cfTransactionsByMonthProvider);
 
     return SingleChildScrollView(
+      physics: silentRefreshPhysics,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -443,6 +449,7 @@ class _StatementTab extends ConsumerWidget {
     final monthLabel = DateFormat.yMMMM().format(month);
 
     return SingleChildScrollView(
+      physics: silentRefreshPhysics,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
