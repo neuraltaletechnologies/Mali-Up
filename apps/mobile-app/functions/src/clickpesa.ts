@@ -231,7 +231,23 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
         throw new HttpsError("already-exists", "A payment with this reference already exists.");
       }
       if (response.status === 400) {
-        throw new HttpsError("invalid-argument", "ClickPesa rejected the request — check the phone number.");
+        // ClickPesa's 400s cover several unrelated cases (bad phone number,
+        // a payment method not enabled on this application, etc.) — surface
+        // its actual message instead of guessing, so this doesn't keep
+        // sending users to check their phone number for a merchant-account
+        // configuration problem that has nothing to do with them.
+        let providerMessage: string | undefined;
+        try {
+          providerMessage = (JSON.parse(text) as {message?: string}).message;
+        } catch {
+          // Non-JSON body — fall through to the generic message below.
+        }
+        throw new HttpsError(
+          "invalid-argument",
+          providerMessage
+            ? `Payment could not be started: ${providerMessage}`
+            : "ClickPesa rejected the request — check the phone number.",
+        );
       }
       throw new HttpsError("internal", "Failed to start payment.");
     }
