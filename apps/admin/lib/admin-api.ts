@@ -95,6 +95,40 @@ export async function setEnterpriseTerms(
   })
 }
 
+// ─── Quick Setup (bulk onboarding) ──────────────────────────────────────────
+
+export interface QuickSetupProductRow { name: string; type?: 'product' | 'service'; unit?: string; sellingPrice?: number; costPrice?: number; stock?: number; sku?: string }
+export interface QuickSetupCustomerRow { name: string; phone?: string; email?: string; address?: string; creditLimit?: number }
+export interface QuickSetupDebtRow { partyName: string; partyPhone?: string; type?: 'receivable' | 'payable'; amount: number; dueDate?: string; note?: string }
+export interface QuickSetupPaymentMethodRow { name: string; type?: 'cash' | 'bank' | 'mobileMoney'; accountNumber?: string; openingBalance?: number }
+export interface QuickSetupExpenseRow { category: string; amount: number; date?: string; note?: string; paymentMethod?: string }
+export interface QuickSetupTeamRow { name: string; phone: string; email?: string; role?: 'manager' | 'accountant' | 'cashier' | 'stockClerk' }
+
+export interface QuickSetupPayload {
+  products?: QuickSetupProductRow[]
+  customers?: QuickSetupCustomerRow[]
+  debts?: QuickSetupDebtRow[]
+  paymentMethods?: QuickSetupPaymentMethodRow[]
+  expenses?: QuickSetupExpenseRow[]
+  team?: QuickSetupTeamRow[]
+}
+
+export interface QuickSetupCounts {
+  products: number; customers: number; debts: number
+  paymentMethods: number; expenses: number; team: number
+}
+
+export async function postQuickSetup(
+  uid: string,
+  businessId: string,
+  payload: QuickSetupPayload,
+): Promise<{ counts: QuickSetupCounts }> {
+  return apiFetch(`/api/admin/businesses/${uid}/${businessId}/quick-setup`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 // ─── Analytics ───────────────────────────────────────────────────────────────
 
 export async function fetchAnalytics(): Promise<AnalyticsOverview> {

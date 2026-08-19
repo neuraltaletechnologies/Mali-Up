@@ -14,7 +14,6 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../catalog/presentation/screens/catalog_search_screen.dart';
-import '../../../catalog/presentation/screens/import_product_screen.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
@@ -355,7 +354,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           // Presented as a slide-up sheet — same as every other return entry
           // point (e.g. InvoiceDetailScreen) — instead of a full-page push,
           // so the height and motion stay consistent across the app.
-          Navigator.of(ctx, rootNavigator: true).pop();
+          //
+          // _SelectSaleForReturnSheet's own item tile already pops itself
+          // (Navigator.of(context).pop()) before invoking this callback, so
+          // popping again here was a double-pop: with no sheet left to
+          // close, it tore down the screen underneath instead, leaving a
+          // black screen / crash. Just open the return sheet.
           showAppSheet<void>(
             ctx,
             maxHeightFactor: 0.92,
@@ -3938,12 +3942,36 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
   }
 
-  void _openCatalogImport(MasterProduct product) {
+  /// Fills the current form fields from a tapped master-catalog suggestion.
+  ///
+  /// This form already replicates everything a separate "import" sheet used
+  /// to collect (category, unit, cost/sell price, stock, payment) — so
+  /// tapping a catalog match now just autofills the fields in place instead
+  /// of stacking another slide-up sheet on top of this one.
+  void _applyFromCatalog(MasterProduct product) {
+    final categories =
+        ref.read(masterCategoriesProvider).valueOrNull ?? const <MasterCategory>[];
+    MasterCategory? matched;
+    for (final c in categories) {
+      if (c.categorySlug == product.categorySlug) {
+        matched = c;
+        break;
+      }
+    }
+    setState(() {
+      _nameCtrl.text = product.productName;
+      _skuCtrl.text = product.commonBarcodes.isNotEmpty
+          ? product.commonBarcodes.first
+          : _skuCtrl.text;
+      _unit = product.unit;
+      if (matched != null) {
+        _selectedCategoryId = matched.id;
+        _selectedCategoryName = matched.displayName;
+      } else if (product.categorySlug.isNotEmpty) {
+        _selectedCategoryName = product.categorySlug;
+      }
+    });
     _nameFocus.unfocus();
-    showAppSheet<void>(
-      context,
-      builder: (_) => ImportProductScreen(product: product),
-    );
   }
 
   void _snack(String t) => AppNotification.info(context, t);
@@ -4477,9 +4505,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                       ],
 
-                      // Master-catalog suggestions open the existing import
-                      // sheet so the user keeps the catalog's name, category,
-                      // unit and product identity without retyping them.
+                      // Master-catalog suggestions fill this same form so
+                      // the user keeps the catalog's name, category, unit
+                      // and product identity without retyping them.
                       if (catalogSuggestions.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -4500,8 +4528,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ),
                                 child: Text(
                                   _tr(
-                                    'Found in product catalog — tap to import',
-                                    'Imeonekana kwenye katalogi — gusa kuingiza',
+                                    'Found in product catalog — tap to fill in',
+                                    'Imeonekana kwenye katalogi — gusa kujaza',
                                   ),
                                   style: GoogleFonts.dmSans(
                                     fontSize: 11,
@@ -4523,7 +4551,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     ? product.productNameSw
                                     : product.productName;
                                 return InkWell(
-                                  onTap: () => _openCatalogImport(product),
+                                  onTap: () => _applyFromCatalog(product),
                                   borderRadius: BorderRadius.vertical(
                                     bottom:
                                         index == catalogSuggestions.length - 1

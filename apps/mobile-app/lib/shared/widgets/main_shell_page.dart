@@ -87,9 +87,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeShowUpdateBanner(),
     );
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowInitialOfflineBanner(),
-    );
+   
   }
 
   @override
@@ -175,79 +173,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // isOnlineProvider's transition listener in build() never sees (it only
   // fires on a genuine flip after this shell has mounted). Checked once,
   // after first frame, alongside the other post-frame checks in initState.
-  void _maybeShowInitialOfflineBanner() {
-    if (!mounted) return;
-    if (!ref.read(isOnlineProvider)) _showOfflineBanner();
-  }
+  
 
-  void _showOfflineBanner() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearMaterialBanners()
-      ..showMaterialBanner(
-        MaterialBanner(
-          backgroundColor: AppColors.warningBg,
-          leading: const Icon(Icons.wifi_off_rounded, color: AppColors.warning),
-          content: Text(
-            _tr(
-              "You're offline. No worries — everything you do here is "
-                  'saved on this device and will sync automatically the '
-                  "moment you're back online.",
-              'Huna mtandao. Usijali — kila unachofanya kinahifadhiwa '
-                  'kwenye kifaa chako na kitasawazishwa kiotomatiki '
-                  'ukirudi mtandaoni.',
-            ),
-            style: GoogleFonts.dmSans(
-              color: AppColors.warning,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
-              child: Text(_tr('Got it', 'Sawa')),
-            ),
-          ],
-        ),
-      );
-  }
 
-  void _showBackOnlineBanner() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearMaterialBanners()
-      ..showMaterialBanner(
-        MaterialBanner(
-          backgroundColor: AppColors.successBg,
-          leading: const Icon(Icons.wifi_rounded, color: AppColors.success),
-          content: Text(
-            _tr(
-              "You're back online — syncing your data now…",
-              'Umerudi mtandaoni — inasawazisha data yako sasa…',
-            ),
-            style: GoogleFonts.dmSans(
-              color: AppColors.success,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
-              child: Text(_tr('Got it', 'Sawa')),
-            ),
-          ],
-        ),
-      );
-    // This one is a confirmation, not a standing reminder like the offline
-    // banner above — it clears itself so it doesn't linger once read.
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
-    });
-  }
 
   bool get _isSwahili => LocalizationService.isSwahili;
 
@@ -1422,13 +1350,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // header pill's red/green dot is easy to miss, so a real message says
     // it plainly: nothing is lost offline, and reconnecting kicks off a
     // real sync rather than leaving them guessing.
-    ref.listen<bool>(isOnlineProvider, (prev, next) {
-      if (prev == true && next == false) {
-        _showOfflineBanner();
-      } else if (prev == false && next == true) {
-        _showBackOnlineBanner();
-      }
-    });
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
