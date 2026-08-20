@@ -186,4 +186,40 @@ class SyncInventoryRepository implements InventoryRepository {
     });
     onWrite?.call();
   }
+
+  /// Pushed as its own lightweight sync op (like [adjustQuantity]'s
+  /// `quantity_delta`) rather than a full [save] — a full upsert would carry
+  /// this device's `currentStock` snapshot and could stomp a concurrent
+  /// stock movement from another device. See [InventoryRepository.updatePricing].
+  @override
+  Future<void> updatePricing(
+    String id, {
+    required double costPrice,
+    required double unitPrice,
+  }) async {
+    _policy.assertCanWrite();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final payload = jsonEncode({
+      'costPrice': costPrice,
+      'unitPrice': unitPrice,
+    });
+
+    await _db.transaction(() async {
+      await _local.updatePricing(id, costPrice: costPrice, unitPrice: unitPrice);
+      await _queue.enqueue(
+        SyncQueueTableCompanion(
+          operationId: Value(const Uuid().v4()),
+          entityType: const Value('inventory_item'),
+          entityId: Value(id),
+          operation: const Value('price_update'),
+          payload: Value(payload),
+          checksum: Value(SyncUtils.sha256(payload)),
+          localVersion: const Value(0),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+    onWrite?.call();
+  }
 }

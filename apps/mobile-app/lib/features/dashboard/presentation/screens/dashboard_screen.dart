@@ -378,7 +378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return s != 'paid' && s != 'completed';
     }).toList();
     final totalOutstanding = unpaidSales.fold<double>(0, (total, inv) {
-      final amt = parseNumericAmount(inv['amount']);
+      final amt = readInvoiceTotal(inv);
       final paid = parseNumericAmount(inv['amountPaid']);
       final due = amt - paid;
       return total + (due > 0 ? due : 0);
@@ -2229,7 +2229,7 @@ class _TopPerformersSection extends StatelessWidget {
       if (ts == null || ts.isBefore(monthStart)) continue;
       final key = (inv['customerName'] ?? '').toString().trim();
       if (key.isEmpty) continue;
-      result[key] = (result[key] ?? 0) + parseNumericAmount(inv['amount']);
+      result[key] = (result[key] ?? 0) + readInvoiceTotal(inv);
     }
     return result;
   }
@@ -2459,7 +2459,7 @@ class _RecentTransactionsList extends StatelessWidget {
       // Quotations, drafts and cancelled invoices are not transactions.
       if (!_isConfirmedSale(inv)) continue;
       final date = readTimestamp(inv['createdAt']);
-      final amount = parseNumericAmount(inv['amount']);
+      final amount = readInvoiceTotal(inv);
       final customer = (inv['customerName'] ?? '').toString().trim();
       result.add({
         'kind': 'sale',
@@ -3241,7 +3241,7 @@ double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(cutoff)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3254,7 +3254,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(monthStart)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3267,7 +3267,7 @@ double _yearRevenue(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(yearStart)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3286,7 +3286,7 @@ double _revenueForRange(
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(from) || d.isAfter(to)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3300,7 +3300,7 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(lastMonthStart) || !d.isBefore(lastMonthEnd)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3318,7 +3318,7 @@ Map<int, double> _buildDailySalesData(List<Map<String, dynamic>> invoices) {
     final daysAgo = today.difference(d).inDays;
     if (daysAgo < 0 || daysAgo > 6) continue;
     final idx = 6 - daysAgo;
-    daily[idx] = (daily[idx] ?? 0) + parseNumericAmount(inv['amount']);
+    daily[idx] = (daily[idx] ?? 0) + readInvoiceTotal(inv);
   }
   return daily;
 }
@@ -3362,7 +3362,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
       final category = (invoice['category'] ?? '').toString().trim();
       final label = category.isEmpty ? _tr('Other', 'Nyingine') : category;
       totals[label] =
-          (totals[label] ?? 0) + parseNumericAmount(invoice['amount']);
+          (totals[label] ?? 0) + readInvoiceTotal(invoice);
       continue;
     }
 
@@ -3372,7 +3372,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
       return total +
           (value > 0 ? value : _numericValue(item['unitPrice']) * quantity);
     });
-    final invoiceTotal = parseNumericAmount(invoice['amount']);
+    final invoiceTotal = readInvoiceTotal(invoice);
     final scale = rawLineTotal > 0 && invoiceTotal > 0
         ? invoiceTotal / rawLineTotal
         : 1.0;
@@ -3455,7 +3455,7 @@ List<String> _generateInsights({
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null || ts.isBefore(monthStart)) continue;
     final key = (inv['customerName'] ?? '').toString().trim();
-    final amt = parseNumericAmount(inv['amount']);
+    final amt = readInvoiceTotal(inv);
     monthTotal += amt;
     if (key.isNotEmpty) {
       customerRevenue[key] = (customerRevenue[key] ?? 0) + amt;

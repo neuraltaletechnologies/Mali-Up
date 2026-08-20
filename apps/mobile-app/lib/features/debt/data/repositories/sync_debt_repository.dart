@@ -39,6 +39,10 @@ class SyncDebtRepository implements DebtRepository {
   Future<Debt?> getById(String id) => _local.getById(id);
 
   @override
+  Future<Debt?> getByInvoiceRef(String invoiceRef) =>
+      _local.getByInvoiceRef(invoiceRef);
+
+  @override
   Stream<List<DebtPayment>> watchPayments(String debtId) =>
       _local.watchPayments(debtId);
 

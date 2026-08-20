@@ -137,6 +137,13 @@ class SyncService extends ChangeNotifier {
     // Recover any entries that were left in `processing` by a prior crash.
     await _queue.recoverStaleProcessing();
 
+    // One-time self-heal: debt conflicts used to be a dead end (flagged and
+    // never retried) before conflict resolution existed for debts. Give any
+    // leftover entries from that era a fresh pass now that they can actually
+    // be resolved — safe for debts specifically (last-write-wins), unlike
+    // invoices which stay flagged for manual review on purpose.
+    await _queue.requeueConflicts('debt');
+
     // Sync on launch if we have connectivity.
     final initial = await Connectivity().checkConnectivity();
     final isOnline = initial.any((r) => r != ConnectivityResult.none);
@@ -415,6 +422,22 @@ class SyncService extends ChangeNotifier {
         await _localInventory.consumeQuantityDelta(entry.entityId, delta);
         await _localInventory.markSynced(entry.entityId, serverTs);
       }
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
+    if (entry.operation == 'price_update') {
+      // Field-level push, mirroring quantity_delta above — never carries a
+      // currentStock snapshot, so it can't race a concurrent stock movement.
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      final costPrice = (payload['costPrice'] as num?)?.toDouble() ?? 0;
+      final unitPrice = (payload['unitPrice'] as num?)?.toDouble() ?? 0;
+      final serverTs = await _remoteInventory.updatePricingAndGetTimestamp(
+        entry.entityId,
+        costPrice: costPrice,
+        unitPrice: unitPrice,
+      );
+      await _localInventory.markSynced(entry.entityId, serverTs);
       await _queue.markCompleted(entry.id);
       return;
     }

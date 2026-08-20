@@ -89,7 +89,14 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   double get _discount => parseNumericAmount(_inv['discountAmount']);
   double get _vat => parseNumericAmount(_inv['vatAmount']);
   double get _amountPaid => parseNumericAmount(_inv['amountPaid']);
-  double get _outstanding => (_total - _amountPaid).clamp(0.0, _total);
+  bool get _hasReturn => _inv['hasReturn'] == true;
+  double get _returnedAmount => parseNumericAmount(_inv['returnedAmount']);
+  // What's actually still owed, net of anything credited back via a return
+  // — the line items above still sum to the original _total for an
+  // unambiguous audit trail, but what the customer owes shrinks with it.
+  double get _netTotal => (_total - _returnedAmount).clamp(0.0, _total);
+  double get _outstanding =>
+      (_netTotal - _amountPaid).clamp(0.0, _netTotal);
 
   String get _invoiceNumber =>
       _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
@@ -356,10 +363,17 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       builder: (_) => SalesReturnScreen(originalInvoice: _inv),
     );
     if (result?['saved'] == true && mounted) {
+      // The return already persisted returnedAmount to Firestore + Drift
+      // (SalesReturnScreen); this just keeps this already-open screen's
+      // in-memory copy in step without waiting for the next reload, the
+      // same way readInvoiceTotal nets it out everywhere else.
+      final priorReturned = parseNumericAmount(_inv['returnedAmount']);
+      final justReturned = parseNumericAmount(result?['returnedAmount']);
       setState(
         () => _inv = {
           ..._inv,
           'hasReturn': true,
+          'returnedAmount': priorReturned + justReturned,
           if (result?['creditNoteNumber'] != null)
             'creditNoteNumber': result!['creditNoteNumber'],
         },
@@ -556,6 +570,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               dueDate: _dueDate,
               itemCount: _lineItems.length,
               outstanding: _outstanding,
+              hasReturn: _hasReturn,
+              returnedAmount: _returnedAmount,
+              creditNoteNumber: (_inv['creditNoteNumber'] ?? '').toString(),
             ),
             const SizedBox(height: 16),
             _ShareRow(onSms: _shareSms, onPdf: _openPdf),
@@ -567,6 +584,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               discount: _discount,
               vatAmount: _vat,
               total: _total,
+              returnedAmount: _returnedAmount,
               applyVat: _inv['vatApplied'] as bool? ?? _vat > 0,
             ),
             if (_inv['paymentMethod'] != null) ...[
@@ -674,6 +692,9 @@ class _InvoiceSummaryCard extends StatelessWidget {
   final DateTime? dueDate;
   final int itemCount;
   final double outstanding;
+  final bool hasReturn;
+  final double returnedAmount;
+  final String creditNoteNumber;
 
   const _InvoiceSummaryCard({
     required this.invoiceNumber,
@@ -685,6 +706,9 @@ class _InvoiceSummaryCard extends StatelessWidget {
     required this.dueDate,
     required this.itemCount,
     required this.outstanding,
+    this.hasReturn = false,
+    this.returnedAmount = 0,
+    this.creditNoteNumber = '',
   });
 
   @override
@@ -694,6 +718,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
         dueDate!.isBefore(DateTime.now()) &&
         status != 'paid' &&
         status != 'cancelled';
+    final netTotal = (total - returnedAmount).clamp(0.0, total);
 
     return Container(
       decoration: BoxDecoration(
@@ -752,6 +777,37 @@ class _InvoiceSummaryCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (hasReturn) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.tealAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.undo_rounded,
+                                    size: 9, color: AppColors.tealAccent),
+                                const SizedBox(width: 2),
+                                Text(
+                                  _tr('Returned', 'Imerudishwa'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.tealAccent,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
@@ -797,13 +853,24 @@ class _InvoiceSummaryCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'TZS ${_fmtNum(total)}',
+                'TZS ${_fmtNum(netTotal)}',
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
+              if (returnedAmount > 0) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'TZS ${_fmtNum(total)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
               if (itemCount > 0)
                 Text(
@@ -825,6 +892,18 @@ class _InvoiceSummaryCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (returnedAmount > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${_tr('Returned', 'Imerudishwa')}: -TZS ${_fmtNum(returnedAmount)}'
+              '${creditNoteNumber.isNotEmpty ? ' · $creditNoteNumber' : ''}',
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.tealAccent,
+              ),
+            ),
+          ],
           if (overdue) ...[
             const SizedBox(height: 6),
             Row(
@@ -1133,6 +1212,7 @@ class _SummaryCard extends StatelessWidget {
   final double discount;
   final double vatAmount;
   final double total;
+  final double returnedAmount;
   final bool applyVat;
 
   const _SummaryCard({
@@ -1140,6 +1220,7 @@ class _SummaryCard extends StatelessWidget {
     required this.discount,
     required this.vatAmount,
     required this.total,
+    this.returnedAmount = 0,
     required this.applyVat,
   });
 
@@ -1173,6 +1254,14 @@ class _SummaryCard extends StatelessWidget {
               value: 'TZS ${_fmtNum(vatAmount)}',
             ),
           ],
+          if (returnedAmount > 0) ...[
+            const SizedBox(height: 8),
+            _SRow(
+              label: _tr('Returned', 'Imerudishwa'),
+              value: '-TZS ${_fmtNum(returnedAmount)}',
+              valueColor: AppColors.tealAccent,
+            ),
+          ],
           const SizedBox(height: 12),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
@@ -1189,7 +1278,7 @@ class _SummaryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'TZS ${_fmtNum(total)}',
+                'TZS ${_fmtNum((total - returnedAmount).clamp(0.0, total))}',
                 style: GoogleFonts.dmSerifDisplay(
                   fontSize: 22,
                   color: AppColors.navyPrimary,

@@ -37,12 +37,18 @@ abstract final class InvoiceMapper {
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         row.updatedAt,
       ).toIso8601String(),
+      hasReturn: row.hasReturn != 0,
+      returnedAmount: row.returnedAmount,
+      creditNoteNumber: row.creditNoteNumber,
     );
   }
 
   static InvoiceItem _itemFromRow(InvoiceItemsTableData r) {
     return InvoiceItem(
-      id: r.id,
+      // productId is the catalog link (empty for services/free-text lines
+      // and for rows written before this column existed); r.id itself was
+      // the catalog link for those older rows, so it's the right fallback.
+      id: r.productId.isNotEmpty ? r.productId : r.id,
       name: r.name,
       description: r.description,
       quantity: r.quantity,
@@ -84,6 +90,9 @@ abstract final class InvoiceMapper {
       createdBy: Value(invoice.createdBy),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
+      hasReturn: Value(invoice.hasReturn ? 1 : 0),
+      returnedAmount: Value(invoice.returnedAmount),
+      creditNoteNumber: Value(invoice.creditNoteNumber),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
       localVersion: Value(localVersion),
@@ -97,13 +106,16 @@ abstract final class InvoiceMapper {
   ) {
     return items.map((item) {
       return InvoiceItemsTableCompanion(
-        id: Value(item.id.isNotEmpty ? item.id : const Uuid().v4()),
+        // Always a fresh row id — see the productId comment on the table for
+        // why this can no longer just reuse the catalog item's id.
+        id: Value(const Uuid().v4()),
         invoiceId: Value(invoiceId),
         name: Value(item.name),
         description: Value(item.description),
         quantity: Value(item.quantity),
         unitPrice: Value(item.unitPrice),
         total: Value(item.total),
+        productId: Value(item.id),
       );
     }).toList();
   }

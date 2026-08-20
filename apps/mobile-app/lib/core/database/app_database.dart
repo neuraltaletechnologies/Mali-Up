@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 15;
 
   /// Removes account and business data cached on this device.
   ///
@@ -228,6 +228,37 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               "ALTER TABLE debts ADD COLUMN loan_date TEXT NOT NULL DEFAULT ''",
+            );
+          }
+          if (from < 14) {
+            // Fix: invoice_items.id used to be the linked inventory/catalog
+            // item's id (for restock-by-return), but it's also this table's
+            // primary key — selling the same product on a second invoice
+            // collided with the first invoice's row and failed with a
+            // UNIQUE constraint error. The product link now lives in its
+            // own column; id is a fresh row id going forward. Existing rows
+            // keep their old id (which is their product id for product/
+            // service lines already synced), so history reads unchanged —
+            // see InvoiceMapper._itemFromRow's fallback to r.id.
+            await customStatement(
+              "ALTER TABLE invoice_items ADD COLUMN product_id TEXT NOT NULL DEFAULT ''",
+            );
+          }
+          if (from < 15) {
+            // Returns used to update Firestore only (a direct batch write
+            // from SalesReturnScreen), so nothing about a return ever
+            // reached Drift — the sales list, dashboard revenue and
+            // outstanding-balance figures kept showing pre-return amounts
+            // since they all read from here, not Firestore. Persisting the
+            // return locally too lets every reader net it out consistently.
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN has_return INTEGER NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN returned_amount REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN credit_note_number TEXT NOT NULL DEFAULT ''",
             );
           }
         },

@@ -204,6 +204,43 @@ void main() {
     });
   });
 
+  group('updatePricing', () {
+    test('updates costPrice and unitPrice', () async {
+      await dao.upsert(makeItem());
+      await dao.updatePricing('item-1', costPrice: 2200, unitPrice: 2800);
+
+      final result = await dao.getById('item-1');
+      expect(result!.costPrice, 2200.0);
+      expect(result.unitPrice, 2800.0);
+    });
+
+    test('does not touch quantity or a pending quantityDelta', () async {
+      await dao.upsert(makeItem());
+      await dao.adjustQuantity('item-1', 50); // pending restock, unsynced
+      await dao.updatePricing('item-1', costPrice: 2200, unitPrice: 2800);
+
+      final result = await dao.getById('item-1');
+      // Weighted-average cost blending happens in the repository layer —
+      // the DAO just persists whatever price it's given, and must leave
+      // the quantity-delta accumulator alone so it can't race the
+      // separate quantity_delta sync push.
+      expect(result!.quantity, 150.0);
+      expect(result.quantityDelta, 50.0);
+      expect(result.costPrice, 2200.0);
+      expect(result.unitPrice, 2800.0);
+    });
+
+    test('marks the row pending_update and bumps localVersion', () async {
+      await dao.upsert(makeItem());
+      final before = await dao.getById('item-1');
+      await dao.updatePricing('item-1', costPrice: 2200, unitPrice: 2800);
+      final after = await dao.getById('item-1');
+
+      expect(after!.syncStatus, 'pending_update');
+      expect(after.localVersion, before!.localVersion + 1);
+    });
+  });
+
   group('getTotalInventoryValue', () {
     test('sums qty * costPrice for all active items', () async {
       await dao.upsert(makeItem(id: 'i1', quantity: 10, costPrice: 500));

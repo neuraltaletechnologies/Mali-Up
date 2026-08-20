@@ -47,6 +47,9 @@ Map<String, dynamic> _invoiceToMap(Invoice inv) => {
   'createdBy': inv.createdBy,
   'createdAt': inv.createdAt,
   'updatedAt': inv.updatedAt,
+  'hasReturn': inv.hasReturn,
+  'returnedAmount': inv.returnedAmount,
+  'creditNoteNumber': inv.creditNoteNumber,
 };
 
 // ── Tenant scoping ────────────────────────────────────────────────────────────
@@ -98,11 +101,22 @@ final currentUserRoleProvider = Provider<String>((ref) {
 // ── Field readers (tolerant of the various historic document shapes) ─────────
 
 /// Reads the invoice total from either the quick-sale field ('amount') or the
-/// full-invoice field ('totalAmount'), whichever is present and non-zero.
+/// full-invoice field ('totalAmount'), whichever is present and non-zero,
+/// net of anything credited back via a product return. This is the single
+/// choke point every screen reads a sale's value through — sales list cards,
+/// dashboard revenue/receivables, further-payment outstanding calc — so a
+/// return only needs to be recorded once (on the invoice) to show up
+/// correctly everywhere instead of each screen re-deriving it.
 double readInvoiceTotal(Map<String, dynamic> item) {
-  final a = parseNumericAmount(item['totalAmount']);
-  if (a > 0) return a;
-  return parseNumericAmount(item['amount']);
+  final gross = () {
+    final a = parseNumericAmount(item['totalAmount']);
+    if (a > 0) return a;
+    return parseNumericAmount(item['amount']);
+  }();
+  final returned = parseNumericAmount(item['returnedAmount']);
+  if (returned <= 0) return gross;
+  final net = gross - returned;
+  return net < 0 ? 0 : net;
 }
 
 double parseNumericAmount(Object? value) {

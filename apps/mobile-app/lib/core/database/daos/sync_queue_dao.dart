@@ -174,6 +174,29 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Requeues entries stuck in 'conflict' status for one entity type so the
+  /// next sync cycle gives them a fresh resolution pass. `fetchPending` never
+  /// picks up 'conflict' rows on its own, so without this a conflict entry
+  /// created before a resolver fix landed would sit unresolved forever even
+  /// though the fixed code would now handle it correctly. Only call this for
+  /// entity types whose conflicts are safe to auto-resolve (e.g. debts —
+  /// last-write-wins); never for invoices, which are deliberately left for
+  /// manual review.
+  Future<void> requeueConflicts(String entityType) async {
+    await (update(syncQueueTable)
+          ..where((t) =>
+              t.entityType.equals(entityType) &
+              t.status.equals('conflict')))
+        .write(
+      SyncQueueTableCompanion(
+        status: const Value('pending'),
+        nextRetryAt: Value(DateTime.now().millisecondsSinceEpoch),
+        errorMessage: const Value(''),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
   Future<void> cancelForEntity(String entityId) async {
     await (update(syncQueueTable)
           ..where((t) =>

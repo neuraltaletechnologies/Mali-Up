@@ -1662,6 +1662,7 @@ class _ProductDetailSheet extends ConsumerStatefulWidget {
 
 class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   bool _editMode = false;
+  bool _restockMode = false;
   bool _recording = false;
   bool _productionDone = false;
   double _lastBatchYield = 0;
@@ -1833,9 +1834,16 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         onDone: () => Navigator.of(context).pop(),
       );
     }
+    if (_restockMode) {
+      return _ProductFormSheet(
+        restockItem: widget.item,
+        onDone: () => Navigator.of(context).pop(),
+      );
+    }
     return _DetailView(
       item: widget.item,
       onEdit: () => setState(() => _editMode = true),
+      onRestock: () => setState(() => _restockMode = true),
       onRecordProduction: _recording ? null : _handleRecordProduction,
       recordingProduction: _recording,
     );
@@ -1845,11 +1853,13 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 class _DetailView extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onEdit;
+  final VoidCallback? onRestock;
   final VoidCallback? onRecordProduction;
   final bool recordingProduction;
   const _DetailView({
     required this.item,
     required this.onEdit,
+    this.onRestock,
     this.onRecordProduction,
     this.recordingProduction = false,
   });
@@ -2181,6 +2191,36 @@ class _DetailView extends StatelessWidget {
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: AppColors.navyPrimary
                               .withValues(alpha: 0.5),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // ── Restock button (stock/perishable/manufactured) ────
+                  if (onRestock != null &&
+                      type != ProductType.service &&
+                      type != ProductType.customerReturn) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: onRestock,
+                        icon: const Icon(Icons.add_box_rounded, size: 18),
+                        label: Text(
+                          _tr('Restock', 'Ongeza Stoo'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.tealAccent,
+                          foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -3086,8 +3126,17 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existingItem;
   final String? existingId;
   final VoidCallback? onDone;
+  // Non-null → open directly in restock mode for this product (skips edit
+  // mode and the type-a-matching-name flow). Used by the product detail
+  // sheet's "Restock" quick action.
+  final Map<String, dynamic>? restockItem;
 
-  const _ProductFormSheet({this.existingItem, this.existingId, this.onDone});
+  const _ProductFormSheet({
+    this.existingItem,
+    this.existingId,
+    this.onDone,
+    this.restockItem,
+  });
 
   @override
   ConsumerState<_ProductFormSheet> createState() => _ProductFormSheetState();
@@ -3273,6 +3322,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             ? yield_.toStringAsFixed(0)
             : yield_.toStringAsFixed(2);
       }
+    } else if (widget.restockItem != null) {
+      final rItem = widget.restockItem!;
+      final src = InventoryItem.fromFirestore(
+        rItem,
+        (rItem['id'] as String?) ?? '',
+      );
+      _populateFromSource(src);
+      _restockTarget = src;
+      // Amount to add, not the current on-hand count — _populateFromSource
+      // doesn't touch _stockCtrl.
+      _stockCtrl.text = '1';
     } else {
       _type = ProductType.stock;
     }
@@ -3416,9 +3476,33 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       setState(() => _saving = true);
       try {
         final target = _restockTarget!;
-        await ref
-            .read(inventoryRepositoryProvider)
-            .adjustQuantity(target.id, qty);
+        final invRepo = ref.read(inventoryRepositoryProvider);
+        await invRepo.adjustQuantity(target.id, qty);
+
+        // ── Price fluctuation ────────────────────────────────────────────
+        // Selling price applies outright to ALL stock, old and new — there's
+        // only ever one current selling price. The buying price instead
+        // blends into a weighted average of the old stock's cost and this
+        // batch's cost, proportional to quantity, so a price change on a
+        // fresh purchase doesn't silently overwrite the cost basis of stock
+        // bought earlier at a different price. Manufactured items are
+        // skipped: their cost is always derived from the BOM, never typed
+        // in here.
+        if (!isManufactured) {
+          final oldQty = target.currentStock;
+          final oldCost = target.costPrice;
+          final newCost = _buyVal > 0
+              ? ((oldQty * oldCost) + (qty * _buyVal)) / (oldQty + qty)
+              : oldCost;
+          final newSell = _sellVal > 0 ? _sellVal : target.unitPrice;
+          if (newCost != target.costPrice || newSell != target.unitPrice) {
+            await invRepo.updatePricing(
+              target.id,
+              costPrice: newCost,
+              unitPrice: newSell,
+            );
+          }
+        }
 
         if (!isManufactured &&
             _stockEntryType == 'purchase' &&
@@ -3798,8 +3882,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   /// Stock quantity is intentionally not copied — the user enters how much
   /// they are adding now, not the current on-hand count.
   void _applyFromExisting(InventoryItem src) {
-    setState(() {
-      _nameCtrl.text = src.name;
+    setState(() => _populateFromSource(src));
+  }
+
+  // Body of _applyFromExisting, split out so initState can call it directly
+  // (before the first build) without wrapping in setState.
+  void _populateFromSource(InventoryItem src) {
+    _nameCtrl.text = src.name;
       _skuCtrl.text = src.sku;
       _unit = src.unit;
 
@@ -3882,7 +3971,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       }
 
       _nameFocus.unfocus();
-    });
   }
 
   Future<void> _scanSku() async {

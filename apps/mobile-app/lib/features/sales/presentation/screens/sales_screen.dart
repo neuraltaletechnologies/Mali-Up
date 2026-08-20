@@ -1093,6 +1093,7 @@ class _InvoiceCard extends StatelessWidget {
 
     final isQuotation =
         (item['type'] ?? '').toString().toLowerCase() == 'quotation';
+    final hasReturn = item['hasReturn'] == true;
 
     // Status chip data
     final ({Color bg, Color text, String label, IconData icon}) chipData;
@@ -1191,6 +1192,36 @@ class _InvoiceCard extends StatelessWidget {
                               color: AppColors.textMuted,
                               letterSpacing: 0.5,
                             ),
+                          ),
+                        ),
+                      ],
+                      if (hasReturn) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.undo_rounded,
+                                  size: 8, color: AppColors.tealAccent),
+                              const SizedBox(width: 2),
+                              Text(
+                                _tr('Returned', 'Imerudishwa'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.tealAccent,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

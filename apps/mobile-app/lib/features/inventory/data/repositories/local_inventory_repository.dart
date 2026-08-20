@@ -68,6 +68,13 @@ class LocalInventoryRepository {
   Future<void> adjustQuantity(String id, double delta) =>
       _dao.adjustQuantity(id, delta);
 
+  Future<void> updatePricing(
+    String id, {
+    required double costPrice,
+    required double unitPrice,
+  }) =>
+      _dao.updatePricing(id, costPrice: costPrice, unitPrice: unitPrice);
+
   Future<void> softDelete(String id) => _dao.softDelete(id);
   Future<void> markSynced(String id, int serverUpdatedAtMs) =>
       _dao.markSynced(id, serverUpdatedAt: serverUpdatedAtMs);

@@ -48,6 +48,27 @@ class RemoteInventoryRepository {
     return DateTime.now().millisecondsSinceEpoch;
   }
 
+  /// Updates only the buying (cost) and selling price fields, so a
+  /// restock-time price change can't clobber a concurrent stock movement
+  /// the way a full-document `saveAndGetTimestamp` would.
+  Future<int> updatePricingAndGetTimestamp(
+    String id, {
+    required double costPrice,
+    required double unitPrice,
+  }) async {
+    await _collection.doc(id).update({
+      'costPrice': costPrice,
+      'buyingPrice': costPrice,
+      'unitPrice': unitPrice,
+      'sellingPrice': unitPrice,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    final snap = await _collection.doc(id).get();
+    final ts = snap.data()?['updatedAt'];
+    if (ts is Timestamp) return ts.millisecondsSinceEpoch;
+    return DateTime.now().millisecondsSinceEpoch;
+  }
+
   Future<void> delete(String id) => _collection.doc(id).delete();
 
   Future<Map<String, dynamic>?> fetchRaw(String id) async {

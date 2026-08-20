@@ -215,6 +215,42 @@ class $InvoicesTableTable extends InvoicesTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _hasReturnMeta = const VerificationMeta(
+    'hasReturn',
+  );
+  @override
+  late final GeneratedColumn<int> hasReturn = GeneratedColumn<int>(
+    'has_return',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _returnedAmountMeta = const VerificationMeta(
+    'returnedAmount',
+  );
+  @override
+  late final GeneratedColumn<double> returnedAmount = GeneratedColumn<double>(
+    'returned_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _creditNoteNumberMeta = const VerificationMeta(
+    'creditNoteNumber',
+  );
+  @override
+  late final GeneratedColumn<String> creditNoteNumber = GeneratedColumn<String>(
+    'credit_note_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -305,6 +341,9 @@ class $InvoicesTableTable extends InvoicesTable
     paymentAccountId,
     note,
     createdBy,
+    hasReturn,
+    returnedAmount,
+    creditNoteNumber,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -473,6 +512,30 @@ class $InvoicesTableTable extends InvoicesTable
         createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
       );
     }
+    if (data.containsKey('has_return')) {
+      context.handle(
+        _hasReturnMeta,
+        hasReturn.isAcceptableOrUnknown(data['has_return']!, _hasReturnMeta),
+      );
+    }
+    if (data.containsKey('returned_amount')) {
+      context.handle(
+        _returnedAmountMeta,
+        returnedAmount.isAcceptableOrUnknown(
+          data['returned_amount']!,
+          _returnedAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('credit_note_number')) {
+      context.handle(
+        _creditNoteNumberMeta,
+        creditNoteNumber.isAcceptableOrUnknown(
+          data['credit_note_number']!,
+          _creditNoteNumberMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -604,6 +667,18 @@ class $InvoicesTableTable extends InvoicesTable
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      hasReturn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}has_return'],
+      )!,
+      returnedAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}returned_amount'],
+      )!,
+      creditNoteNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}credit_note_number'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -658,6 +733,9 @@ class InvoicesTableData extends DataClass
   final String paymentAccountId;
   final String note;
   final String createdBy;
+  final int hasReturn;
+  final double returnedAmount;
+  final String creditNoteNumber;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -684,6 +762,9 @@ class InvoicesTableData extends DataClass
     required this.paymentAccountId,
     required this.note,
     required this.createdBy,
+    required this.hasReturn,
+    required this.returnedAmount,
+    required this.creditNoteNumber,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -713,6 +794,9 @@ class InvoicesTableData extends DataClass
     map['payment_account_id'] = Variable<String>(paymentAccountId);
     map['note'] = Variable<String>(note);
     map['created_by'] = Variable<String>(createdBy);
+    map['has_return'] = Variable<int>(hasReturn);
+    map['returned_amount'] = Variable<double>(returnedAmount);
+    map['credit_note_number'] = Variable<String>(creditNoteNumber);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -745,6 +829,9 @@ class InvoicesTableData extends DataClass
       paymentAccountId: Value(paymentAccountId),
       note: Value(note),
       createdBy: Value(createdBy),
+      hasReturn: Value(hasReturn),
+      returnedAmount: Value(returnedAmount),
+      creditNoteNumber: Value(creditNoteNumber),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -781,6 +868,9 @@ class InvoicesTableData extends DataClass
       paymentAccountId: serializer.fromJson<String>(json['paymentAccountId']),
       note: serializer.fromJson<String>(json['note']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      hasReturn: serializer.fromJson<int>(json['hasReturn']),
+      returnedAmount: serializer.fromJson<double>(json['returnedAmount']),
+      creditNoteNumber: serializer.fromJson<String>(json['creditNoteNumber']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -812,6 +902,9 @@ class InvoicesTableData extends DataClass
       'paymentAccountId': serializer.toJson<String>(paymentAccountId),
       'note': serializer.toJson<String>(note),
       'createdBy': serializer.toJson<String>(createdBy),
+      'hasReturn': serializer.toJson<int>(hasReturn),
+      'returnedAmount': serializer.toJson<double>(returnedAmount),
+      'creditNoteNumber': serializer.toJson<String>(creditNoteNumber),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -841,6 +934,9 @@ class InvoicesTableData extends DataClass
     String? paymentAccountId,
     String? note,
     String? createdBy,
+    int? hasReturn,
+    double? returnedAmount,
+    String? creditNoteNumber,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -867,6 +963,9 @@ class InvoicesTableData extends DataClass
     paymentAccountId: paymentAccountId ?? this.paymentAccountId,
     note: note ?? this.note,
     createdBy: createdBy ?? this.createdBy,
+    hasReturn: hasReturn ?? this.hasReturn,
+    returnedAmount: returnedAmount ?? this.returnedAmount,
+    creditNoteNumber: creditNoteNumber ?? this.creditNoteNumber,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -915,6 +1014,13 @@ class InvoicesTableData extends DataClass
           : this.paymentAccountId,
       note: data.note.present ? data.note.value : this.note,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      hasReturn: data.hasReturn.present ? data.hasReturn.value : this.hasReturn,
+      returnedAmount: data.returnedAmount.present
+          ? data.returnedAmount.value
+          : this.returnedAmount,
+      creditNoteNumber: data.creditNoteNumber.present
+          ? data.creditNoteNumber.value
+          : this.creditNoteNumber,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -952,6 +1058,9 @@ class InvoicesTableData extends DataClass
           ..write('paymentAccountId: $paymentAccountId, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
+          ..write('hasReturn: $hasReturn, ')
+          ..write('returnedAmount: $returnedAmount, ')
+          ..write('creditNoteNumber: $creditNoteNumber, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -983,6 +1092,9 @@ class InvoicesTableData extends DataClass
     paymentAccountId,
     note,
     createdBy,
+    hasReturn,
+    returnedAmount,
+    creditNoteNumber,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -1013,6 +1125,9 @@ class InvoicesTableData extends DataClass
           other.paymentAccountId == this.paymentAccountId &&
           other.note == this.note &&
           other.createdBy == this.createdBy &&
+          other.hasReturn == this.hasReturn &&
+          other.returnedAmount == this.returnedAmount &&
+          other.creditNoteNumber == this.creditNoteNumber &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -1041,6 +1156,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
   final Value<String> paymentAccountId;
   final Value<String> note;
   final Value<String> createdBy;
+  final Value<int> hasReturn;
+  final Value<double> returnedAmount;
+  final Value<String> creditNoteNumber;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -1068,6 +1186,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     this.paymentAccountId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.hasReturn = const Value.absent(),
+    this.returnedAmount = const Value.absent(),
+    this.creditNoteNumber = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -1096,6 +1217,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     this.paymentAccountId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.hasReturn = const Value.absent(),
+    this.returnedAmount = const Value.absent(),
+    this.creditNoteNumber = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -1135,6 +1259,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Expression<String>? paymentAccountId,
     Expression<String>? note,
     Expression<String>? createdBy,
+    Expression<int>? hasReturn,
+    Expression<double>? returnedAmount,
+    Expression<String>? creditNoteNumber,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -1163,6 +1290,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       if (paymentAccountId != null) 'payment_account_id': paymentAccountId,
       if (note != null) 'note': note,
       if (createdBy != null) 'created_by': createdBy,
+      if (hasReturn != null) 'has_return': hasReturn,
+      if (returnedAmount != null) 'returned_amount': returnedAmount,
+      if (creditNoteNumber != null) 'credit_note_number': creditNoteNumber,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -1193,6 +1323,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Value<String>? paymentAccountId,
     Value<String>? note,
     Value<String>? createdBy,
+    Value<int>? hasReturn,
+    Value<double>? returnedAmount,
+    Value<String>? creditNoteNumber,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -1221,6 +1354,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       note: note ?? this.note,
       createdBy: createdBy ?? this.createdBy,
+      hasReturn: hasReturn ?? this.hasReturn,
+      returnedAmount: returnedAmount ?? this.returnedAmount,
+      creditNoteNumber: creditNoteNumber ?? this.creditNoteNumber,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -1291,6 +1427,15 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (hasReturn.present) {
+      map['has_return'] = Variable<int>(hasReturn.value);
+    }
+    if (returnedAmount.present) {
+      map['returned_amount'] = Variable<double>(returnedAmount.value);
+    }
+    if (creditNoteNumber.present) {
+      map['credit_note_number'] = Variable<String>(creditNoteNumber.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1337,6 +1482,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
           ..write('paymentAccountId: $paymentAccountId, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
+          ..write('hasReturn: $hasReturn, ')
+          ..write('returnedAmount: $returnedAmount, ')
+          ..write('creditNoteNumber: $creditNoteNumber, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -1430,6 +1578,18 @@ class $InvoiceItemsTableTable extends InvoiceItemsTable
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1439,6 +1599,7 @@ class $InvoiceItemsTableTable extends InvoiceItemsTable
     quantity,
     unitPrice,
     total,
+    productId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1506,6 +1667,12 @@ class $InvoiceItemsTableTable extends InvoiceItemsTable
     } else if (isInserting) {
       context.missing(_totalMeta);
     }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1543,6 +1710,10 @@ class $InvoiceItemsTableTable extends InvoiceItemsTable
         DriftSqlType.double,
         data['${effectivePrefix}total'],
       )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
     );
   }
 
@@ -1561,6 +1732,7 @@ class InvoiceItemsTableData extends DataClass
   final double quantity;
   final double unitPrice;
   final double total;
+  final String productId;
   const InvoiceItemsTableData({
     required this.id,
     required this.invoiceId,
@@ -1569,6 +1741,7 @@ class InvoiceItemsTableData extends DataClass
     required this.quantity,
     required this.unitPrice,
     required this.total,
+    required this.productId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1580,6 +1753,7 @@ class InvoiceItemsTableData extends DataClass
     map['quantity'] = Variable<double>(quantity);
     map['unit_price'] = Variable<double>(unitPrice);
     map['total'] = Variable<double>(total);
+    map['product_id'] = Variable<String>(productId);
     return map;
   }
 
@@ -1592,6 +1766,7 @@ class InvoiceItemsTableData extends DataClass
       quantity: Value(quantity),
       unitPrice: Value(unitPrice),
       total: Value(total),
+      productId: Value(productId),
     );
   }
 
@@ -1608,6 +1783,7 @@ class InvoiceItemsTableData extends DataClass
       quantity: serializer.fromJson<double>(json['quantity']),
       unitPrice: serializer.fromJson<double>(json['unitPrice']),
       total: serializer.fromJson<double>(json['total']),
+      productId: serializer.fromJson<String>(json['productId']),
     );
   }
   @override
@@ -1621,6 +1797,7 @@ class InvoiceItemsTableData extends DataClass
       'quantity': serializer.toJson<double>(quantity),
       'unitPrice': serializer.toJson<double>(unitPrice),
       'total': serializer.toJson<double>(total),
+      'productId': serializer.toJson<String>(productId),
     };
   }
 
@@ -1632,6 +1809,7 @@ class InvoiceItemsTableData extends DataClass
     double? quantity,
     double? unitPrice,
     double? total,
+    String? productId,
   }) => InvoiceItemsTableData(
     id: id ?? this.id,
     invoiceId: invoiceId ?? this.invoiceId,
@@ -1640,6 +1818,7 @@ class InvoiceItemsTableData extends DataClass
     quantity: quantity ?? this.quantity,
     unitPrice: unitPrice ?? this.unitPrice,
     total: total ?? this.total,
+    productId: productId ?? this.productId,
   );
   InvoiceItemsTableData copyWithCompanion(InvoiceItemsTableCompanion data) {
     return InvoiceItemsTableData(
@@ -1652,6 +1831,7 @@ class InvoiceItemsTableData extends DataClass
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
       total: data.total.present ? data.total.value : this.total,
+      productId: data.productId.present ? data.productId.value : this.productId,
     );
   }
 
@@ -1664,14 +1844,23 @@ class InvoiceItemsTableData extends DataClass
           ..write('description: $description, ')
           ..write('quantity: $quantity, ')
           ..write('unitPrice: $unitPrice, ')
-          ..write('total: $total')
+          ..write('total: $total, ')
+          ..write('productId: $productId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, invoiceId, name, description, quantity, unitPrice, total);
+  int get hashCode => Object.hash(
+    id,
+    invoiceId,
+    name,
+    description,
+    quantity,
+    unitPrice,
+    total,
+    productId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1682,7 +1871,8 @@ class InvoiceItemsTableData extends DataClass
           other.description == this.description &&
           other.quantity == this.quantity &&
           other.unitPrice == this.unitPrice &&
-          other.total == this.total);
+          other.total == this.total &&
+          other.productId == this.productId);
 }
 
 class InvoiceItemsTableCompanion
@@ -1694,6 +1884,7 @@ class InvoiceItemsTableCompanion
   final Value<double> quantity;
   final Value<double> unitPrice;
   final Value<double> total;
+  final Value<String> productId;
   final Value<int> rowid;
   const InvoiceItemsTableCompanion({
     this.id = const Value.absent(),
@@ -1703,6 +1894,7 @@ class InvoiceItemsTableCompanion
     this.quantity = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.total = const Value.absent(),
+    this.productId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   InvoiceItemsTableCompanion.insert({
@@ -1713,6 +1905,7 @@ class InvoiceItemsTableCompanion
     required double quantity,
     required double unitPrice,
     required double total,
+    this.productId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        invoiceId = Value(invoiceId),
@@ -1728,6 +1921,7 @@ class InvoiceItemsTableCompanion
     Expression<double>? quantity,
     Expression<double>? unitPrice,
     Expression<double>? total,
+    Expression<String>? productId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1738,6 +1932,7 @@ class InvoiceItemsTableCompanion
       if (quantity != null) 'quantity': quantity,
       if (unitPrice != null) 'unit_price': unitPrice,
       if (total != null) 'total': total,
+      if (productId != null) 'product_id': productId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1750,6 +1945,7 @@ class InvoiceItemsTableCompanion
     Value<double>? quantity,
     Value<double>? unitPrice,
     Value<double>? total,
+    Value<String>? productId,
     Value<int>? rowid,
   }) {
     return InvoiceItemsTableCompanion(
@@ -1760,6 +1956,7 @@ class InvoiceItemsTableCompanion
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
       total: total ?? this.total,
+      productId: productId ?? this.productId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1788,6 +1985,9 @@ class InvoiceItemsTableCompanion
     if (total.present) {
       map['total'] = Variable<double>(total.value);
     }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1804,6 +2004,7 @@ class InvoiceItemsTableCompanion
           ..write('quantity: $quantity, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('total: $total, ')
+          ..write('productId: $productId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15963,6 +16164,9 @@ typedef $$InvoicesTableTableCreateCompanionBuilder =
       Value<String> paymentAccountId,
       Value<String> note,
       Value<String> createdBy,
+      Value<int> hasReturn,
+      Value<double> returnedAmount,
+      Value<String> creditNoteNumber,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -15992,6 +16196,9 @@ typedef $$InvoicesTableTableUpdateCompanionBuilder =
       Value<String> paymentAccountId,
       Value<String> note,
       Value<String> createdBy,
+      Value<int> hasReturn,
+      Value<double> returnedAmount,
+      Value<String> creditNoteNumber,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -16136,6 +16343,21 @@ class $$InvoicesTableTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get hasReturn => $composableBuilder(
+    column: $table.hasReturn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get returnedAmount => $composableBuilder(
+    column: $table.returnedAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get creditNoteNumber => $composableBuilder(
+    column: $table.creditNoteNumber,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16299,6 +16521,21 @@ class $$InvoicesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get hasReturn => $composableBuilder(
+    column: $table.hasReturn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get returnedAmount => $composableBuilder(
+    column: $table.returnedAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get creditNoteNumber => $composableBuilder(
+    column: $table.creditNoteNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -16414,6 +16651,19 @@ class $$InvoicesTableTableAnnotationComposer
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
 
+  GeneratedColumn<int> get hasReturn =>
+      $composableBuilder(column: $table.hasReturn, builder: (column) => column);
+
+  GeneratedColumn<double> get returnedAmount => $composableBuilder(
+    column: $table.returnedAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get creditNoteNumber => $composableBuilder(
+    column: $table.creditNoteNumber,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -16512,6 +16762,9 @@ class $$InvoicesTableTableTableManager
                 Value<String> paymentAccountId = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<int> hasReturn = const Value.absent(),
+                Value<double> returnedAmount = const Value.absent(),
+                Value<String> creditNoteNumber = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -16539,6 +16792,9 @@ class $$InvoicesTableTableTableManager
                 paymentAccountId: paymentAccountId,
                 note: note,
                 createdBy: createdBy,
+                hasReturn: hasReturn,
+                returnedAmount: returnedAmount,
+                creditNoteNumber: creditNoteNumber,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -16568,6 +16824,9 @@ class $$InvoicesTableTableTableManager
                 Value<String> paymentAccountId = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<int> hasReturn = const Value.absent(),
+                Value<double> returnedAmount = const Value.absent(),
+                Value<String> creditNoteNumber = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -16595,6 +16854,9 @@ class $$InvoicesTableTableTableManager
                 paymentAccountId: paymentAccountId,
                 note: note,
                 createdBy: createdBy,
+                hasReturn: hasReturn,
+                returnedAmount: returnedAmount,
+                creditNoteNumber: creditNoteNumber,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -16670,6 +16932,7 @@ typedef $$InvoiceItemsTableTableCreateCompanionBuilder =
       required double quantity,
       required double unitPrice,
       required double total,
+      Value<String> productId,
       Value<int> rowid,
     });
 typedef $$InvoiceItemsTableTableUpdateCompanionBuilder =
@@ -16681,6 +16944,7 @@ typedef $$InvoiceItemsTableTableUpdateCompanionBuilder =
       Value<double> quantity,
       Value<double> unitPrice,
       Value<double> total,
+      Value<String> productId,
       Value<int> rowid,
     });
 
@@ -16754,6 +17018,11 @@ class $$InvoiceItemsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$InvoicesTableTableFilterComposer get invoiceId {
     final $$InvoicesTableTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -16817,6 +17086,11 @@ class $$InvoiceItemsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$InvoicesTableTableOrderingComposer get invoiceId {
     final $$InvoicesTableTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16869,6 +17143,9 @@ class $$InvoiceItemsTableTableAnnotationComposer
 
   GeneratedColumn<double> get total =>
       $composableBuilder(column: $table.total, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
 
   $$InvoicesTableTableAnnotationComposer get invoiceId {
     final $$InvoicesTableTableAnnotationComposer composer = $composerBuilder(
@@ -16934,6 +17211,7 @@ class $$InvoiceItemsTableTableTableManager
                 Value<double> quantity = const Value.absent(),
                 Value<double> unitPrice = const Value.absent(),
                 Value<double> total = const Value.absent(),
+                Value<String> productId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InvoiceItemsTableCompanion(
                 id: id,
@@ -16943,6 +17221,7 @@ class $$InvoiceItemsTableTableTableManager
                 quantity: quantity,
                 unitPrice: unitPrice,
                 total: total,
+                productId: productId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16954,6 +17233,7 @@ class $$InvoiceItemsTableTableTableManager
                 required double quantity,
                 required double unitPrice,
                 required double total,
+                Value<String> productId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InvoiceItemsTableCompanion.insert(
                 id: id,
@@ -16963,6 +17243,7 @@ class $$InvoiceItemsTableTableTableManager
                 quantity: quantity,
                 unitPrice: unitPrice,
                 total: total,
+                productId: productId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

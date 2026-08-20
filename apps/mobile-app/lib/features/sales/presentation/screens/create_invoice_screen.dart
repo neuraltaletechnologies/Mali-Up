@@ -610,6 +610,15 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     nowIso)
               : nowIso,
           updatedAt: nowIso,
+          // Editing never touches return state — carry it forward from the
+          // invoice being edited, otherwise this write (which sets every
+          // Drift column explicitly) would silently zero out a return
+          // recorded earlier by SalesReturnScreen.
+          hasReturn: widget.invoiceToEdit?['hasReturn'] == true,
+          returnedAmount:
+              parseNumericAmount(widget.invoiceToEdit?['returnedAmount']),
+          creditNoteNumber:
+              (widget.invoiceToEdit?['creditNoteNumber'] ?? '').toString(),
         ),
       );
 
