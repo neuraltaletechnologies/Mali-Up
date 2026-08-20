@@ -404,7 +404,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 ),
               Expanded(
                 child: SilentRefresh(
-                  onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+                  onRefresh: () => triggerSilentSync(context, ref),
                   child: filtered.isEmpty
                       ? SingleChildScrollView(
                           physics: silentRefreshPhysics,

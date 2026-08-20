@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusDot } from '@/components/ui/status-dot'
-import { PlanBadge } from '@/components/ui/plan-badge'
+import { PlanBadge, PlanSourceBadge } from '@/components/ui/plan-badge'
+import { DurationPicker } from '@/components/ui/duration-picker'
+import { formatDuration, type DurationUnit } from '@/lib/duration'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -51,7 +53,8 @@ function EditUserDrawer({
   // Plan change state
   const [planBizId, setPlanBizId] = useState(businesses[0]?.id ?? '')
   const [newPlan,   setNewPlan]   = useState<string>(businesses[0]?.plan ?? 'starter')
-  const [cycleMonths, setCycleMonths] = useState(6)
+  const [durationValue, setDurationValue] = useState(6)
+  const [durationUnit,  setDurationUnit]  = useState<DurationUnit>('months')
 
   // Reset all fields when the drawer opens (or when user/businesses data changes)
   useEffect(() => {
@@ -63,7 +66,8 @@ function EditUserDrawer({
     const first = businesses[0]
     setPlanBizId(first?.id ?? '')
     setNewPlan(first?.plan ?? 'starter')
-    setCycleMonths(6)
+    setDurationValue(6)
+    setDurationUnit('months')
   }, [open, user, businesses])
 
   // When the selected business changes, reflect its current plan
@@ -74,7 +78,7 @@ function EditUserDrawer({
 
   const selectedBiz  = businesses.find((b) => b.id === planBizId)
   const planChanged  = !!selectedBiz && newPlan !== selectedBiz.plan
-  const paidPlan     = newPlan !== 'starter' && newPlan !== 'enterprise' && newPlan !== 'lifetime'
+  const paidPlan     = newPlan !== 'starter'
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -87,7 +91,7 @@ function EditUserDrawer({
         email: email.trim() || undefined,
       })
       if (planBizId && planChanged) {
-        await assignPlan(user.id, planBizId, newPlan as PlanTier, cycleMonths)
+        await assignPlan(user.id, planBizId, newPlan as PlanTier, durationValue, durationUnit)
       }
       onSaved()
     } catch (e: unknown) {
@@ -153,19 +157,24 @@ function EditUserDrawer({
 
               {paidPlan && (
                 <label className="flex flex-col gap-1">
-                  <span className="text-[11px] text-slate-400">Duration (months)</span>
-                  <input
-                    type="number" min="1" max="60"
-                    value={cycleMonths}
-                    onChange={(e) => setCycleMonths(Number(e.target.value))}
-                    className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  <span className="text-[11px] text-slate-400">Duration</span>
+                  <DurationPicker
+                    value={durationValue}
+                    unit={durationUnit}
+                    onValueChange={setDurationValue}
+                    onUnitChange={setDurationUnit}
+                    inputClassName="w-20 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                    selectClassName="flex-1 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                   />
+                  <span className="text-[11px] text-slate-500">
+                    This grants access manually — it does not mean the business has paid.
+                  </span>
                 </label>
               )}
 
               {planChanged && (
                 <p className="text-[11px] text-amber-400">
-                  Plan: {selectedBiz?.plan} → {newPlan}{paidPlan ? ` (${cycleMonths} months)` : ''}
+                  Plan: {selectedBiz?.plan} → {newPlan}{paidPlan ? ` (${formatDuration(durationValue, durationUnit)})` : ''}
                 </p>
               )}
             </div>
@@ -402,6 +411,7 @@ export default function UserDetailPage() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-4">
                   <PlanBadge tier={b.plan} />
+                  <PlanSourceBadge source={b.planSource} />
                   <StatusDot
                     status={b.status === 'active' ? 'good' : b.status === 'suspended' ? 'bad' : 'warn'}
                     label={b.status.charAt(0).toUpperCase() + b.status.slice(1)}

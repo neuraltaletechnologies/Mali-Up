@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -476,8 +475,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     // ── List ─────────────────────────────────────────────
                     Expanded(
                       child: SilentRefresh(
-                        onRefresh: () =>
-                            ref.read(syncServiceProvider).syncNow(),
+                        onRefresh: () => triggerSilentSync(context, ref),
                         child: filtered.isEmpty
                             ? SingleChildScrollView(
                                 physics: silentRefreshPhysics,
@@ -7040,275 +7038,284 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
       ),
       child: Container(
         margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
-        decoration: const BoxDecoration(
+        // A plain Container here (no Material ancestor besides the sheet
+        // route's own MaterialType.transparency one) is why every ListTile
+        // below painted "background color or ink splashes may be invisible"
+        // — Material is what ListTile/InkWell/TextButton splashes actually
+        // paint onto. Same fix as _ProductFormSheet's root just above.
+        child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: Column(
-            children: [
-              const SheetHandle(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _tr('Category', 'Kategoria'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => setState(() {
-                        _showAdd = !_showAdd;
-                        _addError = null;
-                        if (!_showAdd) _newCtrl.clear();
-                      }),
-                      icon: Icon(
-                        _showAdd ? Icons.close_rounded : Icons.add_rounded,
-                        size: 18,
-                        color: AppColors.tealAccent,
-                      ),
-                      label: Text(
-                        _showAdd
-                            ? _tr('Cancel', 'Ghairi')
-                            : _tr('Add New', 'Ongeza Mpya'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.tealAccent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (_showAdd) ...[
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Column(
+              children: [
+                const SheetHandle(),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
                   child: Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _newCtrl,
-                          textCapitalization: TextCapitalization.words,
-                          autofocus: true,
+                        child: Text(
+                          _tr('Category', 'Kategoria'),
                           style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.navyPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: _tr('Category name', 'Jina la kategoria'),
-                            hintStyle: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: AppColors.textDisabled,
-                            ),
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppColors.border,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppColors.tealAccent,
-                                width: 1.5,
-                              ),
-                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _adding ? null : _addCommunityCategory,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navyPrimary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _showAdd = !_showAdd;
+                          _addError = null;
+                          if (!_showAdd) _newCtrl.clear();
+                        }),
+                        icon: Icon(
+                          _showAdd ? Icons.close_rounded : Icons.add_rounded,
+                          size: 18,
+                          color: AppColors.tealAccent,
+                        ),
+                        label: Text(
+                          _showAdd
+                              ? _tr('Cancel', 'Ghairi')
+                              : _tr('Add New', 'Ongeza Mpya'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.tealAccent,
                           ),
-                          child: _adding
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  _tr('Save', 'Hifadhi'),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (_addError != null)
+
+                if (_showAdd) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                    child: Text(
-                      _addError!,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.error,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _newCtrl,
+                            textCapitalization: TextCapitalization.words,
+                            autofocus: true,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navyPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Category name',
+                                'Jina la kategoria',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: AppColors.textDisabled,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.surface,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.border,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.tealAccent,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _adding ? null : _addCommunityCategory,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _adding
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _tr('Save', 'Hifadhi'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_addError != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                      child: Text(
+                        _addError!,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
 
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // Search
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (v) => setState(() => _query = v),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    color: AppColors.navyPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: _tr('Search categories…', 'Tafuta kategoria…'),
-                    hintStyle: GoogleFonts.dmSans(
+                // Search
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _query = v),
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
-                      color: AppColors.textDisabled,
+                      color: AppColors.navyPrimary,
                     ),
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                      color: AppColors.textMuted,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 11,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
+                    decoration: InputDecoration(
+                      hintText: _tr('Search categories…', 'Tafuta kategoria…'),
+                      hintStyle: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: AppColors.textDisabled,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // List
-              Expanded(
-                child: _filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.category_outlined,
-                              size: 36,
-                              color: AppColors.border,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              _tr(
-                                'No categories found.',
-                                'Hakuna kategoria zilizopatikana.',
+                // List
+                Expanded(
+                  child: _filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.category_outlined,
+                                size: 36,
+                                color: AppColors.border,
                               ),
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                        itemCount: _filtered.length,
-                        itemBuilder: (_, i) {
-                          final cat = _filtered[i];
-                          final isSelected = cat.id == widget.selectedId;
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            leading: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.navyPrimary
-                                    : AppColors.surface,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.navyPrimary
-                                      : AppColors.border,
+                              const SizedBox(height: 10),
+                              Text(
+                                _tr(
+                                  'No categories found.',
+                                  'Hakuna kategoria zilizopatikana.',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
                                 ),
                               ),
-                              child: Icon(
-                                Icons.label_rounded,
-                                size: 18,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textMuted,
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                          itemCount: _filtered.length,
+                          itemBuilder: (_, i) {
+                            final cat = _filtered[i];
+                            final isSelected = cat.id == widget.selectedId;
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
                               ),
-                            ),
-                            title: Text(
-                              cat.displayName,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: AppColors.navyPrimary,
+                              leading: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.navyPrimary
+                                      : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.navyPrimary
+                                        : AppColors.border,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.label_rounded,
+                                  size: 18,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textMuted,
+                                ),
                               ),
-                            ),
-                            trailing: isSelected
-                                ? const Icon(
-                                    Icons.check_rounded,
-                                    size: 20,
-                                    color: AppColors.success,
-                                  )
-                                : null,
-                            onTap: () => Navigator.of(context).pop(cat),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                              title: Text(
+                                cat.displayName,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: AppColors.navyPrimary,
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      size: 20,
+                                      color: AppColors.success,
+                                    )
+                                  : null,
+                              onTap: () => Navigator.of(context).pop(cat),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

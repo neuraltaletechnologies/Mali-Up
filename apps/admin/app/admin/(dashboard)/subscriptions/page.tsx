@@ -6,7 +6,7 @@ import { Tabs } from '@/components/ui/tabs'
 import { DataTable } from '@/components/ui/data-table'
 import { KPICard } from '@/components/ui/kpi-card'
 import { StatusDot } from '@/components/ui/status-dot'
-import { PlanBadge } from '@/components/ui/plan-badge'
+import { PlanBadge, PlanSourceBadge } from '@/components/ui/plan-badge'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { GrowthChart } from '@/components/charts/growth-chart'
 import { SkeletonTable, KPIRowSkeleton, RevalidatingBar } from '@/components/ui/skeleton'
@@ -40,7 +40,12 @@ const monthlyColumns: ColumnDef<Subscription, unknown>[] = [
   {
     accessorKey: 'plan',
     header: 'Plan',
-    cell: ({ row }) => <PlanBadge tier={row.original.plan} />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <PlanBadge tier={row.original.plan} />
+        <PlanSourceBadge source={row.original.planSource} />
+      </div>
+    ),
   },
   {
     accessorKey: 'status',

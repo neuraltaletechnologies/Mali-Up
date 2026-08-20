@@ -4,7 +4,7 @@ import type {
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
-  PushBroadcast, BroadcastAudience, BroadcastCategory,
+  PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -321,11 +321,12 @@ export async function assignPlan(
   uid: string,
   businessId: string,
   tier: PlanTier,
-  cycleMonths: number,
+  durationValue: number,
+  durationUnit: DurationUnit,
 ): Promise<{ tier: PlanTier; expiresAt: string | null }> {
   return apiFetch('/api/admin/plans/assign', {
     method: 'POST',
-    body: JSON.stringify({ uid, businessId, tier, cycleMonths }),
+    body: JSON.stringify({ uid, businessId, tier, durationValue, durationUnit }),
   })
 }
 

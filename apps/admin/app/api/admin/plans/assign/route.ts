@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { adminFirestore, adminAuth } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { addDuration, isValidDurationUnit, formatDuration, type DurationUnit } from '@/lib/duration'
 import { FieldValue } from 'firebase-admin/firestore'
 import type { PlanTier } from '@/types'
 
@@ -12,22 +13,37 @@ export async function POST(req: Request) {
   if (denied) return denied
 
   try {
-    const { uid, businessId, tier, cycleMonths } = await req.json() as {
+    const body = await req.json() as {
       uid: string
       businessId: string
       tier: string
-      cycleMonths: number
+      durationValue?: number
+      durationUnit?: string
+      // Back-compat: older callers may still send a plain months count.
+      cycleMonths?: number
     }
+    const { uid, businessId, tier } = body
 
     if (!uid || !businessId || !VALID_TIERS.has(tier)) {
       return NextResponse.json({ error: 'uid, businessId, and valid tier are required' }, { status: 400 })
     }
 
-    const months = Number(cycleMonths) || 6
+    let durationValue = Number(body.durationValue)
+    let durationUnit: DurationUnit = isValidDurationUnit(body.durationUnit) ? body.durationUnit : 'months'
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      // Fall back to the legacy months field, then a 6-month default.
+      durationValue = Number(body.cycleMonths) || 6
+      durationUnit = 'months'
+    }
+    durationValue = Math.min(Math.max(Math.round(durationValue), 1), 3650)
+
+    // This is an admin assigning a plan by hand — it does NOT mean the
+    // business actually paid. Real activations happen exclusively via
+    // ClickPesa (functions/src/clickpesa.ts's verifyClickPesaPayment),
+    // which stamps planSource: 'clickpesa'. Anything set here is stamped
+    // 'admin_grant' so admin UI can show it was manually granted, not paid.
     const now = new Date()
-    const expiresAt = tier === 'starter'
-      ? null
-      : new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000)
+    const expiresAt = tier === 'starter' ? null : addDuration(now, durationValue, durationUnit)
 
     // Businesses live in the top-level `businesses` collection, not under users/{uid}
     const bizRef = adminFirestore.collection('businesses').doc(businessId)
@@ -40,8 +56,13 @@ export async function POST(req: Request) {
       planStartedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }
-    if (expiresAt) update.planExpiresAt = expiresAt
-    if (tier === 'starter') update.planExpiresAt = FieldValue.delete()
+    if (expiresAt) {
+      update.planExpiresAt = expiresAt
+      update.planSource = 'admin_grant'
+    } else {
+      update.planExpiresAt = FieldValue.delete()
+      update.planSource = FieldValue.delete()
+    }
 
     // A subscription belongs to the owner, not a single business — an owner
     // with several businesses shares one plan across all of them. Mirror the
@@ -65,7 +86,9 @@ export async function POST(req: Request) {
     await adminFirestore.collection('users').doc(uid).set(
       {
         plan: tier,
-        ...(expiresAt ? { planExpiresAt: expiresAt } : { planExpiresAt: FieldValue.delete() }),
+        ...(expiresAt
+          ? { planExpiresAt: expiresAt, planSource: 'admin_grant' }
+          : { planExpiresAt: FieldValue.delete(), planSource: FieldValue.delete() }),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
@@ -82,8 +105,9 @@ export async function POST(req: Request) {
       before: { plan: before.plan, subscriptionStatus: before.subscriptionStatus },
       after: {
         plan: tier,
-        cycleMonths: months,
+        duration: tier === 'starter' ? null : formatDuration(durationValue, durationUnit),
         expiresAt: expiresAt?.toISOString(),
+        planSource: expiresAt ? 'admin_grant' : null,
         businessesUpdated: siblingBizSnap.docs.filter((d) => d.id !== businessId).length + 1,
       },
       isDestructive: false,

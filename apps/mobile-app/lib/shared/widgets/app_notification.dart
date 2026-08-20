@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
+import 'nav_aware_fab.dart';
 
 /// Severity of an [AppNotification]. Each maps to a fixed background color
 /// so meaning is always readable at a glance, everywhere in the app.
@@ -63,6 +65,16 @@ class AppNotification {
     if (!context.mounted) return;
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
+    // The overlay lives outside the shell body's subtree, so it can't see
+    // NavBarLift itself — capture it here, at the call site, same as
+    // NavAwareFab does for FABs, so the toast clears the pill nav bar
+    // instead of sitting under it.
+    final mq = MediaQuery.of(context);
+    final navLift = math.max(
+      0.0,
+      NavBarLift.of(context) -
+          math.max(mq.viewPadding.bottom, mq.viewInsets.bottom),
+    );
     showVia(
       overlay,
       message,
@@ -71,6 +83,7 @@ class AppNotification {
       icon: icon,
       showIcon: showIcon,
       action: action,
+      navLift: navLift,
     );
   }
 
@@ -87,6 +100,7 @@ class AppNotification {
     IconData? icon,
     bool showIcon = true,
     SnackBarAction? action,
+    double navLift = 0.0,
   }) {
     _dismissCurrent();
 
@@ -99,6 +113,7 @@ class AppNotification {
         background: _backgroundFor(type),
         icon: resolvedIcon,
         action: action,
+        navLift: navLift,
         onStateCreated: (state) => _currentState = state,
         onDismissed: () {
           entry.remove();
@@ -195,6 +210,7 @@ class _AppToast extends StatefulWidget {
   final Color background;
   final IconData? icon;
   final SnackBarAction? action;
+  final double navLift;
   final ValueChanged<_AppToastState> onStateCreated;
   final VoidCallback onDismissed;
 
@@ -203,6 +219,7 @@ class _AppToast extends StatefulWidget {
     required this.background,
     required this.icon,
     required this.action,
+    required this.navLift,
     required this.onStateCreated,
     required this.onDismissed,
   });
@@ -237,7 +254,8 @@ class _AppToastState extends State<_AppToast> {
     final bottomInset = (media.viewInsets.bottom > 0
             ? media.viewInsets.bottom
             : media.padding.bottom) +
-        16;
+        16 +
+        widget.navLift;
 
     return Positioned(
       left: 16,

@@ -104,7 +104,7 @@ service cloud.firestore {
         // admin approval), which bypasses these rules entirely.
         (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
         !data.keys().hasAny(
-          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides']);
+          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
     }
 
     function isValidBusinessCreate(data) {
@@ -233,7 +233,7 @@ service cloud.firestore {
       // ClickPesa payment) or the admin portal, both on the Admin SDK.
       allow update: if isSignedIn() && isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides']);
+          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
       // Phone lookup (login / onboarding): every real caller queries with
       // limit(1), signed in or not — a signed-in user must not be able to
       // run an unbounded query and dump every user's name/phone.

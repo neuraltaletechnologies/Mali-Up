@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { DataTable } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
-import { PlanBadge } from '@/components/ui/plan-badge'
+import { PlanBadge, PlanSourceBadge } from '@/components/ui/plan-badge'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { fetchBusinesses, fetchUsers, fetchLookups, createBusiness } from '@/lib/admin-api'
@@ -42,7 +42,12 @@ const columns: ColumnDef<Business, unknown>[] = [
   {
     accessorKey: 'plan',
     header: 'Plan',
-    cell: ({ row }) => <PlanBadge tier={row.original.plan} />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <PlanBadge tier={row.original.plan} />
+        <PlanSourceBadge source={row.original.planSource} />
+      </div>
+    ),
   },
   {
     accessorKey: 'status',

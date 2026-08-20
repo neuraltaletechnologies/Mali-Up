@@ -1,4 +1,9 @@
 export type PlanTier = 'starter' | 'growth' | 'business' | 'enterprise' | 'lifetime'
+// Distinguishes a plan set manually from admin (plans/assign — no money
+// actually changed hands) from one activated by a real ClickPesa payment.
+// Absent/undefined on businesses that predate this field or are on Starter.
+export type PlanSource = 'admin_grant' | 'clickpesa'
+export type DurationUnit = 'days' | 'weeks' | 'months' | 'years'
 export type UserStatus = 'active' | 'suspended' | 'pending'
 export type BusinessStatus = 'active' | 'suspended' | 'pending' | 'inactive'
 export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
@@ -50,6 +55,8 @@ export interface Business {
   notes?: AdminNote[]
   staffMembers?: StaffMember[]
   enterpriseOverrides?: EnterpriseOverride
+  planSource?: PlanSource
+  planExpiresAt?: string
 }
 
 // Per-business negotiated terms for the Enterprise tier — a partial override
@@ -78,6 +85,7 @@ export interface Subscription {
   nextBillingDate: string
   paymentMethod: string
   startedAt: string
+  planSource?: PlanSource
 }
 
 export interface LifetimeSubscription {
@@ -341,7 +349,8 @@ export interface PlanAssignment {
   uid: string
   businessId: string
   tier: PlanTier
-  cycleMonths: number
+  durationValue: number
+  durationUnit: DurationUnit
 }
 
 // Enterprise inquiries submitted from the mobile app (plan_requests

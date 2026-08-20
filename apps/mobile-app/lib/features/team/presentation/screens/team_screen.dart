@@ -184,7 +184,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 ),
               Expanded(
                 child: SilentRefresh(
-                  onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+                  onRefresh: () => triggerSilentSync(context, ref),
                   child: filtered.isEmpty
                       ? SingleChildScrollView(
                           physics: silentRefreshPhysics,

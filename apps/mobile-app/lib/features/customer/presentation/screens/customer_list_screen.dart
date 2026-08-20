@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/data/repositories/context_firestore_repository.dart';
-import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -196,7 +195,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
             ),
           Expanded(
             child: SilentRefresh(
-              onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+              onRefresh: () => triggerSilentSync(context, ref),
               child: customersAsync.isLoading
                   ? const CustomerPageSkeleton()
                   : filtered.isEmpty

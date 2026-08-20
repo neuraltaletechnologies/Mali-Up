@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusDot } from '@/components/ui/status-dot'
-import { PlanBadge } from '@/components/ui/plan-badge'
+import { PlanBadge, PlanSourceBadge } from '@/components/ui/plan-badge'
+import { DurationPicker } from '@/components/ui/duration-picker'
+import { formatDuration, type DurationUnit } from '@/lib/duration'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -67,12 +69,13 @@ function EditBusinessDrawer({
   const [category, setCategory] = useState(business.industry)
   const [location, setLocation] = useState(business.location ?? '')
   const [plan,     setPlan]     = useState<PlanTier>(business.plan)
-  const [cycleMonths, setCycleMonths] = useState(6)
+  const [durationValue, setDurationValue] = useState(6)
+  const [durationUnit,  setDurationUnit]  = useState<DurationUnit>('months')
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState<string | null>(null)
 
   const planChanged = plan !== business.plan
-  const paidPlan     = plan !== 'starter' && plan !== 'enterprise' && plan !== 'lifetime'
+  const paidPlan     = plan !== 'starter'
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -85,7 +88,7 @@ function EditBusinessDrawer({
         placeOfBusiness:  location.trim() || undefined,
       })
       if (planChanged) {
-        await assignPlan(uid, bizId, plan, cycleMonths)
+        await assignPlan(uid, bizId, plan, durationValue, durationUnit)
       }
       onSaved()
     } catch (e: unknown) {
@@ -129,19 +132,24 @@ function EditBusinessDrawer({
 
           {planChanged && paidPlan && (
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400">Duration (months)</span>
-              <input
-                type="number" min="1" max="60"
-                value={cycleMonths}
-                onChange={(e) => setCycleMonths(Number(e.target.value))}
-                className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              <span className="text-[11px] text-slate-400">Duration</span>
+              <DurationPicker
+                value={durationValue}
+                unit={durationUnit}
+                onValueChange={setDurationValue}
+                onUnitChange={setDurationUnit}
+                inputClassName="w-20 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                selectClassName="flex-1 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
+              <span className="text-[11px] text-slate-500">
+                This grants access manually — it does not mean the business has paid.
+              </span>
             </label>
           )}
 
           {planChanged && (
             <p className="text-[11px] text-amber-400">
-              Plan: {business.plan} → {plan}{paidPlan ? ` (${cycleMonths} months)` : ''}
+              Plan: {business.plan} → {plan}{paidPlan ? ` (${formatDuration(durationValue, durationUnit)})` : ''}
             </p>
           )}
 
@@ -855,6 +863,21 @@ function EnterpriseTermsPanel({
 const inputCls = 'w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]'
 const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
 
+/** "Expires 12 Sep 2026 (in 24 days)" / "Expired 3 Sep 2026 (11 days ago)" —
+ *  the expiry set by a manual admin grant behaves exactly like a paid
+ *  plan's expiry (same field, same enforcement), so it always shows here. */
+function ExpiryLine({ expiresAt }: { expiresAt: string }) {
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  const expired = ms < 0
+  const days = Math.round(Math.abs(ms) / 86_400_000)
+  const relative = days === 0 ? 'today' : expired ? `${days}d ago` : `in ${days}d`
+  return (
+    <p className={`mt-2 text-[13px] ${expired ? 'text-[var(--status-bad)]' : 'text-[var(--ink-muted)]'}`}>
+      {expired ? 'Expired' : 'Expires'} {formatDate(expiresAt)} ({relative})
+    </p>
+  )
+}
+
 function SkeletonPanel() {
   return (
     <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6 space-y-3">
@@ -1012,6 +1035,7 @@ export default function BusinessDetailPage() {
       <div className="flex flex-wrap items-center gap-6 mb-5 p-4 rounded-lg border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex items-center gap-2">
           <PlanBadge tier={business.plan} />
+          <PlanSourceBadge source={business.planSource} />
           <StatusDot
             status={business.status === 'active' ? 'good' : business.status === 'suspended' ? 'bad' : 'warn'}
             label={business.status.charAt(0).toUpperCase() + business.status.slice(1)}
@@ -1164,6 +1188,7 @@ export default function BusinessDetailPage() {
         <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6">
           <div className="flex items-center gap-3 mb-4">
             <PlanBadge tier={business.plan} />
+            <PlanSourceBadge source={business.planSource} />
             {business.plan === 'lifetime' && (
               <span className="text-[12px] text-[var(--ink-muted)]">Lifetime program — UTT AMIS invested</span>
             )}
@@ -1176,6 +1201,9 @@ export default function BusinessDetailPage() {
           )}
           {business.plan === 'starter' && (
             <p className="mt-2 text-[13px] text-[var(--ink-muted)]">Free trial — no recurring charge.</p>
+          )}
+          {business.plan !== 'starter' && business.planExpiresAt && (
+            <ExpiryLine expiresAt={business.planExpiresAt} />
           )}
           {business.plan === 'lifetime' && (
             <div className="mt-2 text-[13px] text-[var(--ink-muted)]">

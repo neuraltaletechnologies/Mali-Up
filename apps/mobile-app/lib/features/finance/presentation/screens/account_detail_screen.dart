@@ -144,7 +144,7 @@ class _AccountHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       decoration: const BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
@@ -152,53 +152,6 @@ class _AccountHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  switch (account.type) {
-                    'Cash' => Icons.payments_outlined,
-                    'Bank' => Icons.account_balance_outlined,
-                    'Card' => Icons.credit_card_outlined,
-                    _ => Icons.smartphone_outlined,
-                  },
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      account.type,
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (account.accountNumber != null &&
-                        account.accountNumber!.isNotEmpty)
-                      Text(
-                        account.accountNumber!,
-                        style: GoogleFonts.dmSans(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
           Text(
             _t('Current Balance', 'Salio la Sasa'),
             style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 12),

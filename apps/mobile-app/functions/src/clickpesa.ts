@@ -402,6 +402,11 @@ async function checkAndFinalizePayment(
       plan: tier,
       planExpiresAt: expiresAtTs,
       subscriptionStatus: "active",
+      // Distinguishes a real, confirmed payment from an admin manually
+      // granting a plan (see admin app's plans/assign route, which stamps
+      // "admin_grant" instead) — admin UI uses this to show whether a plan
+      // was actually paid for.
+      planSource: "clickpesa",
       planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };

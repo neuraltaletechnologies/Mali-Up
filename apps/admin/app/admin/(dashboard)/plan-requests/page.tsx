@@ -8,6 +8,8 @@ import { DataTable } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { PlanBadge } from '@/components/ui/plan-badge'
+import { DurationPicker } from '@/components/ui/duration-picker'
+import { formatDuration, type DurationUnit } from '@/lib/duration'
 import { fetchPlanRequests, patchPlanRequest, assignPlan, fetchRefunds, patchRefund } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import type { PlanRequest, RefundRequest } from '@/types'
@@ -54,7 +56,8 @@ function RequestDetailDrawer({
   onRefetch: () => void
 }) {
   const [adminNotes, setAdminNotes] = useState(request.adminNotes)
-  const [cycleMonths, setCycleMonths] = useState(6)
+  const [durationValue, setDurationValue] = useState(6)
+  const [durationUnit,  setDurationUnit]  = useState<DurationUnit>('months')
   const [acting, setActing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,7 +71,7 @@ function RequestDetailDrawer({
     setError(null)
     try {
       if (activate) {
-        await assignPlan(request.uid, request.businessId, request.requestedTier, cycleMonths)
+        await assignPlan(request.uid, request.businessId, request.requestedTier, durationValue, durationUnit)
       }
       await patchPlanRequest(request.id, action, adminNotes, activate)
       onRefetch()
@@ -156,17 +159,18 @@ function RequestDetailDrawer({
                 Activation
               </p>
               <label className="block space-y-1">
-                <span className="text-[12px] text-[var(--ink-muted)]">Cycle length</span>
-                <select
-                  value={cycleMonths}
-                  onChange={(e) => setCycleMonths(Number(e.target.value))}
-                  className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                >
-                  <option value={1}>1 month</option>
-                  <option value={3}>3 months</option>
-                  <option value={6}>6 months</option>
-                  <option value={12}>12 months</option>
-                </select>
+                <span className="text-[12px] text-[var(--ink-muted)]">Duration</span>
+                <DurationPicker
+                  value={durationValue}
+                  unit={durationUnit}
+                  onValueChange={setDurationValue}
+                  onUnitChange={setDurationUnit}
+                  inputClassName="w-20 rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  selectClassName="flex-1 rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                />
+                <span className="block text-[11px] text-[var(--ink-faint)]">
+                  {formatDuration(durationValue, durationUnit)} — activating here grants access manually, it doesn't record a payment.
+                </span>
               </label>
               {!canActivate && (
                 <p className="text-[11px] text-[var(--status-bad)]">

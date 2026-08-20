@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Pull-to-refresh with no visual "loading" feedback at all — no spinner, no
-/// skeleton flash. The pull just re-runs [onRefresh] (a sync pull) in the
-/// background; the list updates in place once the underlying Drift stream
-/// picks up the change, exactly as it would from any other sync trigger.
+import '../../core/providers/sync_provider.dart';
+import '../../core/services/localization_service.dart';
+import '../../core/theme/app_colors.dart';
+import 'app_notification.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+/// Pull-to-refresh with none of [RefreshIndicator]'s "page is loading" feel —
+/// no full-width Material spinner, no skeleton flash. Pulling past
+/// [triggerDistance] and releasing re-runs [onRefresh] (a sync pull) in the
+/// background; the list itself updates in place once the underlying Drift
+/// stream picks up the change, same as any other sync trigger. The only
+/// feedback is a small badge-sized spinner near the top edge while the pull
+/// is in flight — see [triggerSilentSync] for the toast shown on completion.
 ///
-/// [RefreshIndicator] always paints a Material spinner while its future is
-/// pending, which is the "feels like loading" look this widget avoids. This
-/// instead watches the scroll's overscroll at the top edge directly: once the
-/// user drags past [triggerDistance] and releases, [onRefresh] fires once.
-///
-/// The wrapped scrollable must use a physics that actually overscrolls at the
-/// edge (e.g. [AlwaysScrollableScrollPhysics] wrapping [BouncingScrollPhysics])
-/// — Android's default [ClampingScrollPhysics] never overscrolls, so no pull
-/// would ever be detected.
+/// This watches the scroll's overscroll at the top edge directly instead of
+/// wrapping [RefreshIndicator]. The wrapped scrollable must use a physics
+/// that actually overscrolls at the edge — see [silentRefreshPhysics] —
+/// since Android's default [ClampingScrollPhysics] never overscrolls, so no
+/// pull would ever be detected.
 class SilentRefresh extends StatefulWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
@@ -46,9 +53,9 @@ class _SilentRefreshState extends State<SilentRefresh> {
       }
     } else if (notification is ScrollEndNotification) {
       if (_armed && !_refreshing) {
-        _refreshing = true;
+        setState(() => _refreshing = true);
         widget.onRefresh().whenComplete(() {
-          if (mounted) _refreshing = false;
+          if (mounted) setState(() => _refreshing = false);
         });
       }
       _pulled = 0;
@@ -61,7 +68,44 @@ class _SilentRefreshState extends State<SilentRefresh> {
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: _onNotification,
-      child: widget.child,
+      child: Stack(
+        children: [
+          widget.child,
+          Positioned(
+            top: 10,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _refreshing ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: AppColors.navyPrimary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(AppColors.yellowBrand),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -72,3 +116,39 @@ class _SilentRefreshState extends State<SilentRefresh> {
 const silentRefreshPhysics = AlwaysScrollableScrollPhysics(
   parent: BouncingScrollPhysics(),
 );
+
+/// Runs a sync cycle for a [SilentRefresh.onRefresh] callback and reports the
+/// outcome via [AppNotification] — the small spinner shows the pull is doing
+/// something, this toast confirms what happened once it's done: new data
+/// pulled in, already up to date, or the sync failed (offline).
+Future<void> triggerSilentSync(BuildContext context, WidgetRef ref) async {
+  final service = ref.read(syncServiceProvider);
+  await service.syncNow();
+  if (!context.mounted) return;
+
+  if (service.lastError != null) {
+    AppNotification.error(
+      context,
+      _tr(
+        "Couldn't refresh — check your connection.",
+        'Imeshindwa kusasisha — angalia mtandao wako.',
+      ),
+    );
+    return;
+  }
+
+  if (service.lastPulledCount > 0) {
+    AppNotification.success(
+      context,
+      _tr(
+        'Updated with the latest changes.',
+        'Imesasishwa na mabadiliko mapya.',
+      ),
+    );
+  } else {
+    AppNotification.info(
+      context,
+      _tr('Already up to date.', 'Tayari iko sawa.'),
+    );
+  }
+}

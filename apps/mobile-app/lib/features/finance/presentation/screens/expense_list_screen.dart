@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -165,7 +164,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
           Expanded(
             child: SilentRefresh(
-              onRefresh: () => ref.read(syncServiceProvider).syncNow(),
+              onRefresh: () => triggerSilentSync(context, ref),
               child: isLoading
                   ? const ExpensePageSkeleton()
                   : filtered.isEmpty
