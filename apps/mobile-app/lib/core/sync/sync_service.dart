@@ -455,10 +455,15 @@ class SyncService extends ChangeNotifier {
       final serverUpdatedAt = localRow?.serverUpdatedAt ?? 0;
       if (serverTs > serverUpdatedAt) {
         // Last-write-wins: local changes take priority for debt records
-        // (financial data must not be silently overwritten)
-        await _localDebt.markConflict(entry.entityId);
-        await _queue.markConflict(entry.id, 'Server version is newer');
-        return;
+        // (financial data must not be silently overwritten) — actually
+        // resolve it rather than stalling the push forever.
+        final localWon = await _conflicts.resolveDebtConflict(entry.entityId);
+        if (!localWon) {
+          // Server won — cancel any further queued updates for this entity
+          await _queue.cancelForEntity(entry.entityId);
+          await _queue.markCompleted(entry.id);
+          return;
+        }
       }
     }
 

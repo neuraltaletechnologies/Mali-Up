@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../features/customer/data/repositories/local_customer_repository.dart';
 import '../../features/customer/data/repositories/remote_customer_repository.dart';
+import '../../features/debt/data/mappers/debt_mapper.dart';
+import '../../features/debt/data/repositories/local_debt_repository.dart';
+import '../../features/debt/data/repositories/remote_debt_repository.dart';
 import '../../features/inventory/data/repositories/local_inventory_repository.dart';
 import '../../features/inventory/data/repositories/remote_inventory_repository.dart';
 import '../../features/invoice/data/repositories/local_invoice_repository.dart';
@@ -12,6 +15,9 @@ import '../database/app_database.dart';
 /// Invoice conflicts   → flag both sides for user review (never auto-resolve
 ///                        financial documents; NBAA compliance risk).
 /// Customer conflicts  → last-write-wins by `updatedAt`.
+/// Debt conflicts       → last-write-wins by `updatedAt`, same as customers —
+///                        a debt/payment edit must actually reach the server
+///                        instead of being stuck in permanent conflict.
 /// Inventory conflicts → delta-merge: apply the accumulated offline delta on
 ///                        top of the current server quantity so concurrent POS
 ///                        sales compose correctly.
@@ -68,6 +74,47 @@ class ConflictResolver {
     if (serverCustomer == null) return true;
     await localRepo.upsert(
       serverCustomer,
+      syncStatus: 'synced',
+      localVersion: localRaw.localVersion,
+      createdAtMs: localRaw.createdAt,
+      serverUpdatedAt: serverMs,
+    );
+    return false;
+  }
+
+  // ─── Debt ───────────────────────────────────────────────────────────────────
+
+  /// Compares the local `updatedAt` against the server `updatedAt`.
+  /// The winner's data is written to both Drift and Firestore. Debt records
+  /// (balances, payments) are financial data — an edit or payment the user
+  /// just made locally must not be left stranded in permanent "conflict"
+  /// limbo, so this always pushes forward instead of only flagging.
+  /// Returns `true` if the local version won (SyncService should push it),
+  /// `false` if the server version won and the local row was overwritten.
+  Future<bool> resolveDebtConflict(String debtId) async {
+    final localRepo = LocalDebtRepository(_db, businessId: businessId);
+    final remoteRepo = RemoteDebtRepository(uid: uid, businessId: businessId);
+
+    final localRaw = await localRepo.getRawById(debtId);
+    final serverData = await remoteRepo.fetchRaw(debtId);
+
+    if (localRaw == null || serverData == null) return true;
+
+    final localMs = localRaw.updatedAt;
+    final serverTs = serverData['updatedAt'];
+    final serverMs = serverTs is Timestamp
+        ? serverTs.millisecondsSinceEpoch
+        : (serverTs is int ? serverTs : 0);
+
+    if (localMs >= serverMs) {
+      // Local wins — nothing extra to do; SyncService will push it
+      return true;
+    }
+
+    // Server wins (edited more recently on another device) — pull it down.
+    final serverDebt = DebtMapper.fromFirestore(serverData, debtId);
+    await localRepo.upsert(
+      serverDebt,
       syncStatus: 'synced',
       localVersion: localRaw.localVersion,
       createdAtMs: localRaw.createdAt,

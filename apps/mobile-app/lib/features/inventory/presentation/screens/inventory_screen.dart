@@ -1667,6 +1667,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   double _lastBatchYield = 0;
 
   Future<void> _handleRecordProduction() async {
+    if (_recording) return;
     final item = widget.item;
     final name = (item['name'] ?? '').toString();
     final unit = (item['unit'] ?? 'pcs').toString();
@@ -3311,6 +3312,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   }
 
   Future<void> _save() async {
+    // Guard against double-submission (e.g. a fast double-tap before the
+    // button's disabled state repaints) — without this, two concurrent
+    // saves can race each other and one ends up touching a widget the
+    // other has already popped.
+    if (_saving) return;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
@@ -3336,6 +3342,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         if (i.nameCtrl.text.trim().isEmpty) {
           _snack(
             _tr('Each ingredient needs a name', 'Kila kiungo kinahitaji jina'),
+          );
+          return;
+        }
+        if (i.cost <= 0) {
+          _snack(
+            _tr(
+              'Enter a buying price for each ingredient',
+              'Ingiza bei ya ununuzi kwa kila kiungo',
+            ),
           );
           return;
         }
@@ -3607,9 +3622,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         categoryId: _selectedCategoryId,
         categoryName: resolvedCatName,
         sku: _skuCtrl.text.trim(),
-        currentStock: _type != ProductType.service
-            ? (double.tryParse(_stockCtrl.text) ?? 0)
-            : 0,
+        // New manufactured products start at 0 stock — the Kiasi field is
+        // hidden for them since production only happens through Record
+        // Production, which is what actually adds finished units. Editing
+        // an existing manufactured product (or restocking one) still
+        // carries its real current stock through unchanged.
+        currentStock: _type == ProductType.service
+            ? 0
+            : (isManufactured && !_isEdit && _restockTarget == null)
+            ? 0
+            : (double.tryParse(_stockCtrl.text) ?? 0),
         reorderPoint:
             (_type == ProductType.stock ||
                 _type == ProductType.perishable ||
@@ -4117,7 +4139,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         (!_isEdit &&
             _restockTarget == null &&
             _type != ProductType.customerReturn &&
-            _type != ProductType.manufactured &&
             query.isNotEmpty &&
             _nameFocus.hasFocus)
         ? allInventory
@@ -4138,9 +4159,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     final isReturn = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
-    // Manufactured items show a simplified stock section (no purchase toggle)
+    // Manufactured items get their stock from recording a production batch
+    // (see _ProductDetailSheet._handleRecordProduction), not from typing a
+    // quantity here — so the generic Stock section is skipped for them,
+    // except when this sheet has fallen into restock mode against an
+    // existing product (a quantity-to-add field is still needed there).
     final showStock =
-        !isReturn && _type != ProductType.service && config.showStock;
+        !isReturn &&
+        _type != ProductType.service &&
+        (!isManufactured || _restockTarget != null) &&
+        config.showStock;
     final showProfit = !isReturn && _buyVal > 0 && _sellVal > 0;
     final profitAmt = _profit(_buyVal, _sellVal);
     final marginAmt = _margin(_buyVal, _sellVal);
@@ -5159,6 +5187,28 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _FormLabel(_tr('Reorder point', 'Kikomo')),
+                        const SizedBox(height: 2),
+                        Text(
+                          _tr(
+                            'Alert me when finished stock drops to this level.',
+                            'Nitaarifiwe stoo ya bidhaa iliyokamilika inapofika kikomo hiki.',
+                          ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _reorderCtrl,
+                          hint: '5',
+                          keyboard: TextInputType.number,
+                          formatters: [
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
 
@@ -6431,7 +6481,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
                       fontSize: 12,
                       color: AppColors.textMuted,
                     ),
-                    labelText: _tr('Cost/unit', 'Gharama/kitengo'),
+                    labelText: _tr('Cost/unit *', 'Gharama/kitengo *'),
                     labelStyle: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,

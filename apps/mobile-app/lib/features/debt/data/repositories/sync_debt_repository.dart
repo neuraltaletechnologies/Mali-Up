@@ -53,11 +53,16 @@ class SyncDebtRepository implements DebtRepository {
 
     int localVersion = 1;
     int createdAtMs = now;
+    int? serverUpdatedAt;
     if (!isNew) {
       final existing = await _local.getRawById(entityId);
       if (existing != null) {
         localVersion = existing.localVersion + 1;
         createdAtMs = existing.createdAt;
+        // Carry the last-known server timestamp forward — otherwise every
+        // local edit wipes it back to null, and the next push mistakes its
+        // own already-synced debt for a server-side conflict.
+        serverUpdatedAt = existing.serverUpdatedAt;
       }
     }
 
@@ -94,6 +99,7 @@ class SyncDebtRepository implements DebtRepository {
         syncStatus: isNew ? 'pending_create' : 'pending_update',
         localVersion: localVersion,
         createdAtMs: createdAtMs,
+        serverUpdatedAt: serverUpdatedAt,
       );
       await _queue.enqueue(
         SyncQueueTableCompanion(

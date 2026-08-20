@@ -51,6 +51,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   final _planActivationWatcher = _PlanActivationWatcher();
   String _currentBusinessName = '';
   late final VoidCallback _versionGateListener;
+  // Timestamp of the last back-press on the Home tab, used for the
+  // double-back-to-exit confirmation.
+  DateTime? _lastBackPressAt;
   // slotPosition (0..2) -> catalog key of the screen assigned to that nav
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
@@ -87,7 +90,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeShowUpdateBanner(),
     );
-   
   }
 
   @override
@@ -173,9 +175,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // isOnlineProvider's transition listener in build() never sees (it only
   // fires on a genuine flip after this shell has mounted). Checked once,
   // after first frame, alongside the other post-frame checks in initState.
-  
-
-
 
   bool get _isSwahili => LocalizationService.isSwahili;
 
@@ -679,11 +678,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                       location,
                                       AppRouter.notificationsPath,
                                     ),
-                                    onTap: () => _closeNavigationPanelThenNavigate(
-                                      dialogContext,
-                                      context,
-                                      AppRouter.notificationsPath,
-                                    ),
+                                    onTap: () =>
+                                        _closeNavigationPanelThenNavigate(
+                                          dialogContext,
+                                          context,
+                                          AppRouter.notificationsPath,
+                                        ),
                                   ),
                             ),
                             if (ps.canViewSales ||
@@ -1394,183 +1394,221 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       });
     });
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Shell pages (dashboard, sales, reports…) have a white top background,
-      // so keep dark status bar icons even when returning from navy screens.
-      value: AppTheme.statusBarDarkIcons,
-      child: FutureBuilder<Map<String, dynamic>?>(
-        future: _profileFuture,
-        builder: (context, snapshot) {
-          final profileData = snapshot.data;
-          final profile = _buildProfileData(currentUser, profileData);
-          final businesses = _businessesFromProfile(profileData);
-          final selectedContext = _defaultContextFromProfile(profileData);
-          final canSwitch = businesses.length > 1;
-          final destinations = _buildNavDestinations(ps);
-          final currentIndex = _calculateIndex(location, destinations);
+    return PopScope(
+      // Tab routes (dashboard, sales, inventory, …) are top-level siblings
+      // navigated between via context.go(), which replaces the current
+      // location instead of pushing — so there's never a previous route for
+      // the system back button to pop to. Without this, back on any
+      // non-Home tab fell straight through to closing the app. We intercept
+      // it ourselves: first hop back to Home, then require a second press
+      // to actually exit (mirrors the double-back-to-exit pattern most
+      // Android apps use).
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (location != AppRoutes.dashboard) {
+          context.go(AppRoutes.dashboard);
+          return;
+        }
+        final now = DateTime.now();
+        final last = _lastBackPressAt;
+        if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPressAt = now;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                _tr('Press back again to exit', 'Bonyeza nyuma tena kutoka'),
+              ),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // Shell pages (dashboard, sales, reports…) have a white top background,
+        // so keep dark status bar icons even when returning from navy screens.
+        value: AppTheme.statusBarDarkIcons,
+        child: FutureBuilder<Map<String, dynamic>?>(
+          future: _profileFuture,
+          builder: (context, snapshot) {
+            final profileData = snapshot.data;
+            final profile = _buildProfileData(currentUser, profileData);
+            final businesses = _businessesFromProfile(profileData);
+            final selectedContext = _defaultContextFromProfile(profileData);
+            final canSwitch = businesses.length > 1;
+            final destinations = _buildNavDestinations(ps);
+            final currentIndex = _calculateIndex(location, destinations);
 
-          return Scaffold(
-            extendBodyBehindAppBar: true,
-            extendBody: true,
-            drawerScrimColor: Colors.transparent,
-            appBar: PreferredSize(
-              preferredSize: Size.fromHeight(
-                54 + MediaQuery.of(context).padding.top,
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 4.0,
-                  ),
-                  child: Container(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Notifications moved into the nav panel itself (see
-                        // _openNavigationPanel) — this small pulsing dot is
-                        // the only thing left in the top bar, just enough to
-                        // say "there's something waiting for you in there".
-                        _MenuToggleButton(
-                          tooltip: _tr(
-                            'Open navigation menu',
-                            'Fungua menyu ya urambazaji',
-                          ),
-                          onPressed: () => _openNavigationPanel(
-                            context: context,
-                            location: location,
-                            profile: profile,
-                            ps: ps,
-                            member: member,
-                            planStatus: planStatus,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: _FinanceContextSwitcher(
-                                selectedContext: selectedContext,
-                                canSwitch: canSwitch,
-                                businesses: businesses,
-                                isOnline: isOnline,
-                                onChanged: _switchFinanceContext,
-                                onManageBusinesses: () async {
-                                  await context.push(AppRouter.businessesPath);
-                                  _refreshProfile();
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+            return Scaffold(
+              extendBodyBehindAppBar: true,
+              extendBody: true,
+              drawerScrimColor: Colors.transparent,
+              appBar: PreferredSize(
+                preferredSize: Size.fromHeight(
+                  54 + MediaQuery.of(context).padding.top,
                 ),
-              ),
-            ),
-            body: Builder(
-              // With extendBody, Scaffold injects the bottom nav's height into
-              // the body's MediaQuery padding — republish it as NavBarLift so
-              // FABs (whose slot strips MediaQuery padding) can clear the nav.
-              builder: (bodyContext) => NavBarLift(
-                lift: MediaQuery.of(bodyContext).padding.bottom,
-                child: widget.child,
-              ),
-            ),
-            bottomNavigationBar: ValueListenableBuilder<int>(
-              valueListenable: sheetOpenNotifier,
-              builder: (_, sheetCount, child) => ClipRect(
-                child: AnimatedAlign(
-                  alignment: Alignment.topCenter,
-                  heightFactor: sheetCount > 0 ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 280),
-                  curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
-                  child: child,
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      8,
-                      24,
-                      MediaQuery.of(context).padding.bottom > 0
-                          ? MediaQuery.of(context).padding.bottom + 8
-                          : 16.0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 4.0,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
+                      height: 46,
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       decoration: BoxDecoration(
-                        color: AppColors.navyPrimary,
-                        borderRadius: BorderRadius.circular(30),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.28),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: List.generate(destinations.length, (index) {
-                          final destination = destinations[index];
-                          final isSelected = index == currentIndex;
-                          final isCustomizable =
-                              destination.slotPosition != null;
-                          return _buildBottomNavItem(
-                            context,
-                            destination,
-                            isSelected,
-                            index,
-                            onLongPressStart: !isCustomizable
-                                ? null
-                                : (details) => _startNavPick(
-                                    context,
-                                    ps,
-                                    destination,
-                                    details.globalPosition,
-                                  ),
-                            onLongPressMoveUpdate: !isCustomizable
-                                ? null
-                                : (details) =>
-                                      _updateNavPick(details.globalPosition),
-                            onLongPressEnd: !isCustomizable
-                                ? null
-                                : (_) => _endNavPick(),
-                            onLongPressCancel: !isCustomizable
-                                ? null
-                                : _cancelNavPick,
-                          );
-                        }),
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Notifications moved into the nav panel itself (see
+                          // _openNavigationPanel) — this small pulsing dot is
+                          // the only thing left in the top bar, just enough to
+                          // say "there's something waiting for you in there".
+                          _MenuToggleButton(
+                            tooltip: _tr(
+                              'Open navigation menu',
+                              'Fungua menyu ya urambazaji',
+                            ),
+                            onPressed: () => _openNavigationPanel(
+                              context: context,
+                              location: location,
+                              profile: profile,
+                              ps: ps,
+                              member: member,
+                              planStatus: planStatus,
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: _FinanceContextSwitcher(
+                                  selectedContext: selectedContext,
+                                  canSwitch: canSwitch,
+                                  businesses: businesses,
+                                  isOnline: isOnline,
+                                  onChanged: _switchFinanceContext,
+                                  onManageBusinesses: () async {
+                                    await context.push(
+                                      AppRouter.businessesPath,
+                                    );
+                                    _refreshProfile();
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+              body: Builder(
+                // With extendBody, Scaffold injects the bottom nav's height into
+                // the body's MediaQuery padding — republish it as NavBarLift so
+                // FABs (whose slot strips MediaQuery padding) can clear the nav.
+                builder: (bodyContext) => NavBarLift(
+                  lift: MediaQuery.of(bodyContext).padding.bottom,
+                  child: widget.child,
+                ),
+              ),
+              bottomNavigationBar: ValueListenableBuilder<int>(
+                valueListenable: sheetOpenNotifier,
+                builder: (_, sheetCount, child) => ClipRect(
+                  child: AnimatedAlign(
+                    alignment: Alignment.topCenter,
+                    heightFactor: sheetCount > 0 ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 280),
+                    curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
+                    child: child,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        8,
+                        24,
+                        MediaQuery.of(context).padding.bottom > 0
+                            ? MediaQuery.of(context).padding.bottom + 8
+                            : 16.0,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyPrimary,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: List.generate(destinations.length, (index) {
+                            final destination = destinations[index];
+                            final isSelected = index == currentIndex;
+                            final isCustomizable =
+                                destination.slotPosition != null;
+                            return _buildBottomNavItem(
+                              context,
+                              destination,
+                              isSelected,
+                              index,
+                              onLongPressStart: !isCustomizable
+                                  ? null
+                                  : (details) => _startNavPick(
+                                      context,
+                                      ps,
+                                      destination,
+                                      details.globalPosition,
+                                    ),
+                              onLongPressMoveUpdate: !isCustomizable
+                                  ? null
+                                  : (details) =>
+                                        _updateNavPick(details.globalPosition),
+                              onLongPressEnd: !isCustomizable
+                                  ? null
+                                  : (_) => _endNavPick(),
+                              onLongPressCancel: !isCustomizable
+                                  ? null
+                                  : _cancelNavPick,
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -1770,11 +1808,7 @@ class _MenuToggleButton extends StatelessWidget {
               onPressed: onPressed,
             ),
             if (unreadCount > 0)
-              const Positioned(
-                top: 2,
-                right: 2,
-                child: _PulsingBellIcon(),
-              ),
+              const Positioned(top: 2, right: 2, child: _PulsingBellIcon()),
           ],
         );
       },
@@ -1956,10 +1990,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
                                 color: AppColors.success,
                               )
                             : null,
-                        onTap: () =>
-                            Navigator.of(sheetContext).pop(
-                              business['id'] as String,
-                            ),
+                        onTap: () => Navigator.of(
+                          sheetContext,
+                        ).pop(business['id'] as String),
                       );
                     },
                   ),

@@ -17,6 +17,8 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../../debt/data/customer_debt_sync_service.dart';
+import '../../../finance/data/payment_account_service.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
@@ -1743,19 +1745,39 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               builder: (_) => CustomerPayDebtSheet(
                                 customerName: live.name,
                                 balance: balance,
-                                onSave: (amount, method, note) async {
+                                onSave: (amount, method, accountId, note) async {
                                   final newBalance = balance - amount;
-                                  await ref
-                                      .read(customerRepositoryProvider)
-                                      .save(
-                                        live.copyWith(
-                                          balance: newBalance == 0
-                                              ? '0'
-                                              : newBalance.toStringAsFixed(0),
-                                        ),
-                                      );
                                   final user =
                                       FirebaseAuth.instance.currentUser;
+                                  // Move the balance as a delta (Drift + queued
+                                  // FieldValue.increment) — Customer.toFirestore()
+                                  // excludes balance, so a full save would never
+                                  // reach the server.
+                                  await ref
+                                      .read(customerRepositoryProvider)
+                                      .adjustBalance(live.id, -amount);
+                                  // Pay down the customer's open receivables so
+                                  // the Debts screen reflects this payment too.
+                                  await applyCustomerPaymentToDebts(
+                                    ref,
+                                    customerId: live.id,
+                                    amount: amount,
+                                    method: method,
+                                    note: note,
+                                    recordedBy: user?.uid ?? '',
+                                  );
+                                  // A customer settling a receivable is money
+                                  // coming in — move it through the chosen
+                                  // account so Cash Flow reflects the collection.
+                                  await moveMoneyForAccount(
+                                    ref,
+                                    accountId: accountId,
+                                    amount: amount,
+                                    isDeposit: true,
+                                    description: live.name,
+                                    reference: live.id,
+                                    createdBy: user?.uid ?? '',
+                                  );
                                   if (user != null) {
                                     final ownerUid =
                                         ref.read(tenantOwnerUidProvider) ??

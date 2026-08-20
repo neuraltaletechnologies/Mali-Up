@@ -16,7 +16,13 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../debt/data/customer_debt_sync_service.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
@@ -691,7 +697,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
       builder: (_) => CustomerPayDebtSheet(
         customerName: _customer.name,
         balance: balance,
-        onSave: (amount, method, note) async {
+        onSave: (amount, method, accountId, note) async {
           final newBalance = balance - amount;
           final user = FirebaseAuth.instance.currentUser;
           try {
@@ -710,6 +716,18 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
               method: method,
               note: note,
               recordedBy: user?.uid ?? '',
+            );
+            // A customer settling a receivable is money coming in — move it
+            // through the chosen account so Cash Flow reflects the
+            // collection, same as a debt-screen repayment does.
+            await moveMoneyForAccount(
+              ref,
+              accountId: accountId,
+              amount: amount,
+              isDeposit: true,
+              description: _customer.name,
+              reference: _customer.id,
+              createdBy: user?.uid ?? '',
             );
             // Record the payment event in Firestore subcollection
             if (user != null) {
@@ -3128,10 +3146,15 @@ class _MiniStat extends StatelessWidget {
 // Pay Debt Bottom Sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-class CustomerPayDebtSheet extends StatefulWidget {
+class CustomerPayDebtSheet extends ConsumerStatefulWidget {
   final String customerName;
   final double balance;
-  final Future<void> Function(double amount, String method, String note) onSave;
+  final Future<void> Function(
+    double amount,
+    String method,
+    String accountId,
+    String note,
+  ) onSave;
 
   const CustomerPayDebtSheet({
     super.key,
@@ -3141,15 +3164,17 @@ class CustomerPayDebtSheet extends StatefulWidget {
   });
 
   @override
-  State<CustomerPayDebtSheet> createState() => _CustomerPayDebtSheetState();
+  ConsumerState<CustomerPayDebtSheet> createState() =>
+      _CustomerPayDebtSheetState();
 }
 
-class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
+class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _method = 'cash';
+  CashAccount? _selectedAccount;
   bool _saving = false;
+  String? _paymentError;
 
   @override
   void dispose() {
@@ -3158,14 +3183,42 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
     super.dispose();
   }
 
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based so it works fully offline; the sheet shows its
+  // own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+  }
+
   Future<void> _save() async {
+    if (_paymentError != null) setState(() => _paymentError = null);
     if (!_formKey.currentState!.validate()) return;
+    final account = _selectedAccount;
+    if (account == null) {
+      setState(
+        () => _paymentError = _tr(
+          'Select a payment account',
+          'Chagua akaunti ya malipo',
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     final amount =
         double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
             0;
+    final method = switch (account.id) {
+      PaymentMethodAccounts.cashId => 'cash',
+      PaymentMethodAccounts.mpesaId => 'mpesa',
+      PaymentMethodAccounts.bankId => 'bank',
+      PaymentMethodAccounts.cardId => 'card',
+      _ => account.name,
+    };
     try {
-      await widget.onSave(amount, _method, _noteCtrl.text.trim());
+      await widget.onSave(amount, method, account.id, _noteCtrl.text.trim());
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
@@ -3260,7 +3313,9 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
             ),
             const SizedBox(height: 14),
 
-            // Payment method chips
+            // Payment method chips — same shared account picker as Cash Flow
+            // and the debt-tracking payment sheet, so the options and the
+            // money movement they trigger always match across screens.
             Text(
               _tr('Payment Method', 'Njia ya Malipo'),
               style: GoogleFonts.dmSans(
@@ -3269,32 +3324,19 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
                   color: AppColors.textMuted),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                _PayMethodChip(
-                    method: 'cash',
-                    label: _tr('Cash', 'Taslimu'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _PayMethodChip(
-                    method: 'mpesa',
-                    label: 'M-Pesa',
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _PayMethodChip(
-                    method: 'bank',
-                    label: _tr('Bank', 'Benki'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _PayMethodChip(
-                    method: 'card',
-                    label: _tr('Card', 'Kadi'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-              ],
+            PaymentAccountChips(
+              selectedAccountId: _selectedAccount?.id,
+              onSelectAccount: (a) => setState(() {
+                _selectedAccount = a;
+                _paymentError = null;
+              }),
+              onActivationRequired: (message) =>
+                  setState(() => _paymentError = message),
+              onActivateMethod: (spec) => _showActivateAccountSheet(spec),
+            ),
+            ValidationBanner(
+              message: _paymentError,
+              onDismiss: () => setState(() => _paymentError = null),
             ),
             const SizedBox(height: 14),
 
@@ -3347,53 +3389,6 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PayMethodChip extends StatelessWidget {
-  final String method;
-  final String label;
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  const _PayMethodChip({
-    required this.method,
-    required this.label,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final active = method == selected;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onSelect(method),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: active
-                ? AppColors.tealAccent
-                : AppColors.tealAccent.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: active
-                  ? AppColors.tealAccent
-                  : AppColors.tealAccent.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: active ? Colors.white : AppColors.tealAccent),
-          ),
         ),
       ),
     );

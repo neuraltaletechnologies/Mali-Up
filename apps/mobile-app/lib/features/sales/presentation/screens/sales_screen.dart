@@ -2261,6 +2261,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           await db.inventoryDao.applyCommittedDelta(itemId, -e.qty.toDouble());
         }
       } catch (e, st) {
+        debugPrint('[Sale] Drift stock mirror failed: $e');
         unawaited(Sentry.captureException(e, stackTrace: st));
       }
 
@@ -2275,6 +2276,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             _selectedCustomer!.balanceAmount + outstanding,
           );
         } catch (e, st) {
+          debugPrint('[Sale] Drift customer balance mirror failed: $e');
           unawaited(Sentry.captureException(e, stackTrace: st));
         }
       }
@@ -2328,6 +2330,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         now: now,
       );
     } catch (e, st) {
+      debugPrint('[Sale] Save failed: $e\n$st');
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() {
@@ -2728,6 +2731,37 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
+  /// Add-customer entry point from the inline suggestions dropdown: users
+  /// who have reached their plan's customer limit are gated behind the
+  /// shared slide-up upgrade sheet instead of the add-customer form, same
+  /// as the Customers list FAB and the shared customer picker.
+  Future<void> _openAddNewCustomerFromSuggestions() async {
+    final tier =
+        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    final currentCount = ref.read(customerListProvider).value?.length ?? 0;
+    if (maxCustomers != -1 && currentCount >= maxCustomers) {
+      await showUpgradeSheet(
+        context,
+        featureKey: PlanFeatureKey.customerLimit,
+        triggerReason: _tr(
+          'You have reached the customer limit for your plan. Upgrade to add more customers.',
+          'Umefika kikomo cha wateja kwa mpango wako. Panda mpango kuongeza wateja zaidi.',
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
+      builder: (_) => AddCustomerDialog(
+        initialName: _customerCtrl.text.trim(),
+        onAdded: _selectCustomer,
+      ),
+    );
+  }
+
   Widget _buildCustomerSuggestions() {
     return Container(
       margin: const EdgeInsets.only(top: 4),
@@ -2797,13 +2831,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           InkWell(
-            onTap: () => showAppSheet<void>(
-              context,
-              builder: (_) => AddCustomerDialog(
-                initialName: _customerCtrl.text.trim(),
-                onAdded: _selectCustomer,
-              ),
-            ),
+            onTap: _openAddNewCustomerFromSuggestions,
             borderRadius: const BorderRadius.vertical(
               bottom: Radius.circular(14),
             ),

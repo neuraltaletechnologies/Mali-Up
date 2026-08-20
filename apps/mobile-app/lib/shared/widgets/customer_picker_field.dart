@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/services/localization_service.dart';
+import '../../core/services/plan_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/customer/data/customer_providers.dart';
 import '../../features/customer/domain/models/customer.dart';
 import '../../features/customer/presentation/widgets/add_customer_dialog.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
+import 'upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -185,7 +187,7 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
 // CustomerPickerSheet — modal bottom sheet with search + add-new
 // ─────────────────────────────────────────────────────────────────────────────
 
-class CustomerPickerSheet extends StatefulWidget {
+class CustomerPickerSheet extends ConsumerStatefulWidget {
   final List<Customer> customers;
   final Customer? selected;
 
@@ -196,10 +198,11 @@ class CustomerPickerSheet extends StatefulWidget {
   });
 
   @override
-  State<CustomerPickerSheet> createState() => _CustomerPickerSheetState();
+  ConsumerState<CustomerPickerSheet> createState() =>
+      _CustomerPickerSheetState();
 }
 
-class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
+class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
   String _query = '';
   late List<Customer> _customers;
 
@@ -219,6 +222,30 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   }
 
   void _openAddNew() async {
+    // Users who have reached their plan's customer limit are gated behind
+    // the shared slide-up upgrade sheet instead of the add-customer form.
+    // The limit is plan-driven (Firestore `maxCustomers`, admin-editable)
+    // and defaults to unlimited. Mirrors the FAB check in
+    // customer_list_screen.dart so every "add customer" entry point (here:
+    // invoice creation and manual debt entry, which both open via this
+    // picker) enforces the same limit.
+    final tier =
+        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    if (maxCustomers != -1 && widget.customers.length >= maxCustomers) {
+      await showUpgradeSheet(
+        context,
+        featureKey: PlanFeatureKey.customerLimit,
+        triggerReason: _tr(
+          'You have reached the customer limit for your plan. Upgrade to add more customers.',
+          'Umefika kikomo cha wateja kwa mpango wako. Panda mpango kuongeza wateja zaidi.',
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+
     // AddCustomerDialog is built as a bottom sheet (SheetHandle, rounded top
     // corners, unbounded-height inner scroll view) — it must be presented via
     // showAppSheet, which gives it a bounded height. Presenting it with

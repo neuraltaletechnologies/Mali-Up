@@ -23,9 +23,13 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
 String _fmtAmt(double v) {
-  if (v >= 1000000) return 'TZS ${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return 'TZS ${(v / 1000).toStringAsFixed(0)}K';
-  return 'TZS ${v.toStringAsFixed(0)}';
+  final s = v.toStringAsFixed(0);
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return 'TZS $buf';
 }
 
 String _fmtDate(String iso) {
