@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/validation_banner.dart';
@@ -23,6 +25,8 @@ import '../../domain/models/expense_category.dart';
 import '../../domain/models/recurring_expense_template.dart';
 import '../../domain/payment_method_accounts.dart';
 import '../expense_category_style.dart';
+import '../providers/expense_providers.dart';
+import '../widgets/activate_account_sheet.dart';
 import '../widgets/manage_expense_categories_sheet.dart';
 import '../widgets/payment_account_chips.dart';
 import '../../../debt/data/debt_providers.dart';
@@ -146,16 +150,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Could not open ${source == ImageSource.camera ? 'the camera' : 'your photos'}. Check app permissions and try again.',
-              'Imeshindwa kufungua ${source == ImageSource.camera ? 'kamera' : 'picha zako'}. Angalia ruhusa za programu kisha ujaribu tena.',
-            ),
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.error,
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not open ${source == ImageSource.camera ? 'the camera' : 'your photos'}. Check app permissions and try again.',
+          'Imeshindwa kufungua ${source == ImageSource.camera ? 'kamera' : 'picha zako'}. Angalia ruhusa za programu kisha ujaribu tena.',
         ),
       );
     }
@@ -299,14 +298,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not authenticated');
 
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final col = repo.scopeCollection(
-        uid: user.uid,
-        context: ctx,
-        childCollection: 'expenses',
-      );
-
       // Upload receipt if a new file was selected
       final uploadedUrl = await _uploadReceipt(user.uid);
       if (_receiptFile != null && uploadedUrl == null) {
@@ -320,13 +311,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           _errorMessage = message;
           _errorField = _ExpenseErrorField.general;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppNotification.error(context, message);
         return;
       }
       final finalReceiptUrl = uploadedUrl ?? '';
@@ -334,36 +319,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
-      final data = <String, dynamic>{
-        'category': _categoryKey,
-        'amount': amountStr,
-        'date': dateStr,
-        'note': _noteCtrl.text.trim(),
-        'recipient': _recipientCtrl.text.trim(),
-        'paymentMethod': paymentMethodValue,
-        'paymentAccountId': account.id,
-        'status': 'approved',
-        'createdBy': user.uid,
-        'isRecurring': _isRecurring,
-        if (_isRecurring) 'recurrenceType': _frequency,
-        'receiptUrl': finalReceiptUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      // Core expense write goes through the Drift + sync-queue repository —
+      // this is what makes it work fully offline (matches every other
+      // synced entity: customers, inventory, sales, debts). It used to write
+      // straight to Firestore here, which hangs/fails while offline since
+      // Firestore's own persistence cache is disabled (see main.dart).
+      final wasRecurring = widget.expenseToEdit?.isRecurring ?? false;
+      final expense = Expense(
+        id: _isEditing ? widget.expenseToEdit!.id : '',
+        category: _categoryKey,
+        amount: amountStr,
+        date: dateStr,
+        note: _noteCtrl.text.trim(),
+        recipient: _recipientCtrl.text.trim(),
+        isRecurring: _isRecurring,
+        recurrenceType: _isRecurring ? _frequency : '',
+        receiptUrl: finalReceiptUrl,
+        paymentMethod: paymentMethodValue,
+        paymentAccountId: account.id,
+        createdBy: user.uid,
+      );
 
-      if (_isEditing) {
-        await col.doc(widget.expenseToEdit!.id).update(data);
+      await ref.read(expenseRepositoryProvider).save(expense);
 
-        // If recurring and this is the first time enabling it, create a template
-        if (_isRecurring && !widget.expenseToEdit!.isRecurring) {
-          await _createRecurringTemplate(user.uid, ctx, repo, dateStr);
-        }
-      } else {
-        data['createdAt'] = FieldValue.serverTimestamp();
-        await col.add(data);
-
-        if (_isRecurring) {
-          await _createRecurringTemplate(user.uid, ctx, repo, dateStr);
-        }
+      // Recurring templates are a best-effort, online-only side feature —
+      // fire-and-forget so a stalled connection never blocks the expense
+      // save that already landed safely in Drift.
+      if (_isRecurring && (!_isEditing || !wasRecurring)) {
+        unawaited(_createRecurringTemplate(user.uid, dateStr));
       }
 
       // Money paid out leaves the chosen account — Drift balance moves
@@ -413,16 +396,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
       if (mounted) {
         if (!_isEditing && _isCreditPurchase) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _tr(
-                  'Expense saved – debt recorded in Payables',
-                  'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
-                ),
-              ),
-              backgroundColor: AppColors.warning,
-              behavior: SnackBarBehavior.floating,
+          AppNotification.warning(
+            context,
+            _tr(
+              'Expense saved – debt recorded in Payables',
+              'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
             ),
           );
         }
@@ -441,30 +419,50 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
-  Future<void> _createRecurringTemplate(
-    String uid,
-    dynamic ctx,
-    dynamic repo,
-    String dateStr,
-  ) async {
-    final nextDue = RecurringExpenseTemplate.computeNextDue(
-      _frequency,
-      DateTime.tryParse(dateStr) ?? DateTime.now(),
+  /// Best-effort, online-only side write — resolves its own context and
+  /// swallows failures so a stalled connection never surfaces as a save
+  /// error for the expense itself (already safely saved via Drift by then).
+  Future<void> _createRecurringTemplate(String uid, String dateStr) async {
+    try {
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(uid);
+      final nextDue = RecurringExpenseTemplate.computeNextDue(
+        _frequency,
+        DateTime.tryParse(dateStr) ?? DateTime.now(),
+      );
+      await repo.addRecurringTemplate(
+        uid: uid,
+        context: ctx,
+        templateData: {
+          'category': _categoryKey,
+          'note': _noteCtrl.text.trim(),
+          'amount': _amountCtrl.text.trim(),
+          'recipient': _recipientCtrl.text.trim(),
+          'recurrenceType': _frequency,
+          'nextDueDate': nextDue,
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
+    } catch (_) {
+      // Best-effort: the expense itself already saved successfully.
+    }
+  }
+
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    final result = await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
     );
-    await repo.addRecurringTemplate(
-      uid: uid,
-      context: ctx,
-      templateData: {
-        'category': _categoryKey,
-        'note': _noteCtrl.text.trim(),
-        'amount': _amountCtrl.text.trim(),
-        'recipient': _recipientCtrl.text.trim(),
-        'recurrenceType': _frequency,
-        'nextDueDate': nextDue,
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-    );
+    if (result == true && mounted) {
+      _showValidation(
+        _tr(
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated',
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa',
+        ),
+        _ExpenseErrorField.payment,
+      );
+    }
   }
 
   void _showValidation(String message, _ExpenseErrorField field) =>
@@ -576,6 +574,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       }),
                       onActivationRequired: (message) =>
                           _showValidation(message, _ExpenseErrorField.payment),
+                      onActivateMethod: (spec) => _showActivateAccountSheet(spec),
                     ),
                     _buildValidation(_ExpenseErrorField.payment),
                     const SizedBox(height: 20),

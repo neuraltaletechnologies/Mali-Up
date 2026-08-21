@@ -23,6 +23,18 @@ class DebtsTable extends Table {
   TextColumn get writtenOffBy => text().withDefault(const Constant(''))();
   TextColumn get writtenOffAt => text().withDefault(const Constant(''))();
 
+  // Interest / money-lender support: rate charged per period, the period
+  // granularity, simple vs compound accrual, and the date interest starts
+  // counting from. Zero rate (the default) means no interest, so existing
+  // debts behave exactly as before.
+  RealColumn get interestRatePercent =>
+      real().withDefault(const Constant(0))();
+  TextColumn get interestPeriod =>
+      text().withDefault(const Constant('monthly'))();
+  TextColumn get interestType =>
+      text().withDefault(const Constant('simple'))();
+  TextColumn get loanDate => text().withDefault(const Constant(''))();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get serverUpdatedAt => integer().nullable()();

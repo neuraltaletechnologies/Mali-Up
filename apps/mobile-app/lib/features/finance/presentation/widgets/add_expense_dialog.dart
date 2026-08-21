@@ -8,9 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
+import '../providers/expense_providers.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -402,9 +404,6 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
 
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-
       final date = _dateController.text;
       final nextDue = _isRecurring
           ? RecurringExpenseTemplate.computeNextDue(
@@ -421,9 +420,15 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
         isRecurring: _isRecurring,
         recurrenceType: _isRecurring ? _recurrenceType : '',
         nextDueDate: nextDue,
+        createdBy: user.uid,
       );
 
-      await repo.addExpense(uid: user.uid, context: ctx, expense: expense);
+      // Core expense write goes through the Drift + sync-queue repository —
+      // this is what makes it work fully offline (matches every other
+      // synced entity). It used to write straight to Firestore here, which
+      // hangs/fails while offline since Firestore's own persistence cache
+      // is disabled (see main.dart).
+      await ref.read(expenseRepositoryProvider).save(expense);
 
       // Auto-create payable debt when expense is not fully paid to supplier
       if (_isCreditPurchase) {
@@ -450,50 +455,51 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
         }
       }
 
-      // Save template so the system can auto-recreate it next cycle
+      // Recurring templates are a best-effort, online-only side feature —
+      // wrapped so a stalled connection never surfaces as a save error for
+      // the expense itself (already saved safely via Drift by this point).
       if (_isRecurring) {
-        await repo.addRecurringTemplate(
-          uid: user.uid,
-          context: ctx,
-          templateData: {
-            'category': _selectedCategory,
-            'amount': _amountController.text.trim(),
-            'note': _noteController.text.trim(),
-            'recipient': _recipientController.text.trim(),
-            'recurrenceType': _recurrenceType,
-            'nextDueDate': nextDue,
-            'isActive': true,
-          },
-        );
+        try {
+          final repo = ref.read(contextFirestoreRepositoryProvider);
+          final ctx = await repo.resolveContextForUser(user.uid);
+          await repo.addRecurringTemplate(
+            uid: user.uid,
+            context: ctx,
+            templateData: {
+              'category': _selectedCategory,
+              'amount': _amountController.text.trim(),
+              'note': _noteController.text.trim(),
+              'recipient': _recipientController.text.trim(),
+              'recurrenceType': _recurrenceType,
+              'nextDueDate': nextDue,
+              'isActive': true,
+            },
+          );
+        } catch (_) {
+          // Best-effort: the expense itself already saved successfully.
+        }
       }
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isRecurring
-                ? _t(
-                    'Expense added & recurring schedule set',
-                    'Matumizi yameongezwa na ratiba imewekwa',
-                  )
-                : _isCreditPurchase
-                    ? _t(
-                        'Expense added – debt recorded in Payables',
-                        'Matumizi yameongezwa – deni limerekodiwa kwenye Madeni',
-                      )
-                    : _t('Expense added', 'Matumizi yameongezwa')),
-            backgroundColor: Colors.green,
-          ),
+        AppNotification.success(
+          context,
+          _isRecurring
+              ? _t(
+                  'Expense added & recurring schedule set',
+                  'Matumizi yameongezwa na ratiba imewekwa',
+                )
+              : _isCreditPurchase
+                  ? _t(
+                      'Expense added – debt recorded in Payables',
+                      'Matumizi yameongezwa – deni limerekodiwa kwenye Madeni',
+                    )
+                  : _t('Expense added', 'Matumizi yameongezwa'),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_t('Error: ${e.toString()}', 'Kosa: ${e.toString()}')),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppNotification.error(context, _t('Error: ${e.toString()}', 'Kosa: ${e.toString()}'));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

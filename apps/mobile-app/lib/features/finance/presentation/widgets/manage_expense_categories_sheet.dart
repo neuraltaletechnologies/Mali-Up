@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense_category.dart';
@@ -67,7 +71,11 @@ class _ManageExpenseCategoriesSheetState
         'updatedAt': FieldValue.serverTimestamp(),
       });
       _nameController.clear();
-    } catch (_) {
+    } catch (e, st) {
+      // Swallowed to a generic message for the user, but reported so a
+      // recurring cause (e.g. a Firestore rule not yet deployed) is visible
+      // instead of only ever showing up as "try again" support tickets.
+      unawaited(Sentry.captureException(e, stackTrace: st));
       _showMessage(
         _t(
           'Could not add the expense type. Try again.',
@@ -164,9 +172,7 @@ class _ManageExpenseCategoriesSheetState
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    AppNotification.info(context, message);
   }
 
   @override

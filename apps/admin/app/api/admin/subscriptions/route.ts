@@ -41,6 +41,8 @@ export async function GET() {
         d.isActive === false      ? 'past_due' :
         'active'
 
+      const planSource = d.planSource === 'admin_grant' || d.planSource === 'clickpesa' ? d.planSource : undefined
+
       return {
         id:              doc.id,
         businessId:      doc.id,
@@ -49,9 +51,12 @@ export async function GET() {
         status:          subStatus,
         amount:          mrrForPlan(plan),
         nextBillingDate: toIso(d.nextBillingDate ?? d.renewalDate),
-        paymentMethod:   (d.paymentMethod as string) || 'M-Pesa',
+        // Manually granted plans never touched ClickPesa — say so plainly
+        // rather than showing a misleading default payment method.
+        paymentMethod:   planSource === 'admin_grant' ? 'Manually granted' : (d.paymentMethod as string) || 'M-Pesa',
         startedAt:       toIso(d.planStartedAt ?? d.createdAt),
         ownerId:         uid,
+        planSource,
       }
     })
 

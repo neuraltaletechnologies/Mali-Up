@@ -54,8 +54,8 @@ service cloud.firestore {
     // Per-member data scoping (DataScope.own in team_member.dart): a staff
     // member who lacks the broad "view all" permission may still read a
     // single record if they hold `narrowPermission` AND the record's
-    // `ownerField` matches their own UID — e.g. a driver with `createSale`
-    // but not `viewSales` can read only the sales they created.
+    // `ownerField` matches their own UID — e.g. a staff member with
+    // `createSale` but not `viewSales` can read only the sales they created.
     // Full-access holders (owner, or staff with `permissions`) are handled by
     // the caller pairing this with isOwnerOrStaffWithAny separately.
     function isOwnRecord(bizId, narrowPermission, ownerField) {
@@ -104,7 +104,7 @@ service cloud.firestore {
         // admin approval), which bypasses these rules entirely.
         (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
         !data.keys().hasAny(
-          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides']);
+          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
     }
 
     function isValidBusinessCreate(data) {
@@ -233,11 +233,19 @@ service cloud.firestore {
       // ClickPesa payment) or the admin portal, both on the Admin SDK.
       allow update: if isSignedIn() && isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides']);
+          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
       // Phone lookup (login / onboarding): every real caller queries with
       // limit(1), signed in or not — a signed-in user must not be able to
       // run an unbounded query and dump every user's name/phone.
       allow list: if isLimitedLookup();
+
+      // FCM device tokens — one doc per device, doc id is the token itself.
+      // Client registers/refreshes/removes only its own; nothing here is
+      // ever listed by a client (the admin-broadcast Cloud Function reads
+      // these via the Admin SDK, which bypasses rules).
+      match /fcm_tokens/{token} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
     }
 
     // =========================================================================
@@ -308,13 +316,20 @@ service cloud.firestore {
 
       // ── Sales invoices ─────────────────────────────────────────────────────
       match /sales_invoices/{invoiceId} {
-        // Full visibility via viewSales; createSale-only staff (e.g. a driver
-        // with DataScope.own) fall back to reading only their own sales.
+        // Full visibility via viewSales; createSale-only staff (e.g. a
+        // DataScope.own member) fall back to reading only their own sales.
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales'])
           || isOwnRecord(bizId, 'createSale', 'createdBy');
         allow create: if isOwnerOrStaffWithAny(bizId, ['createSale']) &&
           isValidSaleInvoice(request.resource.data);
         allow update: if isOwnerOrStaffWithAny(bizId, ['editSale']);
+        // Return processing (SalesReturnScreen) flips the return flag and
+        // stamps the credit note ref as part of its atomic batch — staff
+        // holding only 'issueRefund' (not the broader 'editSale') still need
+        // this narrow write or the whole batch is rejected.
+        allow update: if isOwnerOrStaffWithAny(bizId, ['issueRefund']) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['hasReturn', 'creditNoteNumber', 'updatedAt']);
         allow delete: if isOwnerOrStaffWithAny(bizId, ['deleteSale']);
       }
 
@@ -362,11 +377,11 @@ service cloud.firestore {
       // ── Inventory ──────────────────────────────────────────────────────────
       match /inventory_items/{itemId} {
         // Full visibility via viewInventory; createSale-only staff (e.g. a
-        // driver with DataScope.own) fall back to reading only the item(s)
-        // assigned to them (assignedDriverUid) — needed so a sale can look
-        // up their own vehicle's product record.
+        // DataScope.own member) fall back to reading only the item(s)
+        // assigned to them (assignedToUserId) — needed so a sale can look
+        // up their own assigned product/service record.
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewInventory'])
-          || isOwnRecord(bizId, 'createSale', 'assignedDriverUid');
+          || isOwnRecord(bizId, 'createSale', 'assignedToUserId');
 
         // Full product creation (from the add-product form).
         allow create: if isOwnerOrStaffWithAny(bizId, ['addStock']) &&
@@ -394,7 +409,7 @@ service cloud.firestore {
       // ── Expenses ───────────────────────────────────────────────────────────
       match /expenses/{expenseId} {
         // Full visibility via viewFinancialReports; manageExpenses-only staff
-        // (e.g. a driver with DataScope.own) fall back to their own entries.
+        // (e.g. a DataScope.own member) fall back to their own entries.
         // Built-in roles that grant manageExpenses (owner/manager/accountant)
         // also grant viewFinancialReports, so this is not a behavior change
         // for them — only for custom roles missing the broader permission.
@@ -435,6 +450,20 @@ service cloud.firestore {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
         allow create: if isSignedIn() && isBusinessOwner(bizId) && isValidCashAccount(request.resource.data);
         allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      // RemoteCashRepository syncs these as siblings of cash_accounts (same
+      // viewCashFlow-gated visibility); without explicit rules here they'd
+      // fall through to the isBusinessOwner-only fallback below and deny
+      // every staff member who can otherwise see the cash accounts screen.
+      match /cash_transactions/{transactionId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      match /daily_reconciliations/{reconciliationId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
       }
 
       match /budgets/{budgetId} {
@@ -596,6 +625,18 @@ service cloud.firestore {
       // User can see their own requests (e.g. "request already sent" state).
       allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
       // No client updates/deletes — requests are resolved from the admin portal.
+    }
+
+    // =========================================================================
+    // CLICKPESA PAYMENTS  (written only by functions/src/clickpesa.ts, via
+    // the Admin SDK — see initiateClickPesaPayment / checkAndFinalizePayment)
+    // =========================================================================
+    match /clickpesa_payments/{orderReference} {
+      // The app watches its own payment doc in real time instead of polling
+      // a Cloud Function — see ClickPesaService.waitForPayment. No client
+      // writes: status only ever changes via the webhook or the fallback
+      // poll, both server-side.
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
     // =========================================================================

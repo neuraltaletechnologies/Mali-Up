@@ -15,6 +15,7 @@ import '../../../rbac/data/audit_log_service.dart';
 import '../../data/customer_providers.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../domain/models/customer.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
@@ -383,17 +384,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
             await ref.read(customerRepositoryProvider).findByPhone(phone);
         if (existing != null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(_tr(
+            AppNotification.error(
+              context,
+              _tr(
                 'A contact with this phone number already exists: ${existing.name}',
                 'Mteja mwenye namba hii tayari yupo: ${existing.name}',
-              )),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              margin: const EdgeInsets.all(16),
-            ));
+              ),
+            );
           }
           return;
         }
@@ -409,23 +406,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           address: _addressController.text.trim(),
         );
         if (mounted) {
-          final messenger = ScaffoldMessenger.of(context);
+          final overlay = Overlay.of(context, rootOverlay: true);
           // StreamProvider auto-updates on Firestore writes — invalidate not needed
           Navigator.pop(context);
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                _tr(
-                  'Customer added successfully',
-                  'Mteja ameongezwa kwa mafanikio',
-                ),
-              ),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              margin: const EdgeInsets.all(16),
-            ),
+          AppNotification.showVia(
+            overlay,
+            _tr('Customer added successfully', 'Mteja ameongezwa kwa mafanikio'),
+            type: AppNotificationType.success,
           );
           widget.onAdded?.call(customer);
         }
@@ -442,14 +429,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                   'Could not add customer. Please try again.',
                   'Imeshindwa kuongeza mteja. Tafadhali jaribu tena.',
                 );
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(16),
-          ));
+          AppNotification.error(context, msg);
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -499,7 +479,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
             'Contacts permission is required to import customers.',
             'Ruhusa ya mawasiliano inahitajika kuingiza wateja.',
           ),
-          AppColors.error,
         );
         return;
       }
@@ -549,7 +528,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       final total = selectedContacts.length;
 
       // Capture everything needed before closing the dialog
-      final messenger = ScaffoldMessenger.of(context);
+      final overlay = Overlay.of(context, rootOverlay: true);
       final router = GoRouter.of(context);
       final customerRepo = ref.read(customerRepositoryProvider);
       final auditLogger = ref.read(customerAuditLoggerProvider);
@@ -563,7 +542,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
             'No active session. Please sign in and try again.',
             'Hakuna kikao kinachotumika. Tafadhali ingia tena.',
           ),
-          AppColors.error,
         );
         return;
       }
@@ -577,14 +555,14 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         router.go(AppRouter.crmPath);
       });
 
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr(
+      AppNotification.showVia(
+        overlay,
+        _tr(
           'Importing $total contact${total == 1 ? '' : 's'}…',
           'Inaingiza mawasiliano $total…',
-        )),
+        ),
         duration: const Duration(seconds: 60),
-        behavior: SnackBarBehavior.floating,
-      ));
+      );
 
       // Run the import detached from the widget tree; list updates live via Drift
       unawaited(_runBackgroundImport(
@@ -592,14 +570,11 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         user: user,
         customerRepo: customerRepo,
         auditLogger: auditLogger,
-        messenger: messenger,
+        overlay: overlay,
         total: total,
       ));
     } catch (e) {
-      _showSnackBar(
-        '${_tr("Error", "Kosa")}: ${e.toString()}',
-        AppColors.error,
-      );
+      _showSnackBar('${_tr("Error", "Kosa")}: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isImportingContact = false);
     }
@@ -612,7 +587,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     required User user,
     required CustomerRepository customerRepo,
     required CustomerAuditLogger auditLogger,
-    required ScaffoldMessengerState messenger,
+    required OverlayState overlay,
     required int total,
   }) async {
     var done = 0;
@@ -640,17 +615,21 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         );
         final saved = await customerRepo.save(customer);
         SentryMetricsService.customerAdded(source: 'add_customer_dialog');
-        await auditLogger.log(
+        // Fire-and-forget: this is a direct Firestore write, which can hang
+        // while offline (Firestore's own persistence cache is disabled — see
+        // main.dart). The customer is already saved locally via Drift at
+        // this point, so a slow/failed audit log must never stall the rest
+        // of the contacts still waiting to import.
+        unawaited(auditLogger.log(
           AuditLogService.customerCreated,
           customerId: saved.id,
           customerName: saved.name,
-        );
+        ));
       } catch (_) {
         // Skip failed contacts silently; the rest still import
       }
       done++;
     }
-    messenger.hideCurrentSnackBar();
     final imported = done - skipped;
     final body = skipped > 0
         ? _tr(
@@ -663,14 +642,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                 ? 'Mawasiliano 1 yameingizwa'
                 : 'Mawasiliano $imported yameingizwa',
           );
-    messenger.showSnackBar(SnackBar(
-      content: Text(body),
-      backgroundColor:
-          skipped > 0 && imported == 0 ? AppColors.error : AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(16),
-    ));
+    AppNotification.showVia(
+      overlay,
+      body,
+      type: skipped > 0 && imported == 0
+          ? AppNotificationType.error
+          : AppNotificationType.success,
+    );
   }
 
   /// Shows a bottom sheet contact picker.
@@ -768,11 +746,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     }
   }
 
-  void _showSnackBar(String message, Color backgroundColor) {
+  void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: backgroundColor),
-    );
+    AppNotification.error(context, message);
   }
 }
 

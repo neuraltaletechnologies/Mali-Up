@@ -110,6 +110,18 @@ class SyncInvoiceRepository implements InvoiceRepository {
   }
 
   @override
+  Future<void> applyCommittedReturn(
+    String id, {
+    required double returnedAmountDelta,
+    required String creditNoteNumber,
+  }) =>
+      _local.applyCommittedReturn(
+        id,
+        returnedAmountDelta: returnedAmountDelta,
+        creditNoteNumber: creditNoteNumber,
+      );
+
+  @override
   Future<void> delete(String id) async {
     _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;

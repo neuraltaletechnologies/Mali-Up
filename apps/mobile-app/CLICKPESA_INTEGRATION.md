@@ -9,7 +9,7 @@ Money, HaloPesa), they enter their PIN there, and the plan activates the
 moment ClickPesa confirms the charge. There is no checkout page and no
 browser hop.
 
-Everything ClickPesa-related is handled **server-side**, via two Cloud
+Everything ClickPesa-related is handled **server-side**, via three Cloud
 Functions (`apps/mobile-app/functions/src/clickpesa.ts`). The mobile app
 never holds a ClickPesa API key and can never activate a plan by itself —
 `firestore.rules` rejects any client write to `plan`, `planExpiresAt`,
@@ -17,18 +17,29 @@ never holds a ClickPesa API key and can never activate a plan by itself —
 profile doc. Only the Admin SDK (used by these Cloud Functions and the admin
 portal) can set those fields.
 
+**Payment status reaches the app via ClickPesa's webhook, not client
+polling.** ClickPesa's free/pre-KYC tier caps API usage at 100 calls/day; the
+original design polled `verifyClickPesaPayment` (which itself calls
+ClickPesa) every 3s for up to 2 minutes per attempt — ~40 calls per payment,
+enough to exhaust the daily quota after two attempts. See "Webhook setup"
+below — it's a required step, not optional, for this to work at any real
+volume.
+
 ## Architecture
 
 ### Files
-- `functions/src/clickpesa.ts` — `initiateClickPesaPayment` and
-  `verifyClickPesaPayment` callables. These are the only code that ever
-  talks to the ClickPesa API or holds the secret key.
-- `lib/core/services/clickpesa_service.dart` — thin client that calls the two
-  callables above via `cloud_functions`.
+- `functions/src/clickpesa.ts` — `initiateClickPesaPayment`,
+  `verifyClickPesaPayment`, and `clickpesaWebhook`. These are the only code
+  that ever talks to the ClickPesa API or holds the secret key.
+- `lib/core/services/clickpesa_service.dart` — thin client: calls
+  `initiateClickPesaPayment` via `cloud_functions`, then watches the
+  `clickpesa_payments/{orderReference}` Firestore doc directly (no polling)
+  with `verifyClickPesaPayment` as a low-frequency fallback.
 - `lib/shared/widgets/upgrade_sheet.dart` — upgrade paywall UI, including the
-  phone-number confirmation step.
+  phone-number confirmation step and the payment POS animation.
 - `firestore.rules` — blocks client writes to entitlement fields on
-  `users/{uid}`.
+  `users/{uid}`; allows a user to *read* (never write) their own
+  `clickpesa_payments/{orderReference}` doc.
 
 ### Payment flow
 
@@ -46,19 +57,42 @@ portal) can set those fields.
      ClickPesa tokens are valid 1 hour);
    - calls ClickPesa's `initiate-ussd-push-request`, which pushes the PIN
      prompt to the phone;
-   - stores a pending record in `clickpesa_payments/{orderReference}`
-     (server-only collection — the client never reads or writes it
-     directly).
+   - stores a pending record in `clickpesa_payments/{orderReference}`.
 4. User enters their mobile money PIN on the USSD prompt on their phone.
-5. App polls `verifyClickPesaPayment({orderReference})` every 3s (up to 40
-   attempts — 2 minutes). The function queries ClickPesa's real payment
-   status, cross-checks the collected amount against what was actually
-   quoted, and — the first time it sees `SUCCESS`/`SETTLED` — activates the
-   plan on `users/{uid}` via the Admin SDK inside a transaction (idempotent
-   against concurrent calls).
-6. Client sees `status: 'completed'` and shows the confirmation card. There
-   is no separate client-side activation step; by the time the client sees
-   success, the plan is already active.
+5. App watches `clickpesa_payments/{orderReference}` in real time
+   (`ClickPesaService.waitForPayment`, a Firestore listener — no ClickPesa
+   API calls). The moment ClickPesa confirms the charge, its webhook hits
+   `clickpesaWebhook`, which re-verifies via an authenticated call to
+   ClickPesa (never trusts the webhook payload's claimed status — see the
+   security notes) and, on genuine success, activates the plan on
+   `users/{uid}` — and every business the uid owns — via the Admin SDK
+   inside a transaction (idempotent against concurrent/duplicate calls). A
+   20s-interval fallback poll via `verifyClickPesaPayment` runs alongside the
+   listener purely as a safety net for a webhook that isn't configured yet or
+   a lost delivery.
+6. Client's Firestore listener sees `status: 'completed'` and shows the
+   confirmation card. There is no separate client-side activation step; by
+   the time the client sees success, the plan is already active.
+
+### Webhook setup (required)
+
+1. Log into the ClickPesa dashboard → **Settings → Developers** → your
+   application ("Mali Up") → **Application Webhooks**.
+2. Add this URL for both the `PAYMENT RECEIVED` and `PAYMENT FAILED` events:
+   ```
+   https://us-central1-neuraltale-mali-up.cloudfunctions.net/clickpesaWebhook
+   ```
+3. That's it — no secret/checksum needs configuring for this endpoint to
+   work correctly (see security notes for why). The endpoint responds 200 to
+   any POST, including ones for a reference it doesn't recognize, so ClickPesa
+   won't see failures during setup/testing.
+
+Without this configured, the app still works — it just falls back entirely to
+the 20s-interval poll, which is far cheaper than the old 3s design but still
+burns real ClickPesa API calls per pending payment. Confirm it's working by
+watching `firebase functions:log --only clickpesaWebhook` while completing a
+test payment; you should see an invocation within seconds of confirming the
+PIN.
 
 ### Verified ClickPesa endpoints
 
@@ -164,9 +198,22 @@ same as any other Cloud Function in this app.
    number's network actually supports ClickPesa's USSD-Push for that
    provider.
 6. **Plan not activating after payment** — check Cloud Functions logs
-   (`firebase functions:log`) for the `verifyClickPesaPayment` call; the
-   transaction only commits once ClickPesa reports `SUCCESS`/`SETTLED` *and*
-   the amount matches.
+   (`firebase functions:log`) for the `clickpesaWebhook` or
+   `verifyClickPesaPayment` call; the transaction only commits once ClickPesa
+   reports `SUCCESS`/`SETTLED` *and* the amount matches.
+7. **`generate-token` returns 429 "Daily API limit reached"** — the ClickPesa
+   application hasn't completed KYC yet and is capped at 100 calls/day. This
+   is exactly the failure mode the webhook (see above) exists to avoid — if
+   you're hitting it, either the webhook isn't configured, or KYC needs
+   completing on the ClickPesa dashboard to lift the cap. Not something the
+   code can work around.
+8. **`invalid-argument` mentioning something other than the phone number**
+   (e.g. "M-Pesa payment method is not active") — `initiateClickPesaPayment`
+   forwards ClickPesa's real message here. This class of error is almost
+   always a merchant-account configuration gap (a payment method not
+   activated for the application, KYC incomplete, etc.) on the ClickPesa
+   dashboard, not a code bug — check Settings → Developers → payment methods
+   for the application.
 
 ## Security notes
 
@@ -179,11 +226,22 @@ same as any other Cloud Function in this app.
 - The amount charged always comes from the server-side read of
   `platform_config/plans`, never from anything the client supplies — a
   tampered client can't ask ClickPesa to charge less than the real price.
-- `verifyClickPesaPayment` is idempotent: repeated polls, retries, or two
-  concurrent calls for the same payment activate the plan at most once
-  (guarded by a Firestore transaction).
+- Both `verifyClickPesaPayment` and `clickpesaWebhook` are idempotent:
+  repeated polls, retries, duplicate webhook deliveries, or concurrent calls
+  for the same payment activate the plan at most once (guarded by a
+  Firestore transaction).
 - The phone number is validated server-side too (not just client-side) — a
   tampered client can't push to garbage or a placeholder number.
+- `clickpesaWebhook` is necessarily unauthenticated (ClickPesa calls it
+  directly, not through Firebase's callable protocol) — but it never trusts
+  anything from the request body except *which* `orderReference` to look
+  at. It always re-derives the real status from its own authenticated GET to
+  ClickPesa, never from the webhook payload. A forged or replayed POST to
+  this URL can at most trigger an extra status check (itself capped by the
+  5s `lastCheckedAtMs` debounce on the payment doc) — it cannot fake a plan
+  activation, because the activation logic never reads "success" from
+  anything ClickPesa didn't tell us directly, server-to-server, using our
+  own secret.
 
 ## Support
 

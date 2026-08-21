@@ -11,6 +11,7 @@ import '../../../../core/providers/database_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 
 /// Delete Account Screen - PDPA Right to Deletion
@@ -295,32 +296,26 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (mounted) setState(() => isDeleting = false);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.code == 'unauthenticated'
-                ? _t(
-                    'Please sign in again before deleting your account.',
-                    'Tafadhali ingia tena kabla ya kufuta akaunti yako.',
-                  )
-                : _t(
-                    'Account deletion could not be completed. Check your connection and try again.',
-                    'Ufutaji wa akaunti haujakamilika. Angalia mtandao kisha ujaribu tena.',
-                  ),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppNotification.error(
+        context,
+        e.code == 'unauthenticated'
+            ? _t(
+                'Please sign in again before deleting your account.',
+                'Tafadhali ingia tena kabla ya kufuta akaunti yako.',
+              )
+            : _t(
+                'Account deletion could not be completed. Check your connection and try again.',
+                'Ufutaji wa akaunti haujakamilika. Angalia mtandao kisha ujaribu tena.',
+              ),
       );
     } catch (_) {
       if (mounted) setState(() => isDeleting = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_t(
-            'Account deletion could not be completed. Please try again.',
-            'Ufutaji wa akaunti haujakamilika. Tafadhali jaribu tena.',
-          )),
-          backgroundColor: Colors.red,
+      AppNotification.error(
+        context,
+        _t(
+          'Account deletion could not be completed. Please try again.',
+          'Ufutaji wa akaunti haujakamilika. Tafadhali jaribu tena.',
         ),
       );
     }

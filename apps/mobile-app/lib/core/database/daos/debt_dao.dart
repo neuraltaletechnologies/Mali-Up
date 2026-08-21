@@ -34,6 +34,26 @@ class DebtDao extends DatabaseAccessor<AppDatabase> with _$DebtDaoMixin {
         .get();
   }
 
+  /// Looks up the receivable created for a sale, by the invoice number it was
+  /// tagged with at creation (see SalesScreen — `invoiceRef: invoiceNumber`).
+  /// Used by SalesReturnScreen to reduce what's owed when a credit sale is
+  /// partially or fully returned. Written-off debts don't count — nothing is
+  /// still owed there for a return to reduce.
+  Future<DebtsTableData?> getByInvoiceRef(
+    String businessId,
+    String invoiceRef,
+  ) {
+    if (invoiceRef.isEmpty) return Future.value();
+    return (select(debtsTable)
+          ..where((t) =>
+              t.businessId.equals(businessId) &
+              t.invoiceRef.equals(invoiceRef) &
+              t.isWrittenOff.equals(0) &
+              t.isDeleted.equals(0))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   // ─── Debt mutations ────────────────────────────────────────────────────────
 
   Future<void> upsert(DebtsTableCompanion entry) async {

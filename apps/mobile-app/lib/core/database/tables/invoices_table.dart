@@ -25,6 +25,16 @@ class InvoicesTable extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();
 
+  // Return tracking: set when a SalesReturnScreen credit note has been
+  // issued against this invoice. returnedAmount accumulates across multiple
+  // partial returns so every reader (sales list, dashboard revenue,
+  // outstanding-balance calc) can net it out of `total` consistently instead
+  // of each screen re-deriving its own notion of "what's left".
+  IntColumn get hasReturn => integer().withDefault(const Constant(0))();
+  RealColumn get returnedAmount => real().withDefault(const Constant(0))();
+  TextColumn get creditNoteNumber =>
+      text().withDefault(const Constant(''))();
+
   // Timestamps stored as unix milliseconds for precise comparison
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();

@@ -9,6 +9,8 @@ import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { fetchPlans, patchPlan, assignPlan, fetchBusinesses } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS } from '@/lib/format'
+import { DurationPicker } from '@/components/ui/duration-picker'
+import { addDuration, formatDuration, type DurationUnit } from '@/lib/duration'
 import type { PlanTier, PlanDefinition, PlanDefinitions } from '@/types'
 import {
   Pencil, Users, FileText, CheckCircle2, XCircle, AlertCircle,
@@ -324,7 +326,8 @@ function AssignPlanSection() {
   const [selectedUid, setSelectedUid]     = useState('')
   const [businessId, setBusinessId]       = useState('')
   const [selectedTier, setSelectedTier]   = useState<PlanTier>('growth')
-  const [cycleMonths, setCycleMonths]     = useState(6)
+  const [durationValue, setDurationValue] = useState(6)
+  const [durationUnit,  setDurationUnit]  = useState<DurationUnit>('months')
   const [saving, setSaving]               = useState(false)
   const [result, setResult]               = useState<{ ok: boolean; msg: string } | null>(null)
   const [confirmOpen, setConfirmOpen]     = useState(false)
@@ -380,7 +383,7 @@ function AssignPlanSection() {
     setSaving(true)
     setResult(null)
     try {
-      await assignPlan(selectedUid, businessId, selectedTier, cycleMonths)
+      await assignPlan(selectedUid, businessId, selectedTier, durationValue, durationUnit)
       setResult({ ok: true, msg: `Plan "${selectedTier}" assigned to ${selectedBiz?.name ?? businessId} successfully.` })
       invalidateAdminCache(['analytics', 'businesses'])
       setUserNameInput('')
@@ -482,17 +485,18 @@ function AssignPlanSection() {
 
         {/* Duration */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelCls}>Duration (months)</label>
-          <input
-            type="number" min="1" max="60"
-            value={cycleMonths}
-            onChange={(e) => setCycleMonths(Number(e.target.value))}
-            className={inputCls}
+          <label className={labelCls}>Duration</label>
+          <DurationPicker
+            value={durationValue}
+            unit={durationUnit}
+            onValueChange={setDurationValue}
+            onUnitChange={setDurationUnit}
             disabled={selectedTier === 'starter'}
           />
           {selectedTier !== 'starter' && (
             <p className="text-[11px] text-[var(--ink-faint)]">
-              Expires {new Date(Date.now() + cycleMonths * 30 * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              Expires {addDuration(new Date(), durationValue, durationUnit).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {' · '}manual grant, not a real payment
             </p>
           )}
         </div>
@@ -527,8 +531,8 @@ function AssignPlanSection() {
         onConfirm={handleAssign}
         title="Assign plan"
         description={`Set plan to "${TIER_META[selectedTier]?.label}" for ${selectedBiz?.name ?? businessId} (owner: ${selectedUser?.name ?? selectedUid})${
-          selectedTier !== 'starter' ? ` for ${cycleMonths} months` : ''
-        }. This takes effect immediately.`}
+          selectedTier !== 'starter' ? ` for ${formatDuration(durationValue, durationUnit)}` : ''
+        }. This takes effect immediately — it does not record a payment.`}
         confirmLabel={saving ? 'Saving…' : 'Confirm'}
       />
     </div>

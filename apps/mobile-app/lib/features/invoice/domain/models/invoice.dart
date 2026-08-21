@@ -27,6 +27,13 @@ class Invoice {
   final String createdAt;
   final String updatedAt;
 
+  /// Whether a credit note has been issued against this invoice via
+  /// SalesReturnScreen. [returnedAmount] accumulates across multiple partial
+  /// returns.
+  final bool hasReturn;
+  final double returnedAmount;
+  final String creditNoteNumber;
+
   Invoice({
     required this.id,
     required this.customerId,
@@ -49,11 +56,22 @@ class Invoice {
     this.createdBy = '',
     required this.createdAt,
     required this.updatedAt,
+    this.hasReturn = false,
+    this.returnedAmount = 0.0,
+    this.creditNoteNumber = '',
   });
 
-  /// Outstanding balance still owed on this invoice.
+  /// What the sale is actually worth after returned goods are credited back
+  /// — the figure every display and revenue calc should use instead of the
+  /// original [total].
+  double get netTotal {
+    final net = total - returnedAmount;
+    return net < 0 ? 0 : net;
+  }
+
+  /// Outstanding balance still owed on this invoice, net of any returns.
   double get outstanding {
-    final due = total - amountPaid;
+    final due = netTotal - amountPaid;
     return due < 0 ? 0 : due;
   }
 
@@ -117,6 +135,9 @@ class Invoice {
       createdBy: (data['createdBy'] ?? '').toString(),
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
+      hasReturn: data['hasReturn'] as bool? ?? false,
+      returnedAmount: _readNum(data['returnedAmount']),
+      creditNoteNumber: (data['creditNoteNumber'] ?? '').toString(),
     );
   }
 
@@ -145,6 +166,11 @@ class Invoice {
       if (createdBy.isNotEmpty) 'createdBy': createdBy,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      if (hasReturn) ...{
+        'hasReturn': true,
+        'returnedAmount': returnedAmount,
+        if (creditNoteNumber.isNotEmpty) 'creditNoteNumber': creditNoteNumber,
+      },
     };
   }
 
@@ -170,6 +196,9 @@ class Invoice {
     String? createdBy,
     String? createdAt,
     String? updatedAt,
+    bool? hasReturn,
+    double? returnedAmount,
+    String? creditNoteNumber,
   }) {
     return Invoice(
       id: id ?? this.id,
@@ -193,6 +222,9 @@ class Invoice {
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      hasReturn: hasReturn ?? this.hasReturn,
+      returnedAmount: returnedAmount ?? this.returnedAmount,
+      creditNoteNumber: creditNoteNumber ?? this.creditNoteNumber,
     );
   }
 }

@@ -17,11 +17,13 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -250,15 +252,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.error,
-            content: Text(
-              _tr(
-                'Could not delete invoice. Please try again.',
-                'Imeshindwa kufuta ankara. Jaribu tena.',
-              ),
-            ),
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not delete invoice. Please try again.',
+            'Imeshindwa kufuta ankara. Jaribu tena.',
           ),
         );
       }
@@ -398,50 +396,57 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: _SalesDarkHeader._pillHalf + 8),
+              const SizedBox(height: HeaderStatsPill.pillHalf + 8),
               if (_filter != _SalesFilter.all)
                 _ActiveSalesFilterChip(
                   filter: _filter,
                   onRemove: () => setState(() => _filter = _SalesFilter.all),
                 ),
               Expanded(
-                child: filtered.isEmpty
-                    ? _EmptySalesState(filter: _filter)
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 104),
-                        itemCount: filtered.length,
-                        itemBuilder: (ctx, i) {
-                          final item = filtered[i];
-                          return ListSwipeCard(
-                            itemKey: ValueKey(item['id'] ?? i),
-                            onEdit: () => Navigator.of(ctx).push(
-                              MaterialPageRoute(
-                                builder: (_) => InvoiceDetailScreen(
-                                  invoice: Map<String, dynamic>.from(item),
+                child: SilentRefresh(
+                  onRefresh: () => triggerSilentSync(context, ref),
+                  child: filtered.isEmpty
+                      ? SingleChildScrollView(
+                          physics: silentRefreshPhysics,
+                          child: _EmptySalesState(filter: _filter),
+                        )
+                      : ListView.builder(
+                          physics: silentRefreshPhysics,
+                          padding: const EdgeInsets.only(bottom: 104),
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final item = filtered[i];
+                            return ListSwipeCard(
+                              itemKey: ValueKey(item['id'] ?? i),
+                              onEdit: () => Navigator.of(ctx).push(
+                                MaterialPageRoute(
+                                  builder: (_) => InvoiceDetailScreen(
+                                    invoice: Map<String, dynamic>.from(item),
+                                  ),
                                 ),
                               ),
-                            ),
-                            onDelete: ps.canDeleteSale
-                                ? () => _deleteSale(ctx, ref, item)
-                                : null,
-                            child: _InvoiceCard(
-                              item: item,
-                              isLast: i == filtered.length - 1,
-                              onTap: () => showAppSheet<void>(
-                                ctx,
-                                builder: (_) => _SaleInfoSheet(
-                                  item: Map<String, dynamic>.from(item),
+                              onDelete: ps.canDeleteSale
+                                  ? () => _deleteSale(ctx, ref, item)
+                                  : null,
+                              child: _InvoiceCard(
+                                item: item,
+                                isLast: i == filtered.length - 1,
+                                onTap: () => showAppSheet<void>(
+                                  ctx,
+                                  builder: (_) => _SaleInfoSheet(
+                                    item: Map<String, dynamic>.from(item),
+                                  ),
+                                ),
+                                onReceiptAction: () => _openReceiptActions(
+                                  context: ctx,
+                                  sale: item,
+                                  ref: ref,
                                 ),
                               ),
-                              onReceiptAction: () => _openReceiptActions(
-                                context: ctx,
-                                sale: item,
-                                ref: ref,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
+                ),
               ),
             ],
           );
@@ -616,15 +621,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         );
       } catch (_) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not create the receipt PDF. Please try again.',
-                'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
-              ),
-            ),
-            behavior: SnackBarBehavior.floating,
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not create the receipt PDF. Please try again.',
+            'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
           ),
         );
       }
@@ -706,15 +707,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (!ok) throw Exception('no handler');
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'No app available to open this share option.',
-              'Hakuna programu ya kufungua chaguo hili la kushiriki.',
-            ),
-          ),
-          behavior: SnackBarBehavior.floating,
+      AppNotification.error(
+        context,
+        _tr(
+          'No app available to open this share option.',
+          'Hakuna programu ya kufungua chaguo hili la kushiriki.',
         ),
       );
     }
@@ -726,8 +723,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 // ── Dark Header ────────────────────────────────────────────────────────────────
 
 class _SalesDarkHeader extends StatefulWidget {
-  static const double _pillHalf = 22.0;
-
   final double todayRevenue;
   final double pendingTotal;
   final int overdueCount;
@@ -784,263 +779,74 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _SalesDarkHeader._pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Sales', 'Mauzo'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search icon
-                  GestureDetector(
-                    onTap: widget.onSearchToggle,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: widget.searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: widget.searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        widget.searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: widget.searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter icon
-                  GestureDetector(
-                    onTap: widget.onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: widget.activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: widget.activeFilters > 0
-                                  ? AppColors.yellowBrand
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: widget.activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (_alertDotColor != Colors.transparent)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: _alertDotColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.navyPrimary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: widget.searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextField(
-                          controller: _ctrl,
-                          focusNode: _focus,
-                          onChanged: widget.onSearchChanged,
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: _tr(
-                              'Customer name or invoice #…',
-                              'Jina la mteja au namba ya ankara…',
-                            ),
-                            hintStyle: GoogleFonts.dmSans(
-                              color: Colors.white54,
-                              fontSize: 14,
-                            ),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              color: Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+    final dotColor = _alertDotColor;
+
+    return DarkHeaderShell(
+      stretchPill: true,
+      title: Text(
+        _tr('Sales', 'Mauzo'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Stats pill
-        Positioned(
-          bottom: -_SalesDarkHeader._pillHalf,
-          left: 24,
-          right: 24,
-          child: Container(
-            height: _SalesDarkHeader._pillHalf * 2,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(_SalesDarkHeader._pillHalf),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PillStat(
-                  value: _fmtAmt(widget.todayRevenue),
-                  label: _tr('Today', 'Leo'),
-                  valueColor: AppColors.tealAccent,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtAmt(widget.pendingTotal),
-                  label: _tr('Pending', 'Inasubiri'),
-                  valueColor: widget.pendingTotal > 0
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: widget.overdueCount.toString(),
-                  label: _tr('Overdue', 'Imechelewa'),
-                  valueColor: widget.overdueCount > 0
-                      ? AppColors.error
-                      : AppColors.success,
-                ),
-              ],
-            ),
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: widget.searchExpanded
+                ? Icons.close_rounded
+                : Icons.search_rounded,
+            active: widget.searchExpanded,
+            onTap: widget.onSearchToggle,
           ),
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: widget.activeFilters > 0,
+            onTap: widget.onFilterTap,
+            dotColor: dotColor != Colors.transparent ? dotColor : null,
+          ),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: _ctrl,
+        focusNode: _focus,
+        onChanged: widget.onSearchChanged,
+        hintText: _tr(
+          'Customer name or invoice #…',
+          'Jina la mteja au namba ya ankara…',
         ),
-      ],
+        showClear: _ctrl.text.isNotEmpty,
+      ),
+      expanded: widget.searchExpanded,
+      pill: HeaderStatsPill(
+        layout: HeaderPillLayout.stretched,
+        stats: [
+          HeaderPillStat(
+            value: _fmtAmt(widget.todayRevenue),
+            label: _tr('Today', 'Leo'),
+            color: AppColors.tealAccent,
+          ),
+          HeaderPillStat(
+            value: _fmtAmt(widget.pendingTotal),
+            label: _tr('Pending', 'Inasubiri'),
+            color: widget.pendingTotal > 0
+                ? AppColors.warning
+                : AppColors.success,
+          ),
+          HeaderPillStat(
+            value: widget.overdueCount.toString(),
+            label: _tr('Overdue', 'Imechelewa'),
+            color: widget.overdueCount > 0
+                ? AppColors.error
+                : AppColors.success,
+          ),
+        ],
+      ),
     );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color valueColor;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 28, color: AppColors.border);
   }
 }
 
@@ -1287,6 +1093,7 @@ class _InvoiceCard extends StatelessWidget {
 
     final isQuotation =
         (item['type'] ?? '').toString().toLowerCase() == 'quotation';
+    final hasReturn = item['hasReturn'] == true;
 
     // Status chip data
     final ({Color bg, Color text, String label, IconData icon}) chipData;
@@ -1385,6 +1192,36 @@ class _InvoiceCard extends StatelessWidget {
                               color: AppColors.textMuted,
                               letterSpacing: 0.5,
                             ),
+                          ),
+                        ),
+                      ],
+                      if (hasReturn) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.undo_rounded,
+                                  size: 8, color: AppColors.tealAccent),
+                              const SizedBox(width: 2),
+                              Text(
+                                _tr('Returned', 'Imerudishwa'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.tealAccent,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -2455,6 +2292,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           await db.inventoryDao.applyCommittedDelta(itemId, -e.qty.toDouble());
         }
       } catch (e, st) {
+        debugPrint('[Sale] Drift stock mirror failed: $e');
         unawaited(Sentry.captureException(e, stackTrace: st));
       }
 
@@ -2469,6 +2307,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             _selectedCustomer!.balanceAmount + outstanding,
           );
         } catch (e, st) {
+          debugPrint('[Sale] Drift customer balance mirror failed: $e');
           unawaited(Sentry.captureException(e, stackTrace: st));
         }
       }
@@ -2522,6 +2361,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         now: now,
       );
     } catch (e, st) {
+      debugPrint('[Sale] Save failed: $e\n$st');
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() {
@@ -2596,8 +2436,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // The account was activated, refresh will happen automatically via providers
       // Optionally show a confirmation message
       _snack(
-        _tr('${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated', 
-            '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa'),
+        _tr(
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} activated',
+          '${spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en')} imewashwa',
+        ),
         field: _ErrorField.payment,
       );
     }
@@ -2920,6 +2762,37 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
+  /// Add-customer entry point from the inline suggestions dropdown: users
+  /// who have reached their plan's customer limit are gated behind the
+  /// shared slide-up upgrade sheet instead of the add-customer form, same
+  /// as the Customers list FAB and the shared customer picker.
+  Future<void> _openAddNewCustomerFromSuggestions() async {
+    final tier =
+        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    final currentCount = ref.read(customerListProvider).value?.length ?? 0;
+    if (maxCustomers != -1 && currentCount >= maxCustomers) {
+      await showUpgradeSheet(
+        context,
+        featureKey: PlanFeatureKey.customerLimit,
+        triggerReason: _tr(
+          'You have reached the customer limit for your plan. Upgrade to add more customers.',
+          'Umefika kikomo cha wateja kwa mpango wako. Panda mpango kuongeza wateja zaidi.',
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
+      builder: (_) => AddCustomerDialog(
+        initialName: _customerCtrl.text.trim(),
+        onAdded: _selectCustomer,
+      ),
+    );
+  }
+
   Widget _buildCustomerSuggestions() {
     return Container(
       margin: const EdgeInsets.only(top: 4),
@@ -2989,13 +2862,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           InkWell(
-            onTap: () => showAppSheet<void>(
-              context,
-              builder: (_) => AddCustomerDialog(
-                initialName: _customerCtrl.text.trim(),
-                onAdded: _selectCustomer,
-              ),
-            ),
+            onTap: _openAddNewCustomerFromSuggestions,
             borderRadius: const BorderRadius.vertical(
               bottom: Radius.circular(14),
             ),
@@ -4733,13 +4600,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppNotification.info(context, msg);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────────

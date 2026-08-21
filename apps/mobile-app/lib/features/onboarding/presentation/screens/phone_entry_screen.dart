@@ -9,6 +9,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -222,18 +223,9 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            sw
-                ? 'Hatukuweza kufungua WhatsApp sasa.'
-                : 'We could not open WhatsApp right now.',
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+      AppNotification.error(
+        context,
+        sw ? 'Hatukuweza kufungua WhatsApp sasa.' : 'We could not open WhatsApp right now.',
       );
     }
   }

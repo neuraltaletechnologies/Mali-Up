@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -50,10 +51,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
   }
 
   void _proceedToSignup() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content:
-              Text(_t('Privacy preferences saved', 'Mapendeleo ya faragha yamehifadhiwa'))),
+    AppNotification.info(
+      context,
+      _t('Privacy preferences saved', 'Mapendeleo ya faragha yamehifadhiwa'),
     );
     widget.onConsentAccepted();
   }

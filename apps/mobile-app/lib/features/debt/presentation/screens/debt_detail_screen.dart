@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -13,6 +14,7 @@ import '../../../../shared/widgets/validation_banner.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
@@ -75,6 +77,15 @@ String _isoToday() {
   final d = DateTime.now();
   return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
+
+String _periodSuffix(String period) => switch (period) {
+      'daily' => _tr('/ day', '/ siku'),
+      'weekly' => _tr('/ week', '/ wiki'),
+      _ => _tr('/ month', '/ mwezi'),
+    };
+
+String _typeSuffix(String type) =>
+    type == 'compound' ? _tr('compound', 'mchanganyiko') : _tr('simple', 'rahisi');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -143,16 +154,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
 
   Future<void> _sendSmsReminder() async {
     if (_debt.partyPhone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'No phone number on file.',
-              'Hakuna namba ya simu iliyohifadhiwa.',
-            ),
-          ),
-          backgroundColor: AppColors.warning,
-        ),
+      AppNotification.warning(
+        context,
+        _tr('No phone number on file.', 'Hakuna namba ya simu iliyohifadhiwa.'),
       );
       return;
     }
@@ -183,16 +187,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       } catch (_) {}
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not open SMS app.',
-                'Imeshindwa kufungua programu ya SMS.',
-              ),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        AppNotification.error(
+          context,
+          _tr('Could not open SMS app.', 'Imeshindwa kufungua programu ya SMS.'),
         );
       }
     }
@@ -362,20 +359,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       final reason = noteCtrl.text.trim().isNotEmpty
           ? '$selectedReason — ${noteCtrl.text.trim()}'
           : selectedReason!;
-      final writtenOff = Debt(
-        id: _debt.id,
-        partyName: _debt.partyName,
-        partyPhone: _debt.partyPhone,
-        partyId: _debt.partyId,
-        type: _debt.type,
-        originalAmount: _debt.originalAmount,
-        paidAmount: _debt.paidAmount,
-        dueDate: _debt.dueDate,
+      final writtenOff = _debt.copyWith(
         status: 'written_off',
-        invoiceRef: _debt.invoiceRef,
-        note: _debt.note,
-        createdBy: _debt.createdBy,
-        createdAt: _debt.createdAt,
         isWrittenOff: true,
         writeOffReason: reason,
         writtenOffBy: user.uid,
@@ -395,13 +380,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     } catch (_) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr('Write-off failed. Try again.', 'Imeshindwa. Jaribu tena.'),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        AppNotification.error(
+          context,
+          _tr('Write-off failed. Try again.', 'Imeshindwa. Jaribu tena.'),
         );
       }
     }
@@ -473,12 +454,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     } catch (_) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Delete failed.', 'Imeshindwa kufuta.')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppNotification.error(context, _tr('Delete failed.', 'Imeshindwa kufuta.'));
       }
     }
   }
@@ -639,6 +615,12 @@ class _HeroAmountCard extends StatelessWidget {
                 value: _fmtAmt(debt.originalAmount),
                 color: AppColors.textSecondary,
               ),
+              if (debt.hasInterest)
+                _AmountPill(
+                  label: _tr('Interest', 'Riba'),
+                  value: _fmtAmt(debt.accruedInterest),
+                  color: AppColors.navyPrimary,
+                ),
               _AmountPill(
                 label: _tr('Paid', 'Kilicholipwa'),
                 value: _fmtAmt(debt.paidAmount),
@@ -651,6 +633,33 @@ class _HeroAmountCard extends StatelessWidget {
               ),
             ],
           ),
+          if (debt.hasInterest) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.navyPrimary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.trending_up_rounded,
+                      size: 14, color: AppColors.navyPrimary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${debt.interestRatePercent.toStringAsFixed(debt.interestRatePercent == debt.interestRatePercent.roundToDouble() ? 0 : 1)}% '
+                    '${_periodSuffix(debt.interestPeriod)} · ${_typeSuffix(debt.interestType)}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -762,6 +771,26 @@ class _DetailInfoCard extends StatelessWidget {
             label: _tr('Due Date', 'Tarehe ya Mwisho'),
             value: _fmtDate(debt.dueDate),
           ),
+          if (debt.hasInterest) ...[
+            _InfoRow(
+              icon: Icons.percent_rounded,
+              label: _tr('Interest Rate', 'Kiwango cha Riba'),
+              value:
+                  '${debt.interestRatePercent.toStringAsFixed(debt.interestRatePercent == debt.interestRatePercent.roundToDouble() ? 0 : 1)}% ${_periodSuffix(debt.interestPeriod)}',
+            ),
+            _InfoRow(
+              icon: Icons.functions_rounded,
+              label: _tr('Interest Type', 'Aina ya Riba'),
+              value: _typeSuffix(debt.interestType)[0].toUpperCase() +
+                  _typeSuffix(debt.interestType).substring(1),
+            ),
+            _InfoRow(
+              icon: Icons.calendar_month_outlined,
+              label: _tr('Interest Since', 'Riba Tangu'),
+              value: _fmtDate(
+                  debt.loanDate.isNotEmpty ? debt.loanDate : debt.createdAt),
+            ),
+          ],
           if (debt.invoiceRef.isNotEmpty)
             _InfoRow(
               icon: Icons.receipt_long_outlined,
@@ -1221,6 +1250,16 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     super.dispose();
   }
 
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based (SyncCashRepository) so it works fully offline;
+  // the sheet shows its own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+  }
+
   Future<void> _save() async {
     if (_paymentError != null || _generalError != null) {
       setState(() {
@@ -1276,25 +1315,10 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
 
       // Denormalize paidAmount on the debt so reports stay accurate offline.
       final newPaid = widget.debt.paidAmount + amount;
-      final isNowPaid = newPaid >= widget.debt.originalAmount;
-      final updatedDebt = Debt(
-        id: widget.debt.id,
-        partyName: widget.debt.partyName,
-        partyPhone: widget.debt.partyPhone,
-        partyId: widget.debt.partyId,
-        type: widget.debt.type,
-        originalAmount: widget.debt.originalAmount,
+      final isNowPaid = newPaid >= widget.debt.totalOwedWithInterest;
+      final updatedDebt = widget.debt.copyWith(
         paidAmount: newPaid,
-        dueDate: widget.debt.dueDate,
         status: isNowPaid ? 'paid' : widget.debt.status,
-        invoiceRef: widget.debt.invoiceRef,
-        note: widget.debt.note,
-        createdBy: widget.debt.createdBy,
-        createdAt: widget.debt.createdAt,
-        isWrittenOff: widget.debt.isWrittenOff,
-        writeOffReason: widget.debt.writeOffReason,
-        writtenOffBy: widget.debt.writtenOffBy,
-        writtenOffAt: widget.debt.writtenOffAt,
       );
       await repo.save(updatedDebt);
 
@@ -1444,6 +1468,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               }),
               onActivationRequired: (message) =>
                   setState(() => _paymentError = message),
+              onActivateMethod: (spec) => _showActivateAccountSheet(spec),
             ),
             ValidationBanner(
               message: _paymentError,

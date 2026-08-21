@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../data/reports_providers.dart';
 import '../../services/report_export_service.dart';
 import 'reports_hub_screen.dart';
@@ -200,16 +201,9 @@ class ProfitLossScreen extends ConsumerWidget {
                 ReportExportService.pnlCsv(report, periodLabel),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _tr(
-                        'CSV copied to clipboard',
-                        'CSV imenakiliwa kwenye ubao wa kunakili',
-                      ),
-                    ),
-                    backgroundColor: AppColors.success,
-                  ),
+                AppNotification.success(
+                  context,
+                  _tr('CSV copied to clipboard', 'CSV imenakiliwa kwenye ubao wa kunakili'),
                 );
               }
             },

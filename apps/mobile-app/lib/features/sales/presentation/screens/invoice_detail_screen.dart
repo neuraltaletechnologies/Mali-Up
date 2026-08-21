@@ -11,12 +11,14 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_motion.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -87,7 +89,14 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   double get _discount => parseNumericAmount(_inv['discountAmount']);
   double get _vat => parseNumericAmount(_inv['vatAmount']);
   double get _amountPaid => parseNumericAmount(_inv['amountPaid']);
-  double get _outstanding => (_total - _amountPaid).clamp(0.0, _total);
+  bool get _hasReturn => _inv['hasReturn'] == true;
+  double get _returnedAmount => parseNumericAmount(_inv['returnedAmount']);
+  // What's actually still owed, net of anything credited back via a return
+  // — the line items above still sum to the original _total for an
+  // unambiguous audit trail, but what the customer owes shrinks with it.
+  double get _netTotal => (_total - _returnedAmount).clamp(0.0, _total);
+  double get _outstanding =>
+      (_netTotal - _amountPaid).clamp(0.0, _netTotal);
 
   String get _invoiceNumber =>
       _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
@@ -327,7 +336,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
-  void _openEdit() {
+  Future<void> _openEdit() async {
+    // The editor's own Save commits an atomic Firestore batch and is
+    // online-only — checked here too, before the user re-edits every line
+    // item, so an offline tap doesn't waste their time only to fail at Save.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     Navigator.of(context).push(
       AppMotion.taskRoute<void>(
         builder: (_) =>
@@ -337,16 +351,29 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   Future<void> _openReturn() async {
+    // The return sheet's own Save commits an atomic Firestore batch (stock
+    // restore + credit note + balances) and is online-only — checked here
+    // too, before the user selects items to return, so an offline tap
+    // doesn't waste their time only to fail at Save.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
       maxHeightFactor: 0.92,
       builder: (_) => SalesReturnScreen(originalInvoice: _inv),
     );
     if (result?['saved'] == true && mounted) {
+      // The return already persisted returnedAmount to Firestore + Drift
+      // (SalesReturnScreen); this just keeps this already-open screen's
+      // in-memory copy in step without waiting for the next reload, the
+      // same way readInvoiceTotal nets it out everywhere else.
+      final priorReturned = parseNumericAmount(_inv['returnedAmount']);
+      final justReturned = parseNumericAmount(result?['returnedAmount']);
       setState(
         () => _inv = {
           ..._inv,
           'hasReturn': true,
+          'returnedAmount': priorReturned + justReturned,
           if (result?['creditNoteNumber'] != null)
             'creditNoteNumber': result!['creditNoteNumber'],
         },
@@ -463,21 +490,14 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   /// steps don't silently drift apart. Quotations and non-drafts are skipped.
   void _offerMarkSent() {
     if (!mounted || _isQuotation || _status != 'draft' || !_canEdit) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _tr(
-            'Invoice shared. Mark it as sent?',
-            'Ankara imeshirikiwa. Uiweke kama imetumwa?',
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 8),
-        action: SnackBarAction(
-          label: _tr('Mark as Sent', 'Imetumwa'),
-          onPressed: () => _updateStatus('sent'),
-        ),
+    AppNotification.info(
+      context,
+      _tr('Invoice shared. Mark it as sent?', 'Ankara imeshirikiwa. Uiweke kama imetumwa?'),
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: _tr('Mark as Sent', 'Imetumwa'),
+        textColor: AppColors.inverseText,
+        onPressed: () => _updateStatus('sent'),
       ),
     );
   }
@@ -527,13 +547,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppNotification.info(context, msg);
   }
 
   @override
@@ -556,6 +570,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               dueDate: _dueDate,
               itemCount: _lineItems.length,
               outstanding: _outstanding,
+              hasReturn: _hasReturn,
+              returnedAmount: _returnedAmount,
+              creditNoteNumber: (_inv['creditNoteNumber'] ?? '').toString(),
             ),
             const SizedBox(height: 16),
             _ShareRow(onSms: _shareSms, onPdf: _openPdf),
@@ -567,6 +584,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               discount: _discount,
               vatAmount: _vat,
               total: _total,
+              returnedAmount: _returnedAmount,
               applyVat: _inv['vatApplied'] as bool? ?? _vat > 0,
             ),
             if (_inv['paymentMethod'] != null) ...[
@@ -674,6 +692,9 @@ class _InvoiceSummaryCard extends StatelessWidget {
   final DateTime? dueDate;
   final int itemCount;
   final double outstanding;
+  final bool hasReturn;
+  final double returnedAmount;
+  final String creditNoteNumber;
 
   const _InvoiceSummaryCard({
     required this.invoiceNumber,
@@ -685,6 +706,9 @@ class _InvoiceSummaryCard extends StatelessWidget {
     required this.dueDate,
     required this.itemCount,
     required this.outstanding,
+    this.hasReturn = false,
+    this.returnedAmount = 0,
+    this.creditNoteNumber = '',
   });
 
   @override
@@ -694,6 +718,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
         dueDate!.isBefore(DateTime.now()) &&
         status != 'paid' &&
         status != 'cancelled';
+    final netTotal = (total - returnedAmount).clamp(0.0, total);
 
     return Container(
       decoration: BoxDecoration(
@@ -752,6 +777,37 @@ class _InvoiceSummaryCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (hasReturn) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.tealAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.undo_rounded,
+                                    size: 9, color: AppColors.tealAccent),
+                                const SizedBox(width: 2),
+                                Text(
+                                  _tr('Returned', 'Imerudishwa'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.tealAccent,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
@@ -797,13 +853,24 @@ class _InvoiceSummaryCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'TZS ${_fmtNum(total)}',
+                'TZS ${_fmtNum(netTotal)}',
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
+              if (returnedAmount > 0) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'TZS ${_fmtNum(total)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
               if (itemCount > 0)
                 Text(
@@ -825,6 +892,18 @@ class _InvoiceSummaryCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (returnedAmount > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${_tr('Returned', 'Imerudishwa')}: -TZS ${_fmtNum(returnedAmount)}'
+              '${creditNoteNumber.isNotEmpty ? ' · $creditNoteNumber' : ''}',
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.tealAccent,
+              ),
+            ),
+          ],
           if (overdue) ...[
             const SizedBox(height: 6),
             Row(
@@ -1133,6 +1212,7 @@ class _SummaryCard extends StatelessWidget {
   final double discount;
   final double vatAmount;
   final double total;
+  final double returnedAmount;
   final bool applyVat;
 
   const _SummaryCard({
@@ -1140,6 +1220,7 @@ class _SummaryCard extends StatelessWidget {
     required this.discount,
     required this.vatAmount,
     required this.total,
+    this.returnedAmount = 0,
     required this.applyVat,
   });
 
@@ -1173,6 +1254,14 @@ class _SummaryCard extends StatelessWidget {
               value: 'TZS ${_fmtNum(vatAmount)}',
             ),
           ],
+          if (returnedAmount > 0) ...[
+            const SizedBox(height: 8),
+            _SRow(
+              label: _tr('Returned', 'Imerudishwa'),
+              value: '-TZS ${_fmtNum(returnedAmount)}',
+              valueColor: AppColors.tealAccent,
+            ),
+          ],
           const SizedBox(height: 12),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
@@ -1189,7 +1278,7 @@ class _SummaryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'TZS ${_fmtNum(total)}',
+                'TZS ${_fmtNum((total - returnedAmount).clamp(0.0, total))}',
                 style: GoogleFonts.dmSerifDisplay(
                   fontSize: 22,
                   color: AppColors.navyPrimary,
@@ -1576,6 +1665,16 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     super.dispose();
   }
 
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based (SyncCashRepository) so it works fully offline;
+  // the sheet shows its own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
+    );
+  }
+
   // Input-only sheet: the caller commits the payment atomically together
   // with the invoice balance and customer balance updates.
   void _save() {
@@ -1713,6 +1812,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               }),
               onActivationRequired: (message) =>
                   setState(() => _paymentError = message),
+              onActivateMethod: (spec) => _showActivateAccountSheet(spec),
             ),
             ValidationBanner(
               message: _paymentError,

@@ -19,11 +19,17 @@ class SyncInventoryRepository implements InventoryRepository {
   final SyncQueueDao _queue;
   final OfflinePolicyNotifier _policy;
 
+  /// Fired (fire-and-forget) after a write lands in the sync queue, so the
+  /// push cycle kicks off immediately instead of waiting for the next app
+  /// launch or connectivity blip. See [SyncService.syncNow].
+  final void Function()? onWrite;
+
   SyncInventoryRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
     required OfflinePolicyNotifier policy,
+    this.onWrite,
   })  : _db = db,
         _local = LocalInventoryRepository(db, businessId: businessId),
         remote = RemoteInventoryRepository(uid: uid, businessId: businessId),
@@ -126,6 +132,7 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 
   @override
@@ -150,6 +157,7 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
   }
 
   /// Adjusts stock quantity and queues a delta-based sync entry so concurrent
@@ -176,5 +184,42 @@ class SyncInventoryRepository implements InventoryRepository {
         ),
       );
     });
+    onWrite?.call();
+  }
+
+  /// Pushed as its own lightweight sync op (like [adjustQuantity]'s
+  /// `quantity_delta`) rather than a full [save] — a full upsert would carry
+  /// this device's `currentStock` snapshot and could stomp a concurrent
+  /// stock movement from another device. See [InventoryRepository.updatePricing].
+  @override
+  Future<void> updatePricing(
+    String id, {
+    required double costPrice,
+    required double unitPrice,
+  }) async {
+    _policy.assertCanWrite();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final payload = jsonEncode({
+      'costPrice': costPrice,
+      'unitPrice': unitPrice,
+    });
+
+    await _db.transaction(() async {
+      await _local.updatePricing(id, costPrice: costPrice, unitPrice: unitPrice);
+      await _queue.enqueue(
+        SyncQueueTableCompanion(
+          operationId: Value(const Uuid().v4()),
+          entityType: const Value('inventory_item'),
+          entityId: Value(id),
+          operation: const Value('price_update'),
+          payload: Value(payload),
+          checksum: Value(SyncUtils.sha256(payload)),
+          localVersion: const Value(0),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+    onWrite?.call();
   }
 }

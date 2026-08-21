@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
@@ -22,39 +23,7 @@ import 'package:google_fonts/google_fonts.dart';
 // Notification helper for success/error messages
 class _NotificationHelper {
   static Future<void> showError(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.red, Icons.error_outline);
-  }
-
-  static void _showNotification(
-    BuildContext context,
-    String message,
-    Color color,
-    IconData icon,
-  ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+    AppNotification.error(context, message);
   }
 }
 
@@ -442,15 +411,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!mounted || !dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        _tr(
-                          'Recovery email sent. Check your inbox.',
-                          'Barua pepe ya urejeshaji imetumwa. Angalia kikasha chako.',
-                        ),
-                      ),
-                      backgroundColor: Colors.green,
+                  AppNotification.success(
+                    context,
+                    _tr(
+                      'Recovery email sent. Check your inbox.',
+                      'Barua pepe ya urejeshaji imetumwa. Angalia kikasha chako.',
                     ),
                   );
                 }

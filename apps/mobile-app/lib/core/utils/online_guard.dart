@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../services/localization_service.dart';
-import '../theme/app_colors.dart';
+import '../../shared/widgets/app_notification.dart';
 
 /// Connectivity gate for flows that must not run while offline
 /// (registration, team invites, plan payments, complex sale edits).
@@ -19,50 +21,43 @@ class OnlineGuard {
     return results.any((r) => r != ConnectivityResult.none);
   }
 
-  /// Returns true when the device is online. When offline, shows a bilingual
-  /// snackbar explaining that the action needs internet and returns false.
+  /// Returns true when the device is online. When offline, shows the
+  /// "needs internet" notification and returns false.
+  ///
+  /// Prefer [runIfOnline] at the entry point of a flow (the button that
+  /// opens a form) — checking here, deep inside a save/submit handler, only
+  /// catches the case after the user has already spent time filling the
+  /// form in. This method still exists as the underlying check and as a
+  /// safety net for the rare case connectivity drops while a sheet is open.
   static Future<bool> ensureOnline(BuildContext context) async {
     if (await isDeviceOnline()) return true;
     if (context.mounted) {
-      final messenger = ScaffoldMessenger.of(context);
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.tealAccent,
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            content: Row(
-              children: [
-                const Icon(
-                  Icons.wifi_off_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    LocalizationService.tr(
-                      en: 'This action requires internet. Connect and try again.',
-                      sw: 'Hatua hii inahitaji intaneti. Unganisha mtandao kisha ujaribu tena.',
-                    ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      AppNotification.info(
+        context,
+        LocalizationService.tr(
+          en: 'This action requires internet. Connect and try again.',
+          sw: 'Hatua hii inahitaji intaneti. Unganisha mtandao kisha ujaribu tena.',
+        ),
+      );
     }
     return false;
+  }
+
+  /// Checks connectivity *before* starting an online-only flow, and only
+  /// runs [action] if online. Use this to wrap the button/tap handler that
+  /// opens a form or sheet for an online-only action (invite a team member,
+  /// create an invoice, add a business, sign in, upgrade a plan…) so an
+  /// offline user is told immediately — before typing anything — instead of
+  /// finding out only after filling in the whole form and tapping Save.
+  ///
+  /// ```dart
+  /// onPressed: () => OnlineGuard.runIfOnline(context, () => _showInviteSheet(context)),
+  /// ```
+  static Future<void> runIfOnline(
+    BuildContext context,
+    FutureOr<void> Function() action,
+  ) async {
+    if (!await ensureOnline(context)) return;
+    await action();
   }
 }

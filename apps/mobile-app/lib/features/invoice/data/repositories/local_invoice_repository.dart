@@ -78,6 +78,16 @@ class LocalInvoiceRepository {
   Future<void> markSynced(String id, int serverUpdatedAtMs) =>
       _dao.markSynced(id, serverUpdatedAt: serverUpdatedAtMs);
   Future<void> markConflict(String id) => _dao.markConflict(id);
+  Future<void> applyCommittedReturn(
+    String id, {
+    required double returnedAmountDelta,
+    required String creditNoteNumber,
+  }) =>
+      _dao.applyCommittedReturn(
+        id,
+        returnedAmountDelta: returnedAmountDelta,
+        creditNoteNumber: creditNoteNumber,
+      );
 
   // ─── Internal ──────────────────────────────────────────────────────────────
 

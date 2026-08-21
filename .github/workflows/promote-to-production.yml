@@ -2,7 +2,8 @@ name: Promote main to production
 
 # Opens (or updates) a PR from main into production on every push to main.
 # Merging that PR is the human checkpoint before release-android.yml ships
-# a Play Store release -- this workflow never merges anything itself.
+# a Play Store Open Testing release -- this workflow never merges anything
+# itself, and nothing here publishes to the Play Store production track.
 on:
   push:
     branches: [main]
@@ -29,5 +30,5 @@ jobs:
               --base production \
               --head main \
               --title "Promote main to production" \
-              --body "Auto-generated. Merging this PR triggers release-android.yml and ships a Play Store release. Review the diff before merging."
+              --body "Auto-generated. Merging this PR triggers release-android.yml and ships a Play Store **Open Testing** release (not the production track). Review the diff before merging."
           fi

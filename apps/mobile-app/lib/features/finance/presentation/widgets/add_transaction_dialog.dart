@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
@@ -421,21 +422,11 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_t('Transaction saved', 'Muamala umehifadhiwa')),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        AppNotification.success(context, _t('Transaction saved', 'Muamala umehifadhiwa'));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_t('Error: ${e.toString()}', 'Kosa: ${e.toString()}')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppNotification.error(context, _t('Error: ${e.toString()}', 'Kosa: ${e.toString()}'));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

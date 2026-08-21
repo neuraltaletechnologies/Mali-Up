@@ -10,13 +10,11 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 class AddProductChoiceSheet extends StatelessWidget {
   final VoidCallback onCreateCustom;
   final VoidCallback? onCreateReturn;
-  final VoidCallback? onOpenCatalog;
 
   const AddProductChoiceSheet({
     super.key,
     required this.onCreateCustom,
     this.onCreateReturn,
-    this.onOpenCatalog,
   });
 
   @override
@@ -42,17 +40,6 @@ class AddProductChoiceSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-
-          _Tile(
-            icon: Icons.search_rounded,
-            label: _tr('Search Catalog', 'Chagua kwenye Katalogi'),
-            badge: _tr('Best', 'Bora'),
-            onTap: () {
-              Navigator.of(context).pop();
-              onOpenCatalog?.call();
-            },
-          ),
-          const SizedBox(height: 8),
 
           _Tile(
             icon: Icons.add_circle_outline_rounded,
@@ -81,13 +68,11 @@ class AddProductChoiceSheet extends StatelessWidget {
 class _Tile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String? badge;
   final VoidCallback onTap;
 
   const _Tile({
     required this.icon,
     required this.label,
-    this.badge,
     required this.onTap,
   });
 
@@ -124,24 +109,6 @@ class _Tile extends StatelessWidget {
                 ),
               ),
             ),
-            if (badge != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.yellowBrand,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badge!,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
             const Icon(
               Icons.chevron_right_rounded,
               color: Color(0xFFCBD5E1),

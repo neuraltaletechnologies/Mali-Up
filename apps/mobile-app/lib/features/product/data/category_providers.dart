@@ -181,11 +181,24 @@ final currentBusinessTypeProvider = StreamProvider<String>((ref) {
   if (businessAsync.isLoading) return Stream.value('');
   final activeBusinessId = businessAsync.valueOrNull ?? '';
   if (activeBusinessId.isEmpty) return Stream.value('');
-  return FirebaseFirestore.instance
+  final snapshots = FirebaseFirestore.instance
       .collection('businesses')
       .doc(activeBusinessId)
       .snapshots()
       .map((snap) => _businessTypeFromBusinessDoc(snap.data()));
+
+  // Guarantee a prompt first emission even while fully offline. Firestore's
+  // own persistence cache is disabled (see main.dart), so .snapshots() has
+  // no cached doc to synthesize an offline read from and would otherwise
+  // never emit until connectivity returns — leaving every provider that
+  // awaits this one's first value (e.g. masterCategoriesProvider) stuck
+  // loading forever, which is what broke the category picker offline.
+  // Falling back to '' resolves to the 'retail' default downstream; the
+  // real value still arrives (and callers rebuild) the moment a snapshot
+  // lands. distinct() avoids re-notifying on repeated timeout fallbacks.
+  return snapshots
+      .timeout(const Duration(seconds: 4), onTimeout: (sink) => sink.add(''))
+      .distinct();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

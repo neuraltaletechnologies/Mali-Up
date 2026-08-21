@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +14,7 @@ import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
+import 'payment_pos_animation.dart';
 import 'skeleton_widgets.dart';
 import 'smart_skeleton.dart';
 
@@ -85,13 +88,22 @@ extension PlanFeatureKeyX on PlanFeatureKey {
 
 /// Shows the upgrade / paywall bottom sheet.
 /// Returns the selected [PlanTier] if the user proceeds to payment, or null.
+///
+/// This is two separate bottom sheets chained together, not one: the plan
+/// picker + phone-number form pops with a [_PaymentHandoff] once the user
+/// submits a number, and only then does a second, independent sheet
+/// ([_ClickPesaPaymentSheet]) open to run the actual ClickPesa request and
+/// show its POS animation. Keeping them separate means the payment sheet's
+/// AnimationController/Lottie composition is created fresh for that one
+/// request instead of living inside (and being torn down by) the plan
+/// sheet's own rebuilds.
 Future<PlanTier?> showUpgradeSheet(
   BuildContext context, {
   PlanStatus? currentStatus,
   String? triggerReason,
   PlanFeatureKey? featureKey,
-}) {
-  return showAppSheet<PlanTier>(
+}) async {
+  final result = await showAppSheet<Object>(
     context,
     builder: (_) => _UpgradeSheetWrapper(
       currentStatus: currentStatus,
@@ -99,6 +111,26 @@ Future<PlanTier?> showUpgradeSheet(
       featureKey: featureKey,
     ),
   );
+  if (result is! _PaymentHandoff) {
+    return result as PlanTier?;
+  }
+  if (!context.mounted) return null;
+  return showAppSheet<PlanTier>(
+    context,
+    builder: (_) => _ClickPesaPaymentSheet(
+      tier: result.tier,
+      phoneNumber: result.phoneNumber,
+    ),
+  );
+}
+
+/// Carries the plan + phone number chosen in the first sheet across to the
+/// second, payment-processing sheet. See [showUpgradeSheet].
+class _PaymentHandoff {
+  final PlanTier tier;
+  final String phoneNumber;
+
+  const _PaymentHandoff({required this.tier, required this.phoneNumber});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -309,9 +341,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
-  bool _paymentSubmitted = false;
-  bool _processingClickPesa = false;
-  String _orderReference = '';
   String? _prefillPhone;
 
   bool get _isMultiBusiness =>
@@ -363,56 +392,18 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle => _selLimits.pricePerCycle;
 
+  /// The phone form only collects a number here — actually sending the USSD
+  /// push and watching for confirmation happens in a separate sheet (see
+  /// [_ClickPesaPaymentSheet]) so that sheet's Lottie animation isn't torn
+  /// down and rebuilt every time this plan-selection sheet's own state
+  /// changes. Popping with a [_PaymentHandoff] tells [showUpgradeSheet] to
+  /// open that second sheet next.
   Future<void> _sendPaymentRequest(String phoneNumber) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-
-    setState(() {
-      _showPhoneConfirm = false;
-      _processingClickPesa = true;
-    });
-
-    try {
-      // Push a USSD payment prompt to the user's phone. The amount is
-      // decided server-side (from the admin-configured price), not by the
-      // client — see functions/src/clickpesa.ts.
-      final initiated = await ClickPesaService.initiatePayment(
-        tier: _selected,
-        phoneNumber: phoneNumber,
-      );
-      _orderReference = initiated.orderReference;
-
-      if (!mounted) return;
-
-      // Poll the server while the user confirms the PIN prompt on their
-      // phone. Plan activation happens server-side the moment this reports
-      // "completed" — there is nothing left for the client to write.
-      await ClickPesaService.waitForPayment(orderReference: initiated.orderReference);
-
-      if (!mounted) return;
-
-      setState(() {
-        _processingClickPesa = false;
-        _paymentSubmitted = true;
-      });
-    } catch (e) {
-      debugPrint('[UpgradeSheet] ClickPesa payment error: $e');
-      if (!mounted) return;
-      setState(() => _processingClickPesa = false);
-      _showErrorSnackBar(_t(
-        'Payment failed: ${e.toString()}',
-        'Malipo yameshindikana: ${e.toString()}',
-      ));
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ),
+    Navigator.pop(
+      context,
+      _PaymentHandoff(tier: _selected, phoneNumber: phoneNumber),
     );
   }
 
@@ -437,29 +428,42 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SheetHandle(),
               const SizedBox(height: 14),
 
-              // ── Locked-feature notice ─────────────────────────────────────
-              _LockedFeatureNotice(
-                featureKey: widget.featureKey,
-                triggerReason: widget.triggerReason,
-              ),
-
               // ── Headline ─────────────────────────────────────────────────
-              Text(
-                _t('Grow Your Business', 'Inua Biashara Yako'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                  letterSpacing: -0.3,
-                ),
+              // When opened because a specific feature is locked, the
+              // headline itself becomes that feature's name (instead of the
+              // generic "Grow Your Business") with a PREMIUM tag beside it —
+              // replaces the old separate locked-feature notice box.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.featureKey != null
+                          ? (LocalizationService.isSwahili
+                                ? widget.featureKey!.labelSw
+                                : widget.featureKey!.labelEn)
+                          : _t('Grow Your Business', 'Inua Biashara Yako'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  if (widget.featureKey != null) ...[
+                    const SizedBox(width: 10),
+                    const _PremiumTag(),
+                  ],
+                ],
               ),
               const SizedBox(height: 3),
               Text(
-                _t(
-                  'Costs less than an hour of accountant fees — reach '
-                      'further every day.',
-                  'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
-                ),
+                widget.triggerReason ??
+                    _t(
+                      'Costs less than an hour of accountant fees — reach '
+                          'further every day.',
+                      'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
+                    ),
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textMuted,
@@ -504,21 +508,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SizedBox(height: 16),
 
               // ── CTA / Payment / Enterprise request ───────────────────────
-              if (_paymentSubmitted) ...[
-                _PaymentSuccessCard(
-                  tier: _selected,
-                  paymentRef: _orderReference,
-                  onDone: () => Navigator.pop(context, _selected),
-                ),
-              ] else if (_showEnterprise) ...[
+              if (_showEnterprise) ...[
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
-                ),
-              ] else if (_processingClickPesa) ...[
-                _ClickPesaProcessingCard(
-                  tier: _selected,
-                  priceCycle: _priceCycle,
-                  cycleMonths: _selLimits.cycleMonths,
                 ),
               ] else if (_showPhoneConfirm) ...[
                 _PhonePaymentForm(
@@ -593,103 +585,36 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Locked-feature notice — flat row, no gradient, brand colors only
+// Premium tag — small navy pill shown beside the headline when the sheet was
+// opened because a specific feature is locked (see [_UpgradeSheet.build]).
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LockedFeatureNotice extends StatelessWidget {
-  final PlanFeatureKey? featureKey;
-  final String? triggerReason;
-
-  const _LockedFeatureNotice({this.featureKey, this.triggerReason});
+class _PremiumTag extends StatelessWidget {
+  const _PremiumTag();
 
   @override
   Widget build(BuildContext context) {
-    if (featureKey == null && triggerReason == null) {
-      return const SizedBox.shrink();
-    }
-
-    final icon = featureKey?.icon ?? Icons.lock_rounded;
-    final label = LocalizationService.isSwahili
-        ? featureKey?.labelSw
-        : featureKey?.labelEn;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.navyPrimary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: AppColors.navyPrimary, size: 17),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            'PREMIUM',
+            style: GoogleFonts.dmSans(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 0.5,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (label != null) ...[
-                    Text(
-                      label,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                  ],
-                  Text(
-                    triggerReason ??
-                        _t(
-                          'This feature requires a higher plan.',
-                          'Kipengele hiki kinahitaji mpango wa juu.',
-                        ),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.navyPrimary,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
-                  const SizedBox(width: 3),
-                  Text(
-                    'PREMIUM',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -763,60 +688,64 @@ class _TierCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // Name + badge
+            // Name + badge on their own line, cycle price on the line below —
+            // stacked instead of crammed into one row so neither ever needs
+            // to ellipsize, without widening the card itself.
             Expanded(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Flexible(
-                    child: Text(
-                      isGrowth ? 'Growth' : 'Business',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.navyPrimary,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isGrowth ? 'Growth' : 'Business',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.navyPrimary,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (showBadge) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.yellowBrand.withValues(
+                              alpha: isSelected ? 0.2 : 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badgeLabel,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isSelected
+                                  ? AppColors.yellowBrand
+                                  : AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (showBadge) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.yellowBrand.withValues(
-                          alpha: isSelected ? 0.2 : 0.12,
-                        ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        badgeLabel,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? AppColors.yellowBrand
-                              : AppColors.navyPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      '${_fmtPrice(limits.pricePerCycle)} / '
-                      '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: isSelected
-                            ? Colors.white.withValues(alpha: 0.45)
-                            : AppColors.textMuted,
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_fmtPrice(limits.pricePerCycle)} / '
+                    '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.45)
+                          : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -1435,136 +1364,265 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ClickPesa payment processing card
+// ClickPesa payment sheet — its own bottom sheet (see showUpgradeSheet), so
+// its AnimationController/Lottie composition has a clean lifecycle: created
+// when this sheet opens, torn down when it closes, never shared with the
+// plan-picker sheet underneath it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ClickPesaProcessingCard extends StatelessWidget {
+class _ClickPesaPaymentSheet extends StatefulWidget {
   final PlanTier tier;
-  final int priceCycle;
-  final int cycleMonths;
+  final String phoneNumber;
 
-  const _ClickPesaProcessingCard({
-    required this.tier,
-    required this.priceCycle,
-    required this.cycleMonths,
-  });
+  const _ClickPesaPaymentSheet({required this.tier, required this.phoneNumber});
+
+  @override
+  State<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
+}
+
+class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
+    with SingleTickerProviderStateMixin {
+  late final PaymentPosAnimationController _paymentAnim =
+      PaymentPosAnimationController(vsync: this);
+
+  bool _succeeded = false;
+  bool _failed = false;
+  String? _failureMessage;
+
+  // Flipped in dispose() so an in-flight ClickPesaService.waitForPayment
+  // poll loop notices (via isCancelled) and stops calling the server the
+  // moment this sheet is closed, instead of continuing to fire requests in
+  // the background for up to its full timeout.
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_runPayment());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _paymentAnim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runPayment() async {
+    if (!mounted) return;
+    setState(() {
+      _failed = false;
+      _failureMessage = null;
+    });
+    // Reset in case this is a retry after a previous failure (the
+    // controller would otherwise still be sitting frozen mid wait-loop),
+    // then play the card-into-POS intro and settle into the indefinitely
+    // looping waiting animation — driven by this real request, not a timer.
+    _paymentAnim.reset();
+    unawaited(_paymentAnim.startPayment());
+
+    try {
+      // Push a USSD payment prompt to the user's phone. The amount is
+      // decided server-side (from the admin-configured price), not by the
+      // client — see functions/src/clickpesa.ts.
+      final initiated = await ClickPesaService.initiatePayment(
+        tier: widget.tier,
+        phoneNumber: widget.phoneNumber,
+      );
+      if (_disposed) return;
+
+      // Poll the server while the user confirms the PIN prompt on their
+      // phone. Plan activation happens server-side the moment this reports
+      // "completed" — there is nothing left for the client to write. This
+      // watches the payment doc in Firestore rather than polling ClickPesa
+      // (see ClickPesaService.waitForPayment), capped at a 3-minute overall
+      // timeout, and stops immediately — rather than continuing in the
+      // background up to that cap — if this sheet is dismissed before then,
+      // via isCancelled.
+      await ClickPesaService.waitForPayment(
+        orderReference: initiated.orderReference,
+        isCancelled: () => _disposed,
+      );
+      if (_disposed || !mounted) return;
+
+      debugPrint('[ClickPesaPaymentSheet] payment confirmed: ${initiated.orderReference}');
+      setState(() => _succeeded = true);
+      // Wait for the checkmark to actually be on screen, hold a beat so
+      // it registers, then close on its own — there's nothing else on
+      // this sheet to tap.
+      await _paymentAnim.setSuccess();
+      if (_disposed || !mounted) return;
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (_disposed || !mounted) return;
+      Navigator.pop(context, widget.tier);
+    } on ClickPesaCancelledException {
+      // The sheet was dismissed mid-poll — nothing to show, nothing to log.
+    } catch (e) {
+      if (_disposed) return;
+      debugPrint('[ClickPesaPaymentSheet] payment error: $e');
+      // Freezes wherever the wait loop currently is — the green checkmark
+      // frames are never reached on failure.
+      _paymentAnim.setFailed();
+      if (!mounted) return;
+      setState(() {
+        _failed = true;
+        _failureMessage = _friendlyClickPesaFailureMessage(e);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.navyPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.navyPrimary.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(
-            width: 48,
-            height: 48,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: AppColors.navyPrimary,
-            ),
+    // Transparent, not the white Material card the plan-picker sheet below
+    // uses — the failed state still needs a readable surface behind its
+    // text/buttons, but the normal processing/success state is nothing but
+    // the animation, so there's no card to paint a background on.
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            32 + MediaQuery.of(context).viewInsets.bottom,
           ),
-          const SizedBox(height: 16),
-          Text(
-            _t('Check Your Phone', 'Angalia Simu Yako'),
-            style: GoogleFonts.dmSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _t(
-              "We've sent a payment prompt to your phone — enter your mobile "
-                  'money PIN there to confirm. This closes automatically once '
-                  "you've confirmed.",
-              'Tumetuma ombi la malipo kwenye simu yako — weka PIN yako ya pesa '
-                  'ya simu hapo kuthibitisha. Hii itafunga yenyewe mara '
-                  'utakapothibitisha.',
-            ),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  _t('$tierName Plan', '$tierName Mpango'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              if (_failed) ...[
+                const SizedBox(height: 14),
+                _PaymentFailedCard(
+                  message: _failureMessage ??
+                      _t('Something went wrong.', 'Hitilafu imetokea.'),
+                  onRetry: () => unawaited(_runPayment()),
+                  onCancel: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'TZS ${_fmtPrice(priceCycle)} ${_t("for $cycleMonths months", "kwa miezi $cycleMonths")}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                  ),
+              ] else ...[
+                const SizedBox(height: 8),
+                _ClickPesaPaymentCard(
+                  animController: _paymentAnim,
+                  succeeded: _succeeded,
                 ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
+/// ClickPesa/network exceptions are technical (`Exception: Payment failed`,
+/// `FirebaseFunctionsException(...)`) — show something a shopkeeper can
+/// actually act on instead of the raw error string.
+String _friendlyClickPesaFailureMessage(Object e) {
+  final raw = e.toString();
+  if (raw.contains('Payment verification timeout')) {
+    return _t(
+      "We didn't get a confirmation in time. If you entered your PIN, "
+          'check your balance before retrying — you may already have been '
+          'charged.',
+      'Hatujapokea uthibitisho kwa wakati. Kama uliweka PIN yako, kagua '
+          'salio lako kabla ya kujaribu tena — huenda tayari umetozwa.',
+    );
+  }
+  return _t(
+    'The payment was declined or not completed on your phone. No charge '
+        'was made — you can try again.',
+    'Malipo yamekataliwa au hayakukamilika kwenye simu yako. Hukutozwa — '
+        'unaweza kujaribu tena.',
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Payment claim submitted — "we're processing it" confirmation
+// ClickPesa payment card — no box, no description copy, nothing to read.
+// A single small status word up top and the POS Lottie animation doing all
+// the actual communicating below it. Stays one mounted widget across the
+// waiting -> success handoff (only [succeeded] flips) so PaymentPosAnimation
+// and its AnimationController are never disposed/recreated mid-flow; see
+// PaymentPosAnimationController for how the animation itself is driven off
+// real ClickPesa status rather than a timer. There's no button here — the
+// sheet closes itself a beat after the checkmark lands (_runPayment).
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PaymentSuccessCard extends StatelessWidget {
-  final PlanTier tier;
-  final String paymentRef;
-  final VoidCallback onDone;
+class _ClickPesaPaymentCard extends StatelessWidget {
+  final PaymentPosAnimationController animController;
+  final bool succeeded;
 
-  const _PaymentSuccessCard({
-    required this.tier,
-    required this.paymentRef,
-    required this.onDone,
+  const _ClickPesaPaymentCard({
+    required this.animController,
+    required this.succeeded,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
+    // 80% of screen width, not a fixed pixel size, so the animation reads
+    // as the dominant thing on the sheet on every phone size rather than
+    // looking small on larger screens or cramped on small ones.
+    final animSize = MediaQuery.sizeOf(context).width * 0.8;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            succeeded
+                ? _t('Payment successful', 'Malipo Yamefanikiwa')
+                : _t('Check Your Phone', 'Angalia Simu Yako'),
+            key: ValueKey(succeeded),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ),
+        PaymentPosAnimation(controller: animController, size: animSize),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment failed — shown when the USSD push was declined, timed out, or
+// otherwise didn't complete. No charge was made in any of these cases (the
+// server only activates a plan after ClickPesa confirms success), so the
+// copy is reassuring rather than alarming, with a direct way to retry.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PaymentFailedCard extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onCancel;
+
+  const _PaymentFailedCard({
+    required this.message,
+    required this.onRetry,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.06),
+        color: AppColors.error.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.check_circle_rounded,
-            color: AppColors.success,
-            size: 36,
+          const _BounceInIcon(
+            icon: Icons.close_rounded,
+            color: AppColors.error,
           ),
           const SizedBox(height: 10),
           Text(
-            _t('Payment successful!', 'Malipo yamefanikiwa!'),
+            _t('Payment not completed', 'Malipo Hayakukamilika'),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1573,12 +1631,7 @@ class _PaymentSuccessCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            _t(
-              'Your $tierName plan is now active ($paymentRef). Enjoy the '
-                  'new features right away.',
-              'Mpango wako wa $tierName sasa umewashwa ($paymentRef). Furahia '
-                  'vipengele vipya mara moja.',
-            ),
+            message,
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
               fontSize: 12,
@@ -1587,29 +1640,96 @@ class _PaymentSuccessCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton(
-              onPressed: onDone,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navyPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: OutlinedButton(
+                    onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _t('Cancel', 'Ghairi'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                _t('OK', 'Sawa'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: onRetry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navyPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _t('Try Again', 'Jaribu Tena'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bounce-in icon — a filled circle + icon that pops in with an elastic
+// overshoot. Used for the one-shot failure moment at the end of a payment
+// attempt (the success moment now uses PaymentPosAnimation's checkmark
+// instead, via _ClickPesaPaymentCard).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BounceInIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _BounceInIcon({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    // Curves.easeOutBack gives one restrained overshoot (~8%) and settles —
+    // Curves.elasticOut (the previous curve) oscillates several times before
+    // settling, which reads as playful/toy-like rather than premium.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Opacity(
+        opacity: value.clamp(0.0, 1.0),
+        child: Transform.scale(scale: value, child: child),
+      ),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+        ),
+        child: Icon(icon, color: color, size: 32),
       ),
     );
   }

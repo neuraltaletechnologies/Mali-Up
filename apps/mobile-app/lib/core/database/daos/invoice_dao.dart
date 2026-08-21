@@ -175,6 +175,27 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  // Mirrors a return that was already committed to Firestore by
+  // SalesReturnScreen's atomic batch. Leaves syncStatus untouched — the
+  // change needs no push, and flipping the row to pending would make every
+  // future incremental pull skip it (see InventoryDao.applyCommittedDelta).
+  Future<void> applyCommittedReturn(
+    String id, {
+    required double returnedAmountDelta,
+    required String creditNoteNumber,
+  }) async {
+    final row = await getById(id);
+    if (row == null) return;
+    await (update(invoicesTable)..where((t) => t.id.equals(id))).write(
+      InvoicesTableCompanion(
+        hasReturn: const Value(1),
+        returnedAmount: Value(row.returnedAmount + returnedAmountDelta),
+        creditNoteNumber: Value(creditNoteNumber),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
   Future<void> hardDelete(String id) async {
     await (delete(invoicesTable)..where((t) => t.id.equals(id))).go();
     await (delete(invoiceItemsTable)

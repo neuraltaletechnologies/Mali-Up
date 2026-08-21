@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/business_profile_service.dart';
@@ -21,7 +22,6 @@ import '../../../../shared/widgets/rate_app_dialog.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/data/finance_providers.dart';
-import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/models/expense.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -289,16 +289,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       orElse: () => 0,
     );
     final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
-    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(
-      cashAccountListProvider,
-    );
     final expenseItems = expenses.maybeWhen(
       data: (items) => items,
       orElse: () => const <Expense>[],
-    );
-    final cashAccountItems = cashAccounts.maybeWhen(
-      data: (items) => items,
-      orElse: () => const <CashAccount>[],
     );
     final now2 = DateTime.now();
     // Rejected expenses are excluded, matching the P&L / expense reports.
@@ -317,12 +310,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           return d != null && d.year == now2.year;
         })
         .fold<double>(0, (t, e) => t + _numericValue(e.amount));
-    final totalCash = cashAccountItems.fold<double>(0, (t, a) => t + a.balance);
+    // All-time total, regardless of the period selector above — this is the
+    // figure the Mali Up hero card's "EXPENSES" stat reads.
+    final allTimeExpenses = countedExpenses.fold<double>(
+      0,
+      (t, e) => t + _numericValue(e.amount),
+    );
     final salesAsyncValue = ref.watch(salesInvoiceListProvider);
     final salesItems = salesAsyncValue.maybeWhen(
       data: (items) => items,
       orElse: () => const <Map<String, dynamic>>[],
     );
+    // Cash actually on hand: every shilling collected against a sale/invoice
+    // (amountPaid — set at sale time for cash sales, incremented by
+    // recordPayment for credit collections) minus every recorded expense,
+    // all-time. Previously this summed a separate "cash accounts" ledger
+    // (Cash Flow feature) that most businesses never touch, so it showed 0
+    // or a stale number even after real sales and payments went through.
+    final allTimeCollected = salesItems.fold<double>(
+      0,
+      (t, inv) => t + parseNumericAmount(inv['amountPaid']),
+    );
+    final totalCash = allTimeCollected - allTimeExpenses;
     final activityLoading = expenses.isLoading || salesAsyncValue.isLoading;
     final inventoryItems = ref
         .watch(inventoryItemListProvider)
@@ -369,7 +378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return s != 'paid' && s != 'completed';
     }).toList();
     final totalOutstanding = unpaidSales.fold<double>(0, (total, inv) {
-      final amt = parseNumericAmount(inv['amount']);
+      final amt = readInvoiceTotal(inv);
       final paid = parseNumericAmount(inv['amountPaid']);
       final due = amt - paid;
       return total + (due > 0 ? due : 0);
@@ -497,7 +506,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   _UnifiedHeroCard(
                     totalCash: totalCash,
                     monthRevenue: monthRevenue,
-                    monthExpenses: monthExpenses,
+                    monthExpenses: allTimeExpenses,
                     yearNetProfit: yearRevenue - yearExpenses,
                     customerCount: customerCount,
                     businessName: _getBusinessName(_profile),
@@ -962,6 +971,9 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
 class _UnifiedHeroCard extends StatefulWidget {
   final double totalCash;
   final double monthRevenue;
+  // All-time total, despite the field name inherited from the constructor
+  // call site — the "EXPENSES" stat below reads the whole business history,
+  // not just the current month.
   final double monthExpenses;
   final double yearNetProfit;
   final int customerCount;
@@ -2217,7 +2229,7 @@ class _TopPerformersSection extends StatelessWidget {
       if (ts == null || ts.isBefore(monthStart)) continue;
       final key = (inv['customerName'] ?? '').toString().trim();
       if (key.isEmpty) continue;
-      result[key] = (result[key] ?? 0) + parseNumericAmount(inv['amount']);
+      result[key] = (result[key] ?? 0) + readInvoiceTotal(inv);
     }
     return result;
   }
@@ -2447,7 +2459,7 @@ class _RecentTransactionsList extends StatelessWidget {
       // Quotations, drafts and cancelled invoices are not transactions.
       if (!_isConfirmedSale(inv)) continue;
       final date = readTimestamp(inv['createdAt']);
-      final amount = parseNumericAmount(inv['amount']);
+      final amount = readInvoiceTotal(inv);
       final customer = (inv['customerName'] ?? '').toString().trim();
       result.add({
         'kind': 'sale',
@@ -2917,15 +2929,9 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
 
       final opened = await whatsappLaunch;
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Could not open WhatsApp. Please make sure it is installed.',
-                'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
-              ),
-            ),
-          ),
+        AppNotification.error(
+          context,
+          _tr('Could not open WhatsApp. Please make sure it is installed.', 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'),
         );
       }
       await Future.delayed(const Duration(milliseconds: 1600));
@@ -3235,7 +3241,7 @@ double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(cutoff)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3248,7 +3254,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(monthStart)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3261,7 +3267,7 @@ double _yearRevenue(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(yearStart)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3280,7 +3286,7 @@ double _revenueForRange(
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(from) || d.isAfter(to)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3294,7 +3300,7 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(lastMonthStart) || !d.isBefore(lastMonthEnd)) return total;
-    return total + parseNumericAmount(inv['amount']);
+    return total + readInvoiceTotal(inv);
   });
 }
 
@@ -3312,7 +3318,7 @@ Map<int, double> _buildDailySalesData(List<Map<String, dynamic>> invoices) {
     final daysAgo = today.difference(d).inDays;
     if (daysAgo < 0 || daysAgo > 6) continue;
     final idx = 6 - daysAgo;
-    daily[idx] = (daily[idx] ?? 0) + parseNumericAmount(inv['amount']);
+    daily[idx] = (daily[idx] ?? 0) + readInvoiceTotal(inv);
   }
   return daily;
 }
@@ -3356,7 +3362,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
       final category = (invoice['category'] ?? '').toString().trim();
       final label = category.isEmpty ? _tr('Other', 'Nyingine') : category;
       totals[label] =
-          (totals[label] ?? 0) + parseNumericAmount(invoice['amount']);
+          (totals[label] ?? 0) + readInvoiceTotal(invoice);
       continue;
     }
 
@@ -3366,7 +3372,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
       return total +
           (value > 0 ? value : _numericValue(item['unitPrice']) * quantity);
     });
-    final invoiceTotal = parseNumericAmount(invoice['amount']);
+    final invoiceTotal = readInvoiceTotal(invoice);
     final scale = rawLineTotal > 0 && invoiceTotal > 0
         ? invoiceTotal / rawLineTotal
         : 1.0;
@@ -3449,7 +3455,7 @@ List<String> _generateInsights({
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null || ts.isBefore(monthStart)) continue;
     final key = (inv['customerName'] ?? '').toString().trim();
-    final amt = parseNumericAmount(inv['amount']);
+    final amt = readInvoiceTotal(inv);
     monthTotal += amt;
     if (key.isNotEmpty) {
       customerRevenue[key] = (customerRevenue[key] ?? 0) + amt;

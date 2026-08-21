@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 String _dateFromFirestore(dynamic value) {
@@ -71,6 +73,23 @@ class Debt {
   final String writtenOffBy;
   final String writtenOffAt;
 
+  /// Interest rate charged per [interestPeriod], as a percentage (e.g. `5`
+  /// means 5% per period). Zero (the default) means the debt carries no
+  /// interest and behaves exactly as before — every computed getter below
+  /// falls back to the plain principal in that case.
+  final double interestRatePercent;
+
+  /// 'daily' | 'weekly' | 'monthly' — how often [interestRatePercent] applies.
+  final String interestPeriod;
+
+  /// 'simple' — interest = principal × rate × periods elapsed.
+  /// 'compound' — interest compounds on the growing balance each period.
+  final String interestType;
+
+  /// The date interest starts accruing from (ISO `yyyy-MM-dd`). Falls back
+  /// to [createdAt] when empty, so existing debts need no backfill.
+  final String loanDate;
+
   const Debt({
     required this.id,
     required this.partyName,
@@ -89,15 +108,61 @@ class Debt {
     this.writeOffReason = '',
     this.writtenOffBy = '',
     this.writtenOffAt = '',
+    this.interestRatePercent = 0,
+    this.interestPeriod = 'monthly',
+    this.interestType = 'simple',
+    this.loanDate = '',
   });
+
+  // ── Interest / accrual ───────────────────────────────────────────────────
+
+  bool get hasInterest => interestRatePercent > 0;
+
+  /// Whole periods elapsed between [loanDate] (or [createdAt] if unset) and
+  /// now. Accrual freezes once the debt is settled — it never grows past
+  /// what mattered while the debt was actually open.
+  int get interestPeriodsElapsed {
+    if (!hasInterest || isWrittenOff || status == 'paid') return 0;
+    final start = DateTime.tryParse(loanDate.isNotEmpty ? loanDate : createdAt);
+    if (start == null) return 0;
+    final now = DateTime.now();
+    if (!now.isAfter(start)) return 0;
+    switch (interestPeriod) {
+      case 'daily':
+        return now.difference(start).inDays;
+      case 'weekly':
+        return now.difference(start).inDays ~/ 7;
+      case 'monthly':
+      default:
+        var months = (now.year - start.year) * 12 + (now.month - start.month);
+        if (now.day < start.day) months -= 1;
+        return months < 0 ? 0 : months;
+    }
+  }
+
+  /// Interest accrued so far, in the same currency unit as [originalAmount].
+  double get accruedInterest {
+    if (!hasInterest) return 0;
+    final periods = interestPeriodsElapsed;
+    if (periods <= 0) return 0;
+    final rate = interestRatePercent / 100;
+    if (interestType == 'compound') {
+      return originalAmount * (math.pow(1 + rate, periods) - 1);
+    }
+    return originalAmount * rate * periods;
+  }
+
+  /// Principal + interest accrued to date — what is actually owed right now.
+  double get totalOwedWithInterest => originalAmount + accruedInterest;
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
   double get remainingAmount =>
-      (originalAmount - paidAmount).clamp(0, double.infinity);
-  bool get isFullyPaid => paidAmount >= originalAmount;
-  double get paidPercent =>
-      originalAmount <= 0 ? 0 : (paidAmount / originalAmount).clamp(0.0, 1.0);
+      (totalOwedWithInterest - paidAmount).clamp(0, double.infinity);
+  bool get isFullyPaid => paidAmount >= totalOwedWithInterest;
+  double get paidPercent => totalOwedWithInterest <= 0
+      ? 0
+      : (paidAmount / totalOwedWithInterest).clamp(0.0, 1.0);
 
   int get daysOverdue {
     final due = DateTime.tryParse(dueDate);
@@ -148,6 +213,11 @@ class Debt {
       writeOffReason: data['writeOffReason']?.toString() ?? '',
       writtenOffBy: data['writtenOffBy']?.toString() ?? '',
       writtenOffAt: data['writtenOffAt']?.toString() ?? '',
+      interestRatePercent:
+          (data['interestRatePercent'] as num?)?.toDouble() ?? 0,
+      interestPeriod: data['interestPeriod']?.toString() ?? 'monthly',
+      interestType: data['interestType']?.toString() ?? 'simple',
+      loanDate: data['loanDate']?.toString() ?? '',
     );
   }
 
@@ -170,6 +240,12 @@ class Debt {
           'writtenOffBy': writtenOffBy,
           'writtenOffAt': writtenOffAt,
         },
+        if (interestRatePercent > 0) ...{
+          'interestRatePercent': interestRatePercent,
+          'interestPeriod': interestPeriod,
+          'interestType': interestType,
+          if (loanDate.isNotEmpty) 'loanDate': loanDate,
+        },
       };
 
   Debt copyWith({
@@ -189,6 +265,10 @@ class Debt {
     String? writeOffReason,
     String? writtenOffBy,
     String? writtenOffAt,
+    double? interestRatePercent,
+    String? interestPeriod,
+    String? interestType,
+    String? loanDate,
   }) =>
       Debt(
         id: id,
@@ -208,5 +288,9 @@ class Debt {
         writeOffReason: writeOffReason ?? this.writeOffReason,
         writtenOffBy: writtenOffBy ?? this.writtenOffBy,
         writtenOffAt: writtenOffAt ?? this.writtenOffAt,
+        interestRatePercent: interestRatePercent ?? this.interestRatePercent,
+        interestPeriod: interestPeriod ?? this.interestPeriod,
+        interestType: interestType ?? this.interestType,
+        loanDate: loanDate ?? this.loanDate,
       );
 }

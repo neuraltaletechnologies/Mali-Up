@@ -4,6 +4,7 @@ import type {
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
+  PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -91,6 +92,40 @@ export async function setEnterpriseTerms(
   await apiFetch(`/api/admin/businesses/${uid}/${businessId}/enterprise-terms`, {
     method: 'PATCH',
     body: JSON.stringify(terms),
+  })
+}
+
+// ─── Quick Setup (bulk onboarding) ──────────────────────────────────────────
+
+export interface QuickSetupProductRow { name: string; type?: 'product' | 'service'; unit?: string; sellingPrice?: number; costPrice?: number; stock?: number; sku?: string }
+export interface QuickSetupCustomerRow { name: string; phone?: string; email?: string; address?: string; creditLimit?: number }
+export interface QuickSetupDebtRow { partyName: string; partyPhone?: string; type?: 'receivable' | 'payable'; amount: number; dueDate?: string; note?: string }
+export interface QuickSetupPaymentMethodRow { name: string; type?: 'cash' | 'bank' | 'mobileMoney'; accountNumber?: string; openingBalance?: number }
+export interface QuickSetupExpenseRow { category: string; amount: number; date?: string; note?: string; paymentMethod?: string }
+export interface QuickSetupTeamRow { name: string; phone: string; email?: string; role?: 'manager' | 'accountant' | 'cashier' | 'stockClerk' }
+
+export interface QuickSetupPayload {
+  products?: QuickSetupProductRow[]
+  customers?: QuickSetupCustomerRow[]
+  debts?: QuickSetupDebtRow[]
+  paymentMethods?: QuickSetupPaymentMethodRow[]
+  expenses?: QuickSetupExpenseRow[]
+  team?: QuickSetupTeamRow[]
+}
+
+export interface QuickSetupCounts {
+  products: number; customers: number; debts: number
+  paymentMethods: number; expenses: number; team: number
+}
+
+export async function postQuickSetup(
+  uid: string,
+  businessId: string,
+  payload: QuickSetupPayload,
+): Promise<{ counts: QuickSetupCounts }> {
+  return apiFetch(`/api/admin/businesses/${uid}/${businessId}/quick-setup`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   })
 }
 
@@ -286,11 +321,12 @@ export async function assignPlan(
   uid: string,
   businessId: string,
   tier: PlanTier,
-  cycleMonths: number,
+  durationValue: number,
+  durationUnit: DurationUnit,
 ): Promise<{ tier: PlanTier; expiresAt: string | null }> {
   return apiFetch('/api/admin/plans/assign', {
     method: 'POST',
-    body: JSON.stringify({ uid, businessId, tier, cycleMonths }),
+    body: JSON.stringify({ uid, businessId, tier, durationValue, durationUnit }),
   })
 }
 
@@ -403,6 +439,24 @@ export async function attachCatalogToBusiness(
 
 export async function fetchNotifications(): Promise<{ notifications: AdminNotification[]; count: number }> {
   return apiFetch('/api/admin/notifications')
+}
+
+// ─── Push Notifications (admin → mobile app broadcasts) ──────────────────────
+
+export async function fetchPushBroadcasts(): Promise<{ broadcasts: PushBroadcast[]; total: number }> {
+  return apiFetch('/api/admin/push-notifications')
+}
+
+export async function sendPushBroadcast(data: {
+  titleEn: string
+  bodyEn: string
+  titleSw?: string
+  bodySw?: string
+  category: BroadcastCategory
+  route?: string
+  audience: BroadcastAudience
+}): Promise<{ id: string }> {
+  return apiFetch('/api/admin/push-notifications', { method: 'POST', body: JSON.stringify(data) })
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────

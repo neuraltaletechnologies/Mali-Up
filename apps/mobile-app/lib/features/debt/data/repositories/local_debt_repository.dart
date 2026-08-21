@@ -22,6 +22,11 @@ class LocalDebtRepository {
 
   Future<DebtsTableData?> getRawById(String id) => _dao.getById(id);
 
+  Future<Debt?> getByInvoiceRef(String invoiceRef) async {
+    final row = await _dao.getByInvoiceRef(businessId, invoiceRef);
+    return row != null ? DebtMapper.fromRow(row) : null;
+  }
+
   Future<void> upsert(
     Debt debt, {
     required String syncStatus,

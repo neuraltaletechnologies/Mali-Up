@@ -5,11 +5,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
@@ -22,9 +23,13 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
 String _fmtAmt(double v) {
-  if (v >= 1000000) return 'TZS ${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return 'TZS ${(v / 1000).toStringAsFixed(0)}K';
-  return 'TZS ${v.toStringAsFixed(0)}';
+  final s = v.toStringAsFixed(0);
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return 'TZS $buf';
 }
 
 String _fmtDate(String iso) {
@@ -220,7 +225,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
             activeFilters: _activeFilters,
             onFilterTap: _openFilterSheet,
           ),
-          const SizedBox(height: _DebtDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           _DebtTabBar(tabController: _tabCtrl),
           if (_filterBucket != null)
             _ActiveFilterChip(
@@ -228,17 +233,20 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
               onRemove: () => setState(() => _filterBucket = null),
             ),
           Expanded(
-            child: TabBarView(
-              controller: _tabCtrl,
-              children: [
-                _ReceivablesTab(
-                  onTap: _openDetail,
-                  query: _query,
-                  filterBucket: _filterBucket,
-                  sort: _sort,
-                ),
-                _PayablesTab(onTap: _openDetail, query: _query, sort: _sort),
-              ],
+            child: SilentRefresh(
+              onRefresh: () => triggerSilentSync(context, ref),
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  _ReceivablesTab(
+                    onTap: _openDetail,
+                    query: _query,
+                    filterBucket: _filterBucket,
+                    sort: _sort,
+                  ),
+                  _PayablesTab(onTap: _openDetail, query: _query, sort: _sort),
+                ],
+              ),
             ),
           ),
         ],
@@ -264,8 +272,6 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
 // ── Dark Header ───────────────────────────────────────────────────────────────
 
 class _DebtDarkHeader extends StatelessWidget {
-  static const double _pillHalf = 22.0;
-
   final double totalReceivables;
   final double totalPayables;
   final TextEditingController searchCtrl;
@@ -290,258 +296,81 @@ class _DebtDarkHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
     final net = totalReceivables - totalPayables;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
+    return DarkHeaderShell(
+      stretchPill: true,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _tr('Debt Tracker', 'Madeni'),
+            style: GoogleFonts.dmSans(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
           ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 2),
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _tr('Debt Tracker', 'Madeni'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              net >= 0
-                                  ? Icons.trending_up_rounded
-                                  : Icons.trending_down_rounded,
-                              color: net >= 0
-                                  ? AppColors.success
-                                  : AppColors.error,
-                              size: 12,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Search button
-                  GestureDetector(
-                    onTap: onToggleSearch,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter button
-                  GestureDetector(
-                    onTap: onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: activeFilters > 0
-                                  ? AppColors.yellowBrand
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (activeFilters > 0)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: AppColors.yellowBrand,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.navyPrimary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextField(
-                            controller: searchCtrl,
-                            autofocus: true,
-                            onChanged: onSearchChanged,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Search by name or phone…',
-                                'Tafuta kwa jina au simu…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.white38,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                size: 18,
-                                color: Colors.white54,
-                              ),
-                              suffixIcon: query.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        searchCtrl.clear();
-                                        onSearchChanged('');
-                                      },
-                                      child: const Icon(
-                                        Icons.close_rounded,
-                                        size: 16,
-                                        color: Colors.white54,
-                                      ),
-                                    )
-                                  : null,
-                              filled: true,
-                              fillColor: Colors.white12,
-                              contentPadding: EdgeInsets.zero,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.white24,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: AppColors.yellowBrand,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+              Icon(
+                net >= 0
+                    ? Icons.trending_up_rounded
+                    : Icons.trending_down_rounded,
+                color: net >= 0 ? AppColors.success : AppColors.error,
+                size: 12,
               ),
             ],
           ),
-        ),
-        Positioned(
-          bottom: -_pillHalf,
-          left: 24,
-          right: 24,
-          child: Container(
-            height: _pillHalf * 2,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(_pillHalf),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PillStat(
-                  value: _fmtAmt(totalReceivables),
-                  label: _tr('Owed to You', 'Unachodai'),
-                  valueColor: AppColors.success,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtAmt(totalPayables),
-                  label: _tr('You Owe', 'Unadaiwa'),
-                  valueColor: AppColors.error,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtAmt(net.abs()),
-                  label: _tr('Net', 'Net'),
-                  valueColor: net >= 0 ? AppColors.success : AppColors.error,
-                ),
-              ],
-            ),
+        ],
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+            active: searchExpanded,
+            onTap: onToggleSearch,
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: activeFilters > 0,
+            onTap: onFilterTap,
+            dotColor: activeFilters > 0 ? AppColors.yellowBrand : null,
+          ),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: searchCtrl,
+        autofocus: true,
+        onChanged: onSearchChanged,
+        hintText: _tr('Search by name or phone…', 'Tafuta kwa jina au simu…'),
+        showClear: query.isNotEmpty,
+      ),
+      expanded: searchExpanded,
+      pill: HeaderStatsPill(
+        layout: HeaderPillLayout.stretched,
+        stats: [
+          HeaderPillStat(
+            value: _fmtAmt(totalReceivables),
+            label: _tr('Owed to You', 'Unachodai'),
+            color: AppColors.success,
+          ),
+          HeaderPillStat(
+            value: _fmtAmt(totalPayables),
+            label: _tr('You Owe', 'Unadaiwa'),
+            color: AppColors.error,
+          ),
+          HeaderPillStat(
+            value: _fmtAmt(net.abs()),
+            label: _tr('Net', 'Net'),
+            color: net >= 0 ? AppColors.success : AppColors.error,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -585,47 +414,6 @@ class _DebtTabBar extends StatelessWidget {
 }
 
 // ── Pill widgets ──────────────────────────────────────────────────────────────
-
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color valueColor;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 24, color: AppColors.border);
-  }
-}
 
 // ── Active filter chip ────────────────────────────────────────────────────────
 
@@ -702,6 +490,7 @@ class _ReceivablesTab extends ConsumerWidget {
     final filtered = _applyDebtFilters(receivables, query, filterBucket, sort);
 
     return CustomScrollView(
+      physics: silentRefreshPhysics,
       slivers: [
         if (isLoading)
           const SliverDebtListSkeleton()
@@ -813,6 +602,7 @@ class _PayablesTab extends ConsumerWidget {
       body = KeyedSubtree(
         key: const ValueKey('content'),
         child: CustomScrollView(
+          physics: silentRefreshPhysics,
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.only(top: 14),
@@ -932,15 +722,11 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     await adjustCustomerBalanceForDebtChange(ref, before: debt);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            _tr(
-              'Could not delete entry. Please try again.',
-              'Imeshindwa kufuta rekodi. Jaribu tena.',
-            ),
-          ),
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not delete entry. Please try again.',
+          'Imeshindwa kufuta rekodi. Jaribu tena.',
         ),
       );
     }

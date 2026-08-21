@@ -8,6 +8,8 @@ import { DataTable } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { PlanBadge } from '@/components/ui/plan-badge'
+import { DurationPicker } from '@/components/ui/duration-picker'
+import { formatDuration, type DurationUnit } from '@/lib/duration'
 import { fetchPlanRequests, patchPlanRequest, assignPlan, fetchRefunds, patchRefund } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import type { PlanRequest, RefundRequest } from '@/types'
@@ -16,7 +18,7 @@ import { formatDate, formatTZS, calculateRefund } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
   Check, X, AlertCircle, ChevronRight, ChevronDown, ChevronUp, Building2, Phone,
-  Briefcase, Receipt, Rocket, DollarSign,
+  Briefcase, Rocket, DollarSign,
 } from 'lucide-react'
 
 function initialTab(): 'requests' | 'refunds' {
@@ -44,18 +46,6 @@ function StatusBadge({ status }: { status: PlanRequest['status'] }) {
   )
 }
 
-function TypeBadge({ type }: { type: PlanRequest['type'] }) {
-  return type === 'enterprise_inquiry' ? (
-    <span className="inline-flex items-center gap-1 text-[11px] text-purple-600">
-      <Briefcase className="h-3 w-3" />Enterprise
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-[11px] text-blue-600">
-      <Receipt className="h-3 w-3" />Payment
-    </span>
-  )
-}
-
 function RequestDetailDrawer({
   request,
   onClose,
@@ -66,7 +56,8 @@ function RequestDetailDrawer({
   onRefetch: () => void
 }) {
   const [adminNotes, setAdminNotes] = useState(request.adminNotes)
-  const [cycleMonths, setCycleMonths] = useState(6)
+  const [durationValue, setDurationValue] = useState(6)
+  const [durationUnit,  setDurationUnit]  = useState<DurationUnit>('months')
   const [acting, setActing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,7 +71,7 @@ function RequestDetailDrawer({
     setError(null)
     try {
       if (activate) {
-        await assignPlan(request.uid, request.businessId, request.requestedTier, cycleMonths)
+        await assignPlan(request.uid, request.businessId, request.requestedTier, durationValue, durationUnit)
       }
       await patchPlanRequest(request.id, action, adminNotes, activate)
       onRefetch()
@@ -103,12 +94,9 @@ function RequestDetailDrawer({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--line)] px-6 py-4">
           <div className="flex items-center gap-2">
-            {request.type === 'enterprise_inquiry'
-              ? <Briefcase className="h-4 w-4 text-[var(--ink-muted)]" />
-              : <Receipt className="h-4 w-4 text-[var(--ink-muted)]" />
-            }
+            <Briefcase className="h-4 w-4 text-[var(--ink-muted)]" />
             <span className="font-semibold text-[var(--ink)] text-[15px]">
-              {request.type === 'enterprise_inquiry' ? 'Enterprise Inquiry' : 'Payment Confirmation'}
+              Enterprise Inquiry
             </span>
           </div>
           <button onClick={onClose} className="rounded p-1 hover:bg-[var(--surface-hover)] transition-colors">
@@ -145,12 +133,6 @@ function RequestDetailDrawer({
                   <div className="text-[var(--ink)]">{formatDate(request.resolvedAt)}</div>
                 </>
               )}
-              {request.paymentRef && (
-                <>
-                  <div className="text-[var(--ink-muted)]">Payment ref</div>
-                  <div className="font-mono text-[10px] text-blue-600">{request.paymentRef}</div>
-                </>
-              )}
               <div className="text-[var(--ink-muted)]">UID</div>
               <div className="font-mono text-[10px] text-[var(--ink-faint)] truncate">
                 {request.uid ? (
@@ -177,17 +159,18 @@ function RequestDetailDrawer({
                 Activation
               </p>
               <label className="block space-y-1">
-                <span className="text-[12px] text-[var(--ink-muted)]">Cycle length</span>
-                <select
-                  value={cycleMonths}
-                  onChange={(e) => setCycleMonths(Number(e.target.value))}
-                  className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                >
-                  <option value={1}>1 month</option>
-                  <option value={3}>3 months</option>
-                  <option value={6}>6 months</option>
-                  <option value={12}>12 months</option>
-                </select>
+                <span className="text-[12px] text-[var(--ink-muted)]">Duration</span>
+                <DurationPicker
+                  value={durationValue}
+                  unit={durationUnit}
+                  onValueChange={setDurationValue}
+                  onUnitChange={setDurationUnit}
+                  inputClassName="w-20 rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  selectClassName="flex-1 rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                />
+                <span className="block text-[11px] text-[var(--ink-faint)]">
+                  {formatDuration(durationValue, durationUnit)} — activating here grants access manually, it doesn't record a payment.
+                </span>
               </label>
               {!canActivate && (
                 <p className="text-[11px] text-[var(--status-bad)]">
@@ -287,11 +270,6 @@ function RequestsTab() {
 
   const columns: ColumnDef<PlanRequest, unknown>[] = [
     {
-      id: 'type',
-      header: 'Type',
-      cell: ({ row }) => <TypeBadge type={row.original.type} />,
-    },
-    {
       accessorKey: 'name',
       header: 'Requester',
       cell: ({ row }) => (
@@ -312,13 +290,6 @@ function RequestsTab() {
       accessorKey: 'requestedTier',
       header: 'Plan',
       cell: ({ row }) => <PlanBadge tier={row.original.requestedTier} />,
-    },
-    {
-      accessorKey: 'paymentRef',
-      header: 'Payment Ref',
-      cell: ({ row }) => row.original.paymentRef
-        ? <span className="font-mono text-[10px] text-blue-600">{row.original.paymentRef}</span>
-        : <span className="text-[var(--ink-faint)]">—</span>,
     },
     {
       accessorKey: 'createdAt',
@@ -392,7 +363,7 @@ function RequestsTab() {
               <p className="text-[var(--ink-muted)] text-[13px]">No {statusFilter} requests</p>
               <p className="text-[var(--ink-faint)] text-[12px] mt-1">
                 {statusFilter === 'pending'
-                  ? 'Enterprise inquiries and payment confirmations from the mobile app will appear here'
+                  ? 'Enterprise inquiries from the mobile app will appear here'
                   : `No requests with status "${statusFilter}"`}
               </p>
             </div>
@@ -629,12 +600,12 @@ export default function RequestsPage() {
     <div>
       <PageHeader
         title="Requests"
-        description={tab === 'requests' ? 'Enterprise inquiries and payment confirmations' : 'Lifetime subscription refund queue'}
+        description={tab === 'requests' ? 'Enterprise inquiries' : 'Lifetime subscription refund queue'}
       />
 
       <Tabs
         tabs={[
-          { id: 'requests', label: 'Plan Requests' },
+          { id: 'requests', label: 'Enterprise Inquiries' },
           { id: 'refunds', label: 'Refunds' },
         ]}
         active={tab}

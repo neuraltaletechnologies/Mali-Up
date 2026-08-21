@@ -1,4 +1,9 @@
 export type PlanTier = 'starter' | 'growth' | 'business' | 'enterprise' | 'lifetime'
+// Distinguishes a plan set manually from admin (plans/assign — no money
+// actually changed hands) from one activated by a real ClickPesa payment.
+// Absent/undefined on businesses that predate this field or are on Starter.
+export type PlanSource = 'admin_grant' | 'clickpesa'
+export type DurationUnit = 'days' | 'weeks' | 'months' | 'years'
 export type UserStatus = 'active' | 'suspended' | 'pending'
 export type BusinessStatus = 'active' | 'suspended' | 'pending' | 'inactive'
 export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
@@ -50,6 +55,8 @@ export interface Business {
   notes?: AdminNote[]
   staffMembers?: StaffMember[]
   enterpriseOverrides?: EnterpriseOverride
+  planSource?: PlanSource
+  planExpiresAt?: string
 }
 
 // Per-business negotiated terms for the Enterprise tier — a partial override
@@ -78,6 +85,7 @@ export interface Subscription {
   nextBillingDate: string
   paymentMethod: string
   startedAt: string
+  planSource?: PlanSource
 }
 
 export interface LifetimeSubscription {
@@ -145,6 +153,31 @@ export interface AuditEntry {
   isDestructive: boolean
   createdAt: string
   ip?: string
+}
+
+export type BroadcastCategory = 'reminder' | 'promotion' | 'update' | 'general'
+export type BroadcastStatus = 'pending' | 'sent' | 'failed'
+export type BroadcastAudience =
+  | { kind: 'all' }
+  | { kind: 'businesses'; businessIds: string[]; businessNames: string[] }
+
+export interface PushBroadcast {
+  id: string
+  titleEn: string
+  bodyEn: string
+  titleSw?: string
+  bodySw?: string
+  category: BroadcastCategory
+  audience: BroadcastAudience
+  route?: string
+  status: BroadcastStatus
+  targetCount: number
+  sentCount: number
+  failureCount: number
+  createdAt: string
+  sentAt?: string
+  createdByAdminId: string
+  createdByAdminName: string
 }
 
 export interface ServiceHealth {
@@ -225,9 +258,12 @@ export interface AnalyticsOverview {
   totalUsers: number
   totalBusinesses: number
   activeBusinesses: number
+  // Estimated recurring value (plan count × configured price) — still used
+  // by the main dashboard's KPI card. The Revenue page itself no longer
+  // shows this; it shows the real clickPesa* fields below instead.
   mrr: number
-  planDistribution: { name: string; value: number; color: string }[]
   mrrTrend: { month: string; value: number }[]
+  planDistribution: { name: string; value: number; color: string }[]
   recentSignups: {
     uid: string
     name: string
@@ -235,6 +271,32 @@ export interface AnalyticsOverview {
     businessName: string
     createdAt: string
   }[]
+  // Real ClickPesa transaction data (clickpesa_payments collection) — actual
+  // money collected, not a plan-count × price projection.
+  clickPesaRevenueThisMonth: number
+  clickPesaRevenueAllTime: number
+  clickPesaRevenueTrend: { month: string; value: number }[]
+  clickPesaRevenueByTier: { name: string; value: number; count: number; color: string }[]
+  clickPesaSuccessCount: number
+  clickPesaFailedCount: number
+  clickPesaPendingCount: number
+  recentClickPesaPayments: ClickPesaPaymentRecord[]
+}
+
+// One row from the clickpesa_payments collection (functions/src/clickpesa.ts
+// is the only writer — created by initiateClickPesaPayment, updated by
+// verifyClickPesaPayment once ClickPesa confirms a status).
+export interface ClickPesaPaymentRecord {
+  id: string // orderReference
+  uid: string
+  tier: string
+  amount: number
+  currency: string
+  channel: string | null
+  phoneNumber: string
+  status: 'pending' | 'completed' | 'failed'
+  createdAt: string
+  completedAt: string
 }
 
 export interface CommunitySubmission {
@@ -287,10 +349,14 @@ export interface PlanAssignment {
   uid: string
   businessId: string
   tier: PlanTier
-  cycleMonths: number
+  durationValue: number
+  durationUnit: DurationUnit
 }
 
-// Upgrade / enterprise requests submitted from the mobile app (plan_requests collection)
+// Enterprise inquiries submitted from the mobile app (plan_requests
+// collection). The manual "payment confirmation" claim type this also used
+// to carry was retired once ClickPesa started activating plans
+// automatically — see app/api/admin/plan-requests/route.ts.
 export interface PlanRequest {
   id: string
   uid: string
@@ -299,9 +365,8 @@ export interface PlanRequest {
   businessId: string
   businessName: string
   requestedTier: PlanTier
-  type: 'enterprise_inquiry' | 'payment_claim'
+  type: 'enterprise_inquiry'
   note: string
-  paymentRef: string
   status: 'pending' | 'approved' | 'rejected'
   activated: boolean
   adminNotes: string

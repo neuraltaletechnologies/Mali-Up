@@ -17,6 +17,37 @@ final masterCatalogRepositoryProvider =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Business type resolution
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Resolves the current business type, falling back to 'retail'.
+///
+/// Watches [currentBusinessTypeProvider] itself (not just its `.future`) so
+/// dependents rebuild on *every* emission — including a later change of
+/// business type — not just the first one. Watching only `.future` on a
+/// [StreamProvider] resolves once and then goes stale: switching business
+/// type in Settings updated the stream, but callers that only awaited
+/// `.future` never rebuilt, so the category/product pickers kept showing the
+/// previous business type's catalog until the app restarted.
+Future<String> _resolveBizType(Ref ref) async {
+  final bizTypeAsync = ref.watch(currentBusinessTypeProvider);
+  String bizType;
+  if (bizTypeAsync.hasValue) {
+    bizType = bizTypeAsync.value!;
+  } else {
+    // No value yet (first load, still resolving) — await the first
+    // emission once instead of falling back straight to 'retail', so we
+    // still use the real business type once it's known.
+    try {
+      bizType = await ref.watch(currentBusinessTypeProvider.future);
+    } catch (_) {
+      bizType = '';
+    }
+  }
+  return bizType.isEmpty ? 'retail' : bizType;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Categories
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -24,20 +55,7 @@ final masterCatalogRepositoryProvider =
 final masterCategoriesProvider =
     FutureProvider<List<MasterCategory>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-
-  // Await the stream's first emission so that:
-  //  (a) we use the real business type, not the 'retail' fallback, and
-  //  (b) the Firebase Auth token has been applied to the Firestore connection
-  //      before we hit the master_categories collection.
-  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
-  String bizType;
-  try {
-    bizType = await bizTypeFuture;
-  } catch (_) {
-    bizType = '';
-  }
-  if (bizType.isEmpty) bizType = 'retail';
-
+  final bizType = await _resolveBizType(ref);
   return repo.getCategoriesForType(bizType);
 });
 
@@ -49,15 +67,7 @@ final masterCategoriesProvider =
 final masterProductsProvider =
     FutureProvider<List<MasterProduct>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
-  String bizType;
-  try {
-    bizType = await bizTypeFuture;
-  } catch (_) {
-    bizType = '';
-  }
-  if (bizType.isEmpty) bizType = 'retail';
-
+  final bizType = await _resolveBizType(ref);
   return repo.getProductsForType(bizType);
 });
 
@@ -65,14 +75,7 @@ final masterProductsProvider =
 final masterProductsByCategoryProvider =
     FutureProvider.family<List<MasterProduct>, String>((ref, categorySlug) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
-  String bizType;
-  try {
-    bizType = await bizTypeFuture;
-  } catch (_) {
-    bizType = '';
-  }
-  if (bizType.isEmpty) bizType = 'retail';
+  final bizType = await _resolveBizType(ref);
 
   if (categorySlug.isEmpty) return repo.getProductsForType(bizType);
   return repo.getProductsForCategory(bizType, categorySlug);
@@ -92,17 +95,9 @@ final catalogSelectedCategoryProvider = StateProvider<String>((ref) => '');
 final catalogSearchResultsProvider =
     FutureProvider<List<MasterProduct>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
   final query = ref.watch(catalogSearchQueryProvider);
   final categorySlug = ref.watch(catalogSelectedCategoryProvider);
-
-  String bizType;
-  try {
-    bizType = await bizTypeFuture;
-  } catch (_) {
-    bizType = '';
-  }
-  if (bizType.isEmpty) bizType = 'retail';
+  final bizType = await _resolveBizType(ref);
 
   if (query.isEmpty && categorySlug.isEmpty) {
     return repo.getProductsForType(bizType);

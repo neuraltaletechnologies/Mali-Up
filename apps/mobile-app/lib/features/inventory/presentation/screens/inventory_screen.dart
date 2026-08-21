@@ -7,15 +7,13 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/app_motion.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
-import '../../../catalog/presentation/screens/catalog_search_screen.dart';
-import '../../../catalog/presentation/screens/import_product_screen.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
@@ -25,7 +23,13 @@ import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
 import '../../../finance/data/finance_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_transaction.dart';
+import '../../../finance/domain/models/expense.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/providers/expense_providers.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
@@ -329,13 +333,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
         onCreateReturn: () => _openSelectSaleForReturn(ctx),
-        onOpenCatalog: () => _openCatalogSheet(ctx),
       ),
     );
-  }
-
-  void _openCatalogSheet(BuildContext ctx) {
-    showAppSheet<void>(ctx, builder: (_) => const CatalogSearchScreen());
   }
 
   void _openCustomProductForm(BuildContext ctx) {
@@ -347,10 +346,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ctx,
       builder: (_) => _SelectSaleForReturnSheet(
         onSaleSelected: (invoice) {
-          Navigator.of(ctx, rootNavigator: true).push(
-            AppMotion.taskRoute<void>(
-              builder: (_) => SalesReturnScreen(originalInvoice: invoice),
-            ),
+          // Presented as a slide-up sheet — same as every other return entry
+          // point (e.g. InvoiceDetailScreen) — instead of a full-page push,
+          // so the height and motion stay consistent across the app.
+          //
+          // _SelectSaleForReturnSheet's own item tile already pops itself
+          // (Navigator.of(context).pop()) before invoking this callback, so
+          // popping again here was a double-pop: with no sheet left to
+          // close, it tore down the screen underneath instead, leaving a
+          // black screen / crash. Just open the return sheet.
+          showAppSheet<void>(
+            ctx,
+            maxHeightFactor: 0.92,
+            builder: (_) => SalesReturnScreen(originalInvoice: invoice),
           );
         },
       ),
@@ -447,7 +455,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       onFilterTap: () => _openFilterSort(context, items),
                     ),
                     // Space for the pill's lower half that overflows the header
-                    const SizedBox(height: _InventoryDarkHeader._pillHalf + 8),
+                    const SizedBox(height: HeaderStatsPill.pillHalf + 8),
 
                     // ── Active filter chips ──────────────────────────────
                     if (_typeFilter.isNotEmpty ||
@@ -466,18 +474,26 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
                     // ── List ─────────────────────────────────────────────
                     Expanded(
-                      child: filtered.isEmpty
-                          ? _EmptyPlaceholder(
-                              hasQuery: _query.isNotEmpty || activeFilters > 0,
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 120),
-                              itemCount: filtered.length,
-                              itemBuilder: (ctx, i) => _ProductRow(
-                                item: filtered[i],
-                                isLast: i == filtered.length - 1,
+                      child: SilentRefresh(
+                        onRefresh: () => triggerSilentSync(context, ref),
+                        child: filtered.isEmpty
+                            ? SingleChildScrollView(
+                                physics: silentRefreshPhysics,
+                                child: _EmptyPlaceholder(
+                                  hasQuery:
+                                      _query.isNotEmpty || activeFilters > 0,
+                                ),
+                              )
+                            : ListView.builder(
+                                physics: silentRefreshPhysics,
+                                padding: const EdgeInsets.only(bottom: 120),
+                                itemCount: filtered.length,
+                                itemBuilder: (ctx, i) => _ProductRow(
+                                  item: filtered[i],
+                                  isLast: i == filtered.length - 1,
+                                ),
                               ),
-                            ),
+                      ),
                     ),
                   ],
                 );
@@ -513,9 +529,7 @@ class _InventoryDarkHeader extends StatelessWidget {
     required this.items,
   });
 
-  static const double _pillHalf = 22.0;
-
-  Widget _buildPill() {
+  List<HeaderPillStat> _stats() {
     double stockVal = 0, revenue = 0;
     int low = 0, out = 0;
     for (final item in items) {
@@ -532,303 +546,72 @@ class _InventoryDarkHeader extends StatelessWidget {
     final profit = revenue - stockVal;
     final alertCount = low + out;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return [
+      HeaderPillStat(
+        label: _tr('Bidhaa', 'Bidhaa'),
+        value: '${items.length}',
+        color: AppColors.tealAccent,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PillStat(
-            label: _tr('Bidhaa', 'Bidhaa'),
-            value: '${items.length}',
-            color: AppColors.tealAccent,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Thamani', 'Thamani'),
-            value: 'TSh ${_fmtShort(stockVal)}',
-            color: AppColors.navyPrimary,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Faida', 'Faida'),
-            value: 'TSh ${_fmtShort(profit)}',
-            color: profit >= 0 ? AppColors.success : AppColors.error,
-          ),
-          const _PillDivider(),
-          _PillStat(
-            label: _tr('Tahadhari', 'Tahadhari'),
-            value: '$alertCount',
-            color: alertCount > 0 ? AppColors.warning : AppColors.success,
-          ),
-        ],
+      HeaderPillStat(
+        label: _tr('Thamani', 'Thamani'),
+        value: 'TSh ${_fmtShort(stockVal)}',
+        color: AppColors.navyPrimary,
       ),
-    );
+      HeaderPillStat(
+        label: _tr('Faida', 'Faida'),
+        value: 'TSh ${_fmtShort(profit)}',
+        color: profit >= 0 ? AppColors.success : AppColors.error,
+      ),
+      HeaderPillStat(
+        label: _tr('Tahadhari', 'Tahadhari'),
+        value: '$alertCount',
+        color: alertCount > 0 ? AppColors.warning : AppColors.success,
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
     final hasAlerts = items.any((i) => _fullStatusLevel(i) >= 2);
     final showDot = hasAlerts || activeFilters > 0;
     final dotColor = hasAlerts ? AppColors.error : AppColors.yellowBrand;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Dark rounded card
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Inventory', 'Bidhaa'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search button
-                  GestureDetector(
-                    onTap: onToggleSearch,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter button
-                  GestureDetector(
-                    onTap: onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: activeFilters > 0
-                                  ? AppColors.yellowBrand
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (showDot)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: dotColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.navyPrimary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextField(
-                            controller: searchCtrl,
-                            autofocus: true,
-                            onChanged: onSearchChanged,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Search products…',
-                                'Tafuta bidhaa…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.white38,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                size: 18,
-                                color: Colors.white54,
-                              ),
-                              suffixIcon: query.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        searchCtrl.clear();
-                                        onSearchChanged('');
-                                      },
-                                      child: const Icon(
-                                        Icons.close_rounded,
-                                        size: 16,
-                                        color: Colors.white54,
-                                      ),
-                                    )
-                                  : null,
-                              filled: true,
-                              fillColor: Colors.white12,
-                              contentPadding: EdgeInsets.zero,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.white24,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: AppColors.yellowBrand,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Inventory', 'Bidhaa'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Pill straddling the rounded bottom edge
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPill()),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+            active: searchExpanded,
+            onTap: onToggleSearch,
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: activeFilters > 0,
+            onTap: onFilterTap,
+            dotColor: showDot ? dotColor : null,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: searchCtrl,
+        autofocus: true,
+        onChanged: onSearchChanged,
+        hintText: _tr('Search products…', 'Tafuta bidhaa…'),
+        showClear: query.isNotEmpty,
+      ),
+      expanded: searchExpanded,
+      pill: HeaderStatsPill(stats: _stats()),
     );
   }
 }
@@ -970,24 +753,18 @@ class _ProductRow extends ConsumerWidget {
     try {
       await ref.read(inventoryRepositoryProvider).delete(id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.success(
+          context,
+          _tr('Product deleted', 'Bidhaa imefutwa'),
         );
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                'Failed to delete. Try again.',
-                'Imeshindikana kufuta. Jaribu tena.',
-              ),
-            ),
+        AppNotification.error(
+          context,
+          _tr(
+            'Failed to delete. Try again.',
+            'Imeshindikana kufuta. Jaribu tena.',
           ),
         );
       }
@@ -1885,11 +1662,13 @@ class _ProductDetailSheet extends ConsumerStatefulWidget {
 
 class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   bool _editMode = false;
+  bool _restockMode = false;
   bool _recording = false;
   bool _productionDone = false;
   double _lastBatchYield = 0;
 
   Future<void> _handleRecordProduction() async {
+    if (_recording) return;
     final item = widget.item;
     final name = (item['name'] ?? '').toString();
     final unit = (item['unit'] ?? 'pcs').toString();
@@ -1916,9 +1695,29 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
       if (mat != null) availableStock[matId] = mat.currentStock;
     }
 
+    // Real cash cost of this batch: overheads (labour, gas, electricity…)
+    // plus any ingredient typed in by hand rather than picked from stock —
+    // those aren't linked to an InventoryItem, so nothing else has ever
+    // accounted for their cost. Linked ingredients are not re-charged here;
+    // that money already left the business when the material was stocked in.
+    final overheadTotal = overheads.fold<double>(
+      0,
+      (s, o) => s + ((o['amount'] as num?)?.toDouble() ?? 0),
+    );
+    final manualIngredientTotal = ingredients
+        .where((i) => ((i['matId'] as String?) ?? '').isEmpty)
+        .fold<double>(
+          0,
+          (s, i) =>
+              s +
+              ((i['qty'] as num?)?.toDouble() ?? 0) *
+                  ((i['costPer'] as num?)?.toDouble() ?? 0),
+        );
+    final costToExpense = overheadTotal + manualIngredientTotal;
+
     // Show confirmation bottom sheet
     if (!mounted) return;
-    final confirmed = await showAppSheet<bool>(
+    final result = await showAppSheet<_ProductionConfirmResult>(
       context,
       builder: (_) => _RecordProductionConfirmSheet(
         productName: name,
@@ -1927,9 +1726,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         ingredients: ingredients,
         overheads: overheads,
         availableStock: availableStock,
+        costToExpense: costToExpense,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (result == null || !result.confirmed || !mounted) return;
 
     setState(() => _recording = true);
     try {
@@ -1948,6 +1748,52 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         await repo.adjustQuantity(productId, batchYield);
       }
 
+      // Log the batch's real cash cost as an expense and pull it out of the
+      // chosen payment account, exactly like any other expense.
+      if (costToExpense > 0 && result.paymentAccountId != null) {
+        final accountId = result.paymentAccountId!;
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final account = await ref
+            .read(cashRepositoryProvider)
+            .getAccountById(accountId);
+        final paymentMethodValue = switch (accountId) {
+          PaymentMethodAccounts.cashId => 'cash',
+          PaymentMethodAccounts.mpesaId => 'mpesa',
+          PaymentMethodAccounts.bankId => 'bank',
+          PaymentMethodAccounts.cardId => 'card',
+          _ => account?.name ?? '',
+        };
+        final today = DateTime.now();
+        final dateStr =
+            '${today.year}'
+            '-${today.month.toString().padLeft(2, '0')}'
+            '-${today.day.toString().padLeft(2, '0')}';
+        final note = _tr('Production: $name', 'Uzalishaji: $name');
+        await ref
+            .read(expenseRepositoryProvider)
+            .save(
+              Expense(
+                id: '',
+                category: 'supplies',
+                amount: costToExpense.toStringAsFixed(0),
+                date: dateStr,
+                note: note,
+                recipient: '',
+                paymentMethod: paymentMethodValue,
+                paymentAccountId: accountId,
+                createdBy: uid,
+              ),
+            );
+        await moveMoneyForAccount(
+          ref,
+          accountId: accountId,
+          amount: costToExpense,
+          isDeposit: false,
+          description: note,
+          createdBy: uid,
+        );
+      }
+
       _lastBatchYield = batchYield;
       if (mounted) {
         setState(() {
@@ -1962,13 +1808,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _recording = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
-          ),
-          backgroundColor: AppColors.error,
-        ),
+      AppNotification.error(
+        context,
+        _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
       );
     }
   }
@@ -1992,9 +1834,16 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         onDone: () => Navigator.of(context).pop(),
       );
     }
+    if (_restockMode) {
+      return _ProductFormSheet(
+        restockItem: widget.item,
+        onDone: () => Navigator.of(context).pop(),
+      );
+    }
     return _DetailView(
       item: widget.item,
       onEdit: () => setState(() => _editMode = true),
+      onRestock: () => setState(() => _restockMode = true),
       onRecordProduction: _recording ? null : _handleRecordProduction,
       recordingProduction: _recording,
     );
@@ -2004,11 +1853,13 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 class _DetailView extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onEdit;
+  final VoidCallback? onRestock;
   final VoidCallback? onRecordProduction;
   final bool recordingProduction;
   const _DetailView({
     required this.item,
     required this.onEdit,
+    this.onRestock,
     this.onRecordProduction,
     this.recordingProduction = false,
   });
@@ -2350,6 +2201,36 @@ class _DetailView extends StatelessWidget {
                     const SizedBox(height: 10),
                   ],
 
+                  // ── Restock button (stock/perishable/manufactured) ────
+                  if (onRestock != null &&
+                      type != ProductType.service &&
+                      type != ProductType.customerReturn) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: onRestock,
+                        icon: const Icon(Icons.add_box_rounded, size: 18),
+                        label: Text(
+                          _tr('Restock', 'Ongeza Stoo'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.tealAccent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
                   // ── Edit button ──────────────────────────────────────
                   SizedBox(
                     width: double.infinity,
@@ -2559,7 +2440,20 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
 
 // ── Record Production confirm sheet ──────────────────────────────────────────
 
-class _RecordProductionConfirmSheet extends StatelessWidget {
+/// What the confirm sheet handed back: whether production was confirmed,
+/// and — only when the batch has a real cash cost — which account it
+/// should be deducted from.
+class _ProductionConfirmResult {
+  final bool confirmed;
+  final String? paymentAccountId;
+
+  const _ProductionConfirmResult({
+    required this.confirmed,
+    this.paymentAccountId,
+  });
+}
+
+class _RecordProductionConfirmSheet extends ConsumerStatefulWidget {
   final String productName;
   final double batchYield;
   final String unit;
@@ -2567,6 +2461,10 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
   final List<Map<String, dynamic>> overheads;
   // On-hand stock per linked material id, for the shortage warning.
   final Map<String, double> availableStock;
+  // Overheads + any hand-typed (unlinked) ingredient cost — the part of
+  // this batch that is a real, new cash outflow. Zero for businesses that
+  // don't track production overhead, in which case no payment step shows.
+  final double costToExpense;
 
   const _RecordProductionConfirmSheet({
     required this.productName,
@@ -2575,18 +2473,52 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
     required this.ingredients,
     required this.overheads,
     this.availableStock = const {},
+    this.costToExpense = 0,
   });
+
+  @override
+  ConsumerState<_RecordProductionConfirmSheet> createState() =>
+      _RecordProductionConfirmSheetState();
+}
+
+class _RecordProductionConfirmSheetState
+    extends ConsumerState<_RecordProductionConfirmSheet> {
+  String? _selectedAccountId;
+  String? _paymentError;
 
   bool _isShort(Map<String, dynamic> i) {
     final matId = (i['matId'] as String?) ?? '';
     if (matId.isEmpty) return false;
-    final have = availableStock[matId];
+    final have = widget.availableStock[matId];
     if (have == null) return false;
     return ((i['qty'] as num?)?.toDouble() ?? 0) > have;
   }
 
+  void _confirm() {
+    if (widget.costToExpense > 0 && _selectedAccountId == null) {
+      setState(
+        () => _paymentError = _tr(
+          'Select where this cost is paid from',
+          'Chagua gharama hii inatoka wapi',
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _ProductionConfirmResult(
+        confirmed: true,
+        paymentAccountId: _selectedAccountId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ingredients = widget.ingredients;
+    final batchYield = widget.batchYield;
+    final unit = widget.unit;
+    final productName = widget.productName;
+    final availableStock = widget.availableStock;
     final linkedCount = ingredients
         .where((i) => ((i['matId'] as String?) ?? '').isNotEmpty)
         .length;
@@ -2721,6 +2653,51 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (widget.costToExpense > 0) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        _tr('Production cost:', 'Gharama ya uzalishaji:'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _fmtAmount(widget.costToExpense),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  PaymentAccountChips(
+                    selectedAccountId: _selectedAccountId,
+                    onSelectAccount: (a) => setState(() {
+                      _selectedAccountId = a.id;
+                      _paymentError = null;
+                    }),
+                    onActivationRequired: (message) =>
+                        setState(() => _paymentError = message),
+                  ),
+                  if (_paymentError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _paymentError!,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ],
                 if (hasShortage) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -2761,7 +2738,9 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(const _ProductionConfirmResult(confirmed: false)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textMuted,
                           side: const BorderSide(color: AppColors.border),
@@ -2782,7 +2761,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(true),
+                        onPressed: _confirm,
                         icon: const Icon(Icons.factory_rounded, size: 17),
                         label: Text(
                           _tr('Confirm', 'Thibitisha'),
@@ -3147,8 +3126,17 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existingItem;
   final String? existingId;
   final VoidCallback? onDone;
+  // Non-null → open directly in restock mode for this product (skips edit
+  // mode and the type-a-matching-name flow). Used by the product detail
+  // sheet's "Restock" quick action.
+  final Map<String, dynamic>? restockItem;
 
-  const _ProductFormSheet({this.existingItem, this.existingId, this.onDone});
+  const _ProductFormSheet({
+    this.existingItem,
+    this.existingId,
+    this.onDone,
+    this.restockItem,
+  });
 
   @override
   ConsumerState<_ProductFormSheet> createState() => _ProductFormSheetState();
@@ -3183,9 +3171,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   String _selectedCategoryId = '';
   String _selectedCategoryName = '';
 
-  // Assigned driver (service-type items only, e.g. a vehicle) — scopes
-  // Firestore reads for team members with DataScope.own. See firestore.rules.
-  String _assignedDriverUid = '';
+  // Assigned team member (service-type items only, e.g. a haircut or a
+  // vehicle) — scopes Firestore reads for team members with DataScope.own.
+  // See firestore.rules.
+  String _assignedToUserId = '';
 
   // Expiry date state
   DateTime? _expiryDate;
@@ -3266,7 +3255,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryId = (item['categoryId'] ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
-      _assignedDriverUid = (item['assignedDriverUid'] ?? '').toString();
+      _assignedToUserId = (item['assignedToUserId'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3333,6 +3322,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             ? yield_.toStringAsFixed(0)
             : yield_.toStringAsFixed(2);
       }
+    } else if (widget.restockItem != null) {
+      final rItem = widget.restockItem!;
+      final src = InventoryItem.fromFirestore(
+        rItem,
+        (rItem['id'] as String?) ?? '',
+      );
+      _populateFromSource(src);
+      _restockTarget = src;
+      // Amount to add, not the current on-hand count — _populateFromSource
+      // doesn't touch _stockCtrl.
+      _stockCtrl.text = '1';
     } else {
       _type = ProductType.stock;
     }
@@ -3372,6 +3372,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   }
 
   Future<void> _save() async {
+    // Guard against double-submission (e.g. a fast double-tap before the
+    // button's disabled state repaints) — without this, two concurrent
+    // saves can race each other and one ends up touching a widget the
+    // other has already popped.
+    if (_saving) return;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
@@ -3397,6 +3402,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         if (i.nameCtrl.text.trim().isEmpty) {
           _snack(
             _tr('Each ingredient needs a name', 'Kila kiungo kinahitaji jina'),
+          );
+          return;
+        }
+        if (i.cost <= 0) {
+          _snack(
+            _tr(
+              'Enter a buying price for each ingredient',
+              'Ingiza bei ya ununuzi kwa kila kiungo',
+            ),
           );
           return;
         }
@@ -3451,7 +3465,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     // Capture context-bound refs before any async gap.
     final nav = Navigator.of(context);
-    final msg = ScaffoldMessenger.of(context);
 
     // ── Restock mode: adjustQuantity on the tracked existing product ────────
     if (_restockTarget != null) {
@@ -3463,9 +3476,33 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       setState(() => _saving = true);
       try {
         final target = _restockTarget!;
-        await ref
-            .read(inventoryRepositoryProvider)
-            .adjustQuantity(target.id, qty);
+        final invRepo = ref.read(inventoryRepositoryProvider);
+        await invRepo.adjustQuantity(target.id, qty);
+
+        // ── Price fluctuation ────────────────────────────────────────────
+        // Selling price applies outright to ALL stock, old and new — there's
+        // only ever one current selling price. The buying price instead
+        // blends into a weighted average of the old stock's cost and this
+        // batch's cost, proportional to quantity, so a price change on a
+        // fresh purchase doesn't silently overwrite the cost basis of stock
+        // bought earlier at a different price. Manufactured items are
+        // skipped: their cost is always derived from the BOM, never typed
+        // in here.
+        if (!isManufactured) {
+          final oldQty = target.currentStock;
+          final oldCost = target.costPrice;
+          final newCost = _buyVal > 0
+              ? ((oldQty * oldCost) + (qty * _buyVal)) / (oldQty + qty)
+              : oldCost;
+          final newSell = _sellVal > 0 ? _sellVal : target.unitPrice;
+          if (newCost != target.costPrice || newSell != target.unitPrice) {
+            await invRepo.updatePricing(
+              target.id,
+              costPrice: newCost,
+              unitPrice: newSell,
+            );
+          }
+        }
 
         if (!isManufactured &&
             _stockEntryType == 'purchase' &&
@@ -3525,34 +3562,25 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         final qtyStr = qty % 1 == 0
             ? qty.toStringAsFixed(0)
             : qty.toStringAsFixed(2);
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
-                  ? _tr(
-                      'Restocked $qtyStr ${target.unit} – debt recorded',
-                      'Imeongezwa $qtyStr ${target.unit} – deni limerekodiwa',
-                    )
-                  : _tr(
-                      'Restocked $qtyStr ${target.unit}',
-                      'Imeongezwa $qtyStr ${target.unit}',
-                    ),
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotification.success(
+          context,
+          (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+              ? _tr(
+                  'Restocked $qtyStr ${target.unit} – debt recorded',
+                  'Imeongezwa $qtyStr ${target.unit} – deni limerekodiwa',
+                )
+              : _tr(
+                  'Restocked $qtyStr ${target.unit}',
+                  'Imeongezwa $qtyStr ${target.unit}',
+                ),
         );
         widget.onDone != null ? widget.onDone!() : nav.pop();
       } catch (_) {
         if (!mounted) return;
         setState(() => _saving = false);
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        AppNotification.error(
+          context,
+          _tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.'),
         );
       }
       return;
@@ -3609,16 +3637,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           _saving = false;
           _stockCtrl.text = '1';
         });
-        msg.showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                '"${matchedItem.name}" already exists — enter how many to add',
-                '"${matchedItem.name}" tayari ipo — ingiza kiasi cha kuongeza',
-              ),
-            ),
-            backgroundColor: AppColors.tealAccent,
-            behavior: SnackBarBehavior.floating,
+        AppNotification.info(
+          context,
+          _tr(
+            '"${matchedItem.name}" already exists — enter how many to add',
+            '"${matchedItem.name}" tayari ipo — ingiza kiasi cha kuongeza',
           ),
         );
         return;
@@ -3683,9 +3706,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         categoryId: _selectedCategoryId,
         categoryName: resolvedCatName,
         sku: _skuCtrl.text.trim(),
-        currentStock: _type != ProductType.service
-            ? (double.tryParse(_stockCtrl.text) ?? 0)
-            : 0,
+        // New manufactured products start at 0 stock — the Kiasi field is
+        // hidden for them since production only happens through Record
+        // Production, which is what actually adds finished units. Editing
+        // an existing manufactured product (or restocking one) still
+        // carries its real current stock through unchanged.
+        currentStock: _type == ProductType.service
+            ? 0
+            : (isManufactured && !_isEdit && _restockTarget == null)
+            ? 0
+            : (double.tryParse(_stockCtrl.text) ?? 0),
         reorderPoint:
             (_type == ProductType.stock ||
                 _type == ProductType.perishable ||
@@ -3708,8 +3738,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedDriverUid:
-            _type == ProductType.service ? _assignedDriverUid : '',
+        assignedToUserId: _type == ProductType.service ? _assignedToUserId : '',
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -3723,7 +3752,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         if (uid.isNotEmpty) {
           final cachedCategories =
               ref.read(masterCategoriesProvider).valueOrNull ??
-                  const <MasterCategory>[];
+              const <MasterCategory>[];
           final matchedCategory = cachedCategories
               .where((c) => c.id == _selectedCategoryId)
               .toList();
@@ -3822,37 +3851,28 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         return;
       }
 
-      msg.showSnackBar(
-        SnackBar(
-          content: Text(
-            _isEdit
-                ? _tr('Product updated', 'Bidhaa imesasishwa')
-                : isReturn
-                ? _tr('Return recorded', 'Urejesho umerekodiwa')
-                : (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
-                ? _tr(
-                    'Product added – debt recorded in Payables',
-                    'Bidhaa imeongezwa – deni limerekodiwa kwenye Madeni',
-                  )
-                : _tr('Product added', 'Bidhaa imeongezwa'),
-          ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppNotification.success(
+        context,
+        _isEdit
+            ? _tr('Product updated', 'Bidhaa imesasishwa')
+            : isReturn
+            ? _tr('Return recorded', 'Urejesho umerekodiwa')
+            : (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+            ? _tr(
+                'Product added – debt recorded in Payables',
+                'Bidhaa imeongezwa – deni limerekodiwa kwenye Madeni',
+              )
+            : _tr('Product added', 'Bidhaa imeongezwa'),
       );
       widget.onDone != null ? widget.onDone!() : nav.pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      msg.showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            _tr(
-              'Could not save. Please try again.',
-              'Imeshindikana kuhifadhi. Jaribu tena.',
-            ),
-          ),
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not save. Please try again.',
+          'Imeshindikana kuhifadhi. Jaribu tena.',
         ),
       );
     }
@@ -3862,8 +3882,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   /// Stock quantity is intentionally not copied — the user enters how much
   /// they are adding now, not the current on-hand count.
   void _applyFromExisting(InventoryItem src) {
-    setState(() {
-      _nameCtrl.text = src.name;
+    setState(() => _populateFromSource(src));
+  }
+
+  // Body of _applyFromExisting, split out so initState can call it directly
+  // (before the first build) without wrapping in setState.
+  void _populateFromSource(InventoryItem src) {
+    _nameCtrl.text = src.name;
       _skuCtrl.text = src.sku;
       _unit = src.unit;
 
@@ -3946,7 +3971,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       }
 
       _nameFocus.unfocus();
-    });
   }
 
   Future<void> _scanSku() async {
@@ -3982,16 +4006,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           _restockTarget = match;
           _stockCtrl.text = '1';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _tr(
-                '"${match.name}" already exists — enter how many to add',
-                '"${match.name}" tayari ipo — ingiza kiasi cha kuongeza',
-              ),
-            ),
-            backgroundColor: AppColors.tealAccent,
-            behavior: SnackBarBehavior.floating,
+        AppNotification.info(
+          context,
+          _tr(
+            '"${match.name}" already exists — enter how many to add',
+            '"${match.name}" tayari ipo — ingiza kiasi cha kuongeza',
           ),
         );
       }
@@ -4047,29 +4066,64 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
   }
 
-  void _openCatalogImport(MasterProduct product) {
+  /// Fills the current form fields from a tapped master-catalog suggestion.
+  ///
+  /// This form already replicates everything a separate "import" sheet used
+  /// to collect (category, unit, cost/sell price, stock, payment) — so
+  /// tapping a catalog match now just autofills the fields in place instead
+  /// of stacking another slide-up sheet on top of this one.
+  void _applyFromCatalog(MasterProduct product) {
+    final categories =
+        ref.read(masterCategoriesProvider).valueOrNull ??
+        const <MasterCategory>[];
+    MasterCategory? matched;
+    for (final c in categories) {
+      if (c.categorySlug == product.categorySlug) {
+        matched = c;
+        break;
+      }
+    }
+    setState(() {
+      _nameCtrl.text = product.productName;
+      _skuCtrl.text = product.commonBarcodes.isNotEmpty
+          ? product.commonBarcodes.first
+          : _skuCtrl.text;
+      _unit = product.unit;
+      if (matched != null) {
+        _selectedCategoryId = matched.id;
+        _selectedCategoryName = matched.displayName;
+      } else if (product.categorySlug.isNotEmpty) {
+        _selectedCategoryName = product.categorySlug;
+      }
+    });
     _nameFocus.unfocus();
-    showAppSheet<void>(
+  }
+
+  void _snack(String t) => AppNotification.info(context, t);
+
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based (SyncCashRepository) so it works fully offline;
+  // the sheet shows its own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
       context,
-      builder: (_) => ImportProductScreen(product: product),
+      builder: (_) => ActivateAccountSheet(spec: spec),
     );
   }
 
-  void _snack(String t) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
-
-  // Assigns a service-type item (e.g. a vehicle) to a team member — used to
-  // scope Firestore reads for team members with DataScope.own, so a driver
-  // sees only their own vehicle's product record. See firestore.rules.
-  Future<void> _openDriverPicker() async {
+  // Assigns a service-type item (e.g. a haircut or a vehicle) to a team
+  // member — used to scope Firestore reads for team members with
+  // DataScope.own, so they see only their own assigned item(s). See
+  // firestore.rules.
+  Future<void> _openAssigneePicker() async {
     // '' (empty string) means the user explicitly chose "Unassigned";
     // null means the sheet was dismissed without a choice.
     final result = await showAppSheet<String?>(
       context,
-      builder: (_) => _DriverPickerSheet(selectedUid: _assignedDriverUid),
+      builder: (_) => _AssigneePickerSheet(selectedUid: _assignedToUserId),
     );
     if (result != null) {
-      setState(() => _assignedDriverUid = result);
+      setState(() => _assignedToUserId = result);
     }
   }
 
@@ -4173,7 +4227,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         (!_isEdit &&
             _restockTarget == null &&
             _type != ProductType.customerReturn &&
-            _type != ProductType.manufactured &&
             query.isNotEmpty &&
             _nameFocus.hasFocus)
         ? allInventory
@@ -4194,9 +4247,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     final isReturn = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
-    // Manufactured items show a simplified stock section (no purchase toggle)
+    // Manufactured items get their stock from recording a production batch
+    // (see _ProductDetailSheet._handleRecordProduction), not from typing a
+    // quantity here — so the generic Stock section is skipped for them,
+    // except when this sheet has fallen into restock mode against an
+    // existing product (a quantity-to-add field is still needed there).
     final showStock =
-        !isReturn && _type != ProductType.service && config.showStock;
+        !isReturn &&
+        _type != ProductType.service &&
+        (!isManufactured || _restockTarget != null) &&
+        config.showStock;
     final showProfit = !isReturn && _buyVal > 0 && _sellVal > 0;
     final profitAmt = _profit(_buyVal, _sellVal);
     final marginAmt = _margin(_buyVal, _sellVal);
@@ -4576,9 +4636,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                       ],
 
-                      // Master-catalog suggestions open the existing import
-                      // sheet so the user keeps the catalog's name, category,
-                      // unit and product identity without retyping them.
+                      // Master-catalog suggestions fill this same form so
+                      // the user keeps the catalog's name, category, unit
+                      // and product identity without retyping them.
                       if (catalogSuggestions.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -4599,8 +4659,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ),
                                 child: Text(
                                   _tr(
-                                    'Found in product catalog — tap to import',
-                                    'Imeonekana kwenye katalogi — gusa kuingiza',
+                                    'Found in product catalog — tap to fill in',
+                                    'Imeonekana kwenye katalogi — gusa kujaza',
                                   ),
                                   style: GoogleFonts.dmSans(
                                     fontSize: 11,
@@ -4622,7 +4682,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     ? product.productNameSw
                                     : product.productName;
                                 return InkWell(
-                                  onTap: () => _openCatalogImport(product),
+                                  onTap: () => _applyFromCatalog(product),
                                   borderRadius: BorderRadius.vertical(
                                     bottom:
                                         index == catalogSuggestions.length - 1
@@ -4775,13 +4835,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       const SizedBox(height: 14),
 
                       if (_type == ProductType.service) ...[
-                        _FormLabel(_tr(
-                            'Assigned driver (optional)',
-                            'Dereva aliyepangiwa (hiari)')),
+                        _FormLabel(
+                          _tr(
+                            'Assigned to (optional)',
+                            'Amepangiwa kwa (hiari)',
+                          ),
+                        ),
                         const SizedBox(height: 6),
-                        _AssignedDriverField(
-                          selectedUid: _assignedDriverUid,
-                          onTap: _openDriverPicker,
+                        _AssignedToField(
+                          selectedUid: _assignedToUserId,
+                          onTap: _openAssigneePicker,
                         ),
                         const SizedBox(height: 14),
                       ],
@@ -5212,6 +5275,28 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _FormLabel(_tr('Reorder point', 'Kikomo')),
+                        const SizedBox(height: 2),
+                        Text(
+                          _tr(
+                            'Alert me when finished stock drops to this level.',
+                            'Nitaarifiwe stoo ya bidhaa iliyokamilika inapofika kikomo hiki.',
+                          ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _reorderCtrl,
+                          hint: '5',
+                          keyboard: TextInputType.number,
+                          formatters: [
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
 
@@ -5701,10 +5786,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ),
                             if (!_isPurchaseOnCredit) ...[
                               const SizedBox(height: 12),
-                              _AccountDropdown(
-                                selectedId: _selectedAccountId,
-                                onSelected: (id) =>
-                                    setState(() => _selectedAccountId = id),
+                              PaymentAccountChips(
+                                selectedAccountId: _selectedAccountId.isEmpty
+                                    ? null
+                                    : _selectedAccountId,
+                                onSelectAccount: (a) =>
+                                    setState(() => _selectedAccountId = a.id),
+                                onActivateMethod: (spec) =>
+                                    _showActivateAccountSheet(spec),
                               ),
                               Builder(
                                 builder: (context) {
@@ -6480,7 +6569,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
                       fontSize: 12,
                       color: AppColors.textMuted,
                     ),
-                    labelText: _tr('Cost/unit', 'Gharama/kitengo'),
+                    labelText: _tr('Cost/unit *', 'Gharama/kitengo *'),
                     labelStyle: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,
@@ -6733,13 +6822,13 @@ class _AddRowButton extends StatelessWidget {
 
 // ── Category dropdown button ──────────────────────────────────────────────────
 
-// Shows the currently assigned driver's name (resolved from the local team
-// list) or "Unassigned" — tapping opens _DriverPickerSheet.
-class _AssignedDriverField extends ConsumerWidget {
+// Shows the currently assigned team member's name (resolved from the local
+// team list) or "Unassigned" — tapping opens _AssigneePickerSheet.
+class _AssignedToField extends ConsumerWidget {
   final String selectedUid;
   final VoidCallback onTap;
 
-  const _AssignedDriverField({required this.selectedUid, required this.onTap});
+  const _AssignedToField({required this.selectedUid, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -6764,19 +6853,22 @@ class _AssignedDriverField extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.person_outline_rounded,
-                size: 16,
-                color: selectedUid.isNotEmpty
-                    ? AppColors.tealAccent
-                    : AppColors.textDisabled),
+            Icon(
+              Icons.person_outline_rounded,
+              size: 16,
+              color: selectedUid.isNotEmpty
+                  ? AppColors.tealAccent
+                  : AppColors.textDisabled,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
-                  fontWeight:
-                      selectedUid.isNotEmpty ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: selectedUid.isNotEmpty
+                      ? FontWeight.w600
+                      : FontWeight.w400,
                   color: selectedUid.isNotEmpty
                       ? AppColors.navyPrimary
                       : AppColors.textDisabled,
@@ -6795,10 +6887,10 @@ class _AssignedDriverField extends ConsumerWidget {
   }
 }
 
-class _DriverPickerSheet extends ConsumerWidget {
+class _AssigneePickerSheet extends ConsumerWidget {
   final String selectedUid;
 
-  const _DriverPickerSheet({required this.selectedUid});
+  const _AssigneePickerSheet({required this.selectedUid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -6811,8 +6903,9 @@ class _DriverPickerSheet extends ConsumerWidget {
         .toList();
 
     return ConstrainedBox(
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+      ),
       child: Material(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -6824,7 +6917,7 @@ class _DriverPickerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Text(
-                _tr('Assign driver', 'Mpangie dereva'),
+                _tr('Assign to', 'Mpangie'),
                 style: GoogleFonts.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -6839,47 +6932,63 @@ class _DriverPickerSheet extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.person_off_outlined,
-                        color: AppColors.textMuted),
+                    leading: const Icon(
+                      Icons.person_off_outlined,
+                      color: AppColors.textMuted,
+                    ),
                     title: Text(_tr('Unassigned', 'Hajapangiwa')),
                     trailing: selectedUid.isEmpty
-                        ? const Icon(Icons.check_circle_rounded,
-                            color: AppColors.tealAccent)
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.tealAccent,
+                          )
                         : null,
                     onTap: () => Navigator.pop(context, ''),
                   ),
                   if (assignable.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       child: Text(
                         _tr(
                           'No active team members yet. Invite one from Team settings first.',
                           'Bado hakuna wanachama wa timu amilifu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
                         ),
                         style: GoogleFonts.dmSans(
-                            fontSize: 13, color: AppColors.textMuted),
+                          fontSize: 13,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     )
                   else
-                    ...assignable.map((m) => ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                AppColors.tealAccent.withValues(alpha: 0.12),
-                            child: Text(m.initials,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.tealAccent)),
+                    ...assignable.map(
+                      (m) => ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.tealAccent.withValues(
+                            alpha: 0.12,
                           ),
-                          title: Text(m.name),
-                          subtitle: Text(m.role.label),
-                          trailing: selectedUid == m.userId
-                              ? const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.tealAccent)
-                              : null,
-                          onTap: () => Navigator.pop(context, m.userId ?? ''),
-                        )),
+                          child: Text(
+                            m.initials,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.tealAccent,
+                            ),
+                          ),
+                        ),
+                        title: Text(m.name),
+                        subtitle: Text(m.role.label),
+                        trailing: selectedUid == m.userId
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.tealAccent,
+                              )
+                            : null,
+                        onTap: () => Navigator.pop(context, m.userId ?? ''),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -6943,10 +7052,7 @@ class _CategoryDropdownButton extends StatelessWidget {
                       selectedName.isNotEmpty
                           ? selectedName
                           : (categories.isEmpty
-                                ? _tr(
-                                    'No categories yet',
-                                    'Bado hakuna kategoria',
-                                  )
+                                ? _tr('Categories', 'Kategoria')
                                 : _tr('category', 'kategoria')),
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
@@ -7056,273 +7162,300 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    // Tapping "Add New" reveals an autofocus TextField, which pops the
+    // keyboard open. Without accounting for MediaQuery's viewInsets here,
+    // the fixed (non-scrolling) header + add-category row above the
+    // category list never shrinks for the keyboard, leaving the sheet's
+    // Column to lay out against a stale height for a frame — bound the
+    // sheet height defensively (matching the shared category picker) and
+    // pad for the keyboard so that reveal never has to fight for space.
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
       ),
-      child: Column(
-        children: [
-          const SheetHandle(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
-            child: Row(
+      child: Container(
+        margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
+        // A plain Container here (no Material ancestor besides the sheet
+        // route's own MaterialType.transparency one) is why every ListTile
+        // below painted "background color or ink splashes may be invisible"
+        // — Material is what ListTile/InkWell/TextButton splashes actually
+        // paint onto. Same fix as _ProductFormSheet's root just above.
+        child: Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    _tr('Category', 'Kategoria'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    _showAdd = !_showAdd;
-                    _addError = null;
-                    if (!_showAdd) _newCtrl.clear();
-                  }),
-                  icon: Icon(
-                    _showAdd ? Icons.close_rounded : Icons.add_rounded,
-                    size: 18,
-                    color: AppColors.tealAccent,
-                  ),
-                  label: Text(
-                    _showAdd
-                        ? _tr('Cancel', 'Ghairi')
-                        : _tr('Add New', 'Ongeza Mpya'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tealAccent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          if (_showAdd) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _newCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      autofocus: true,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.navyPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: _tr('Category name', 'Jina la kategoria'),
-                        hintStyle: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: AppColors.textDisabled,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.tealAccent,
-                            width: 1.5,
+                const SheetHandle(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _tr('Category', 'Kategoria'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _adding ? null : _addCommunityCategory,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.navyPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _showAdd = !_showAdd;
+                          _addError = null;
+                          if (!_showAdd) _newCtrl.clear();
+                        }),
+                        icon: Icon(
+                          _showAdd ? Icons.close_rounded : Icons.add_rounded,
+                          size: 18,
+                          color: AppColors.tealAccent,
                         ),
-                        elevation: 0,
-                      ),
-                      child: _adding
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _tr('Save', 'Hifadhi'),
-                              style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_addError != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                child: Text(
-                  _addError!,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error,
-                  ),
-                ),
-              ),
-          ],
-
-          const SizedBox(height: 8),
-
-          // Search
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _query = v),
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                color: AppColors.navyPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: _tr('Search categories…', 'Tafuta kategoria…'),
-                hintStyle: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: AppColors.textDisabled,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 11,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // List
-          Expanded(
-            child: _filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.category_outlined,
-                          size: 36,
-                          color: AppColors.border,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _tr(
-                            'No categories found.',
-                            'Hakuna kategoria zilizopatikana.',
-                          ),
-                          textAlign: TextAlign.center,
+                        label: Text(
+                          _showAdd
+                              ? _tr('Cancel', 'Ghairi')
+                              : _tr('Add New', 'Ongeza Mpya'),
                           style: GoogleFonts.dmSans(
                             fontSize: 13,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.tealAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_showAdd) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _newCtrl,
+                            textCapitalization: TextCapitalization.words,
+                            autofocus: true,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navyPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Category name',
+                                'Jina la kategoria',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: AppColors.textDisabled,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.surface,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.border,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.tealAccent,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _adding ? null : _addCommunityCategory,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _adding
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _tr('Save', 'Hifadhi'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                    itemCount: _filtered.length,
-                    itemBuilder: (_, i) {
-                      final cat = _filtered[i];
-                      final isSelected = cat.id == widget.selectedId;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.navyPrimary
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.navyPrimary
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.label_rounded,
-                            size: 18,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                        title: Text(
-                          cat.displayName,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: AppColors.navyPrimary,
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(
-                                Icons.check_rounded,
-                                size: 20,
-                                color: AppColors.success,
-                              )
-                            : null,
-                        onTap: () => Navigator.of(context).pop(cat),
-                      );
-                    },
                   ),
+                  if (_addError != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                      child: Text(
+                        _addError!,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                ],
+
+                const SizedBox(height: 8),
+
+                // Search
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _query = v),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: AppColors.navyPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: _tr('Search categories…', 'Tafuta kategoria…'),
+                      hintStyle: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: AppColors.textDisabled,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // List
+                Expanded(
+                  child: _filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.category_outlined,
+                                size: 36,
+                                color: AppColors.border,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                _tr(
+                                  'No categories found.',
+                                  'Hakuna kategoria zilizopatikana.',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                          itemCount: _filtered.length,
+                          itemBuilder: (_, i) {
+                            final cat = _filtered[i];
+                            final isSelected = cat.id == widget.selectedId;
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              leading: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.navyPrimary
+                                      : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.navyPrimary
+                                        : AppColors.border,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.label_rounded,
+                                  size: 18,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                              title: Text(
+                                cat.displayName,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: AppColors.navyPrimary,
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      size: 20,
+                                      color: AppColors.success,
+                                    )
+                                  : null,
+                              onTap: () => Navigator.of(context).pop(cat),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -8116,124 +8249,6 @@ class _StockToggleOption extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ── Account Dropdown ──────────────────────────────────────────────────────────
-
-class _AccountDropdown extends ConsumerWidget {
-  final String selectedId;
-  final ValueChanged<String> onSelected;
-  const _AccountDropdown({required this.selectedId, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final accountsAsync = ref.watch(cashAccountListProvider);
-    return accountsAsync.when(
-      loading: () => const LinearProgressIndicator(
-        color: AppColors.navyPrimary,
-        minHeight: 2,
-      ),
-      error: (_, _) => Text(
-        _tr('Could not load accounts', 'Imeshindwa kupakia akaunti'),
-        style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
-      ),
-      data: (accounts) {
-        if (accounts.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.warningBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: AppColors.warning,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _tr(
-                      'No active payment account. Activate Taslimu, M-Pesa, Benki or Kadi in Cash Flow first.',
-                      'Hakuna akaunti ya malipo iliyowashwa. Washa Taslimu, M-Pesa, Benki au Kadi katika Mtiririko wa Fedha kwanza.',
-                    ),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: AppColors.warning,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Auto-select first account on first render
-        if (selectedId.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => onSelected(accounts.first.id),
-          );
-        }
-
-        final effectiveId = selectedId.isEmpty ? accounts.first.id : selectedId;
-
-        return DropdownButtonFormField<String>(
-          key: ValueKey(effectiveId),
-          initialValue: effectiveId,
-          decoration: InputDecoration(
-            labelText: _tr('Pay from account', 'Lipa kutoka akaunti'),
-            labelStyle: GoogleFonts.dmSans(fontSize: 13),
-            prefixIcon: const Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 20,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: AppColors.navyPrimary,
-                width: 2,
-              ),
-            ),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
-            ),
-          ),
-          items: accounts.map((a) {
-            final icon = a.type == 'Bank'
-                ? Icons.account_balance_outlined
-                : a.type == 'Mobile'
-                ? Icons.smartphone_outlined
-                : Icons.payments_outlined;
-            return DropdownMenuItem(
-              value: a.id,
-              child: Row(
-                children: [
-                  Icon(icon, size: 16, color: AppColors.textMuted),
-                  const SizedBox(width: 8),
-                  Text(a.name, style: GoogleFonts.dmSans(fontSize: 13)),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (v) {
-            if (v != null) onSelected(v);
-          },
-        );
-      },
     );
   }
 }

@@ -6,14 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -35,22 +37,22 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ── Role colours ──────────────────────────────────────────────────────────────
 
 Color _roleColor(TeamRole r) => switch (r) {
-      TeamRole.owner => AppColors.navyPrimary,
-      TeamRole.manager => const Color(0xFF7C3AED),
-      TeamRole.accountant => AppColors.tealAccent,
-      TeamRole.cashier => AppColors.success,
-      TeamRole.stockClerk => AppColors.warning,
-      TeamRole.custom => AppColors.textSecondary,
-    };
+  TeamRole.owner => AppColors.navyPrimary,
+  TeamRole.manager => const Color(0xFF7C3AED),
+  TeamRole.accountant => AppColors.tealAccent,
+  TeamRole.cashier => AppColors.success,
+  TeamRole.stockClerk => AppColors.warning,
+  TeamRole.custom => AppColors.textSecondary,
+};
 
 IconData _roleIcon(TeamRole r) => switch (r) {
-      TeamRole.owner => Icons.shield_rounded,
-      TeamRole.manager => Icons.manage_accounts_rounded,
-      TeamRole.accountant => Icons.calculate_rounded,
-      TeamRole.cashier => Icons.point_of_sale_rounded,
-      TeamRole.stockClerk => Icons.inventory_2_rounded,
-      TeamRole.custom => Icons.tune_rounded,
-    };
+  TeamRole.owner => Icons.shield_rounded,
+  TeamRole.manager => Icons.manage_accounts_rounded,
+  TeamRole.accountant => Icons.calculate_rounded,
+  TeamRole.cashier => Icons.point_of_sale_rounded,
+  TeamRole.stockClerk => Icons.inventory_2_rounded,
+  TeamRole.custom => Icons.tune_rounded,
+};
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 
@@ -58,11 +60,11 @@ enum _TeamFilter { all, active, pending, suspended }
 
 extension _TeamFilterX on _TeamFilter {
   String get label => switch (this) {
-        _TeamFilter.all => _tr('All', 'Wote'),
-        _TeamFilter.active => _tr('Active', 'Amilifu'),
-        _TeamFilter.pending => _tr('Pending', 'Wanaosubiri'),
-        _TeamFilter.suspended => _tr('Suspended', 'Waliozuiwa'),
-      };
+    _TeamFilter.all => _tr('All', 'Wote'),
+    _TeamFilter.active => _tr('Active', 'Amilifu'),
+    _TeamFilter.pending => _tr('Pending', 'Wanaosubiri'),
+    _TeamFilter.suspended => _tr('Suspended', 'Waliozuiwa'),
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -99,10 +101,12 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     };
     if (query.isNotEmpty) {
       result = result
-          .where((m) =>
-              m.name.toLowerCase().contains(query) ||
-              m.email.toLowerCase().contains(query) ||
-              m.phone.contains(query))
+          .where(
+            (m) =>
+                m.name.toLowerCase().contains(query) ||
+                m.email.toLowerCase().contains(query) ||
+                m.phone.contains(query),
+          )
           .toList();
     }
     return result;
@@ -125,7 +129,9 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 label: Text(
                   _tr('Add Member', 'Ongeza Mwanachama'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             )
@@ -170,34 +176,41 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: _TeamDarkHeader._pillHalf + 8),
+              const SizedBox(height: HeaderStatsPill.pillHalf + 8),
               if (_filter != _TeamFilter.all)
                 _ActiveTeamFilterChip(
                   filter: _filter,
                   onRemove: () => setState(() => _filter = _TeamFilter.all),
                 ),
               Expanded(
-                child: filtered.isEmpty
-                    ? _EmptyState(filter: _filter)
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 104),
-                        itemCount: filtered.length,
-                        itemBuilder: (ctx, i) => ListSwipeCard(
-                          itemKey: ValueKey(filtered[i].id),
-                          onEdit: ps.isOwner
-                              ? () => _showMemberSheet(context, filtered[i])
-                              : null,
-                          onDelete: ps.isOwner
-                              ? () => _removeMember(context, ref, filtered[i])
-                              : null,
-                          child: _MemberCard(
-                            member: filtered[i],
-                            isLast: i == filtered.length - 1,
-                            onTap: () =>
-                                _showMemberSheet(context, filtered[i]),
+                child: SilentRefresh(
+                  onRefresh: () => triggerSilentSync(context, ref),
+                  child: filtered.isEmpty
+                      ? SingleChildScrollView(
+                          physics: silentRefreshPhysics,
+                          child: _EmptyState(filter: _filter),
+                        )
+                      : ListView.builder(
+                          physics: silentRefreshPhysics,
+                          padding: const EdgeInsets.only(bottom: 104),
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) => ListSwipeCard(
+                            itemKey: ValueKey(filtered[i].id),
+                            onEdit: ps.isOwner
+                                ? () => _showMemberSheet(context, filtered[i])
+                                : null,
+                            onDelete: ps.isOwner
+                                ? () => _removeMember(context, ref, filtered[i])
+                                : null,
+                            child: _MemberCard(
+                              member: filtered[i],
+                              isLast: i == filtered.length - 1,
+                              onTap: () =>
+                                  _showMemberSheet(context, filtered[i]),
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
             ],
           );
@@ -207,6 +220,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 
   Future<void> _tryInvite(BuildContext ctx) async {
+    // Checked here, at the very first tap, so an offline user is told
+    // immediately instead of filling in the whole invite form only to have
+    // Save fail at the end.
+    if (!await OnlineGuard.ensureOnline(ctx)) return;
+    if (!ctx.mounted) return;
     final plan = await ref.read(planStatusProvider.future);
     if (!ctx.mounted) return;
     final maxUsers = plan.limits.maxUsers;
@@ -233,22 +251,27 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 
   void _showInviteSheet(BuildContext ctx) {
-    showAppSheet<void>(
-      ctx,
-      builder: (_) => const _InviteMemberSheet(),
-    );
+    showAppSheet<void>(ctx, builder: (_) => const _InviteMemberSheet());
   }
 
-  Future<void> _removeMember(BuildContext context, WidgetRef ref, TeamMember member) async {
+  Future<void> _removeMember(
+    BuildContext context,
+    WidgetRef ref,
+    TeamMember member,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_tr('Remove Member', 'Ondoa Mwanachama'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-        content: Text(_tr(
-          'Remove ${member.name} from the team? This cannot be undone.',
-          'Ondoa ${member.name} kutoka timu? Haiwezi kurejeshwa.',
-        )),
+        title: Text(
+          _tr('Remove Member', 'Ondoa Mwanachama'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          _tr(
+            'Remove ${member.name} from the team? This cannot be undone.',
+            'Ondoa ${member.name} kutoka timu? Haiwezi kurejeshwa.',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -268,7 +291,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       if (user == null) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx2 = await repo.resolveContextForUser(user.uid);
-      await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
+      await repo.deleteTeamMember(
+        uid: user.uid,
+        context: ctx2,
+        memberId: member.id,
+      );
 
       // No memberAccess collection to clean up — permissions now live on the staff doc.
 
@@ -288,47 +315,44 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         if (kDebugMode) debugPrint('[removeMember] pendingInvite cleanup: $e');
       }
 
-      unawaited(AuditLogService().log(
-        ownerUid: user.uid,
-        businessId: ctx2.businessId ?? '',
-        performedByUid: user.uid,
-        performedByName: user.displayName ?? 'Owner',
-        action: AuditLogService.memberRemoved,
-        targetMemberId: member.id,
-        targetName: member.name,
-      ));
+      unawaited(
+        AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: ctx2.businessId ?? '',
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberRemoved,
+          targetMemberId: member.id,
+          targetName: member.name,
+        ),
+      );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('${member.name} removed.', '${member.name} ameondolewa.')),
-          behavior: SnackBarBehavior.floating,
-        ));
+        AppNotification.success(
+          context,
+          _tr('${member.name} removed.', '${member.name} ameondolewa.'),
+        );
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(_tr(
+        AppNotification.error(
+          context,
+          _tr(
             'Could not remove member. Please try again.',
             'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-          )),
-        ));
+          ),
+        );
       }
     }
   }
 
   void _showMemberSheet(BuildContext ctx, TeamMember member) {
-    showAppSheet<void>(
-      ctx,
-      builder: (_) => _MemberSheet(member: member),
-    );
+    showAppSheet<void>(ctx, builder: (_) => _MemberSheet(member: member));
   }
 }
 
 // ── Dark Header ────────────────────────────────────────────────────────────────
 
 class _TeamDarkHeader extends StatefulWidget {
-  static const double _pillHalf = 22.0;
-
   final int totalCount;
   final int activeCount;
   final int pendingCount;
@@ -364,8 +388,9 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
       _ctrl.clear();
       _focus.unfocus();
     } else if (widget.searchExpanded && !old.searchExpanded) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _focus.requestFocus());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _focus.requestFocus(),
+      );
     }
   }
 
@@ -384,238 +409,68 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-              20, top + AppTheme.headerTopPadding, 20, _TeamDarkHeader._pillHalf + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('My Team', 'Timu Yangu'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Search icon
-                  GestureDetector(
-                    onTap: widget.onSearchToggle,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: widget.searchExpanded
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: widget.searchExpanded ? AppColors.yellowBrand : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        widget.searchExpanded ? Icons.close_rounded : Icons.search_rounded,
-                        color: widget.searchExpanded ? AppColors.yellowBrand : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter icon
-                  GestureDetector(
-                    onTap: widget.onFilterTap,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: widget.activeFilters > 0
-                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                : Colors.white12,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        if (_alertDotColor != Colors.transparent)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: _alertDotColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.navyPrimary, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: widget.searchExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextField(
-                          controller: _ctrl,
-                          focusNode: _focus,
-                          onChanged: widget.onSearchChanged,
-                          style: GoogleFonts.dmSans(
-                              color: Colors.white, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: _tr(
-                              'Search by name, email…',
-                              'Tafuta kwa jina, barua pepe…',
-                            ),
-                            hintStyle: GoogleFonts.dmSans(
-                                color: Colors.white54, fontSize: 14),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                            prefixIcon: const Icon(Icons.search_rounded,
-                                color: Colors.white54, size: 18),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          bottom: -_TeamDarkHeader._pillHalf,
-          left: 24,
-          right: 24,
-          child: Container(
-            height: _TeamDarkHeader._pillHalf * 2,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.circular(_TeamDarkHeader._pillHalf),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PillStat(
-                  value: '${widget.totalCount}',
-                  label: _tr('Members', 'Wanachama'),
-                  valueColor: AppColors.tealAccent,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: '${widget.activeCount}',
-                  label: _tr('Active', 'Amilifu'),
-                  valueColor: AppColors.success,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: '${widget.pendingCount}',
-                  label: _tr('Pending', 'Wanaosubiri'),
-                  valueColor: widget.pendingCount > 0
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final dotColor = _alertDotColor;
 
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color valueColor;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
-          ),
+    return DarkHeaderShell(
+      stretchPill: true,
+      title: Text(
+        _tr('My Team', 'Timu Yangu'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w500,
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderIconButton(
+            icon: widget.searchExpanded
+                ? Icons.close_rounded
+                : Icons.search_rounded,
+            active: widget.searchExpanded,
+            onTap: widget.onSearchToggle,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      color: AppColors.border,
+          const SizedBox(width: 10),
+          HeaderIconButton(
+            icon: Icons.tune_rounded,
+            active: widget.activeFilters > 0,
+            onTap: widget.onFilterTap,
+            dotColor: dotColor != Colors.transparent ? dotColor : null,
+          ),
+        ],
+      ),
+      expandable: HeaderSearchField(
+        controller: _ctrl,
+        focusNode: _focus,
+        onChanged: widget.onSearchChanged,
+        hintText: _tr('Search by name, email…', 'Tafuta kwa jina, barua pepe…'),
+        showClear: _ctrl.text.isNotEmpty,
+      ),
+      expanded: widget.searchExpanded,
+      pill: HeaderStatsPill(
+        layout: HeaderPillLayout.stretched,
+        stats: [
+          HeaderPillStat(
+            value: '${widget.totalCount}',
+            label: _tr('Members', 'Wanachama'),
+            color: AppColors.tealAccent,
+          ),
+          HeaderPillStat(
+            value: '${widget.activeCount}',
+            label: _tr('Active', 'Amilifu'),
+            color: AppColors.success,
+          ),
+          HeaderPillStat(
+            value: '${widget.pendingCount}',
+            label: _tr('Pending', 'Wanaosubiri'),
+            color: widget.pendingCount > 0
+                ? AppColors.warning
+                : AppColors.success,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -626,10 +481,7 @@ class _TeamFilterSheet extends StatefulWidget {
   final _TeamFilter selected;
   final ValueChanged<_TeamFilter> onApply;
 
-  const _TeamFilterSheet({
-    required this.selected,
-    required this.onApply,
-  });
+  const _TeamFilterSheet({required this.selected, required this.onApply});
 
   @override
   State<_TeamFilterSheet> createState() => _TeamFilterSheetState();
@@ -670,11 +522,13 @@ class _TeamFilterSheetState extends State<_TeamFilterSheet> {
               spacing: 8,
               runSpacing: 8,
               children: _TeamFilter.values
-                  .map((f) => _SortChip(
-                        label: f.label,
-                        selected: _pick == f,
-                        onTap: () => setState(() => _pick = f),
-                      ))
+                  .map(
+                    (f) => _SortChip(
+                      label: f.label,
+                      selected: _pick == f,
+                      onTap: () => setState(() => _pick = f),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 20),
@@ -690,12 +544,15 @@ class _TeamFilterSheetState extends State<_TeamFilterSheet> {
                   backgroundColor: AppColors.navyPrimary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(
                   _tr('Apply', 'Tumia'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 15, fontWeight: FontWeight.w700),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -766,10 +623,7 @@ class _SortChip extends StatelessWidget {
 class _ActiveTeamFilterChip extends StatelessWidget {
   final _TeamFilter filter;
   final VoidCallback onRemove;
-  const _ActiveTeamFilterChip({
-    required this.filter,
-    required this.onRemove,
-  });
+  const _ActiveTeamFilterChip({required this.filter, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -778,13 +632,13 @@ class _ActiveTeamFilterChip extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.navyPrimary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.20)),
+                color: AppColors.navyPrimary.withValues(alpha: 0.20),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -800,8 +654,11 @@ class _ActiveTeamFilterChip extends StatelessWidget {
                 const SizedBox(width: 6),
                 GestureDetector(
                   onTap: onRemove,
-                  child: const Icon(Icons.close_rounded,
-                      size: 14, color: AppColors.navyPrimary),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
               ],
             ),
@@ -891,7 +748,9 @@ class _MemberCard extends StatelessWidget {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
@@ -908,11 +767,14 @@ class _MemberCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Text(statusLabel,
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: statusColor)),
+                                Text(
+                                  statusLabel,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: statusColor,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -926,21 +788,26 @@ class _MemberCard extends StatelessWidget {
                           Text(
                             member.role.label,
                             style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: rc),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: rc,
+                            ),
                           ),
                           if (member.email.isNotEmpty) ...[
-                            Text('  ·  ',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted)),
+                            Text(
+                              '  ·  ',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
                             Expanded(
                               child: Text(
                                 member.email,
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted),
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -951,7 +818,9 @@ class _MemberCard extends StatelessWidget {
                       const SizedBox(height: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(6),
@@ -960,17 +829,21 @@ class _MemberCard extends StatelessWidget {
                         child: Text(
                           '$permCount ${_tr("permissions", "ruhusa")}',
                           style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textMuted),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted, size: 20),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textMuted,
+                  size: 20,
+                ),
               ],
             ),
             if (!isLast)
@@ -997,24 +870,22 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => EmptyState(
-        icon: filter == _TeamFilter.all
-            ? Icons.group_outlined
-            : Icons.manage_accounts_outlined,
-        title: filter == _TeamFilter.all
-            ? _tr('Your team is just you for now',
-                'Timu yako ni wewe tu kwa sasa')
-            : _tr('No members in this group',
-                'Hakuna wanachama katika kundi hili'),
-        subtitle: filter == _TeamFilter.all
-            ? _tr(
-                'Tap "Add Member" to invite your first team member.',
-                'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.',
-              )
-            : _tr(
-                'Try a different permission group to find members.',
-                'Jaribu kundi tofauti la ruhusa kupata wanachama.',
-              ),
-      );
+    icon: filter == _TeamFilter.all
+        ? Icons.group_outlined
+        : Icons.manage_accounts_outlined,
+    title: filter == _TeamFilter.all
+        ? _tr('Your team is just you for now', 'Timu yako ni wewe tu kwa sasa')
+        : _tr('No members in this group', 'Hakuna wanachama katika kundi hili'),
+    subtitle: filter == _TeamFilter.all
+        ? _tr(
+            'Tap "Add Member" to invite your first team member.',
+            'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.',
+          )
+        : _tr(
+            'Try a different permission group to find members.',
+            'Jaribu kundi tofauti la ruhusa kupata wanachama.',
+          ),
+  );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1025,13 +896,12 @@ class _InviteMemberSheet extends ConsumerStatefulWidget {
   const _InviteMemberSheet();
 
   @override
-  ConsumerState<_InviteMemberSheet> createState() =>
-      _InviteMemberSheetState();
+  ConsumerState<_InviteMemberSheet> createState() => _InviteMemberSheetState();
 }
 
 class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     with SingleTickerProviderStateMixin {
-  final _formKey  = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -1051,10 +921,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     _customPerms = Set.of(defaultPermissionsFor(TeamRole.cashier));
 
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
-    _fade  = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
+    _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -1105,7 +979,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -1118,58 +992,74 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           ? _customPerms
           : defaultPermissionsFor(_selectedRole);
 
-      final storedPhone =
-          normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
+      final storedPhone = normalizedPhone.isNotEmpty
+          ? normalizedPhone
+          : rawPhone;
 
       final permNames = permsToStore.map((p) => p.name).toList();
 
+      // OnlineGuard only checks that a network interface is up (e.g.
+      // connectivity_plus), not that Firestore is actually reachable — a
+      // weak/captive-portal connection passes that check and then hangs
+      // here indefinitely. A hard timeout turns that into a clear, fast
+      // failure instead of a spinner that never resolves.
+      const writeTimeout = Duration(seconds: 15);
+
       // Write team_member record (for team management UI)
-      final memberRef = await repo.addTeamMember(
-        uid: user.uid,
-        context: ctx,
-        data: {
-          'name': name,
-          'email': '',
-          'phone': storedPhone,
-          'role': _selectedRole.name,
-          'customPermissions': permNames,
-          // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
-          'permissions': permNames,
-          'status': 'pending',
-          'invitedAt': FieldValue.serverTimestamp(),
-          'invitedBy': user.uid,
-          if (_notesCtrl.text.trim().isNotEmpty)
-            'notes': _notesCtrl.text.trim(),
-          'dataScope':
-              (_selectedRole == TeamRole.custom && _ownRecordsOnly)
+      final memberRef = await repo
+          .addTeamMember(
+            uid: user.uid,
+            context: ctx,
+            data: {
+              'name': name,
+              'email': '',
+              'phone': storedPhone,
+              'role': _selectedRole.name,
+              'customPermissions': permNames,
+              // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
+              'permissions': permNames,
+              'status': 'pending',
+              'invitedAt': FieldValue.serverTimestamp(),
+              'invitedBy': user.uid,
+              if (_notesCtrl.text.trim().isNotEmpty)
+                'notes': _notesCtrl.text.trim(),
+              'dataScope': (_selectedRole == TeamRole.custom && _ownRecordsOnly)
                   ? DataScope.own.name
                   : DataScope.all.name,
-        },
-      );
+            },
+          )
+          .timeout(writeTimeout);
 
       // Write pendingInvite for fast phone-based lookup during staff login
       if (normalizedPhone.isNotEmpty) {
         final bizId = ctx.businessId ?? '';
         // Ensure we have a valid businessId; fetch businessName using an explicit context
         final bizName = bizId.isNotEmpty
-            ? await repo.getBusinessName(uid: user.uid, context: ResolvedFinanceContext.business(bizId))
+            ? await repo
+                  .getBusinessName(
+                    uid: user.uid,
+                    context: ResolvedFinanceContext.business(bizId),
+                  )
+                  .timeout(writeTimeout, onTimeout: () => '')
             : '';
-        await repo.writePendingInvite(
-          inviteData: {
-            'businessId': bizId,
-            'businessName': bizName,
-            'fullName': name,
-            'phoneNumber': normalizedPhone,
-            'email': '',
-            'role': _selectedRole.name,
-            'invitedBy': user.uid,
-            'ownerUid': user.uid,
-            'memberId': memberRef.id,
-            'status': 'pending',
-            'pinCreated': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          },
-        );
+        await repo
+            .writePendingInvite(
+              inviteData: {
+                'businessId': bizId,
+                'businessName': bizName,
+                'fullName': name,
+                'phoneNumber': normalizedPhone,
+                'email': '',
+                'role': _selectedRole.name,
+                'invitedBy': user.uid,
+                'ownerUid': user.uid,
+                'memberId': memberRef.id,
+                'status': 'pending',
+                'pinCreated': false,
+                'createdAt': FieldValue.serverTimestamp(),
+              },
+            )
+            .timeout(writeTimeout);
       }
 
       // Write to Drift immediately so the member appears in the list right away.
@@ -1208,37 +1098,51 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       }
 
       // Audit log — best-effort, do not await
-      unawaited(AuditLogService().log(
-        ownerUid: user.uid,
-        businessId: ctx.businessId ?? '',
-        performedByUid: user.uid,
-        performedByName: user.displayName ?? 'Owner',
-        action: AuditLogService.memberInvited,
-        targetMemberId: memberRef.id,
-        targetName: name,
-        newValue: _selectedRole.name,
-      ));
+      unawaited(
+        AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: ctx.businessId ?? '',
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberInvited,
+          targetMemberId: memberRef.id,
+          targetName: name,
+          newValue: _selectedRole.name,
+        ),
+      );
 
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-            _tr('$name added to the team!', '$name ameongezwa kwenye timu!')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
-    } catch (_) {
+      AppNotification.showVia(
+        overlay,
+        _tr('$name added to the team!', '$name ameongezwa kwenye timu!'),
+        type: AppNotificationType.success,
+      );
+    } catch (e, st) {
+      // Swallowed to a generic message for the user, but reported so a
+      // recurring cause (e.g. a Firestore rule not yet deployed for the
+      // staff/pendingInvites collections) is visible instead of only ever
+      // showing up as "try again" support tickets.
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr(
-            'Could not add team member. Please try again.',
-            'Imeshindikana kuongeza mwanachama. Jaribu tena.'))));
+      final message = e is TimeoutException
+          ? _tr(
+              'Your connection is too weak to add a team member right now. Try again on a stronger connection.',
+              'Muunganisho wako ni dhaifu kuongeza mwanachama sasa. Jaribu tena kwenye muunganisho imara zaidi.',
+            )
+          : _tr(
+              'Could not add team member. Please try again.',
+              'Imeshindikana kuongeza mwanachama. Jaribu tena.',
+            );
+      AppNotification.showVia(
+        overlay,
+        message,
+        type: AppNotificationType.error,
+      );
     }
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) => AppNotification.info(context, msg);
 
   @override
   Widget build(BuildContext context) {
@@ -1302,7 +1206,8 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
                           // ── Member details ──────────────────────────
                           _sectionLabel(
-                              _tr('Member Details', 'Maelezo ya Mwanachama')),
+                            _tr('Member Details', 'Maelezo ya Mwanachama'),
+                          ),
                           const SizedBox(height: 8),
 
                           OnboardingField(
@@ -1310,13 +1215,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             label: _tr('Full Name *', 'Jina Kamili *'),
                             hint: _tr('Enter full name', 'Ingiza jina kamili'),
                             autofocus: true,
-                            prefix: const Icon(Icons.person_outline_rounded,
-                                size: 18, color: AppColors.textMuted),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? _tr('Name is required.',
-                                        'Jina linahitajika.')
-                                    : null,
+                            prefix: const Icon(
+                              Icons.person_outline_rounded,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? _tr('Name is required.', 'Jina linahitajika.')
+                                : null,
                           ),
                           const SizedBox(height: 16),
 
@@ -1325,10 +1231,13 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             label: _tr('Phone Number *', 'Namba ya Simu *'),
                             hint: '+255 700 000 000',
                             keyboardType: TextInputType.phone,
-                            prefix: const Icon(Icons.phone_outlined,
-                                size: 18, color: AppColors.textMuted),
-                            validator: (v) => OnboardingValidator.validatePhone(
-                                v ?? ''),
+                            prefix: const Icon(
+                              Icons.phone_outlined,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            validator: (v) =>
+                                OnboardingValidator.validatePhone(v ?? ''),
                           ),
                           const SizedBox(height: 24),
 
@@ -1339,7 +1248,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             onTap: () => _pickRole(context),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 14),
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
@@ -1351,13 +1262,16 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                     width: 36,
                                     height: 36,
                                     decoration: BoxDecoration(
-                                      color: _roleColor(_selectedRole)
-                                          .withValues(alpha: 0.12),
+                                      color: _roleColor(
+                                        _selectedRole,
+                                      ).withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Icon(_roleIcon(_selectedRole),
-                                        size: 18,
-                                        color: _roleColor(_selectedRole)),
+                                    child: Icon(
+                                      _roleIcon(_selectedRole),
+                                      size: 18,
+                                      color: _roleColor(_selectedRole),
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -1366,8 +1280,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _tr(_selectedRole.label,
-                                              _selectedRole.labelSw),
+                                          _tr(
+                                            _selectedRole.label,
+                                            _selectedRole.labelSw,
+                                          ),
                                           style: GoogleFonts.dmSans(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w700,
@@ -1375,17 +1291,23 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                           ),
                                         ),
                                         Text(
-                                          _tr(_selectedRole.description,
-                                              _selectedRole.descriptionSw),
+                                          _tr(
+                                            _selectedRole.description,
+                                            _selectedRole.descriptionSw,
+                                          ),
                                           style: GoogleFonts.dmSans(
-                                              fontSize: 11,
-                                              color: AppColors.textMuted),
+                                            fontSize: 11,
+                                            color: AppColors.textMuted,
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.chevron_right_rounded,
-                                      color: AppColors.textMuted, size: 20),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textMuted,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                             ),
@@ -1418,9 +1340,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             controller: _notesCtrl,
                             label: _tr('Notes (optional)', 'Maelezo (hiari)'),
                             hint: _tr(
-                                'Any extra info...', 'Maelezo ya ziada...'),
-                            prefix: const Icon(Icons.notes_outlined,
-                                size: 18, color: AppColors.textMuted),
+                              'Any extra info...',
+                              'Maelezo ya ziada...',
+                            ),
+                            prefix: const Icon(
+                              Icons.notes_outlined,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                           const SizedBox(height: 28),
 
@@ -1434,8 +1361,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: AppColors.navyPrimary,
                                 elevation: 4,
-                                shadowColor:
-                                    AppColors.primary.withValues(alpha: 0.3),
+                                shadowColor: AppColors.primary.withValues(
+                                  alpha: 0.3,
+                                ),
                                 minimumSize: const Size.fromHeight(52),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -1446,8 +1374,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                       width: 20,
                                       height: 20,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: AppColors.navyPrimary))
+                                        strokeWidth: 2.5,
+                                        color: AppColors.navyPrimary,
+                                      ),
+                                    )
                                   : Text(
                                       _tr('Add to Team', 'Ongeza kwenye Timu'),
                                       style: GoogleFonts.dmSans(
@@ -1505,18 +1435,19 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception();
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo.updateTeamMember(
-          uid: user.uid,
-          context: ctx,
-          memberId: _member.id,
-          data: data,
-          workerUid: _member.userId);
+        uid: user.uid,
+        context: ctx,
+        memberId: _member.id,
+        data: data,
+        workerUid: _member.userId,
+      );
 
       // Permissions are now part of the staff doc — updateTeamMember already wrote them.
 
@@ -1525,58 +1456,69 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
       // Log custom permissions changes (before role changes, to capture both)
       if (data.containsKey('customPermissions')) {
-        final previousPerms = _member.customPermissions.map((p) => p.name).toList();
-        final newPerms = (data['customPermissions'] as List?)
+        final previousPerms = _member.customPermissions
+            .map((p) => p.name)
+            .toList();
+        final newPerms =
+            (data['customPermissions'] as List?)
                 ?.whereType<String>()
                 .toList() ??
             previousPerms;
         if (previousPerms != newPerms) {
-          unawaited(AuditLogService().log(
-            ownerUid: user.uid,
-            businessId: bizId,
-            performedByUid: user.uid,
-            performedByName: user.displayName ?? 'Owner',
-            action: AuditLogService.permissionsChanged,
-            targetMemberId: _member.id,
-            targetName: _member.name,
-            previousValue: previousPerms,
-            newValue: newPerms,
-          ));
+          unawaited(
+            AuditLogService().log(
+              ownerUid: user.uid,
+              businessId: bizId,
+              performedByUid: user.uid,
+              performedByName: user.displayName ?? 'Owner',
+              action: AuditLogService.permissionsChanged,
+              targetMemberId: _member.id,
+              targetName: _member.name,
+              previousValue: previousPerms,
+              newValue: newPerms,
+            ),
+          );
         }
       }
 
       if (data.containsKey('role')) {
-        unawaited(AuditLogService().log(
-          ownerUid: user.uid,
-          businessId: bizId,
-          performedByUid: user.uid,
-          performedByName: user.displayName ?? 'Owner',
-          action: AuditLogService.roleChanged,
-          targetMemberId: _member.id,
-          targetName: _member.name,
-          previousValue: _member.role.name,
-          newValue: data['role'],
-        ));
+        unawaited(
+          AuditLogService().log(
+            ownerUid: user.uid,
+            businessId: bizId,
+            performedByUid: user.uid,
+            performedByName: user.displayName ?? 'Owner',
+            action: AuditLogService.roleChanged,
+            targetMemberId: _member.id,
+            targetName: _member.name,
+            previousValue: _member.role.name,
+            newValue: data['role'],
+          ),
+        );
       } else if (data['status'] == 'suspended') {
-        unawaited(AuditLogService().log(
-          ownerUid: user.uid,
-          businessId: bizId,
-          performedByUid: user.uid,
-          performedByName: user.displayName ?? 'Owner',
-          action: AuditLogService.memberSuspended,
-          targetMemberId: _member.id,
-          targetName: _member.name,
-        ));
+        unawaited(
+          AuditLogService().log(
+            ownerUid: user.uid,
+            businessId: bizId,
+            performedByUid: user.uid,
+            performedByName: user.displayName ?? 'Owner',
+            action: AuditLogService.memberSuspended,
+            targetMemberId: _member.id,
+            targetName: _member.name,
+          ),
+        );
       } else if (data['status'] == 'active') {
-        unawaited(AuditLogService().log(
-          ownerUid: user.uid,
-          businessId: bizId,
-          performedByUid: user.uid,
-          performedByName: user.displayName ?? 'Owner',
-          action: AuditLogService.memberActivated,
-          targetMemberId: _member.id,
-          targetName: _member.name,
-        ));
+        unawaited(
+          AuditLogService().log(
+            ownerUid: user.uid,
+            businessId: bizId,
+            performedByUid: user.uid,
+            performedByName: user.displayName ?? 'Owner',
+            action: AuditLogService.memberActivated,
+            targetMemberId: _member.id,
+            targetName: _member.name,
+          ),
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -1595,9 +1537,14 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr('Could not update role. Please try again.', 'Imeshindikana kusasisha jukumu. Jaribu tena.'))));
+      AppNotification.showVia(
+        overlay,
+        _tr(
+          'Could not update role. Please try again.',
+          'Imeshindikana kusasisha jukumu. Jaribu tena.',
+        ),
+        type: AppNotificationType.error,
+      );
     }
   }
 
@@ -1606,54 +1553,66 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(_tr('Remove Member', 'Ondoa Mwanachama')),
-        content: Text(_tr(
+        content: Text(
+          _tr(
             'Remove ${_member.name} from the team? This cannot be undone.',
-            'Ondoa ${_member.name} kutoka timu? Haiwezi kurejeshwa.')),
+            'Ondoa ${_member.name} kutoka timu? Haiwezi kurejeshwa.',
+          ),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(_tr('Cancel', 'Ghairi'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(
-                  foregroundColor: AppColors.error),
-              child: Text(_tr('Remove', 'Ondoa'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Remove', 'Ondoa')),
+          ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
 
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception();
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(
-          uid: user.uid,
-          context: ctx,
-          memberId: _member.id,
-          workerUid: _member.userId);
-      unawaited(AuditLogService().log(
-        ownerUid: user.uid,
-        businessId: ctx.businessId ?? '',
-        performedByUid: user.uid,
-        performedByName: user.displayName ?? 'Owner',
-        action: AuditLogService.memberRemoved,
-        targetMemberId: _member.id,
-        targetName: _member.name,
-      ));
+        uid: user.uid,
+        context: ctx,
+        memberId: _member.id,
+        workerUid: _member.userId,
+      );
+      unawaited(
+        AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: ctx.businessId ?? '',
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberRemoved,
+          targetMemberId: _member.id,
+          targetName: _member.name,
+        ),
+      );
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr(
-            '${_member.name} removed.', '${_member.name} ameondolewa.')),
-        behavior: SnackBarBehavior.floating,
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('${_member.name} removed.', '${_member.name} ameondolewa.'),
+        type: AppNotificationType.success,
+      );
     } catch (_) {
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text(_tr('Could not remove member. Please try again.', 'Imeshindikana kuondoa mwanachama. Jaribu tena.'))));
+      AppNotification.showVia(
+        overlay,
+        _tr(
+          'Could not remove member. Please try again.',
+          'Imeshindikana kuondoa mwanachama. Jaribu tena.',
+        ),
+        type: AppNotificationType.error,
+      );
     }
   }
 
@@ -1667,16 +1626,14 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       constraints: BoxConstraints(maxHeight: size.height * 0.92),
       child: Material(
         color: Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             const SheetHandle(),
             // ── Member hero ──────────────────────────────────────────────
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Row(
                 children: [
                   Container(
@@ -1687,11 +1644,14 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                       shape: BoxShape.circle,
                     ),
                     child: Center(
-                      child: Text(_member.initials,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: rc)),
+                      child: Text(
+                        _member.initials,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: rc,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -1699,29 +1659,37 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_member.name,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.navyPrimary)),
+                        Text(
+                          _member.name,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Icon(_roleIcon(_member.role),
-                                size: 12, color: rc),
+                            Icon(_roleIcon(_member.role), size: 12, color: rc),
                             const SizedBox(width: 4),
-                            Text(_member.role.label,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: rc)),
+                            Text(
+                              _member.role.label,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: rc,
+                              ),
+                            ),
                           ],
                         ),
                         if (_member.email.isNotEmpty)
-                          Text(_member.email,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted)),
+                          Text(
+                            _member.email,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -1756,29 +1724,31 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                       ),
                       if (_editingRole) ...[
                         const SizedBox(height: 10),
-                        ...TeamRole.values.map((r) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _RoleCard(
-                                role: r,
-                                selected: _pendingRole == r,
-                                onTap: () =>
-                                    setState(() => _pendingRole = r),
-                                compact: true,
-                              ),
-                            )),
+                        ...TeamRole.values.map(
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _RoleCard(
+                              role: r,
+                              selected: _pendingRole == r,
+                              onTap: () => setState(() => _pendingRole = r),
+                              compact: true,
+                            ),
+                          ),
+                        ),
                         if (_pendingRole == TeamRole.custom) ...[
                           const SizedBox(height: 8),
                           _PermissionEditor(
                             perms: _pendingPerms,
-                            onChanged: (p) =>
-                                setState(() => _pendingPerms = p),
+                            onChanged: (p) => setState(() => _pendingPerms = p),
                           ),
                           const SizedBox(height: 8),
                           _OwnRecordsOnlyToggle(
                             value: _pendingDataScope == DataScope.own,
-                            onChanged: (v) => setState(() =>
-                                _pendingDataScope =
-                                    v ? DataScope.own : DataScope.all),
+                            onChanged: (v) => setState(
+                              () => _pendingDataScope = v
+                                  ? DataScope.own
+                                  : DataScope.all,
+                            ),
                           ),
                         ],
                         const SizedBox(height: 8),
@@ -1788,15 +1758,19 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                             onPressed: _isSaving
                                 ? null
                                 : () {
-                                    final effectivePerms = _pendingRole == TeamRole.custom
+                                    final effectivePerms =
+                                        _pendingRole == TeamRole.custom
                                         ? _pendingPerms
                                         : defaultPermissionsFor(_pendingRole);
-                                    final permNames = effectivePerms.map((p) => p.name).toList();
+                                    final permNames = effectivePerms
+                                        .map((p) => p.name)
+                                        .toList();
                                     // Non-custom roles always carry their view-all
                                     // permission alongside create/manage (see
                                     // _roleDefaults), so 'own' scoping only makes
                                     // sense for custom roles — reset otherwise.
-                                    final scope = _pendingRole == TeamRole.custom
+                                    final scope =
+                                        _pendingRole == TeamRole.custom
                                         ? _pendingDataScope
                                         : DataScope.all;
                                     _updateMember({
@@ -1811,13 +1785,16 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.navyPrimary,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               elevation: 0,
                             ),
                             child: Text(
-                                _tr('Save Role', 'Hifadhi Jukumu'),
-                                style: GoogleFonts.dmSans(
-                                    fontWeight: FontWeight.w700)),
+                              _tr('Save Role', 'Hifadhi Jukumu'),
+                              style: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -1838,17 +1815,16 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                         color: AppColors.textMuted,
                         size: 20,
                       ),
-                      onTap: () =>
-                          setState(() => _showPerms = !_showPerms),
+                      onTap: () => setState(() => _showPerms = !_showPerms),
                     ),
                     if (_showPerms) ...[
                       const SizedBox(height: 10),
                       _PermissionSummary(
-                          role: _member.role,
-                          overridePerms:
-                              _member.role == TeamRole.custom
-                                  ? _member.customPermissions
-                                  : null),
+                        role: _member.role,
+                        overridePerms: _member.role == TeamRole.custom
+                            ? _member.customPermissions
+                            : null,
+                      ),
                     ],
 
                     // ── Suspend / Activate + Remove (owner only) ─────────
@@ -1860,19 +1836,17 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           color: AppColors.warning,
                           title: _tr('Suspend Member', 'Zuia Mwanachama'),
                           subtitle: _tr(
-                              'Temporarily revoke access',
-                              'Zuia ufikiaji kwa muda'),
-                          onTap: () =>
-                              _updateMember({'status': 'suspended'}),
+                            'Temporarily revoke access',
+                            'Zuia ufikiaji kwa muda',
+                          ),
+                          onTap: () => _updateMember({'status': 'suspended'}),
                         )
                       else if (_member.status == 'suspended')
                         _ActionCard(
                           icon: Icons.play_circle_outline_rounded,
                           color: AppColors.success,
-                          title: _tr(
-                              'Activate Member', 'Wezesha Mwanachama'),
-                          subtitle:
-                              _tr('Restore access', 'Rudisha ufikiaji'),
+                          title: _tr('Activate Member', 'Wezesha Mwanachama'),
+                          subtitle: _tr('Restore access', 'Rudisha ufikiaji'),
                           onTap: () => _updateMember({'status': 'active'}),
                         ),
                       const SizedBox(height: 10),
@@ -1881,8 +1855,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                         color: AppColors.error,
                         title: _tr('Remove Member', 'Ondoa Mwanachama'),
                         subtitle: _tr(
-                            'Permanently remove from team',
-                            'Ondoa kabisa kutoka timu'),
+                          'Permanently remove from team',
+                          'Ondoa kabisa kutoka timu',
+                        ),
                         onTap: _delete,
                       ),
                     ],
@@ -1932,14 +1907,16 @@ class _RolePickerSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              ...TeamRole.values.map((r) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _RoleCard(
-                      role: r,
-                      selected: current == r,
-                      onTap: () => Navigator.of(context).pop(r),
-                    ),
-                  )),
+              ...TeamRole.values.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _RoleCard(
+                    role: r,
+                    selected: current == r,
+                    onTap: () => Navigator.of(context).pop(r),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1971,16 +1948,14 @@ class _RoleCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: EdgeInsets.symmetric(
-            horizontal: 14, vertical: compact ? 10 : 14),
+          horizontal: 14,
+          vertical: compact ? 10 : 14,
+        ),
         decoration: BoxDecoration(
-          color: selected
-              ? rc.withValues(alpha: 0.08)
-              : AppColors.surface,
+          color: selected ? rc.withValues(alpha: 0.08) : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected
-                ? rc.withValues(alpha: 0.5)
-                : AppColors.border,
+            color: selected ? rc.withValues(alpha: 0.5) : AppColors.border,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2012,7 +1987,9 @@ class _RoleCard extends StatelessWidget {
                     Text(
                       role.description,
                       style: GoogleFonts.dmSans(
-                          fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                 ],
               ),
@@ -2024,13 +2001,17 @@ class _RoleCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                    color: selected ? rc : AppColors.border,
-                    width: 2),
+                  color: selected ? rc : AppColors.border,
+                  width: 2,
+                ),
                 color: selected ? rc : Colors.transparent,
               ),
               child: selected
-                  ? const Icon(Icons.check_rounded,
-                      size: 10, color: Colors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 10,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ],
@@ -2044,8 +2025,9 @@ class _RoleCard extends StatelessWidget {
 
 // Restricts a custom-role member to only the records they created (sales,
 // expenses) or are assigned to (inventory) instead of everything in the
-// business — e.g. a driver who should see only their own vehicle's
-// collections. See DataScope in team_member.dart and firestore.rules.
+// business — e.g. a stylist who should see only their own sales, or a
+// driver who should see only their own vehicle's collections. See
+// DataScope in team_member.dart and firestore.rules.
 class _OwnRecordsOnlyToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -2063,8 +2045,11 @@ class _OwnRecordsOnlyToggle extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.visibility_outlined,
-              size: 20, color: AppColors.textSecondary),
+          const Icon(
+            Icons.visibility_outlined,
+            size: 20,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -2082,9 +2067,9 @@ class _OwnRecordsOnlyToggle extends StatelessWidget {
                 Text(
                   _tr(
                     'Sees only sales/expenses they created and inventory '
-                    'assigned to them — not the rest of the business.',
+                        'assigned to them — not the rest of the business.',
                     'Ataona mauzo/matumizi aliyoingiza na bidhaa '
-                    'alizopangiwa tu — si biashara nzima.',
+                        'alizopangiwa tu — si biashara nzima.',
                   ),
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
@@ -2111,8 +2096,7 @@ class _PermissionEditor extends StatelessWidget {
   final Set<AppPermission> perms;
   final ValueChanged<Set<AppPermission>> onChanged;
 
-  const _PermissionEditor(
-      {required this.perms, required this.onChanged});
+  const _PermissionEditor({required this.perms, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -2124,8 +2108,7 @@ class _PermissionEditor extends StatelessWidget {
     return Column(
       children: groups.entries.map((e) {
         final groupPerms = e.value;
-        final allOn =
-            groupPerms.every((p) => perms.contains(p));
+        final allOn = groupPerms.every((p) => perms.contains(p));
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
@@ -2146,28 +2129,36 @@ class _PermissionEditor extends StatelessWidget {
                   }
                   onChanged(updated);
                 },
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(14)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(14),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
-                      Text(e.key,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navyPrimary)),
+                      Text(
+                        e.key,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
                       const Spacer(),
                       Text(
                         allOn
                             ? _tr('All on', 'Zote zimewashwa')
                             : _tr(
                                 '${groupPerms.where(perms.contains).length}/${groupPerms.length}',
-                                '${groupPerms.where(perms.contains).length}/${groupPerms.length}'),
+                                '${groupPerms.where(perms.contains).length}/${groupPerms.length}',
+                              ),
                         style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: AppColors.textMuted),
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Switch.adaptive(
@@ -2182,15 +2173,15 @@ class _PermissionEditor extends StatelessWidget {
                           onChanged(updated);
                         },
                         activeThumbColor: AppColors.navyPrimary,
-                        activeTrackColor:
-                            AppColors.navyPrimary.withValues(alpha: 0.3),
+                        activeTrackColor: AppColors.navyPrimary.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const Divider(
-                  height: 1, indent: 14, color: AppColors.border),
+              const Divider(height: 1, indent: 14, color: AppColors.border),
               ...groupPerms.map((p) {
                 final on = perms.contains(p);
                 return InkWell(
@@ -2205,16 +2196,21 @@ class _PermissionEditor extends StatelessWidget {
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(p.label,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  color: on
-                                      ? AppColors.textPrimary
-                                      : AppColors.textMuted)),
+                          child: Text(
+                            p.label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              color: on
+                                  ? AppColors.textPrimary
+                                  : AppColors.textMuted,
+                            ),
+                          ),
                         ),
                         Switch.adaptive(
                           value: on,
@@ -2228,8 +2224,9 @@ class _PermissionEditor extends StatelessWidget {
                             onChanged(updated);
                           },
                           activeThumbColor: AppColors.tealAccent,
-                          activeTrackColor: AppColors.tealAccent
-                              .withValues(alpha: 0.3),
+                          activeTrackColor: AppColors.tealAccent.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                       ],
                     ),
@@ -2270,39 +2267,49 @@ class _PermissionSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: groups.entries.map((e) {
-          final granted =
-              e.value.where((p) => perms.contains(p)).toList();
+          final granted = e.value.where((p) => perms.contains(p)).toList();
           if (granted.isEmpty) return const SizedBox.shrink();
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(e.key,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5)),
+                Text(
+                  e.key,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: granted
-                      .map((p) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.navyPrimary
-                                  .withValues(alpha: 0.07),
-                              borderRadius: BorderRadius.circular(8),
+                      .map(
+                        (p) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.navyPrimary.withValues(
+                              alpha: 0.07,
                             ),
-                            child: Text(p.label,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.navyPrimary)),
-                          ))
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            p.label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -2342,8 +2349,7 @@ class _ActionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
               Container(
@@ -2360,21 +2366,30 @@ class _ActionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary)),
-                    Text(subtitle,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            color: AppColors.textMuted)),
+                    Text(
+                      title,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                   ],
                 ),
               ),
               trailing ??
-                  const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textMuted, size: 18),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 18,
+                  ),
             ],
           ),
         ),
@@ -2403,8 +2418,7 @@ class _StatusBadge extends StatelessWidget {
       _ => _tr('Suspended', 'Imezuiliwa'),
     };
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
@@ -2416,28 +2430,28 @@ class _StatusBadge extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color)),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-
-
 Widget _sectionLabel(String label) => Text(
-      label,
-      style: GoogleFonts.dmSans(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textMuted),
-    );
-
+  label,
+  style: GoogleFonts.dmSans(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textMuted,
+  ),
+);

@@ -124,6 +124,28 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  // Updates only the buying (cost) and selling price — leaves quantity and
+  // quantityDelta untouched so it can never race with adjustQuantity's
+  // delta-merge sync (see the class comment on InventoryTable.quantityDelta).
+  Future<void> updatePricing(
+    String id, {
+    required double costPrice,
+    required double unitPrice,
+  }) async {
+    final item = await getById(id);
+    if (item == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await (update(inventoryTable)..where((t) => t.id.equals(id))).write(
+      InventoryTableCompanion(
+        costPrice: Value(costPrice),
+        unitPrice: Value(unitPrice),
+        syncStatus: const Value('pending_update'),
+        localVersion: Value(item.localVersion + 1),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
   // Mirrors a stock change that was already committed to Firestore by an
   // online sale/return batch. Leaves syncStatus and quantityDelta untouched:
   // the change needs no push, and flipping the row to pending would make

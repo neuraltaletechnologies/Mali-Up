@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,17 +5,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/expense_category.dart';
 import '../expense_category_style.dart';
+import '../providers/expense_providers.dart';
 import '../widgets/manage_expense_categories_sheet.dart';
 import 'add_expense_screen.dart';
 import 'expense_detail_screen.dart';
@@ -154,7 +154,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             onNext: _nextMonth,
             canGoNext: canGoNext,
           ),
-          const SizedBox(height: _ExpenseDarkHeader._pillHalf + 8),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           // Category filter pills
           _CategoryPills(
             categories: categories,
@@ -163,41 +163,48 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             onManage: _openCategoryManager,
           ),
           Expanded(
-            child: isLoading
-                ? const ExpensePageSkeleton()
-                : filtered.isEmpty
-                ? EmptyState(
-                    icon: Icons.receipt_outlined,
-                    title: selectedCategory == null
-                        ? _tr(
-                            'No expenses this month',
-                            'Hakuna matumizi mwezi huu',
-                          )
-                        : _tr(
-                            'No ${selectedCategory.label} expenses',
-                            'Hakuna matumizi ya ${selectedCategory.label}',
-                          ),
-                    subtitle: _tr(
-                      'Tap + to log a purchase or bill.',
-                      'Bonyeza + kurekodi ununuzi au bili.',
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 120),
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) => _ExpenseCard(
-                      expense: filtered[i],
-                      category: categories.firstWhere(
-                        (category) => category.key == filtered[i].category,
-                        orElse: () =>
-                            ExpenseCategory.fallback(filtered[i].category),
+            child: SilentRefresh(
+              onRefresh: () => triggerSilentSync(context, ref),
+              child: isLoading
+                  ? const ExpensePageSkeleton()
+                  : filtered.isEmpty
+                  ? SingleChildScrollView(
+                      physics: silentRefreshPhysics,
+                      child: EmptyState(
+                        icon: Icons.receipt_outlined,
+                        title: selectedCategory == null
+                            ? _tr(
+                                'No expenses this month',
+                                'Hakuna matumizi mwezi huu',
+                              )
+                            : _tr(
+                                'No ${selectedCategory.label} expenses',
+                                'Hakuna matumizi ya ${selectedCategory.label}',
+                              ),
+                        subtitle: _tr(
+                          'Tap + to log a purchase or bill.',
+                          'Bonyeza + kurekodi ununuzi au bili.',
+                        ),
                       ),
-                      isLast: i == filtered.length - 1,
-                      onTap: () => _openDetail(filtered[i]),
-                      onEdit: () => _openAdd(edit: filtered[i]),
-                      onDelete: () => _deleteExpense(ctx, filtered[i]),
+                    )
+                  : ListView.builder(
+                      physics: silentRefreshPhysics,
+                      padding: const EdgeInsets.only(bottom: 120),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _ExpenseCard(
+                        expense: filtered[i],
+                        category: categories.firstWhere(
+                          (category) => category.key == filtered[i].category,
+                          orElse: () =>
+                              ExpenseCategory.fallback(filtered[i].category),
+                        ),
+                        isLast: i == filtered.length - 1,
+                        onTap: () => _openDetail(filtered[i]),
+                        onEdit: () => _openAdd(edit: filtered[i]),
+                        onDelete: () => _deleteExpense(ctx, filtered[i]),
+                      ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),
@@ -238,28 +245,28 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     );
     if (confirmed != true) return;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-            uid: user.uid,
-            context: ctx,
-            childCollection: 'expenses',
-          )
-          .doc(expense.id)
-          .delete();
+      // Goes through the Drift + sync-queue repository — this is what makes
+      // it work fully offline. It used to delete straight from Firestore
+      // here, which hangs/fails while offline since Firestore's own
+      // persistence cache is disabled (see main.dart).
+      await ref.read(expenseRepositoryProvider).delete(expense.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_tr('Expense deleted', 'Gharama imefutwa')),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
+        AppNotification.success(
+          context,
+          _tr('Expense deleted', 'Gharama imefutwa'),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not delete. Try again.',
+            'Imeshindikana kufuta. Jaribu tena.',
           ),
         );
       }
-    } catch (_) {}
+    }
   }
 }
 
@@ -268,8 +275,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ExpenseDarkHeader extends StatelessWidget {
-  static const double _pillHalf = 22.0;
-
   final DateTime month;
   final double total;
   final int withReceipt;
@@ -290,132 +295,82 @@ class _ExpenseDarkHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Expenses', 'Matumizi'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  // Month navigation
-                  GestureDetector(
-                    onTap: onPrev,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Colors.white12,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Colors.white70,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _monthLabel(month),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: canGoNext ? onNext : null,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Colors.white12,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        color: canGoNext ? Colors.white70 : Colors.white24,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Expenses', 'Matumizi'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onPrev,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _PillStat(
-                    label: _tr('Spent', 'Imetumika'),
-                    value: 'TZS ${_fmtShort(total)}',
-                    color: AppColors.error,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    label: _tr('Entries', 'Rekodi'),
-                    value: '$expenseCount',
-                    color: AppColors.navyPrimary,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    label: _tr('Receipts', 'Risiti'),
-                    value: '$withReceipt',
-                    color: AppColors.tealAccent,
-                  ),
-                ],
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                color: Colors.white70,
+                size: 22,
               ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            _monthLabel(month),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: canGoNext ? onNext : null,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: canGoNext ? Colors.white70 : Colors.white24,
+                size: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+      pill: HeaderStatsPill(
+        stats: [
+          HeaderPillStat(
+            label: _tr('Spent', 'Imetumika'),
+            value: 'TZS ${_fmtShort(total)}',
+            color: AppColors.error,
+          ),
+          HeaderPillStat(
+            label: _tr('Entries', 'Rekodi'),
+            value: '$expenseCount',
+            color: AppColors.navyPrimary,
+          ),
+          HeaderPillStat(
+            label: _tr('Receipts', 'Risiti'),
+            value: '$withReceipt',
+            color: AppColors.tealAccent,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -681,55 +636,6 @@ class _ExpenseCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pill sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _PillStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _PillStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

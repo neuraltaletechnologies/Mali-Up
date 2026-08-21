@@ -11,6 +11,7 @@ import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -19,6 +20,8 @@ import '../../../finance/data/finance_providers.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../debt/data/debt_providers.dart';
@@ -607,6 +610,15 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     nowIso)
               : nowIso,
           updatedAt: nowIso,
+          // Editing never touches return state — carry it forward from the
+          // invoice being edited, otherwise this write (which sets every
+          // Drift column explicitly) would silently zero out a return
+          // recorded earlier by SalesReturnScreen.
+          hasReturn: widget.invoiceToEdit?['hasReturn'] == true,
+          returnedAmount:
+              parseNumericAmount(widget.invoiceToEdit?['returnedAmount']),
+          creditNoteNumber:
+              (widget.invoiceToEdit?['creditNoteNumber'] ?? '').toString(),
         ),
       );
 
@@ -653,16 +665,11 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       if (mounted) {
         if (confirmingNow && _isCredit && _customer != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _tr(
-                  'Receivable added for ${_customer!.name} – check Debts',
-                  'Dai limeongezwa kwa ${_customer!.name} – angalia Madeni',
-                ),
-              ),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
+          AppNotification.success(
+            context,
+            _tr(
+              'Receivable added for ${_customer!.name} – check Debts',
+              'Dai limeongezwa kwa ${_customer!.name} – angalia Madeni',
             ),
           );
         }
@@ -676,12 +683,16 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    AppNotification.info(context, msg);
+  }
+
+  // Double-tapping a locked payment chip above opens this — activation
+  // itself is Drift-based (SyncCashRepository) so it works fully offline;
+  // the sheet shows its own confirmation once saved.
+  Future<void> _showActivateAccountSheet(PaymentMethodSpec spec) async {
+    await showAppSheet<bool>(
+      context,
+      builder: (_) => ActivateAccountSheet(spec: spec),
     );
   }
 
@@ -776,6 +787,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     errorMessage: _paymentError,
                     onActivationRequired: (message) =>
                         setState(() => _paymentError = message),
+                    onActivateMethod: (spec) =>
+                        _showActivateAccountSheet(spec),
                     onDismissError: () => setState(() => _paymentError = null),
                   ),
                   const SizedBox(height: 16),
@@ -1840,6 +1853,7 @@ class _PaymentSection extends ConsumerWidget {
   final bool lockUnactivated;
   final String? errorMessage;
   final ValueChanged<String> onActivationRequired;
+  final ValueChanged<PaymentMethodSpec> onActivateMethod;
   final VoidCallback onDismissError;
 
   const _PaymentSection({
@@ -1853,6 +1867,7 @@ class _PaymentSection extends ConsumerWidget {
     required this.lockUnactivated,
     required this.errorMessage,
     required this.onActivationRequired,
+    required this.onActivateMethod,
     required this.onDismissError,
   });
 
@@ -1879,6 +1894,7 @@ class _PaymentSection extends ConsumerWidget {
           onSelectAccount: onAccount,
           onSelectCredit: onCredit,
           onActivationRequired: onActivationRequired,
+          onActivateMethod: onActivateMethod,
         ),
         ValidationBanner(message: errorMessage, onDismiss: onDismissError),
         if (!isCredit &&

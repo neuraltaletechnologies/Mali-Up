@@ -43,6 +43,13 @@
                 <data android:scheme="maliup"/>
             </intent-filter>
         </activity>
+        <!-- Renders admin-broadcast pushes (see PushNotificationService)
+             through the same channel as the app's own reactive alerts
+             (low stock, overdue debt/invoice) when the app is backgrounded
+             or terminated, instead of FCM's default "Miscellaneous" channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="mali_up_alerts" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

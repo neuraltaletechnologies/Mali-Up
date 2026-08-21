@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
@@ -79,13 +80,11 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: isError ? AppColors.error : null,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 3),
-    ));
+    if (isError) {
+      AppNotification.error(context, message);
+    } else {
+      AppNotification.info(context, message);
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -466,12 +465,13 @@ class _ChangePinSheetState extends State<_ChangePinSheet> {
       );
 
       if (!mounted) return;
+      final overlay = Overlay.of(context, rootOverlay: true);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_tr('Login PIN updated.', 'PIN ya kuingia imesasishwa.')),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      AppNotification.showVia(
+        overlay,
+        _tr('Login PIN updated.', 'PIN ya kuingia imesasishwa.'),
+        type: AppNotificationType.success,
+      );
     } on FirebaseAuthException catch (e) {
       final message = (e.code == 'wrong-password' || e.code == 'invalid-credential')
           ? _tr('Current PIN is incorrect.', 'PIN ya sasa si sahihi.')

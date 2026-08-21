@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import 'audit_log_screen.dart';
 import 'data_export_screen.dart';
@@ -14,14 +15,11 @@ import 'legal_compliance_screen.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
-import '../../../../core/services/notification_prefs.dart';
 import '../../../../core/services/plan_request_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../config/routing.dart';
-import '../../../notifications/data/notification_prefs_provider.dart';
-import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
@@ -77,12 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 2),
-    ));
+    AppNotification.info(context, message, duration: const Duration(seconds: 2));
   }
 
   Future<void> _changeLanguage(AppLanguage language) async {
@@ -335,130 +328,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          // ── Notifications ─────────────────────────────────────
-          _SectionHeader(label: _tr('Notifications', 'Arifa')),
-          const SizedBox(height: 8),
-          Builder(builder: (context) {
-            final prefs = ref.watch(notificationPrefsProvider).valueOrNull ??
-                const NotificationPrefs();
-            final controller = ref.read(notificationPrefsControllerProvider);
-            void toggle(NotificationPrefs Function(NotificationPrefs) apply) =>
-                controller.update(apply);
-            return _SettingCard(
-              children: [
-                _SettingTile(
-                  icon: Icons.notifications_active_outlined,
-                  iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
-                  iconColor: AppColors.tealAccent,
-                  title: _tr('Enable Notifications', 'Washa Arifa'),
-                  subtitle: _tr(
-                    'Master switch for all alerts',
-                    'Kibadilisha kikuu cha arifa zote',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: prefs.masterEnabled,
-                    onChanged: (v) =>
-                        toggle((p) => p.copyWith(masterEnabled: v)),
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.secondary,
-                  ),
-                ),
-                const _TileDivider(),
-                _SettingTile(
-                  icon: Icons.inventory_2_outlined,
-                  iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
-                  iconColor: AppColors.tealAccent,
-                  title: _tr('Low Stock Alerts', 'Arifa za Bidhaa Zinazoisha'),
-                  trailing: Switch.adaptive(
-                    value: prefs.lowStockEnabled,
-                    onChanged: prefs.masterEnabled
-                        ? (v) => toggle((p) => p.copyWith(lowStockEnabled: v))
-                        : null,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.secondary,
-                  ),
-                ),
-                const _TileDivider(),
-                _SettingTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  iconBg: AppColors.warning.withValues(alpha: 0.1),
-                  iconColor: AppColors.warning,
-                  title: _tr(
-                    'Overdue Debt Alerts',
-                    'Arifa za Madeni Yaliyochelewa',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: prefs.overdueDebtEnabled,
-                    onChanged: prefs.masterEnabled
-                        ? (v) =>
-                            toggle((p) => p.copyWith(overdueDebtEnabled: v))
-                        : null,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.secondary,
-                  ),
-                ),
-                const _TileDivider(),
-                _SettingTile(
-                  icon: Icons.receipt_long_outlined,
-                  iconBg: AppColors.error.withValues(alpha: 0.07),
-                  iconColor: AppColors.error,
-                  title: _tr(
-                    'Overdue Invoice Alerts',
-                    'Arifa za Ankara Zilizochelewa',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: prefs.overdueInvoiceEnabled,
-                    onChanged: prefs.masterEnabled
-                        ? (v) =>
-                            toggle((p) => p.copyWith(overdueInvoiceEnabled: v))
-                        : null,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.secondary,
-                  ),
-                ),
-                const _TileDivider(),
-                _SettingTile(
-                  icon: Icons.sync_problem_rounded,
-                  iconBg: AppColors.secondary.withValues(alpha: 0.07),
-                  iconColor: AppColors.secondary,
-                  title: _tr(
-                    'Sync Issue Alerts',
-                    'Arifa za Matatizo ya Usawazishaji',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: prefs.syncFailureEnabled,
-                    onChanged: prefs.masterEnabled
-                        ? (v) =>
-                            toggle((p) => p.copyWith(syncFailureEnabled: v))
-                        : null,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.secondary,
-                  ),
-                ),
-                const _TileDivider(),
-                _SettingTile(
-                  icon: Icons.list_alt_rounded,
-                  iconBg: AppColors.secondary.withValues(alpha: 0.07),
-                  iconColor: AppColors.secondary,
-                  title: _tr('View Notifications', 'Angalia Arifa'),
-                  subtitle: _tr(
-                    'See your notification history',
-                    'Angalia historia ya arifa zako',
-                  ),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const NotificationsScreen(),
-                  )),
-                  trailing: const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            );
-          }),
           const SizedBox(height: 20),
 
           // ── Data & Sync ───────────────────────────────────────

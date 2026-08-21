@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/services/localization_service.dart';
 
 class DataExportScreen extends ConsumerStatefulWidget {
@@ -428,13 +429,9 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Data exported: $fileName', 'Data ilihamishibwa: $fileName')),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      AppNotification.success(
+        context,
+        _tr('Data exported: $fileName', 'Data ilihamishibwa: $fileName'),
       );
     } catch (e) {
       setState(() {
@@ -445,14 +442,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Export failed', 'Hamisha iliishindwa')),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      AppNotification.error(context, _tr('Export failed', 'Hamisha iliishindwa'));
     }
   }
 }

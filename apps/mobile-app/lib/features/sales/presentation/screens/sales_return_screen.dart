@@ -12,6 +12,10 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../debt/data/customer_debt_sync_service.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
+import '../../../finance/data/payment_account_service.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
@@ -226,7 +230,9 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
             SetOptions(merge: true));
       }
 
-      // Flag the original invoice
+      // Flag the original invoice and net the credited amount out of what it
+      // reads as worth everywhere else (sales list, dashboard revenue,
+      // outstanding-balance calc) — see readInvoiceTotal.
       final salesCol = repo.scopeCollection(
           uid: scope.ownerUid,
           context: scope.context,
@@ -234,8 +240,28 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       batch.update(salesCol.doc(invoiceId), {
         'hasReturn': true,
         'creditNoteNumber': creditNoteNumber,
+        'returnedAmount': FieldValue.increment(_creditAmount),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Resolve what the return actually settles: refunding cash first pays
+      // down any outstanding debt on this invoice (the customer no longer
+      // owes for goods they gave back), and only the leftover — money that
+      // was actually collected — comes out of the till as a cash refund. An
+      // exchange is a same-value swap: nothing owed changes, so no debt or
+      // money adjustment happens for it.
+      Debt? debt;
+      double debtReduction = 0;
+      double cashRefund = 0;
+      if (_resolution == _ResolutionType.refundCash) {
+        debt = await ref.read(debtRepositoryProvider).getByInvoiceRef(invoiceNumber);
+        if (debt != null && !debt.isFullyPaid) {
+          debtReduction = _creditAmount < debt.remainingAmount
+              ? _creditAmount
+              : debt.remainingAmount;
+        }
+        cashRefund = _creditAmount - debtReduction;
+      }
 
       await batch.commit();
 
@@ -254,7 +280,63 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
             _exchangeProductId.isNotEmpty) {
           await db.inventoryDao.applyCommittedDelta(_exchangeProductId, -1);
         }
+        // Mirror the invoice's returnedAmount the same way — the sales list,
+        // dashboard revenue and outstanding-balance calc all read this
+        // invoice from Drift, not from the Firestore doc just updated above.
+        await db.invoiceDao.applyCommittedReturn(
+          invoiceId,
+          returnedAmountDelta: _creditAmount,
+          creditNoteNumber: creditNoteNumber,
+        );
       } catch (_) {}
+
+      // Debt/balance settlement — real writes (Drift + queued Firestore push
+      // via the normal repositories), since nothing above touched debts or
+      // customer balances. Follows the same paidAmount + payment-record +
+      // adjustCustomerBalanceForDebtChange idiom as the manual repayment
+      // flow in debt_detail_screen, so the debt's payment history stays
+      // reconcilable with paidAmount instead of silently drifting apart.
+      if (debtReduction > 0 && debt != null) {
+        final debtRepo = ref.read(debtRepositoryProvider);
+        await debtRepo.addPayment(
+          debt.id,
+          DebtPayment(
+            id: '',
+            amount: debtReduction,
+            date: now.toIso8601String().split('T').first,
+            method: 'return',
+            note: creditNoteNumber,
+            recordedBy: scope.userUid,
+          ),
+        );
+        final newPaid = debt.paidAmount + debtReduction;
+        final updatedDebt = debt.copyWith(
+          paidAmount: newPaid,
+          status: newPaid >= debt.totalOwedWithInterest ? 'paid' : debt.status,
+        );
+        await debtRepo.save(updatedDebt);
+        await adjustCustomerBalanceForDebtChange(
+          ref,
+          before: debt,
+          after: updatedDebt,
+        );
+      }
+      if (cashRefund > 0) {
+        final paymentAccountId =
+            (widget.originalInvoice['paymentAccountId'] ?? '').toString();
+        if (paymentAccountId.isNotEmpty) {
+          await moveMoneyForAccount(
+            ref,
+            accountId: paymentAccountId,
+            amount: cashRefund,
+            isDeposit: false,
+            description: _tr(
+                'Return $invoiceNumber', 'Marejesho $invoiceNumber'),
+            reference: creditNoteNumber,
+            createdBy: scope.userUid,
+          );
+        }
+      }
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
@@ -270,7 +352,11 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (mounted) {
-        Navigator.of(context).pop({'saved': true, 'creditNoteNumber': creditNoteNumber});
+        Navigator.of(context).pop({
+          'saved': true,
+          'creditNoteNumber': creditNoteNumber,
+          'returnedAmount': _creditAmount,
+        });
       }
     } catch (e) {
       _showSnack(_tr('Failed to save: $e', 'Imeshindwa kuhifadhi: $e'));
@@ -795,7 +881,7 @@ class _BottomBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _tr('Credit Amount', 'Kiasi cha Mkopo'),
+                    _tr('Return Amount', 'Kiasi cha Kurudisha'),
                     style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.textMuted),
                   ),
@@ -830,7 +916,7 @@ class _BottomBar extends StatelessWidget {
             label: Text(
               saving
                   ? _tr('Saving…', 'Inahifadhi…')
-                  : _tr('Issue Credit Note', 'Toa Nota ya Mkopo'),
+                  : _tr('Confirm Return', 'Thibitisha Kurudisha'),
               style: GoogleFonts.dmSans(
                   fontSize: 14, fontWeight: FontWeight.w600),
             ),

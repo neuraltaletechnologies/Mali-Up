@@ -102,7 +102,7 @@ Future<double> applyCustomerPaymentToDebts(
     final newPaid = d.paidAmount + pay;
     await debtRepo.save(d.copyWith(
       paidAmount: newPaid,
-      status: newPaid >= d.originalAmount ? 'paid' : d.status,
+      status: newPaid >= d.totalOwedWithInterest ? 'paid' : d.status,
     ));
     applied += pay;
     left -= pay;

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
@@ -90,7 +91,12 @@ class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
     }
   }
 
-  void _advanceToConfirm() {
+  Future<void> _advanceToConfirm() async {
+    // Checked at the first step (before the PIN is even typed once) so an
+    // offline user isn't asked to fill in email + PIN twice across two
+    // steps only to be told at the very end that saving needs internet.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final emailErr = OnboardingValidator.validateEmail(
       _emailCtrl.text,
@@ -167,18 +173,9 @@ class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
     final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            sw
-                ? 'Hatukuweza kufungua WhatsApp sasa.'
-                : 'We could not open WhatsApp right now.',
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+      AppNotification.error(
+        context,
+        sw ? 'Hatukuweza kufungua WhatsApp sasa.' : 'We could not open WhatsApp right now.',
       );
     }
   }

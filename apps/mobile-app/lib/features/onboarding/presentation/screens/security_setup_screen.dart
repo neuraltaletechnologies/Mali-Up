@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -67,7 +68,12 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     super.dispose();
   }
 
-  void _advanceToConfirm() {
+  Future<void> _advanceToConfirm() async {
+    // Checked at the first step (before the PIN is even typed once) so an
+    // offline user isn't asked to enter their PIN twice across two steps
+    // only to be told at the very end that saving it needs internet.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final err = OnboardingValidator.validatePin(_pinCtrl.text, isSwahili: sw);
     if (err != null) {
@@ -84,8 +90,6 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
   }
 
   Future<void> _submitConfirm() async {
-    if (!await OnlineGuard.ensureOnline(context)) return;
-    if (!mounted) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final err = OnboardingValidator.validatePin(
       _confirmCtrl.text,
@@ -96,6 +100,10 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
       return;
     }
     setState(() => _confirmHasError = false);
+    // Safety net: already checked before step 1, but connectivity can still
+    // drop while the user was typing.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final notifier = ref.read(onboardingNotifierProvider.notifier);
     notifier.setPin(_pinCtrl.text);
     notifier.setConfirmPin(_confirmCtrl.text);
@@ -126,18 +134,9 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            sw
-                ? 'Hatukuweza kufungua WhatsApp sasa.'
-                : 'We could not open WhatsApp right now.',
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+      AppNotification.error(
+        context,
+        sw ? 'Hatukuweza kufungua WhatsApp sasa.' : 'We could not open WhatsApp right now.',
       );
     }
   }

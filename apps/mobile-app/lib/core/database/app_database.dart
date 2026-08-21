@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 15;
 
   /// Removes account and business data cached on this device.
   ///
@@ -204,11 +204,61 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 12) {
             // Per-member data scoping (RBAC): a team member can be restricted
-            // to only the records they created/are assigned to (e.g. a driver
-            // who should see only their own vehicle's sales), instead of every
-            // record in the business. See DataScope in team_member.dart.
+            // to only the records they created/are assigned to (e.g. a stylist
+            // who should see only their own sales, or a driver who should see
+            // only their own vehicle's), instead of every record in the
+            // business. See DataScope in team_member.dart.
             await customStatement(
               "ALTER TABLE team_members ADD COLUMN data_scope TEXT NOT NULL DEFAULT 'all'",
+            );
+          }
+          if (from < 13) {
+            // Money-lender support: per-debt interest rate, accrual period
+            // (daily/weekly/monthly), simple-vs-compound type, and the date
+            // interest starts counting from. Zero rate = no interest, so
+            // existing debts are unaffected.
+            await customStatement(
+              'ALTER TABLE debts ADD COLUMN interest_rate_percent REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN interest_period TEXT NOT NULL DEFAULT 'monthly'",
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN interest_type TEXT NOT NULL DEFAULT 'simple'",
+            );
+            await customStatement(
+              "ALTER TABLE debts ADD COLUMN loan_date TEXT NOT NULL DEFAULT ''",
+            );
+          }
+          if (from < 14) {
+            // Fix: invoice_items.id used to be the linked inventory/catalog
+            // item's id (for restock-by-return), but it's also this table's
+            // primary key — selling the same product on a second invoice
+            // collided with the first invoice's row and failed with a
+            // UNIQUE constraint error. The product link now lives in its
+            // own column; id is a fresh row id going forward. Existing rows
+            // keep their old id (which is their product id for product/
+            // service lines already synced), so history reads unchanged —
+            // see InvoiceMapper._itemFromRow's fallback to r.id.
+            await customStatement(
+              "ALTER TABLE invoice_items ADD COLUMN product_id TEXT NOT NULL DEFAULT ''",
+            );
+          }
+          if (from < 15) {
+            // Returns used to update Firestore only (a direct batch write
+            // from SalesReturnScreen), so nothing about a return ever
+            // reached Drift — the sales list, dashboard revenue and
+            // outstanding-balance figures kept showing pre-return amounts
+            // since they all read from here, not Firestore. Persisting the
+            // return locally too lets every reader net it out consistently.
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN has_return INTEGER NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN returned_amount REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN credit_note_number TEXT NOT NULL DEFAULT ''",
             );
           }
         },

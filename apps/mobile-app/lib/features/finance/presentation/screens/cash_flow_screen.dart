@@ -5,11 +5,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/shimmer.dart';
+import '../../../../shared/widgets/silent_refresh.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -20,7 +20,6 @@ import '../widgets/add_account_dialog.dart';
 import '../widgets/add_transaction_dialog.dart';
 import '../widgets/delete_account_dialog.dart';
 import 'account_detail_screen.dart';
-import 'cash_flow_statement_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -40,34 +39,18 @@ class CashFlowScreen extends ConsumerStatefulWidget {
   ConsumerState<CashFlowScreen> createState() => _CashFlowScreenState();
 }
 
-class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
           const _CashFlowDarkHeader(),
-          const SizedBox(height: _CashFlowDarkHeader._pillHalf + 8),
-          _CashFlowTabBar(tabController: _tabController),
+          const SizedBox(height: HeaderStatsPill.pillHalf + 8),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [_OverviewTab(), _StatementTab()],
+            child: SilentRefresh(
+              onRefresh: () => triggerSilentSync(context, ref),
+              child: const _OverviewTab(),
             ),
           ),
         ],
@@ -80,13 +63,10 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
 // ── Dark Header ───────────────────────────────────────────────────────────────
 
 class _CashFlowDarkHeader extends ConsumerWidget {
-  static const double _pillHalf = 22.0;
-
   const _CashFlowDarkHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final top = MediaQuery.of(context).padding.top;
     final total = ref.watch(totalCashPositionProvider);
     final inflow = ref.watch(monthlyInflowProvider);
     final outflow = ref.watch(monthlyOutflowProvider);
@@ -100,233 +80,99 @@ class _CashFlowDarkHeader extends ConsumerWidget {
       await showAppSheet(context, builder: (_) => const AddAccountDialog());
     }
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Dark card — matches inventory/sales header shape exactly
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top + AppTheme.headerTopPadding,
-            20,
-            _pillHalf + 16,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _tr('Cash Flow', 'Mtiririko'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: monthNotifier.prev,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.chevron_left_rounded,
-                    color: Colors.white70,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                DateFormat.yMMM().format(month),
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: isCurrentMonth ? null : monthNotifier.next,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: isCurrentMonth ? Colors.white24 : Colors.white70,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onAddAccount,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: const BoxDecoration(
-                    color: Colors.white12,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add_card_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return DarkHeaderShell(
+      title: Text(
+        _tr('Cash Flow', 'Mtiririko'),
+        style: GoogleFonts.dmSans(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.5,
         ),
-        // Stats pill — same shape/shadow/position as inventory
-        Positioned(
-          bottom: -_pillHalf,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _PillStat(
-                    value: _fmtCompact(inflow),
-                    label: _tr('Inflow', 'Mapato'),
-                    color: AppColors.success,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: _fmtCompact(outflow),
-                    label: _tr('Outflow', 'Matumizi'),
-                    color: AppColors.error,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: _fmtCompact(total),
-                    label: _tr('Position', 'Hali'),
-                    color: AppColors.tealAccent,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Tab Bar ───────────────────────────────────────────────────────────────────
-
-class _CashFlowTabBar extends StatelessWidget {
-  final TabController tabController;
-  const _CashFlowTabBar({required this.tabController});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
+      ),
+      actions: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TabBar(
-            controller: tabController,
-            labelStyle: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+          GestureDetector(
+            onTap: monthNotifier.prev,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                color: Colors.white70,
+                size: 20,
+              ),
             ),
-            unselectedLabelStyle: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-            labelColor: AppColors.navyPrimary,
-            unselectedLabelColor: AppColors.textMuted,
-            indicatorColor: AppColors.navyPrimary,
-            indicatorWeight: 2.5,
-            tabs: [
-              Tab(text: _tr('Overview', 'Muhtasari')),
-              Tab(text: _tr('Statement', 'Taarifa')),
-            ],
           ),
-          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(width: 6),
+          Text(
+            DateFormat.yMMM().format(month),
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: isCurrentMonth ? null : monthNotifier.next,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: isCurrentMonth ? Colors.white24 : Colors.white70,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onAddAccount,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_card_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-// ── Pill widgets (match inventory PillStat / PillDivider exactly) ─────────────
-
-class _PillStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-  const _PillStat({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: color,
+      pill: HeaderStatsPill(
+        stats: [
+          HeaderPillStat(
+            value: _fmtCompact(inflow),
+            label: _tr('Inflow', 'Mapato'),
+            color: AppColors.success,
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
+          HeaderPillStat(
+            value: _fmtCompact(outflow),
+            label: _tr('Outflow', 'Matumizi'),
+            color: AppColors.error,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillDivider extends StatelessWidget {
-  const _PillDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(width: 1, height: 28, color: AppColors.border),
+          HeaderPillStat(
+            value: _fmtCompact(total),
+            label: _tr('Position', 'Hali'),
+            color: AppColors.tealAccent,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -365,6 +211,7 @@ class _OverviewTab extends ConsumerWidget {
     final recentTxns = ref.watch(cfTransactionsByMonthProvider);
 
     return SingleChildScrollView(
+      physics: silentRefreshPhysics,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -375,7 +222,7 @@ class _OverviewTab extends ConsumerWidget {
               builder: (_) => const _AccountsSheet(),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 16, 8),
+              padding: const EdgeInsets.fromLTRB(20, 12, 16, 6),
               child: Row(
                 children: [
                   Expanded(
@@ -407,7 +254,7 @@ class _OverviewTab extends ConsumerWidget {
             ),
           ),
           SizedBox(
-            height: 104,
+            height: 76,
             child: accountsAsync.when(
               data: (accounts) {
                 // The four built-in payment channels always show first —
@@ -464,9 +311,9 @@ class _OverviewTab extends ConsumerWidget {
                 itemCount: 3,
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (_, _) => const ShimmerBox(
-                  width: 150,
-                  height: 104,
-                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                  width: 118,
+                  height: 76,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
               ),
               error: (_, _) => Center(
@@ -484,7 +331,7 @@ class _OverviewTab extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -524,114 +371,6 @@ class _OverviewTab extends ConsumerWidget {
             ),
 
           const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Tab 2: Statement ──────────────────────────────────────────────────────────
-
-class _StatementTab extends ConsumerWidget {
-  const _StatementTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(cfMonthProvider);
-    final byActivity = ref.watch(cfByActivityProvider);
-    final netFlow = ref.watch(netCashFlowProvider);
-    final monthLabel = DateFormat.yMMMM().format(month);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CashFlowStatementScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: Text(
-              _tr('Full Statement', 'Taarifa Kamili'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.tealAccent,
-              side: const BorderSide(color: AppColors.tealAccent),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _ActivityCard(
-            title: _tr('Operating', 'Uendeshaji'),
-            icon: Icons.store_outlined,
-            color: AppColors.tealAccent,
-            data: byActivity['operating'] ?? (inflow: 0.0, outflow: 0.0),
-          ),
-          const SizedBox(height: 12),
-          _ActivityCard(
-            title: _tr('Investing', 'Uwekezaji'),
-            icon: Icons.trending_up_rounded,
-            color: AppColors.purpleAccent,
-            data: byActivity['investing'] ?? (inflow: 0.0, outflow: 0.0),
-          ),
-          const SizedBox(height: 12),
-          _ActivityCard(
-            title: _tr('Financing', 'Ufadhili'),
-            icon: Icons.account_balance_outlined,
-            color: AppColors.warning,
-            data: byActivity['financing'] ?? (inflow: 0.0, outflow: 0.0),
-          ),
-          const SizedBox(height: 20),
-
-          // Net cash flow summary — navy card like other summary rows
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      monthLabel,
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _tr('Net Cash Flow', 'Mtiririko Halisi'),
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '${netFlow >= 0 ? '+' : ''}${_fmtCompact(netFlow)}',
-                  style: GoogleFonts.dmSans(
-                    color: netFlow >= 0
-                        ? const Color(0xFF6EE7B7)
-                        : const Color(0xFFFCA5A5),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -852,11 +591,11 @@ class _AccountCard extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 150,
-        padding: const EdgeInsets.all(12),
+        width: 118,
+        padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
@@ -873,12 +612,12 @@ class _AccountCard extends ConsumerWidget {
                     _ => Icons.smartphone_outlined,
                   },
                   color: AppColors.textMuted,
-                  size: 16,
+                  size: 14,
                 ),
                 PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
                   style: IconButton.styleFrom(
-                    minimumSize: const Size(28, 28),
+                    minimumSize: const Size(22, 22),
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -886,7 +625,7 @@ class _AccountCard extends ConsumerWidget {
                   icon: const Icon(
                     Icons.more_vert_rounded,
                     color: AppColors.textMuted,
-                    size: 17,
+                    size: 15,
                   ),
                   onSelected: (value) async {
                     if (value == 'delete') {
@@ -923,16 +662,15 @@ class _AccountCard extends ConsumerWidget {
               _fmtCompact(account.balance),
               style: GoogleFonts.dmSans(
                 color: AppColors.navyPrimary,
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 1),
             Text(
               account.name,
               style: GoogleFonts.dmSans(
                 color: AppColors.textMuted,
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -961,11 +699,11 @@ class _ActivateMethodCard extends StatelessWidget {
         builder: (_) => ActivateAccountSheet(spec: spec),
       ),
       child: Container(
-        width: 150,
-        padding: const EdgeInsets.all(12),
+        width: 118,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
         ),
         child: Column(
@@ -974,11 +712,11 @@ class _ActivateMethodCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(spec.icon, color: AppColors.textMuted, size: 16),
+                Icon(spec.icon, color: AppColors.textMuted, size: 14),
                 const Icon(
                   Icons.lock_outline,
                   color: AppColors.warning,
-                  size: 14,
+                  size: 13,
                 ),
               ],
             ),
@@ -987,24 +725,24 @@ class _ActivateMethodCard extends StatelessWidget {
               name,
               style: GoogleFonts.dmSans(
                 color: AppColors.navyPrimary,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                _tr('Tap to activate', 'Gusa kuwasha'),
+                _tr('Activate', 'Washa'),
                 style: GoogleFonts.dmSans(
                   color: AppColors.warning,
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1119,112 +857,3 @@ class _TxnListTile extends StatelessWidget {
   }
 }
 
-class _ActivityCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final ({double inflow, double outflow}) data;
-
-  const _ActivityCard({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.data,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final net = data.inflow - data.outflow;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.dmSans(
-                    color: AppColors.navyPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _MiniStat(
-                      label: _tr('In', 'Ndani'),
-                      value: data.inflow,
-                      color: AppColors.success,
-                    ),
-                    const SizedBox(width: 12),
-                    _MiniStat(
-                      label: _tr('Out', 'Nje'),
-                      value: data.outflow,
-                      color: AppColors.error,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${net >= 0 ? '+' : ''}${_fmtCompact(net)}',
-            style: GoogleFonts.dmSans(
-              color: net >= 0 ? AppColors.success : AppColors.error,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final double value;
-  final Color color;
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
-        ),
-        Text(
-          _fmtCompact(value),
-          style: GoogleFonts.dmSans(
-            fontSize: 10,
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}

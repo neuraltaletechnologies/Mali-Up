@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_notification.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -249,12 +250,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
       // await ref.read(securityProvider.notifier).setPIN(firstPin!);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_t('PIN lock enabled', 'Kufuli ya PIN imewashwa')),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppNotification.success(context, _t('PIN lock enabled', 'Kufuli ya PIN imewashwa'));
 
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) Navigator.pop(context);
@@ -266,12 +262,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
+    AppNotification.error(context, message);
   }
 }
 

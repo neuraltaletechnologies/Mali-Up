@@ -1,4 +1,4 @@
-import type { AdminUser, Business, PlanTier, BusinessStatus, UserStatus } from '@/types'
+import type { AdminUser, Business, PlanTier, PlanSource, BusinessStatus, UserStatus } from '@/types'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -90,7 +90,13 @@ export function mapBusiness(
     industry:     (data.businessType as string) || (data.businessCategory as string) || 'Other',
     location:     (data.placeOfBusiness as string) || undefined,
     enterpriseOverrides,
+    planSource:    normalisePlanSource(data.planSource),
+    planExpiresAt: data.planExpiresAt ? toIso(data.planExpiresAt) : undefined,
   }
+}
+
+function normalisePlanSource(raw: unknown): PlanSource | undefined {
+  return raw === 'admin_grant' || raw === 'clickpesa' ? raw : undefined
 }
 
 /** Monthly fee in TZS based on plan — matches platform config. */
