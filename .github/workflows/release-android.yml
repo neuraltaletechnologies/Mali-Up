@@ -64,6 +64,53 @@ jobs:
           mkdir -p android/app/keystore
           echo "${{ secrets.KEYSTORE_FILE_BASE64 }}" | base64 -d > android/app/keystore/mali-up-release.jks
 
+      # Assembles .env.json (gitignored, mirrors .env.example.json) from
+      # per-key repo secrets. Built with jq off the `env` object rather than
+      # interpolating `${{ secrets.* }}` into the shell string, so a value
+      # containing quotes/backticks can't break the script or the JSON.
+      - name: Write .env.json from secrets
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_ANDROID_API_KEY: ${{ secrets.FIREBASE_ANDROID_API_KEY }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          FIREBASE_IOS_API_KEY: ${{ secrets.FIREBASE_IOS_API_KEY }}
+          FIREBASE_IOS_APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          FIREBASE_IOS_BUNDLE_ID: ${{ secrets.FIREBASE_IOS_BUNDLE_ID }}
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_WEB_APP_ID: ${{ secrets.FIREBASE_WEB_APP_ID }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_WEB_MEASUREMENT_ID: ${{ secrets.FIREBASE_WEB_MEASUREMENT_ID }}
+          FIREBASE_MACOS_API_KEY: ${{ secrets.FIREBASE_MACOS_API_KEY }}
+          FIREBASE_MACOS_APP_ID: ${{ secrets.FIREBASE_MACOS_APP_ID }}
+          FIREBASE_WINDOWS_API_KEY: ${{ secrets.FIREBASE_WINDOWS_API_KEY }}
+          FIREBASE_WINDOWS_APP_ID: ${{ secrets.FIREBASE_WINDOWS_APP_ID }}
+          FIREBASE_WINDOWS_MEASUREMENT_ID: ${{ secrets.FIREBASE_WINDOWS_MEASUREMENT_ID }}
+        # `// ""` on each field: a secret that hasn't been set in the repo
+        # yet would otherwise come through as JSON null, which
+        # --dart-define-from-file can't consume.
+        run: |
+          jq -n '{
+            FIREBASE_PROJECT_ID: (env.FIREBASE_PROJECT_ID // ""),
+            FIREBASE_MESSAGING_SENDER_ID: (env.FIREBASE_MESSAGING_SENDER_ID // ""),
+            FIREBASE_STORAGE_BUCKET: (env.FIREBASE_STORAGE_BUCKET // ""),
+            FIREBASE_ANDROID_API_KEY: (env.FIREBASE_ANDROID_API_KEY // ""),
+            FIREBASE_ANDROID_APP_ID: (env.FIREBASE_ANDROID_APP_ID // ""),
+            FIREBASE_IOS_API_KEY: (env.FIREBASE_IOS_API_KEY // ""),
+            FIREBASE_IOS_APP_ID: (env.FIREBASE_IOS_APP_ID // ""),
+            FIREBASE_IOS_BUNDLE_ID: (env.FIREBASE_IOS_BUNDLE_ID // ""),
+            FIREBASE_WEB_API_KEY: (env.FIREBASE_WEB_API_KEY // ""),
+            FIREBASE_WEB_APP_ID: (env.FIREBASE_WEB_APP_ID // ""),
+            FIREBASE_AUTH_DOMAIN: (env.FIREBASE_AUTH_DOMAIN // ""),
+            FIREBASE_WEB_MEASUREMENT_ID: (env.FIREBASE_WEB_MEASUREMENT_ID // ""),
+            FIREBASE_MACOS_API_KEY: (env.FIREBASE_MACOS_API_KEY // ""),
+            FIREBASE_MACOS_APP_ID: (env.FIREBASE_MACOS_APP_ID // ""),
+            FIREBASE_WINDOWS_API_KEY: (env.FIREBASE_WINDOWS_API_KEY // ""),
+            FIREBASE_WINDOWS_APP_ID: (env.FIREBASE_WINDOWS_APP_ID // ""),
+            FIREBASE_WINDOWS_MEASUREMENT_ID: (env.FIREBASE_WINDOWS_MEASUREMENT_ID // "")
+          }' > .env.json
+
       - name: Build release App Bundle
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -72,7 +119,13 @@ jobs:
         # for this app; github.run_number (starts at 1 per-workflow) collided
         # with an already-published release. Epoch-minutes is monotonic
         # forever and needs no manual bookkeeping.
-        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 ))
+        #
+        # --dart-define-from-file=.env.json mirrors the local
+        # `flutter run --dart-define-from-file=.env.json` flow -- without it
+        # every FIREBASE_* value in firebase_options.dart builds as an empty
+        # string, which is what every Open Testing release has shipped with
+        # until now.
+        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json
 
       - name: Publish to Play Store (Open Testing)
         uses: r0adkll/upload-google-play@v1

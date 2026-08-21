@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -58,6 +60,26 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
+  // Every route that gets its own row in the nav panel — used only to give
+  // each one a stable GlobalKey (see rowKeys in _openNavigationPanel) so
+  // its actual on-screen position can be measured when a flight needs to
+  // travel to or from it. Order doesn't matter here: the real travel
+  // direction comes from the measured positions themselves, not from this
+  // list's order.
+  static const List<String> _navRoutes = [
+    AppRouter.dashboardPath,
+    AppRouter.salesPath,
+    AppRouter.inventoryPath,
+    AppRouter.crmPath,
+    AppRouter.notificationsPath,
+    AppRouter.debtPath,
+    AppRouter.expensesPath,
+    AppRouter.cashFlowPath,
+    AppRouter.reportsPath,
+    AppRouter.teamPath,
+    AppRouter.businessesPath,
+    AppRouter.settingsPath,
+  ];
 
   @override
   void initState() {
@@ -446,17 +468,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     }
   }
 
-  static Future<void> _closeNavigationPanelThenNavigate(
-    BuildContext sheetContext,
-    BuildContext rootContext,
-    String route,
-  ) async {
-    Navigator.of(sheetContext).pop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    if (!rootContext.mounted) return;
-    rootContext.go(route);
-  }
-
   Future<void> _openNavigationPanel({
     required BuildContext context,
     required String location,
@@ -466,11 +477,49 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     PlanStatus? planStatus,
   }) async {
     final reduceMotion = AppMotion.reduceMotion(context);
+    // Captured under a different name so it can be shadowed by a local
+    // `location` below that starts blank and only reveals the real
+    // selection once the slide-in transition has finished — see the
+    // StatefulBuilder around the item list.
+    final rawLocation = location;
+    // Mutated by the local _closeNavigationPanelThenNavigate below so
+    // tapping a *different* item animates the pill from its old row to the
+    // new one before the panel actually closes, instead of popping
+    // instantly.
+    var activeRoute = rawLocation;
+    var revealed = false;
+    var revealScheduled = false;
+    // One stable GlobalKey per route, attached to that row's
+    // _DrawerItemLight below — used only to measure each row's actual
+    // on-screen position at the moment of a tap (see _NavFlightOverlay),
+    // since ListView(children: […]) lays every row out fully regardless of
+    // scroll position, so even an off-screen row's position is real and
+    // queryable.
+    final rowKeys = {for (final route in _navRoutes) route: GlobalKey()};
+    // The Stack that wraps the list (see below) — the ancestor every row
+    // position is measured relative to, so the numbers land directly in
+    // that same Stack's own coordinate space with no further conversion.
+    final listStackKey = GlobalKey();
+    // Non-null only while the floating pill from _NavFlightOverlay is
+    // mid-flight between two rows. While it's in flight, `location` is
+    // blanked (like during the opening reveal) so *no* row shows its own
+    // selected pill — the floating overlay is the only thing carrying that
+    // styling until it lands, then _closeNavigationPanelThenNavigate sets
+    // activeRoute for real and this goes back to null.
+    _NavFlight? flight;
+    // Bridges _NavFlightOverlay's own animation lifecycle (inside its
+    // State, driven by an AnimationController) back to the plain
+    // async/await flow in _closeNavigationPanelThenNavigate below — set
+    // alongside `flight`, completed by the overlay's onLanded callback.
+    Completer<void>? flightLanded;
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: _tr('Close navigation menu', 'Funga menyu ya urambazaji'),
-      barrierColor: AppColors.overlay,
+      // No scrim: the strip to the right of the panel needs to stay at full
+      // brightness for the selected item's flush edge to read as fusing
+      // into it, not into a dimmed backdrop.
+      barrierColor: Colors.transparent,
       transitionDuration: reduceMotion ? Duration.zero : AppMotion.quick,
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         if (reduceMotion) return child;
@@ -489,424 +538,653 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: SafeArea(
-            bottom: false,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-              child: RepaintBoundary(
-                child: Container(
-                  width: MediaQuery.of(dialogContext).size.width * 0.82,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.98),
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                    border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.12),
-                    ),
-                    boxShadow: AppTheme.modalShadow,
+        return Stack(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SafeArea(
+                bottom: false,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
                   ),
-                  child: Column(
-                    children: [
-                      // Profile Header — minimal fintech, deep navy on navy
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AppColors.navyPrimary,
-                              AppColors.navySecondary,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.only(
-                            topRight: Radius.circular(24),
-                          ),
+                  child: RepaintBoundary(
+                    child: Container(
+                      width: MediaQuery.of(dialogContext).size.width * 0.72,
+                      decoration: BoxDecoration(
+                        // Same blue as the top header card on the invoice
+                        // (sales) and customer list screens (DarkHeaderShell).
+                        color: AppColors.navyPrimary,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(24),
+                          bottomRight: Radius.circular(24),
                         ),
-                        child: SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.08,
-                                        ),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
+                        // No border here on purpose: it used to trace the
+                        // panel's entire outline, including its right edge —
+                        // exactly where the active pill's flush run is
+                        // trying to fuse into the content beside it. Right
+                        // next to that stark white pill, even this faint
+                        // white-alpha line read as a visible seam.
+                        boxShadow: AppTheme.modalShadow,
+                      ),
+                      child: Column(
+                        children: [
+                          // Profile header — no fill of its own now; the panel's
+                          // gradient flows underneath it continuously so header
+                          // and nav list read as one seamless floating surface.
+                          SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                18,
+                                16,
+                                18,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
                                           color: Colors.white.withValues(
-                                            alpha: 0.16,
+                                            alpha: 0.08,
+                                          ),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.16,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          profile.fullName.isNotEmpty
-                                              ? profile.fullName
-                                                    .trim()[0]
-                                                    .toUpperCase()
-                                              : 'M',
-                                          style: GoogleFonts.dmSans(
-                                            color: Colors.white,
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 13),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            profile.fullName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                        child: Center(
+                                          child: Text(
+                                            profile.fullName.isNotEmpty
+                                                ? profile.fullName
+                                                      .trim()[0]
+                                                      .toUpperCase()
+                                                : 'M',
                                             style: GoogleFonts.dmSans(
                                               color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              decoration: TextDecoration.none,
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            profile.contactLine,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.dmSans(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.56,
-                                              ),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w400,
-                                              decoration: TextDecoration.none,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () =>
-                                          Navigator.of(dialogContext).pop(),
-                                      icon: Icon(
-                                        Icons.close_rounded,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.5,
                                         ),
-                                        size: 20,
                                       ),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                if (ps.isOwner)
-                                  _HeaderTag(
-                                    icon: Icons.stars_rounded,
-                                    label: planStatus != null
-                                        ? (_isSwahili
-                                              ? planStatus.tierLabelSw
-                                              : planStatus.tierLabel)
-                                        : _tr('Starter', 'Bure'),
-                                  )
-                                else if (member != null)
-                                  _HeaderTag(
-                                    icon: Icons.badge_outlined,
-                                    label: member.role.label,
+                                      const SizedBox(width: 13),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              profile.fullName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.dmSans(
+                                                color: Colors.white,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                decoration: TextDecoration.none,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              profile.contactLine,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.dmSans(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.56,
+                                                ),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w400,
+                                                decoration: TextDecoration.none,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () =>
+                                            Navigator.of(dialogContext).pop(),
+                                        icon: Icon(
+                                          Icons.close_rounded,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.5,
+                                          ),
+                                          size: 20,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                    ],
                                   ),
-                              ],
+                                  const SizedBox(height: 14),
+                                  if (ps.isOwner)
+                                    _HeaderTag(
+                                      icon: Icons.stars_rounded,
+                                      label: planStatus != null
+                                          ? (_isSwahili
+                                                ? planStatus.tierLabelSw
+                                                : planStatus.tierLabel)
+                                          : _tr('Starter', 'Bure'),
+                                    )
+                                  else if (member != null)
+                                    _HeaderTag(
+                                      icon: Icons.badge_outlined,
+                                      label: member.role.label,
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      // Navigation Items
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                          children: [
-                            _DrawerItemLight(
-                              icon: Icons.dashboard_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Dashboard', 'Dashibodi'),
-                              semanticsLabel: _tr(
-                                'Dashboard',
-                                'Dashibodi, muhtasari wa biashara',
-                              ),
-                              selected: _isSelected(
-                                location,
-                                AppRouter.dashboardPath,
-                              ),
-                              onTap: () => _closeNavigationPanelThenNavigate(
-                                dialogContext,
-                                context,
-                                AppRouter.dashboardPath,
-                              ),
-                            ),
-                            ValueListenableBuilder<int>(
-                              valueListenable:
-                                  NotificationService.unreadCountNotifier,
-                              builder: (context, unreadCount, _) =>
-                                  _DrawerItemLight(
-                                    icon: Icons.notifications_outlined,
-                                    iconColor: AppColors.secondary,
-                                    label: _tr('Notifications', 'Arifa'),
-                                    semanticsLabel: unreadCount > 0
-                                        ? _tr(
-                                            'Notifications, $unreadCount unread',
-                                            'Arifa, $unreadCount hazijasomwa',
+                          // Navigation items — full-bleed to the panel's own right
+                          // edge; selected item's pill/notch are painted flush
+                          // against it (see _DrawerItemLight).
+                          //
+                          // Wrapped in its own StatefulBuilder so tapping an
+                          // item and the delayed "reveal" below can both
+                          // trigger a local rebuild of just this list,
+                          // without turning the whole panel into a
+                          // StatefulWidget. `location` is intentionally
+                          // shadowed here — every _isSelected(location, …)
+                          // call further down resolves to *this* one.
+                          StatefulBuilder(
+                            builder: (context, setPanelState) {
+                              if (!revealScheduled) {
+                                revealScheduled = true;
+                                Future.delayed(
+                                  reduceMotion
+                                      ? Duration.zero
+                                      : AppMotion.quick,
+                                  () {
+                                    revealed = true;
+                                    if (dialogContext.mounted) {
+                                      setPanelState(() {});
+                                    }
+                                  },
+                                );
+                              }
+                              // Blank until the slide-in transition finishes
+                              // (so every row starts unselected and the
+                              // active pill only grows in afterwards), and
+                              // blank again for the duration of a flight (so
+                              // no row shows its own selected pill while
+                              // _NavFlightOverlay is the one carrying that
+                              // styling) — otherwise reflects activeRoute,
+                              // not the route this panel was opened with, so
+                              // taps actually move the selection.
+                              final location = (revealed && flight == null)
+                                  ? activeRoute
+                                  : '';
+                              // Also instant (no 280ms grow/shrink) during a
+                              // flight, for the same reason: every row needs
+                              // to snap to its unselected look the instant
+                              // the flight starts, so only the overlay's
+                              // pill is visible in transit — otherwise the
+                              // departing row's own shrink animation would
+                              // double up with the overlay flying away from
+                              // that same spot.
+                              final instant = flight != null;
+                              // Named to match every onTap below unchanged
+                              // (there's no longer a same-named static
+                              // method to collide with — it was replaced by
+                              // this local one). If the tap targets a
+                              // *different* row than the one currently
+                              // active, it updates activeRoute and waits out
+                              // that row's own grow/shrink transition
+                              // (_DrawerItemLight's 280ms
+                              // TweenAnimationBuilder) before actually
+                              // closing the panel and navigating — so the
+                              // pill visibly moves from the old selection to
+                              // the new one first.
+                              // ignore: no_leading_underscores_for_local_identifiers
+                              Future<void> _closeNavigationPanelThenNavigate(
+                                BuildContext sheetContext,
+                                BuildContext rootContext,
+                                String route,
+                              ) async {
+                                if (activeRoute != route) {
+                                  final stackBox = listStackKey.currentContext
+                                      ?.findRenderObject();
+                                  final fromBox = rowKeys[activeRoute]
+                                      ?.currentContext
+                                      ?.findRenderObject();
+                                  final toBox = rowKeys[route]?.currentContext
+                                      ?.findRenderObject();
+                                  if (!reduceMotion &&
+                                      stackBox is RenderBox &&
+                                      fromBox is RenderBox &&
+                                      toBox is RenderBox) {
+                                    final origin = fromBox.localToGlobal(
+                                      Offset.zero,
+                                      ancestor: stackBox,
+                                    );
+                                    flight = _NavFlight(
+                                      fromTop: origin.dy,
+                                      toTop: toBox
+                                          .localToGlobal(
+                                            Offset.zero,
+                                            ancestor: stackBox,
                                           )
-                                        : _tr('Notifications', 'Arifa'),
-                                    trailingBadgeCount: unreadCount,
-                                    selected: _isSelected(
-                                      location,
-                                      AppRouter.notificationsPath,
-                                    ),
-                                    onTap: () =>
-                                        _closeNavigationPanelThenNavigate(
-                                          dialogContext,
-                                          context,
-                                          AppRouter.notificationsPath,
-                                        ),
-                                  ),
-                            ),
-                            if (ps.canViewSales ||
-                                ps.canViewInventory ||
-                                ps.canViewCustomers)
-                              if (ps.canViewSales)
-                                _DrawerItemLight(
-                                  icon: Icons.receipt_long_rounded,
-                                  iconColor: AppColors.secondary,
-                                  label: _tr('Sales', 'Tuma ankara'),
-                                  semanticsLabel: _tr(
-                                    'Sales and invoices',
-                                    'Tuma ankara, mauzo na ankara',
-                                  ),
-                                  selected: _isSelected(
-                                    location,
-                                    AppRouter.salesPath,
-                                  ),
-                                  onTap: () =>
-                                      _closeNavigationPanelThenNavigate(
-                                        dialogContext,
-                                        context,
-                                        AppRouter.salesPath,
+                                          .dy,
+                                      // Matches _DrawerItemLight's own
+                                      // selected-state geometry (leftShift
+                                      // 10, rightInset 0) so there's no jump
+                                      // when this hands off to the landed
+                                      // row's own inline pill.
+                                      left: origin.dx + 10,
+                                      width: fromBox.size.width - 10,
+                                    );
+                                    flightLanded = Completer<void>();
+                                    setPanelState(() {});
+                                    await flightLanded!.future;
+                                    // The overlay's onLanded (wired where
+                                    // it's built below) completes this once
+                                    // its own animation finishes — control
+                                    // resumes here.
+                                    flight = null;
+                                    flightLanded = null;
+                                  } else {
+                                    // No measurable flight available (row
+                                    // not laid out yet, or reduced motion) —
+                                    // fall back to an instant switch.
+                                    await Future<void>.delayed(
+                                      reduceMotion
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 280),
+                                    );
+                                  }
+                                  activeRoute = route;
+                                  setPanelState(() {});
+                                }
+                                if (!sheetContext.mounted) return;
+                                Navigator.of(sheetContext).pop();
+                                await Future<void>.delayed(
+                                  const Duration(milliseconds: 150),
+                                );
+                                if (!rootContext.mounted) return;
+                                rootContext.go(route);
+                              }
+
+                              return Expanded(
+                                child: Stack(
+                                  key: listStackKey,
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    ListView(
+                                      // No right padding: _DrawerItemLight
+                                      // owns its own trailing inset so the
+                                      // selected row's pill can animate
+                                      // flush to the panel's true right
+                                      // edge.
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        8,
+                                        0,
+                                        8,
                                       ),
+                                      children: [
+                                        _DrawerItemLight(
+                                          key: rowKeys[AppRouter.dashboardPath],
+                                          icon: Icons.dashboard_rounded,
+                                          iconColor: AppColors.secondary,
+                                          instant: instant,
+                                          label: _tr('Dashboard', 'Dashibodi'),
+                                          semanticsLabel: _tr(
+                                            'Dashboard',
+                                            'Dashibodi, muhtasari wa biashara',
+                                          ),
+                                          selected: _isSelected(
+                                            location,
+                                            AppRouter.dashboardPath,
+                                          ),
+                                          onTap: () =>
+                                              _closeNavigationPanelThenNavigate(
+                                                dialogContext,
+                                                context,
+                                                AppRouter.dashboardPath,
+                                              ),
+                                        ),
+                                        if (ps.canViewSales ||
+                                            ps.canViewInventory ||
+                                            ps.canViewCustomers)
+                                          if (ps.canViewSales)
+                                            _DrawerItemLight(
+                                              key: rowKeys[AppRouter.salesPath],
+                                              icon: Icons.receipt_long_rounded,
+                                              iconColor: AppColors.secondary,
+                                              instant: instant,
+                                              label: _tr(
+                                                'Sales',
+                                                'Tuma ankara',
+                                              ),
+                                              semanticsLabel: _tr(
+                                                'Sales and invoices',
+                                                'Tuma ankara, mauzo na ankara',
+                                              ),
+                                              selected: _isSelected(
+                                                location,
+                                                AppRouter.salesPath,
+                                              ),
+                                              onTap: () =>
+                                                  _closeNavigationPanelThenNavigate(
+                                                    dialogContext,
+                                                    context,
+                                                    AppRouter.salesPath,
+                                                  ),
+                                            ),
+                                        if (ps.canViewInventory)
+                                          _DrawerItemLight(
+                                            key:
+                                                rowKeys[AppRouter
+                                                    .inventoryPath],
+                                            icon: Icons.inventory_2_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'My Stock',
+                                              'Bidhaa zangu',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'My stock and inventory',
+                                              'Bidhaa zangu, usimamizi wa bidhaaa',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.inventoryPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.inventoryPath,
+                                                ),
+                                          ),
+                                        if (ps.canViewCustomers)
+                                          _DrawerItemLight(
+                                            key: rowKeys[AppRouter.crmPath],
+                                            icon: Icons.people_alt_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'My Customers',
+                                              'Wateja wangu',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'My customers',
+                                              'Wateja wangu, usimamizi wa wateja',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.crmPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.crmPath,
+                                                ),
+                                          ),
+                                        ValueListenableBuilder<int>(
+                                          valueListenable: NotificationService
+                                              .unreadCountNotifier,
+                                          builder: (context, unreadCount, _) =>
+                                              _DrawerItemLight(
+                                                key:
+                                                    rowKeys[AppRouter
+                                                        .notificationsPath],
+                                                icon: Icons
+                                                    .notifications_outlined,
+                                                iconColor: AppColors.secondary,
+                                                instant: instant,
+                                                label: _tr(
+                                                  'Notifications',
+                                                  'Arifa',
+                                                ),
+                                                semanticsLabel: unreadCount > 0
+                                                    ? _tr(
+                                                        'Notifications, $unreadCount unread',
+                                                        'Arifa, $unreadCount hazijasomwa',
+                                                      )
+                                                    : _tr(
+                                                        'Notifications',
+                                                        'Arifa',
+                                                      ),
+                                                trailingBadgeCount: unreadCount,
+                                                selected: _isSelected(
+                                                  location,
+                                                  AppRouter.notificationsPath,
+                                                ),
+                                                onTap: () =>
+                                                    _closeNavigationPanelThenNavigate(
+                                                      dialogContext,
+                                                      context,
+                                                      AppRouter
+                                                          .notificationsPath,
+                                                    ),
+                                              ),
+                                        ),
+                                        if (ps.canViewDebt ||
+                                            ps.canManageExpenses ||
+                                            ps.canViewCashFlow ||
+                                            ps.canViewFinancialReports)
+                                          _DrawerSectionLabel(
+                                            label: _tr('FINANCE', 'FEDHA'),
+                                          ),
+                                        if (ps.canViewDebt)
+                                          _DrawerItemLight(
+                                            key: rowKeys[AppRouter.debtPath],
+                                            icon: Icons.account_balance_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr('Debts', 'Madeni'),
+                                            semanticsLabel: _tr(
+                                              'Debt tracking',
+                                              'Madeni, ufuatiliaji wa madeni',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.debtPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.debtPath,
+                                                ),
+                                          ),
+                                        if (ps.canManageExpenses)
+                                          _DrawerItemLight(
+                                            key:
+                                                rowKeys[AppRouter.expensesPath],
+                                            icon: Icons.payments_outlined,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'My Expenses',
+                                              'Gharama zangu',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'My expenses',
+                                              'Gharama zangu, usimamizi wa matumizi',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.expensesPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.expensesPath,
+                                                ),
+                                          ),
+                                        if (ps.canViewCashFlow)
+                                          _DrawerItemLight(
+                                            key:
+                                                rowKeys[AppRouter.cashFlowPath],
+                                            icon: Icons
+                                                .account_balance_wallet_outlined,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'Cash Flow',
+                                              'Mtiririko wa Fedha',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'Cash flow and accounts',
+                                              'Mtiririko wa fedha na akaunti',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.cashFlowPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.cashFlowPath,
+                                                ),
+                                          ),
+                                        if (ps.canViewFinancialReports)
+                                          _DrawerItemLight(
+                                            key: rowKeys[AppRouter.reportsPath],
+                                            icon: Icons.bar_chart_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'Financial Reports',
+                                              'Ripoti za Fedha',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'Financial reports — P&L, Balance Sheet, VAT',
+                                              'Ripoti za fedha — P&L, Mizania, VAT',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.reportsPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.reportsPath,
+                                                ),
+                                          ),
+                                        if (ps.canManageTeam) ...[
+                                          _DrawerSectionLabel(
+                                            label: _tr('TEAM', 'TIMU'),
+                                          ),
+                                          _DrawerItemLight(
+                                            key: rowKeys[AppRouter.teamPath],
+                                            icon: Icons.group_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr('My Team', 'Timu yangu'),
+                                            semanticsLabel: _tr(
+                                              'Team and role management',
+                                              'Timu yangu, usimamizi wa majukumu',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.teamPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.teamPath,
+                                                ),
+                                          ),
+                                        ],
+                                        if (ps.isOwner) ...[
+                                          _DrawerSectionLabel(
+                                            label: _tr(
+                                              'SETTINGS',
+                                              'MIPANGILIO',
+                                            ),
+                                          ),
+                                          _DrawerItemLight(
+                                            key:
+                                                rowKeys[AppRouter
+                                                    .businessesPath],
+                                            icon: Icons.storefront_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'Manage Businesses',
+                                              'Simamia Biashara',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'Add or switch businesses',
+                                              'Ongeza au badili biashara',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.businessesPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.businessesPath,
+                                                ),
+                                          ),
+                                          _DrawerItemLight(
+                                            key:
+                                                rowKeys[AppRouter.settingsPath],
+                                            icon: Icons.settings_rounded,
+                                            iconColor: AppColors.secondary,
+                                            instant: instant,
+                                            label: _tr(
+                                              'Settings',
+                                              'Mipangilio',
+                                            ),
+                                            semanticsLabel: _tr(
+                                              'App settings',
+                                              'Mipangilio ya programu',
+                                            ),
+                                            selected: _isSelected(
+                                              location,
+                                              AppRouter.settingsPath,
+                                            ),
+                                            onTap: () =>
+                                                _closeNavigationPanelThenNavigate(
+                                                  dialogContext,
+                                                  context,
+                                                  AppRouter.settingsPath,
+                                                ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (flight != null)
+                                      _NavFlightOverlay(
+                                        flight: flight!,
+                                        reduceMotion: reduceMotion,
+                                        onLanded: () =>
+                                            flightLanded?.complete(),
+                                      ),
+                                  ],
                                 ),
-                            if (ps.canViewInventory)
-                              _DrawerItemLight(
-                                icon: Icons.inventory_2_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('My Stock', 'Bidhaa zangu'),
-                                semanticsLabel: _tr(
-                                  'My stock and inventory',
-                                  'Bidhaa zangu, usimamizi wa bidhaaa',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.inventoryPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.inventoryPath,
-                                ),
-                              ),
-                            if (ps.canViewCustomers)
-                              _DrawerItemLight(
-                                icon: Icons.people_alt_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('My Customers', 'Wateja wangu'),
-                                semanticsLabel: _tr(
-                                  'My customers',
-                                  'Wateja wangu, usimamizi wa wateja',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.crmPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.crmPath,
-                                ),
-                              ),
-                            if (ps.canViewDebt ||
-                                ps.canManageExpenses ||
-                                ps.canViewCashFlow ||
-                                ps.canViewFinancialReports)
-                              _DrawerSectionLabel(
-                                label: _tr('FINANCE', 'FEDHA'),
-                              ),
-                            if (ps.canViewDebt)
-                              _DrawerItemLight(
-                                icon: Icons.account_balance_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('Debts', 'Madeni'),
-                                semanticsLabel: _tr(
-                                  'Debt tracking',
-                                  'Madeni, ufuatiliaji wa madeni',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.debtPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.debtPath,
-                                ),
-                              ),
-                            if (ps.canManageExpenses)
-                              _DrawerItemLight(
-                                icon: Icons.payments_outlined,
-                                iconColor: AppColors.secondary,
-                                label: _tr('My Expenses', 'Gharama zangu'),
-                                semanticsLabel: _tr(
-                                  'My expenses',
-                                  'Gharama zangu, usimamizi wa matumizi',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.expensesPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.expensesPath,
-                                ),
-                              ),
-                            if (ps.canViewCashFlow)
-                              _DrawerItemLight(
-                                icon: Icons.account_balance_wallet_outlined,
-                                iconColor: AppColors.secondary,
-                                label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                                semanticsLabel: _tr(
-                                  'Cash flow and accounts',
-                                  'Mtiririko wa fedha na akaunti',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.cashFlowPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.cashFlowPath,
-                                ),
-                              ),
-                            if (ps.canViewFinancialReports)
-                              _DrawerItemLight(
-                                icon: Icons.bar_chart_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr(
-                                  'Financial Reports',
-                                  'Ripoti za Fedha',
-                                ),
-                                semanticsLabel: _tr(
-                                  'Financial reports — P&L, Balance Sheet, VAT',
-                                  'Ripoti za fedha — P&L, Mizania, VAT',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.reportsPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.reportsPath,
-                                ),
-                              ),
-                            if (ps.canManageTeam) ...[
-                              _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
-                              _DrawerItemLight(
-                                icon: Icons.group_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('My Team', 'Timu yangu'),
-                                semanticsLabel: _tr(
-                                  'Team and role management',
-                                  'Timu yangu, usimamizi wa majukumu',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.teamPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.teamPath,
-                                ),
-                              ),
-                            ],
-                            if (ps.isOwner) ...[
-                              _DrawerSectionLabel(
-                                label: _tr('SETTINGS', 'MIPANGILIO'),
-                              ),
-                              _DrawerItemLight(
-                                icon: Icons.storefront_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr(
-                                  'Manage Businesses',
-                                  'Simamia Biashara',
-                                ),
-                                semanticsLabel: _tr(
-                                  'Add or switch businesses',
-                                  'Ongeza au badili biashara',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.businessesPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.businessesPath,
-                                ),
-                              ),
-                              _DrawerItemLight(
-                                icon: Icons.settings_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('Settings', 'Mipangilio'),
-                                semanticsLabel: _tr(
-                                  'App settings',
-                                  'Mipangilio ya programu',
-                                ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.settingsPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.settingsPath,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -2180,8 +2458,16 @@ class _DrawerItemLight extends StatelessWidget {
   final bool selected;
   final Color iconColor;
   final int trailingBadgeCount;
+  // True for the whole duration of a cross-row flight (see _NavFlightOverlay
+  // in _openNavigationPanel) — every row snaps to its selected/unselected
+  // look with no animation while this is true, so the departing row doesn't
+  // play its own fade at the same time the floating pill flies away from
+  // that spot, and the panel-open reveal is unaffected (this is only ever
+  // true once a flight is actually in progress).
+  final bool instant;
 
   const _DrawerItemLight({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -2189,115 +2475,280 @@ class _DrawerItemLight extends StatelessWidget {
     required this.iconColor,
     this.selected = false,
     this.trailingBadgeCount = 0,
+    this.instant = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = AppColors.secondary;
-
     return Semantics(
       button: true,
       label: semanticsLabel,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 2),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            splashColor: (selected ? activeColor : iconColor).withValues(
-              alpha: 0.1,
-            ),
-            highlightColor: (selected ? activeColor : iconColor).withValues(
-              alpha: 0.05,
-            ),
-            child: Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: selected ? activeColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                border: selected
-                    ? Border(
-                        left: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          width: 3,
+        // Implicit animation driven purely by `selected`: whenever this
+        // rebuilds with a different value (e.g. the panel reopening on a
+        // new route), the pill/notch and icon+text colors glide to their
+        // new state instead of snapping — except during a flight, where
+        // `instant` forces zero duration so nothing here competes visually
+        // with _NavFlightOverlay's own pill.
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: selected ? 1 : 0),
+          duration: instant ? Duration.zero : const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          builder: (context, t, _) {
+            // Dark-navy-on-white when selected (same navy as the Mali Up
+            // card), white-on-transparent-navy otherwise.
+            final fg = Color.lerp(Colors.white, AppColors.navyPrimary, t)!;
+            // The pill bleeds from a normal 12px inset out to flush (0) with
+            // the notch below, is what "grows" the tab into place. Padding
+            // can't go negative (RenderPadding asserts on that), so the 1px
+            // overshoot past the panel's edge lives in _PillNotchPainter's
+            // own geometry instead — see its `overshoot` constant.
+            final rightInset = 12 - 12 * t;
+            // Selected row also nudges right off the sidebar's own left
+            // edge a touch, on top of the ListView's shared 12px inset —
+            // it grows toward the panel edge on both sides at once, not
+            // just the flush side. This is on the same outer Padding as
+            // rightInset, so it moves the pill shape, the icon, and the
+            // text together as one unit — none of them shift on their own.
+            final leftShift = 10 * t;
+
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(25),
+                splashColor: (selected ? iconColor : Colors.white).withValues(
+                  alpha: 0.12,
+                ),
+                highlightColor: (selected ? iconColor : Colors.white)
+                    .withValues(alpha: 0.06),
+                child: Padding(
+                  padding: EdgeInsets.only(left: leftShift, right: rightInset),
+                  child: SizedBox(
+                    // Shorter than before on purpose: capRadius/notchRadius
+                    // stay fixed, so a shorter row makes both curves — the
+                    // left stadium cap and the concave fillets — a bigger
+                    // fraction of the shape, reading as more pronounced.
+                    height: 40,
+                    // _PillNotchPainter deliberately paints past this box's
+                    // own top/bottom (the fillets bleed into the rows
+                    // above/below to form the navy pockets) — nothing in
+                    // this chain (Material/InkWell/Padding/SizedBox) clips,
+                    // and CustomPaint doesn't clip to its own Size by
+                    // default, so that overflow renders correctly. It never
+                    // affects layout, though: this SizedBox's own height
+                    // stays a fixed 40, so neighboring rows never move.
+                    child: CustomPaint(
+                      painter: _PillNotchPainter(t: t),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 16),
+                        child: Row(
+                          children: [
+                            Icon(icon, size: 19, color: fg),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: GoogleFonts.dmSans(
+                                  color: fg,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  fontSize: 14,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ),
+                            if (trailingBadgeCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.yellowBrand,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  trailingBadgeCount > 99
+                                      ? '99+'
+                                      : '$trailingBadgeCount',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.navyPrimary,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      )
-                    : null,
-              ),
-              padding: EdgeInsets.only(left: selected ? 9 : 12, right: 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white.withValues(alpha: 0.16)
-                          : AppColors.secondary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 17,
-                      color: selected ? Colors.white : AppColors.secondary,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: GoogleFonts.dmSans(
-                        color: selected ? Colors.white : AppColors.secondary,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        fontSize: 14,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                  ),
-                  if (trailingBadgeCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.white.withValues(alpha: 0.22)
-                            : AppColors.yellowBrand,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        trailingBadgeCount > 99 ? '99+' : '$trailingBadgeCount',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: selected
-                              ? Colors.white
-                              : AppColors.navyPrimary,
-                        ),
-                      ),
-                    )
-                  else if (selected)
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
+}
+
+/// Data captured at the moment a tap targets a different row than the one
+/// currently active — everything _NavFlightOverlay needs to animate a
+/// single pill shape from the old row's measured position to the new
+/// one's, both already expressed in listStackKey's own coordinate space.
+class _NavFlight {
+  final double fromTop;
+  final double toTop;
+  final double left;
+  final double width;
+
+  const _NavFlight({
+    required this.fromTop,
+    required this.toTop,
+    required this.left,
+    required this.width,
+  });
+}
+
+/// The pill that actually travels — positioned via a Positioned whose `top`
+/// animates from `flight.fromTop` to `flight.toTop` over one tap-to-tap
+/// transition, pixel-exact because those values came from measuring the
+/// real departing and arriving rows' RenderBoxes, not an estimate. Left
+/// content-free on purpose (see _openNavigationPanel): the departing and
+/// arriving rows' own icon/text handle themselves via `instant` snapping
+/// out and the normal 280ms fade in, so this only ever needs to carry the
+/// white shape itself between them.
+class _NavFlightOverlay extends StatefulWidget {
+  final _NavFlight flight;
+  final bool reduceMotion;
+  final VoidCallback onLanded;
+
+  const _NavFlightOverlay({
+    required this.flight,
+    required this.reduceMotion,
+    required this.onLanded,
+  });
+
+  @override
+  State<_NavFlightOverlay> createState() => _NavFlightOverlayState();
+}
+
+class _NavFlightOverlayState extends State<_NavFlightOverlay>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 320);
+  late final AnimationController _controller;
+  late final Animation<double> _top;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.reduceMotion ? Duration.zero : _duration,
+    );
+    _top = Tween<double>(
+      begin: widget.flight.fromTop,
+      end: widget.flight.toTop,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.forward().whenComplete(widget.onLanded);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _top,
+      builder: (context, child) =>
+          Positioned(top: _top.value, left: widget.flight.left, child: child!),
+      child: SizedBox(
+        width: widget.flight.width,
+        height: 40,
+        child: const CustomPaint(painter: _PillNotchPainter(t: 1)),
+      ),
+    );
+  }
+}
+
+/// Paints the selected row as an asymmetric shape: a fully-rounded stadium
+/// cap on the free (left) end, and on the panel (right) side, the white
+/// rises past its own row — bleeding `notchRadius` above and below it,
+/// into the navy that belongs to the rows above/below — before curving
+/// back in to meet the row's own top/bottom edges. That's what forms the
+/// two navy pockets directly above and below the flush run: the white is
+/// taller than the row there, and only recedes back down to the row's own
+/// bounds via the fillets, rather than the navy ever being pushed into by
+/// a fillet that stays within the row's own height. Fillet size is its own
+/// `notchRadius`, independent of the cap's `capRadius`.
+///
+/// This paints outside the row's own 50px box on purpose — see the note on
+/// `_DrawerItemLight` confirming nothing clips it. kappa ≈ 0.5523×radius
+/// for the control-point offset, same approximation as the cap.
+class _PillNotchPainter extends CustomPainter {
+  final double t;
+  final double capRadius;
+  final double notchRadius;
+  static const double _kappa = 0.5522847498;
+  // How far past its own laid-out width the flush run/fillets are painted,
+  // so they land a hair past the panel's edge rather than exactly on it.
+  // CustomPaint doesn't clip to its own Size by default, so this just
+  // paints outside the box — no negative Padding involved (RenderPadding
+  // asserts against that).
+  static const double _overshoot = 1;
+
+  const _PillNotchPainter({
+    required this.t,
+    // Half the 40px row height exactly — the two-quarter-circle cap
+    // construction below only traces a true, fully-rounded semicircle
+    // when capRadius == height / 2; anything else leaves it slightly
+    // egg-shaped rather than a clean full curve.
+    this.capRadius = 20,
+    this.notchRadius = 22,
+  });
+
+  Path _tabPath(Size size) {
+    final w = size.width + _overshoot;
+    final h = size.height;
+    final cr = capRadius;
+    final ck = cr * _kappa;
+    final fr = math.min(notchRadius, h * 0.9);
+    final fk = fr * _kappa;
+    return Path()
+      ..moveTo(cr, 0)
+      ..lineTo(w - fr, 0) // top edge
+      // Concave top-right: the white curves UP into the row above (a navy
+      // pocket forms there) rather than rounding out to a point at (w,0).
+      ..cubicTo(w - fr + fk, 0, w, -fr + fk, w, -fr)
+      ..lineTo(w, h + fr) // flush run, bleeding past both edges
+      // Concave bottom-right: the white curves DOWN into the row below.
+      ..cubicTo(w, h + fr - fk, w - fr + fk, h, w - fr, h)
+      ..lineTo(cr, h) // bottom edge
+      ..cubicTo(cr - ck, h, 0, h - cr + ck, 0, h - cr) // bottom-left cap
+      ..cubicTo(0, cr - ck, cr - ck, 0, cr, 0) // top-left cap
+      ..close();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0.001) return;
+    final path = _tabPath(size);
+    canvas.drawShadow(path, Colors.black, 8 * t, false);
+    canvas.drawPath(path, Paint()..color = Colors.white.withValues(alpha: t));
+  }
+
+  @override
+  bool shouldRepaint(covariant _PillNotchPainter oldDelegate) =>
+      oldDelegate.t != t ||
+      oldDelegate.capRadius != capRadius ||
+      oldDelegate.notchRadius != notchRadius;
 }
 
 class _DrawerSectionLabel extends StatelessWidget {
@@ -2306,24 +2757,37 @@ class _DrawerSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Right padding is 4+12 here (not just 4) because the ListView no
+    // longer supplies a right inset itself — see _DrawerItemLight, which
+    // owns its own animated trailing inset instead.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+      padding: const EdgeInsets.fromLTRB(4, 18, 16, 8),
       child: Row(
         children: [
-          const Expanded(child: Divider(height: 1, color: AppColors.border)),
+          Expanded(
+            child: Divider(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.14),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               label,
               style: GoogleFonts.dmSans(
-                color: AppColors.secondary,
+                color: Colors.white.withValues(alpha: 0.55),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
               ),
             ),
           ),
-          const Expanded(child: Divider(height: 1, color: AppColors.border)),
+          Expanded(
+            child: Divider(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.14),
+            ),
+          ),
         ],
       ),
     );
