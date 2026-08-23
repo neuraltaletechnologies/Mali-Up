@@ -53,10 +53,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID              = "1:596683133951:web:1430c6e5bcb28bb5a
 AUTH_TRUST_HOST = "true"
 
 # Deployment: Cloudflare's native Git Build integration (Workers & Pages →
-# mali-up → Settings → Build) is the ONLY deployer. It triggers on pushes to
-# the `production` branch. GitHub Actions (deploy-admin.yml) only runs a build
-# check on `main` and does not deploy — see promote-to-production.yml for the
-# main → production release checkpoint.
+# mali-up → Settings → Build) is the ONLY deployer, and its build report is the
+# single source of truth for deploy readiness. It triggers on pushes to the
+# `production` branch — see promote-to-production.yml for the main → production
+# release checkpoint.
 #
 # The Cloudflare dashboard has TWO separate "Variables and secrets" panels —
 # values must go in the right one or they silently have no effect:

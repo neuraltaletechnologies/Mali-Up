@@ -27,7 +27,6 @@
       "Bash(curl -s https://mali-up.nt7y6jqm4n.workers.dev/privacy -o /dev/null -w \"HTTP:%{http_code}\\\\n\")",
       "Bash(pkill -9 -f \"next\")",
       "Bash(gh run *)",
-      "PowerShell(gh run list --workflow=deploy-admin.yml --limit 5 2>&1)",
       "mcp__claude_ai_Cloudflare_Developer_Platform__workers_list",
       "mcp__claude_ai_Cloudflare_Developer_Platform__workers_get_worker",
       "Bash(npx @opennextjs/cloudflare build)",
