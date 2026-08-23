@@ -53,7 +53,19 @@ export const adminFirestore = admin.firestore(adminApp)
 // blips (Wi-Fi roam, VPN reconnect, laptop sleep/wake) far better than a
 // one-shot REST fetch, which just hangs for the full timeout and throws.
 // So only force REST when actually inside the Workers runtime.
-const isCloudflareWorkers = globalThis.navigator?.userAgent === 'Cloudflare-Workers'
+//
+// `globalThis.navigator?.userAgent === 'Cloudflare-Workers'` alone is NOT
+// reliable here: under this OpenNext build it did not match in production,
+// preferRest silently never got applied, Firestore fell back to gRPC, and
+// every admin-check Firestore read threw deep inside protobufjs schema
+// resolution (Codegen/Type.resolveAll/Namespace.resolveAll) — which
+// isAdminUser() has no special handling for, so it propagated up and made
+// every admin login fail with "no admin access" regardless of the account's
+// actual claim/Firestore-doc state. CF_WORKER is an explicit [vars] entry in
+// wrangler.toml (populated into process.env via nodejs_compat_populate_process_env)
+// and is therefore deterministic, unlike sniffing a runtime global.
+const isCloudflareWorkers =
+  process.env.CF_WORKER === 'true' || globalThis.navigator?.userAgent === 'Cloudflare-Workers'
 if (isCloudflareWorkers) {
   try {
     // Must be set before any other Firestore call.
