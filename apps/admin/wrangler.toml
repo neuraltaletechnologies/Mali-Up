@@ -28,6 +28,13 @@ binding = "ASSETS"
 [vars]
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 
+# Explicit, deterministic "we are running on Cloudflare Workers" signal for
+# lib/firebase-admin.ts — sniffing globalThis.navigator.userAgent alone proved
+# unreliable in production and left the Firestore Admin SDK on gRPC (which
+# Workers can't run), breaking every admin-access check. See the comment
+# next to isCloudflareWorkers in that file for the full story.
+CF_WORKER = "true"
+
 # Works around a Next.js 16 / OpenNext-Cloudflare bug where getMiddlewareManifest()
 # does a dynamic require() of middleware-manifest.json, which Workers can't run
 # (https://github.com/opennextjs/opennextjs-cloudflare/issues/1232). Safe here since
