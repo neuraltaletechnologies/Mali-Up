@@ -67,14 +67,23 @@ async function getBearerToken(): Promise<string> {
 
 async function firestoreFetch(pathAndVerb: string, init?: RequestInit): Promise<Response> {
   const token = await getBearerToken()
-  return fetch(`${API_ROOT}/${pathAndVerb}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  })
+  try {
+    return await fetch(`${API_ROOT}/${pathAndVerb}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+    })
+  } catch (err) {
+    // Cloudflare's log viewer has repeatedly shown these as stack-frames-only
+    // with no visible message (console.error(label, err) renders blank where
+    // err.message should be) — normalize to a guaranteed, visible message so
+    // a future failure here is actually diagnosable from the dashboard.
+    const reason = err instanceof Error ? err.message : String(err)
+    throw new Error(`Firestore fetch to ${pathAndVerb} failed: ${reason}`)
+  }
 }
 
 async function throwIfNotOk(res: Response, what: string): Promise<void> {
@@ -595,6 +604,42 @@ async function recursiveDelete(ref: DocumentReference): Promise<void> {
   await ref.delete()
 }
 
+// ─────────────────────────────── getAll ──────────────────────────────────
+
+// Firestore's real `:batchGet` endpoint reads arbitrarily many documents in
+// ONE request — unlike firing `refs.map(ref => ref.get())` through
+// Promise.all, which was N *concurrent* subrequests for N refs. On
+// Cloudflare Workers, subrequests per invocation are capped; a page like
+// /admin/users batch-fetching one business per user (up to `limit`, i.e. up
+// to 200) blew past that cap and failed with an opaque fetch error. Caps at
+// 500 docs per call (Firestore's own limit on batchGet), chunking beyond that.
+async function batchGetDocs(refs: DocumentReference[]): Promise<DocumentSnapshot[]> {
+  if (refs.length === 0) return []
+
+  const byName = new Map<string, DocumentSnapshot>()
+  for (let i = 0; i < refs.length; i += 500) {
+    const chunk = refs.slice(i, i + 500)
+    const res = await firestoreFetch(`${DOCUMENTS_ROOT}:batchGet`, {
+      method: 'POST',
+      body: JSON.stringify({ documents: chunk.map((r) => r.fullName) }),
+    })
+    await throwIfNotOk(res, 'batchGet')
+    const rows: any[] = await res.json()
+    // Order is not guaranteed to match the request — match by name instead.
+    for (const row of rows) {
+      if (row.found) {
+        const relativePath = row.found.name.slice(`${DOCUMENTS_ROOT}/`.length)
+        byName.set(row.found.name, new DocumentSnapshot(new DocumentReference(relativePath), true, decodeFields(row.found.fields ?? {})))
+      } else if (row.missing) {
+        const relativePath = row.missing.slice(`${DOCUMENTS_ROOT}/`.length)
+        byName.set(row.missing, new DocumentSnapshot(new DocumentReference(relativePath), false, {}))
+      }
+    }
+  }
+
+  return refs.map((r) => byName.get(r.fullName) ?? new DocumentSnapshot(r, false, {}))
+}
+
 // ──────────────────────────── Top-level client ───────────────────────────
 
 export const restFirestore = {
@@ -613,8 +658,9 @@ export const restFirestore = {
   recursiveDelete(ref: DocumentReference): Promise<void> {
     return recursiveDelete(ref)
   },
-  /** Batch-fetch multiple docs by ref, preserving order (parallel plain GETs). */
+  /** Batch-fetch multiple docs by ref, preserving order — one HTTP call (or
+   *  one per 500-doc chunk), not one call per ref. */
   getAll(...refs: DocumentReference[]): Promise<DocumentSnapshot[]> {
-    return Promise.all(refs.map((ref) => ref.get()))
+    return batchGetDocs(refs)
   },
 }
