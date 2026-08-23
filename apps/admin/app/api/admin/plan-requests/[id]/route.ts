@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue } from '@/lib/firestore-rest'
 
 export async function PATCH(
   req: Request,

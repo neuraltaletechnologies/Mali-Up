@@ -1,5 +1,6 @@
-import { FieldValue } from 'firebase-admin/firestore'
-import { adminFirestore, adminAuth, adminStorage } from './firebase-admin'
+import { FieldValue } from '@/lib/firestore-rest'
+import { adminAuth, adminStorage } from './firebase-admin'
+import { restFirestore as adminFirestore } from './firestore-rest'
 
 // Hard-delete cascades wipe a business's/user's *owned* Firestore data
 // (recursively, via recursiveDelete — covers every subcollection without a

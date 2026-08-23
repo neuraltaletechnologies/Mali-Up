@@ -1,4 +1,4 @@
-import { adminFirestore } from './firebase-admin'
+import { restFirestore as adminFirestore } from './firestore-rest'
 import { auth } from './auth'
 import { headers } from 'next/headers'
 

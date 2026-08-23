@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { FieldValue } from 'firebase-admin/firestore'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { FieldValue } from '@/lib/firestore-rest'
+import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 

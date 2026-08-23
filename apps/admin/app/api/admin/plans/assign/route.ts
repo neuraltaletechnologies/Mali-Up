@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { adminFirestore, adminAuth } from '@/lib/firebase-admin'
+import { adminAuth } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 import { addDuration, isValidDurationUnit, formatDuration, type DurationUnit } from '@/lib/duration'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue } from '@/lib/firestore-rest'
 import type { PlanTier } from '@/types'
 
 const VALID_TIERS = new Set<string>(['starter', 'growth', 'business', 'enterprise', 'lifetime'])

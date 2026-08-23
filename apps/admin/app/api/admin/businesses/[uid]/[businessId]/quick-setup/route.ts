@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import admin from 'firebase-admin'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore, FieldValue, DocumentReference } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { auth } from '@/lib/auth'
 import { writeAudit } from '@/lib/write-audit'
@@ -85,7 +84,7 @@ export async function POST(
     const adminName = session?.user?.name ?? session?.user?.email ?? 'Admin'
     const nowIso = new Date().toISOString()
 
-    type Op = { ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }
+    type Op = { ref: DocumentReference; data: Record<string, unknown> }
     const ops: Op[] = []
     const counts = { products: 0, customers: 0, debts: 0, paymentMethods: 0, expenses: 0, team: 0 }
 
@@ -110,7 +109,7 @@ export async function POST(
           productType: isService ? 'service' : 'stock',
           unit: row.unit?.trim() || 'Piece',
           supplier: '', lastRestocked: '',
-          createdAt: nowIso, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: nowIso, updatedAt: FieldValue.serverTimestamp(),
           isActive: true, expiryDate: '', batchNumber: '', warrantyPeriod: '', brand: '',
           sellingUnits: [], returnReason: '', bomIngredients: [], bomOverheads: [], bomBatchYield: 1,
           addedByAdmin: true,
@@ -135,7 +134,7 @@ export async function POST(
           isOrganisation: false,
           ...(row.address?.trim() ? { address: row.address.trim() } : {}),
           ...(row.creditLimit && row.creditLimit > 0 ? { creditLimit: row.creditLimit } : {}),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
       })
       counts.customers++
@@ -158,7 +157,7 @@ export async function POST(
           ...(row.note?.trim() ? { note: row.note.trim() } : {}),
           createdBy: adminName,
           createdAt: nowIso,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
       })
       counts.debts++
@@ -177,7 +176,7 @@ export async function POST(
           currency: 'TZS',
           lastReconciled: '',
           ...(row.accountNumber?.trim() ? { accountNumber: row.accountNumber.trim() } : {}),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
       })
       counts.paymentMethods++
@@ -199,7 +198,7 @@ export async function POST(
           paymentMethod: row.paymentMethod?.trim() || 'cash',
           status: 'approved',
           createdBy: adminName,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
       })
       counts.expenses++
@@ -227,7 +226,7 @@ export async function POST(
           customPermissions: [],
           permissions,
           status: 'pending',
-          invitedAt: admin.firestore.FieldValue.serverTimestamp(),
+          invitedAt: FieldValue.serverTimestamp(),
           invitedBy: adminName,
           dataScope: 'all',
         },
@@ -246,7 +245,7 @@ export async function POST(
           memberId: memberRef.id,
           status: 'pending',
           pinCreated: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         },
       })
       teamAdded++
@@ -264,7 +263,7 @@ export async function POST(
     }
 
     if (teamAdded > 0) {
-      await bizRef.update({ staffCount: admin.firestore.FieldValue.increment(teamAdded) })
+      await bizRef.update({ staffCount: FieldValue.increment(teamAdded) })
     }
 
     await writeAudit({

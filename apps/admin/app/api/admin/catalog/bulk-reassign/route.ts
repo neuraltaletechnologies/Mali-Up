@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import admin from 'firebase-admin'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore, FieldValue } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 
@@ -61,8 +60,8 @@ export async function POST(request: Request) {
           batch.update(ref, { businessTypes, updatedAt: new Date() })
         } else {
           const op = mode === 'add'
-            ? admin.firestore.FieldValue.arrayUnion(...businessTypes)
-            : admin.firestore.FieldValue.arrayRemove(...businessTypes)
+            ? FieldValue.arrayUnion(...businessTypes)
+            : FieldValue.arrayRemove(...businessTypes)
           batch.update(ref, { businessTypes: op, updatedAt: new Date() })
         }
       }
