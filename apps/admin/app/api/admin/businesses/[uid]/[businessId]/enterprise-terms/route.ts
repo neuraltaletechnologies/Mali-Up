@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 import { auth } from '@/lib/auth'

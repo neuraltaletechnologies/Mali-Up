@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import admin from 'firebase-admin'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore, FieldValue, QueryDocumentSnapshot } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 
@@ -53,13 +52,13 @@ export async function POST(
     const bizName = (bizDoc.data()?.businessName as string) || businessId
 
     // ── Resolve the master products to import ─────────────────────────────
-    let productDocs: FirebaseFirestore.QueryDocumentSnapshot[] = []
+    let productDocs: QueryDocumentSnapshot[] = []
 
     if (body.productIds?.length) {
       const snaps = await Promise.all(
         body.productIds.map((id) => adminFirestore.collection('master_products').doc(id).get()),
       )
-      productDocs = snaps.filter((s) => s.exists) as FirebaseFirestore.QueryDocumentSnapshot[]
+      productDocs = snaps.filter((s) => s.exists) as QueryDocumentSnapshot[]
     } else {
       const snap = await adminFirestore
         .collection('master_products')
@@ -112,7 +111,7 @@ export async function POST(
         supplier: '',
         lastRestocked: '',
         createdAt: nowIso,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         isActive: true,
         expiryDate: '',
         batchNumber: '',

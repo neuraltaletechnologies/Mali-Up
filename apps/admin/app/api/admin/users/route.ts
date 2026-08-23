@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
+import { adminAuth } from '@/lib/firebase-admin'
+import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapUser } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue } from '@/lib/firestore-rest'
 
 export async function GET(request: Request) {
   const denied = await requireAdminSession()
