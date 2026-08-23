@@ -1,5 +1,5 @@
 import admin from 'firebase-admin'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { createRemoteJWKSet, jwtVerify, importPKCS8, SignJWT } from 'jose'
 
 const GOOGLE_JWKS = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
@@ -54,16 +54,20 @@ export const adminFirestore = admin.firestore(adminApp)
 // one-shot REST fetch, which just hangs for the full timeout and throws.
 // So only force REST when actually inside the Workers runtime.
 //
-// `globalThis.navigator?.userAgent === 'Cloudflare-Workers'` alone is NOT
-// reliable here: under this OpenNext build it did not match in production,
-// preferRest silently never got applied, Firestore fell back to gRPC, and
-// every admin-check Firestore read threw deep inside protobufjs schema
-// resolution (Codegen/Type.resolveAll/Namespace.resolveAll) — which
-// isAdminUser() has no special handling for, so it propagated up and made
-// every admin login fail with "no admin access" regardless of the account's
-// actual claim/Firestore-doc state. CF_WORKER is an explicit [vars] entry in
-// wrangler.toml (populated into process.env via nodejs_compat_populate_process_env)
-// and is therefore deterministic, unlike sniffing a runtime global.
+// `globalThis.navigator?.userAgent === 'Cloudflare-Workers'` alone was NOT
+// reliable here (it didn't match in this OpenNext build), so CF_WORKER (an
+// explicit [vars] entry in wrangler.toml) is checked too, deterministically.
+//
+// IMPORTANT — this setting does NOT fix Firestore reads on Workers by
+// itself. `preferRest` only picks the wire transport; every call still goes
+// through protobufjs to compile message encoders/decoders/verifiers
+// (visible in error stacks as Codegen/Type.resolveAll/Namespace.resolveAll),
+// and protobufjs does that with `new Function(source)` — a dynamic code-eval
+// call Cloudflare Workers' V8 isolates block by policy, with no
+// compatibility flag to opt back in. So *any* @google-cloud/firestore call,
+// gRPC or REST, throws the same opaque error here. That's why
+// isAdminUser()'s Firestore document check below no longer uses this SDK
+// client at all — see platformAdminDocExistsViaRest().
 const isCloudflareWorkers =
   process.env.CF_WORKER === 'true' || globalThis.navigator?.userAgent === 'Cloudflare-Workers'
 if (isCloudflareWorkers) {
@@ -112,6 +116,66 @@ export async function verifyIdToken(idToken: string) {
   }
 }
 
+// Self-signed JWT for calling Google APIs directly, without the
+// @google-cloud/firestore SDK. Google accepts a service account's own RS256
+// JWT as a Bearer token (no token-endpoint round trip) when `aud` names the
+// full gRPC service — see https://developers.google.com/identity/protocols/oauth2/service-account#jwt-auth.
+// Cached per-isolate and refreshed a minute before expiry.
+let cachedFirestoreJwt: { token: string; exp: number } | null = null
+
+async function getFirestoreBearerToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  if (cachedFirestoreJwt && cachedFirestoreJwt.exp - 60 > now) {
+    return cachedFirestoreJwt.token
+  }
+
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY
+  if (!clientEmail || !rawPrivateKey) {
+    throw new Error(
+      'Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY — required for the Firestore REST admin check.'
+    )
+  }
+
+  const privateKey = await importPKCS8(rawPrivateKey.replace(/\\n/g, '\n'), 'RS256')
+  const exp = now + 3600
+  const token = await new SignJWT({})
+    .setProtectedHeader({ alg: 'RS256' })
+    .setIssuer(clientEmail)
+    .setSubject(clientEmail)
+    .setAudience('https://firestore.googleapis.com/google.firestore.v1.Firestore')
+    .setIssuedAt(now)
+    .setExpirationTime(exp)
+    .sign(privateKey)
+
+  cachedFirestoreJwt = { token, exp }
+  return token
+}
+
+/**
+ * Whether /platform_admins/{uid} exists — via a plain `fetch()` against the
+ * Firestore REST API (JSON in, JSON out), not the @google-cloud/firestore
+ * SDK. The SDK's own `.get()`/getAll() always goes through protobufjs
+ * codegen (`new Function(...)`), which Cloudflare Workers blocks outright —
+ * see the long comment above `isCloudflareWorkers`. This function has no
+ * such dependency and works identically in Workers and plain Node.
+ */
+async function platformAdminDocExistsViaRest(uid: string): Promise<boolean> {
+  const projectId = process.env.FIREBASE_PROJECT_ID ?? 'neuraltale-mali-up'
+  const token = await getFirestoreBearerToken()
+
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/platform_admins/${uid}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+
+  if (res.status === 404) return false
+  if (!res.ok) {
+    throw new Error(`Firestore REST admin-doc check failed: ${res.status} ${await res.text()}`)
+  }
+  return true
+}
+
 /**
  * Check whether a Firebase UID is a platform admin.
  * We use two independent gates so you can choose either:
@@ -145,6 +209,5 @@ export async function isAdminUser(uid: string, decodedToken?: any): Promise<bool
 
   // Firestore document check (belt-and-suspenders)
   if (process.env.SKIP_FIRESTORE_ADMIN_CHECK === 'true') return true
-  const doc = await adminFirestore.collection('platform_admins').doc(uid).get()
-  return doc.exists
+  return await platformAdminDocExistsViaRest(uid)
 }
