@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/providers/business_id_provider.dart';
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
 import '../../core/services/clickpesa_service.dart';
@@ -1370,17 +1371,17 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
 // plan-picker sheet underneath it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ClickPesaPaymentSheet extends StatefulWidget {
+class _ClickPesaPaymentSheet extends ConsumerStatefulWidget {
   final PlanTier tier;
   final String phoneNumber;
 
   const _ClickPesaPaymentSheet({required this.tier, required this.phoneNumber});
 
   @override
-  State<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
+  ConsumerState<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
 }
 
-class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
+class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
     with SingleTickerProviderStateMixin {
   late final PaymentPosAnimationController _paymentAnim =
       PaymentPosAnimationController(vsync: this);
@@ -1422,12 +1423,18 @@ class _ClickPesaPaymentSheetState extends State<_ClickPesaPaymentSheet>
     unawaited(_paymentAnim.startPayment());
 
     try {
+      final businessId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+      if (businessId.isEmpty) {
+        throw StateError('No active business to upgrade.');
+      }
       // Push a USSD payment prompt to the user's phone. The amount is
       // decided server-side (from the admin-configured price), not by the
-      // client — see functions/src/clickpesa.ts.
+      // client — see functions/src/clickpesa.ts. Activates the plan on
+      // businessId specifically — plans are independent per business now.
       final initiated = await ClickPesaService.initiatePayment(
         tier: widget.tier,
         phoneNumber: widget.phoneNumber,
+        businessId: businessId,
       );
       if (_disposed) return;
 

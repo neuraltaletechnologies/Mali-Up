@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/providers/business_id_provider.dart';
 import '../../core/theme/app_colors.dart';
 import 'plan_request_service.dart';
 
@@ -391,22 +391,28 @@ class PlanStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Persists the last plan status successfully verified with Firestore.
-/// Firestore persistence is disabled app-wide, so this small, user-scoped
-/// cache keeps paid entitlements available during an offline launch.
+/// Firestore persistence is disabled app-wide, so this small,
+/// business-scoped cache keeps paid entitlements available during an
+/// offline launch. Keyed by businessId (not uid) — the plan belongs to the
+/// business, not to whichever account happens to be signed in, so a team
+/// member and the owner of the same business share one cached entry.
 class PlanStatusCache {
-  static const _keyPrefix = 'verified_plan_status_v1_';
+  // v2: keyed by businessId instead of uid (plan moved from users/{uid} to
+  // businesses/{businessId}) — a distinct prefix avoids ever misreading a
+  // pre-migration, uid-keyed v1 entry as if it were business-scoped.
+  static const _keyPrefix = 'verified_plan_status_v2_';
 
-  static String _key(String uid) => '$_keyPrefix$uid';
+  static String _key(String businessId) => '$_keyPrefix$businessId';
 
   static String _usageMonth(DateTime value) =>
       '${value.year}-${value.month.toString().padLeft(2, '0')}';
 
-  static Future<void> save(String uid, PlanStatus status) async {
-    if (uid.isEmpty) return;
+  static Future<void> save(String businessId, PlanStatus status) async {
+    if (businessId.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        _key(uid),
+        _key(businessId),
         jsonEncode({
           'tier': status.tier.name,
           'invoicesUsedThisMonth': status.invoicesUsedThisMonth,
@@ -424,12 +430,12 @@ class PlanStatusCache {
   }
 
   static Future<PlanStatus?> load(
-    String uid, {
+    String businessId, {
     PlanDefinitions? definitions,
   }) async {
-    if (uid.isEmpty) return null;
+    if (businessId.isEmpty) return null;
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key(uid));
+    final raw = prefs.getString(_key(businessId));
     if (raw == null || raw.isEmpty) return null;
 
     try {
@@ -466,21 +472,26 @@ class PlanStatusCache {
         overrideLimits: overrideLimits,
       );
     } catch (_) {
-      await prefs.remove(_key(uid));
+      await prefs.remove(_key(businessId));
       return null;
     }
   }
 }
 
 class PlanService {
-  static Future<PlanStatus> _statusFromUserData(
+  /// Derives entitlements from a `businesses/{businessId}` document. The
+  /// plan belongs to the business, not to whichever account is signed in —
+  /// this is what makes a team member automatically inherit their business's
+  /// real tier instead of defaulting to Starter on their own bare account.
+  static Future<PlanStatus> _statusFromBusinessData(
     Map<String, dynamic> data, {
+    required String businessId,
     PlanDefinitions? defs,
     int fallbackInvoiceCount = 0,
   }) async {
     final tier = PlanTierX.fromString(data['plan'] as String?);
 
-    final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
+    final expiresRaw = data['planExpiresAt'];
     DateTime? expiresAt;
     if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
 
@@ -490,9 +501,10 @@ class PlanService {
             ? PlanTier.starter
             : tier;
 
-    // Per-business negotiated Enterprise deal terms (admin-set), partially
-    // overriding the shared Enterprise definition — same merge semantics as
-    // PlanLimits.fromFirestore already uses for tier-wide definitions.
+    // Negotiated Enterprise deal terms for this specific business
+    // (admin-set), partially overriding the shared Enterprise definition —
+    // same merge semantics as PlanLimits.fromFirestore already uses for
+    // tier-wide definitions.
     PlanLimits? overrideLimits;
     if (effectiveTier == PlanTier.enterprise) {
       final overrideRaw = data['enterpriseOverrides'];
@@ -505,28 +517,25 @@ class PlanService {
     }
 
     // Counted for whichever tier actually has a finite cap (admin-editable
-    // per tier, not just Starter) — always scoped to the single active
-    // business, never summed across a user's other businesses.
+    // per tier, not just Starter) — scoped to this business only, never
+    // summed across other businesses the same owner might have.
     var invoiceCount = fallbackInvoiceCount;
-    if ((overrideLimits ?? limitsFor(effectiveTier, defs)).monthlyInvoices != -1) {
-      final selectedBusinessId =
-          (data['selectedBusinessId'] as String?)?.trim() ?? '';
-      if (selectedBusinessId.isNotEmpty) {
-        try {
-          final now = DateTime.now();
-          final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-          final snap = await _db
-              .collection('businesses')
-              .doc(selectedBusinessId)
-              .collection('sales_invoices')
-              .where('createdAt', isGreaterThanOrEqualTo: monthStart)
-              .count()
-              .get();
-          invoiceCount = snap.count ?? 0;
-        } catch (_) {
-          // A usage-count failure must not downgrade an otherwise valid paid
-          // package. Keep the last server-verified monthly count instead.
-        }
+    if ((overrideLimits ?? limitsFor(effectiveTier, defs)).monthlyInvoices != -1 &&
+        businessId.isNotEmpty) {
+      try {
+        final now = DateTime.now();
+        final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
+        final snap = await _db
+            .collection('businesses')
+            .doc(businessId)
+            .collection('sales_invoices')
+            .where('createdAt', isGreaterThanOrEqualTo: monthStart)
+            .count()
+            .get();
+        invoiceCount = snap.count ?? 0;
+      } catch (_) {
+        // A usage-count failure must not downgrade an otherwise valid paid
+        // package. Keep the last server-verified monthly count instead.
       }
     }
 
@@ -539,22 +548,25 @@ class PlanService {
     );
   }
 
-  static Future<PlanStatus> fetchStatus({PlanDefinitions? defs}) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  static Future<PlanStatus> fetchStatus({
+    required String businessId,
+    PlanDefinitions? defs,
+  }) async {
+    if (businessId.isEmpty) {
       return PlanStatus(
           tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
 
-    final cached = await PlanStatusCache.load(user.uid, definitions: defs);
+    final cached = await PlanStatusCache.load(businessId, definitions: defs);
     try {
-      final doc = await _db.collection('users').doc(user.uid).get();
-      final status = await _statusFromUserData(
+      final doc = await _db.collection('businesses').doc(businessId).get();
+      final status = await _statusFromBusinessData(
         doc.data() ?? {},
+        businessId: businessId,
         defs: defs,
         fallbackInvoiceCount: cached?.invoicesUsedThisMonth ?? 0,
       );
-      await PlanStatusCache.save(user.uid, status);
+      await PlanStatusCache.save(businessId, status);
       return status;
     } catch (_) {
       return cached ??
@@ -566,11 +578,14 @@ class PlanService {
     }
   }
 
-  /// Live plan status — re-derived whenever the user's Firestore doc changes,
-  /// so an admin approving a plan request reflects in the app immediately.
-  static Stream<PlanStatus> watchStatus({PlanDefinitions? defs}) async* {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  /// Live plan status — re-derived whenever the business's Firestore doc
+  /// changes, so an admin approving a plan request reflects in the app
+  /// immediately for the owner and every team member of that business.
+  static Stream<PlanStatus> watchStatus({
+    required String businessId,
+    PlanDefinitions? defs,
+  }) async* {
+    if (businessId.isEmpty) {
       yield PlanStatus(
         tier: PlanTier.starter,
         invoicesUsedThisMonth: 0,
@@ -579,37 +594,25 @@ class PlanService {
       return;
     }
 
-    final cached = await PlanStatusCache.load(user.uid, definitions: defs);
-    await for (final doc in _db.collection('users').doc(user.uid).snapshots()) {
+    final cached = await PlanStatusCache.load(businessId, definitions: defs);
+    await for (final doc
+        in _db.collection('businesses').doc(businessId).snapshots()) {
       // An offline listener can emit an empty cache snapshot even though
       // Firestore persistence is disabled. It is not authoritative.
       if (doc.metadata.isFromCache && !doc.exists) continue;
       try {
-        final status = await _statusFromUserData(
+        final status = await _statusFromBusinessData(
           doc.data() ?? {},
+          businessId: businessId,
           defs: defs,
           fallbackInvoiceCount: cached?.invoicesUsedThisMonth ?? 0,
         );
-        await PlanStatusCache.save(user.uid, status);
+        await PlanStatusCache.save(businessId, status);
         yield status;
       } catch (_) {
         if (cached != null) yield cached;
       }
     }
-  }
-
-  /// Activate a paid tier for [months] months (admin-side only, kept for completeness).
-  static Future<void> activatePlan({
-    required String uid,
-    required PlanTier tier,
-    required int months,
-  }) async {
-    final expiresAt = DateTime.now().add(Duration(days: 30 * months));
-    await _db.collection('users').doc(uid).set({
-      'plan': tier.name,
-      'planExpiresAt': Timestamp.fromDate(expiresAt),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
   }
 }
 
@@ -620,18 +623,27 @@ class PlanService {
 /// Full plan status with dynamic limits baked in. Live — updates automatically
 /// when an admin approves/activates a plan change in Firestore.
 ///
+/// Resolved against the *active business* (via [currentBusinessIdProvider]),
+/// not the signed-in account — the plan belongs to the business, so this
+/// re-subscribes whenever the active business changes (a switch, or a team
+/// member's businessId resolving after sign-in), and a team member sees the
+/// same entitlements as the business owner automatically.
+///
 /// Emits immediately from the last server-verified local entitlement. Offline
 /// entry points such as Add Sale can therefore open without waiting for
 /// Firestore. A first-time user without a cache gets the Starter fallback
 /// immediately while the live server listener starts in the background.
 final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final initialCached = await PlanStatusCache.load(uid);
+  final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+
+  final initialCached = await PlanStatusCache.load(businessId);
   yield initialCached ??
       const PlanStatus(
         tier: PlanTier.starter,
         invoicesUsedThisMonth: 0,
       );
+
+  if (businessId.isEmpty) return;
 
   PlanDefinitions? defs;
   try {
@@ -642,7 +654,7 @@ final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
     defs = null;
   }
 
-  yield* PlanService.watchStatus(defs: defs);
+  yield* PlanService.watchStatus(businessId: businessId, defs: defs);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

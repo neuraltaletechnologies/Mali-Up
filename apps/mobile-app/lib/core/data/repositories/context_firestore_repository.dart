@@ -48,13 +48,19 @@ class ContextFirestoreRepository {
   /// Resolves finance context synchronously from an already-fetched profile map.
   /// Used by [currentBusinessIdProvider] to avoid redundant Firestore reads.
   ResolvedFinanceContext resolveContextFromData(Map<String, dynamic>? data) {
-    final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
+    // Firestore document IDs are case-sensitive, so only the prefix check
+    // below may be lowercased — the ID itself must be extracted from the
+    // original-case string, or a businessId like "r6vNvUx4..." gets mangled
+    // into "r6vnvux4...", a document that doesn't exist, and every
+    // downstream read/write against it is denied by security rules.
+    final rawDefaultContext = (data?['defaultContext'] as String?)?.trim();
+    final defaultContext = rawDefaultContext?.toLowerCase();
     final selectedBusinessId = (data?['selectedBusinessId'] as String?)?.trim();
     // Fallback for team members: they have `businessId` but not `selectedBusinessId`.
     final memberBusinessId = (data?['businessId'] as String?)?.trim();
 
     if (defaultContext != null && defaultContext.startsWith('business')) {
-      final businessId = _businessIdFromContext(defaultContext) ??
+      final businessId = _businessIdFromContext(rawDefaultContext!) ??
           selectedBusinessId ??
           memberBusinessId;
       if (businessId != null && businessId.isNotEmpty) {

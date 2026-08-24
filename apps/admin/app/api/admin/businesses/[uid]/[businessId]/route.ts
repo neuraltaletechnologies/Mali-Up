@@ -101,10 +101,10 @@ export async function PUT(
       updates.placeOfBusiness = body.placeOfBusiness.trim()
       updates.city            = body.placeOfBusiness.trim()
     }
-    // Plan changes go through POST /api/admin/plans/assign — it dual-writes
-    // businesses/{id}.plan and users/{ownerUid}.plan (the field the mobile
-    // app's PlanService actually gates on) and revokes refresh tokens so the
-    // change takes effect immediately.
+    // Plan changes go through POST /api/admin/plans/assign — it writes
+    // businesses/{id}.plan (the field the mobile app's PlanService actually
+    // gates on) and revokes refresh tokens so the change takes effect
+    // immediately.
 
     const bizRef = adminFirestore.collection('businesses').doc(businessId)
     const snap   = await bizRef.get()

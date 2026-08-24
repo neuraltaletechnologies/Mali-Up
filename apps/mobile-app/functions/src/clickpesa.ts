@@ -16,11 +16,14 @@ import * as crypto from "crypto";
  * server-side, using secrets that never ship inside the mobile app binary.
  * The mobile client only ever talks to these two callables — it never sees
  * the ClickPesa API key and it can never write
- * `plan`/`planExpiresAt`/`lastPayment` on its own user doc directly (see
- * firestore.rules). Plan activation happens exclusively in
+ * `plan`/`planExpiresAt`/`lastPayment` on the business document directly
+ * (see firestore.rules). Plan activation happens exclusively in
  * `verifyClickPesaPayment`, via the Admin SDK, after this function has
  * independently confirmed payment with ClickPesa and cross-checked the
- * amount against what was actually quoted.
+ * amount against what was actually quoted. The plan belongs to the specific
+ * business the payment was initiated for (`businessId`, ownership-checked in
+ * `initiateClickPesaPayment`) — not to the paying account as a whole, and
+ * not mirrored onto any other business that account might own.
  */
 
 const CLICKPESA_CLIENT_ID = defineSecret("CLICKPESA_CLIENT_ID");
@@ -159,6 +162,7 @@ function normalizeTzPhone(raw: string): string | null {
 interface InitiatePaymentRequest {
   tier: PayableTier;
   phoneNumber: string;
+  businessId: string;
 }
 
 interface InitiatePaymentResponse {
@@ -191,6 +195,17 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
         "invalid-argument",
         "A valid Tanzanian mobile money number (M-Pesa/Tigo Pesa/Airtel Money/HaloPesa) is required.",
       );
+    }
+    const businessId = String(request.data?.businessId ?? "").trim();
+    if (!businessId) {
+      throw new HttpsError("invalid-argument", "businessId is required.");
+    }
+    // Plans are independent per business — verify the caller actually owns
+    // the business they're paying to upgrade, so one account can never use
+    // its own payment to activate a plan on a business it doesn't own.
+    const bizSnap = await admin.firestore().collection("businesses").doc(businessId).get();
+    if (!bizSnap.exists || bizSnap.data()?.ownerUid !== uid) {
+      throw new HttpsError("permission-denied", "You do not own this business.");
     }
 
     const {pricePerCycle, cycleMonths} = await getPlanPricing(tier);
@@ -262,6 +277,7 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
       .doc(orderReference)
       .set({
         uid,
+        businessId,
         tier,
         cycleMonths,
         amount: pricePerCycle,
@@ -384,20 +400,24 @@ async function checkAndFinalizePayment(
   const expiresAtIso = expiresAt.toISOString();
   const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
+  const businessId = paymentDoc.businessId as string | undefined;
+  if (!businessId) {
+    // Payment docs created before businessId was recorded on them — nothing
+    // safe to activate against. Surfaces as a stuck "pending" rather than
+    // silently activating the wrong (or every) business.
+    console.error("[ClickPesa] payment has no businessId, refusing to activate", {orderReference});
+    throw new HttpsError("failed-precondition", "This payment cannot be completed automatically. Contact support.");
+  }
+  const bizRef = db.collection("businesses").doc(businessId);
+
   await db.runTransaction(async (tx) => {
     // All reads must happen before any writes in a Firestore transaction.
     const freshSnap = await tx.get(paymentRef);
     if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
 
-    // A subscription belongs to the owner, not a single business — mirror
-    // the plan onto every business this uid owns, exactly like the admin
-    // portal's manual assignPlan does (app/api/admin/plans/assign). Without
-    // this, businesses/{bizId}.plan — what admin analytics reads for plan
-    // distribution and MRR — never reflects a ClickPesa-driven upgrade.
-    const ownedBizSnap = await tx.get(
-      db.collection("businesses").where("ownerUid", "==", uid),
-    );
-
+    // Plans are independent per business — this activates only the specific
+    // business the payment was initiated for (verified against ownerUid in
+    // initiateClickPesaPayment), never every business the uid owns.
     const planFields = {
       plan: tier,
       planExpiresAt: expiresAtTs,
@@ -409,6 +429,15 @@ async function checkAndFinalizePayment(
       planSource: "clickpesa",
       planStartedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastPayment: {
+        reference: orderReference,
+        amount: paymentDoc.amount,
+        currency: paymentDoc.currency ?? "TZS",
+        paymentId: paymentDoc.clickPesaId ?? orderReference,
+        channel: payment.channel ?? null,
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        provider: "clickpesa",
+      },
     };
 
     tx.set(
@@ -421,25 +450,7 @@ async function checkAndFinalizePayment(
       },
       {merge: true},
     );
-    tx.set(
-      db.collection("users").doc(uid),
-      {
-        ...planFields,
-        lastPayment: {
-          reference: orderReference,
-          amount: paymentDoc.amount,
-          currency: paymentDoc.currency ?? "TZS",
-          paymentId: paymentDoc.clickPesaId ?? orderReference,
-          channel: payment.channel ?? null,
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
-          provider: "clickpesa",
-        },
-      },
-      {merge: true},
-    );
-    for (const bizDoc of ownedBizSnap.docs) {
-      tx.set(bizDoc.ref, planFields, {merge: true});
-    }
+    tx.set(bizRef, planFields, {merge: true});
   });
 
   console.log(`[ClickPesa] Plan activated for user ${uid}: ${tier}`);

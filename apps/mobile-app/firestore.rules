@@ -117,7 +117,17 @@ service cloud.firestore {
         (!data.keys().hasAny(['city'])             || data.city is string) &&
         (!data.keys().hasAny(['district'])         || data.district is string) &&
         (!data.keys().hasAny(['region'])           || data.region is string) &&
-        (!data.keys().hasAny(['country'])          || data.country is string);
+        (!data.keys().hasAny(['country'])          || data.country is string) &&
+        // Entitlement fields are never client-settable, not even at business
+        // creation — 'plan' may only be the free-tier default a brand-new
+        // business starts on. Paid activation only ever happens server-side
+        // (Cloud Functions Admin SDK, after a verified ClickPesa payment or
+        // admin approval), which bypasses these rules entirely. Mirrors
+        // isValidUserCreate below, now that the plan lives on the business
+        // document instead of the owner's user document.
+        (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
+        !data.keys().hasAny(
+          ['planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
     }
 
     function isValidWorkerCreate(data) {
@@ -287,8 +297,16 @@ service cloud.firestore {
       // Create: ownerUid must be the caller.
       allow create: if isSignedIn() && isValidBusinessCreate(request.resource.data);
 
-      // Update / delete: owner only.
-      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      // Update: owner only, and never the entitlement fields — those change
+      // only via the admin portal / Cloud Functions on the Admin SDK, which
+      // bypasses these rules. Without this, an owner could self-grant a paid
+      // plan by writing straight to their own business document (the plan
+      // now lives here instead of on their user document).
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['plan', 'planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
+      // Delete: owner only.
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
 
       // ── Customers ──────────────────────────────────────────────────────────
       match /customers/{customerId} {

@@ -65,35 +65,13 @@ export async function POST(req: Request) {
       update.planSource = FieldValue.delete()
     }
 
-    // A subscription belongs to the owner, not a single business — an owner
-    // with several businesses shares one plan across all of them. Mirror the
-    // same fields onto every business owned by this uid so admin views (which
-    // read business.plan for display) don't show a stale tier on the ones
-    // that weren't the "active" business when the request was submitted.
-    const siblingBizSnap = await adminFirestore
-      .collection('businesses')
-      .where('ownerUid', '==', uid)
-      .get()
-
-    const batch = adminFirestore.batch()
-    batch.set(bizRef, update, { merge: true })
-    for (const doc of siblingBizSnap.docs) {
-      if (doc.id === businessId) continue
-      batch.set(doc.ref, update, { merge: true })
-    }
-    await batch.commit()
-
-    // Also update the user's top-level plan field (used by mobile app)
-    await adminFirestore.collection('users').doc(uid).set(
-      {
-        plan: tier,
-        ...(expiresAt
-          ? { planExpiresAt: expiresAt, planSource: 'admin_grant' }
-          : { planExpiresAt: FieldValue.delete(), planSource: FieldValue.delete() }),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    )
+    // Plans are independent per business — an owner with several businesses
+    // no longer shares one plan across all of them, so this only ever
+    // touches the targeted business. (It used to also mirror onto every
+    // sibling business the same uid owned, and dual-write users/{uid}.plan
+    // for the mobile app; the mobile app now reads businesses/{businessId}
+    // directly, so neither is needed.)
+    await bizRef.set(update, { merge: true })
 
     // Revoke refresh tokens so the change takes effect on next app open
     await adminAuth.revokeRefreshTokens(uid).catch(() => {})
@@ -109,7 +87,6 @@ export async function POST(req: Request) {
         duration: tier === 'starter' ? null : formatDuration(durationValue, durationUnit),
         expiresAt: expiresAt?.toISOString(),
         planSource: expiresAt ? 'admin_grant' : null,
-        businessesUpdated: siblingBizSnap.docs.filter((d) => d.id !== businessId).length + 1,
       },
       isDestructive: false,
     })

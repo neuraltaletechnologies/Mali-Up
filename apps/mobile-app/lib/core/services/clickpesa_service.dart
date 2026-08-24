@@ -15,10 +15,10 @@ import 'plan_service.dart';
 /// to ClickPesa directly and never holds a ClickPesa API key: both calls are
 /// proxied through Cloud Functions, which hold the real secret and are the
 /// only code path allowed to write `plan`/`planExpiresAt`/`lastPayment` on
-/// the user's Firestore doc (see firestore.rules — client writes to those
-/// fields are rejected). This also means the amount charged always comes
-/// from the admin-configured price on the server, never from anything the
-/// client says.
+/// the business's Firestore doc (see firestore.rules — client writes to
+/// those fields are rejected). This also means the amount charged always
+/// comes from the admin-configured price on the server, never from
+/// anything the client says.
 ///
 /// Waiting for a result does NOT poll ClickPesa — see [waitForPayment].
 class ClickPesaService {
@@ -26,15 +26,21 @@ class ClickPesaService {
       FirebaseFunctions.instanceFor(region: 'us-central1');
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Pushes a payment prompt to [phoneNumber] for [tier]. Accepts common
-  /// Tanzanian phone formats (0712345678, +255712345678, 255712345678) —
-  /// the server normalizes and validates it.
+  /// Pushes a payment prompt to [phoneNumber] for [tier], activating it on
+  /// [businessId] specifically — plans are independent per business, so the
+  /// server verifies the caller owns that business before charging anything.
+  /// Accepts common Tanzanian phone formats (0712345678, +255712345678,
+  /// 255712345678) — the server normalizes and validates it.
   static Future<ClickPesaInitiateResult> initiatePayment({
     required PlanTier tier,
     required String phoneNumber,
+    required String businessId,
   }) async {
     if (tier != PlanTier.growth && tier != PlanTier.business) {
       throw ArgumentError.value(tier, 'tier', 'Must be growth or business.');
+    }
+    if (businessId.isEmpty) {
+      throw ArgumentError.value(businessId, 'businessId', 'Must not be empty.');
     }
     try {
       debugPrint('[ClickPesa] Initiating USSD push for ${tier.name}');
@@ -42,6 +48,7 @@ class ClickPesaService {
       final result = await callable.call<Map<String, dynamic>>({
         'tier': tier.name,
         'phoneNumber': phoneNumber,
+        'businessId': businessId,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
       debugPrint('[ClickPesa] Push sent: ${data['orderReference']}');

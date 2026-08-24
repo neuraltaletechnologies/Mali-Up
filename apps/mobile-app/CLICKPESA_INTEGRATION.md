@@ -13,9 +13,11 @@ Everything ClickPesa-related is handled **server-side**, via three Cloud
 Functions (`apps/mobile-app/functions/src/clickpesa.ts`). The mobile app
 never holds a ClickPesa API key and can never activate a plan by itself —
 `firestore.rules` rejects any client write to `plan`, `planExpiresAt`,
-`premiumExpiresAt`, `lastPayment`, or `enterpriseOverrides` on a user's own
-profile doc. Only the Admin SDK (used by these Cloud Functions and the admin
-portal) can set those fields.
+`subscriptionStatus`, `planSource`, or `enterpriseOverrides` on a business
+document. Only the Admin SDK (used by these Cloud Functions and the admin
+portal) can set those fields. The plan belongs to the specific business a
+payment was initiated for — not to the paying account, and not mirrored onto
+any other business that account might own.
 
 **Payment status reaches the app via ClickPesa's webhook, not client
 polling.** ClickPesa's free/pre-KYC tier caps API usage at 100 calls/day; the
@@ -38,16 +40,21 @@ volume.
 - `lib/shared/widgets/upgrade_sheet.dart` — upgrade paywall UI, including the
   phone-number confirmation step and the payment POS animation.
 - `firestore.rules` — blocks client writes to entitlement fields on
-  `users/{uid}`; allows a user to *read* (never write) their own
+  `businesses/{businessId}`; allows a user to *read* (never write) their own
   `clickpesa_payments/{orderReference}` doc.
 
 ### Payment flow
 
-1. User selects a plan (Growth/Business) and taps "Upgrade to …".
+1. User selects a plan (Growth/Business) and taps "Upgrade to …" for their
+   active business.
 2. App shows a phone-confirmation step, prefilled from the user's profile
    phone when available and always editable (the mobile-money line isn't
    always the account phone).
-3. App calls `initiateClickPesaPayment({tier, phoneNumber})`. The function:
+3. App calls `initiateClickPesaPayment({tier, phoneNumber, businessId})`. The
+   function:
+   - verifies the caller's uid actually owns `businessId` (`ownerUid` check)
+     before charging anything — one account can't use its own payment to
+     activate a plan on a business it doesn't own;
    - reads the *current* admin-configured price from `platform_config/plans`
      (never trusts an amount from the client);
    - normalizes the phone to ClickPesa's `255XXXXXXXXX` form and rejects
@@ -57,19 +64,19 @@ volume.
      ClickPesa tokens are valid 1 hour);
    - calls ClickPesa's `initiate-ussd-push-request`, which pushes the PIN
      prompt to the phone;
-   - stores a pending record in `clickpesa_payments/{orderReference}`.
+   - stores a pending record (including `businessId`) in
+     `clickpesa_payments/{orderReference}`.
 4. User enters their mobile money PIN on the USSD prompt on their phone.
 5. App watches `clickpesa_payments/{orderReference}` in real time
    (`ClickPesaService.waitForPayment`, a Firestore listener — no ClickPesa
    API calls). The moment ClickPesa confirms the charge, its webhook hits
    `clickpesaWebhook`, which re-verifies via an authenticated call to
    ClickPesa (never trusts the webhook payload's claimed status — see the
-   security notes) and, on genuine success, activates the plan on
-   `users/{uid}` — and every business the uid owns — via the Admin SDK
-   inside a transaction (idempotent against concurrent/duplicate calls). A
-   20s-interval fallback poll via `verifyClickPesaPayment` runs alongside the
-   listener purely as a safety net for a webhook that isn't configured yet or
-   a lost delivery.
+   security notes) and, on genuine success, activates the plan on that one
+   `businesses/{businessId}` document via the Admin SDK inside a transaction
+   (idempotent against concurrent/duplicate calls). A 20s-interval fallback
+   poll via `verifyClickPesaPayment` runs alongside the listener purely as a
+   safety net for a webhook that isn't configured yet or a lost delivery.
 6. Client's Firestore listener sees `status: 'completed'` and shows the
    confirmation card. There is no separate client-side activation step; by
    the time the client sees success, the plan is already active.
@@ -175,8 +182,8 @@ same as any other Cloud Function in this app.
    number, tap Send Payment Request.
 3. Complete the sandbox USSD push (sandbox docs describe how to simulate the
    PIN confirmation without a real phone).
-4. Confirm the app shows the success card and `users/{uid}.plan` updates in
-   the emulator UI.
+4. Confirm the app shows the success card and
+   `businesses/{businessId}.plan` updates in the emulator UI.
 
 ## Troubleshooting
 
@@ -219,10 +226,13 @@ same as any other Cloud Function in this app.
 
 - The ClickPesa API key lives only in Secret Manager, injected into the
   Cloud Functions runtime — never in the mobile app binary, never in git.
-- `firestore.rules` makes `plan`/`planExpiresAt`/`lastPayment`/
-  `premiumExpiresAt`/`enterpriseOverrides` on `users/{uid}` write-only from
-  the Admin SDK. A user cannot self-grant a paid plan by writing to their own
-  profile doc, regardless of what the client app does.
+- `firestore.rules` makes `plan`/`planExpiresAt`/`subscriptionStatus`/
+  `planSource`/`enterpriseOverrides` on `businesses/{businessId}` write-only
+  from the Admin SDK. A business owner cannot self-grant a paid plan by
+  writing to their own business doc, regardless of what the client app does.
+- `initiateClickPesaPayment` verifies `businessId.ownerUid == uid` before
+  charging anything, so one account can never pay to activate a plan on a
+  business it doesn't own.
 - The amount charged always comes from the server-side read of
   `platform_config/plans`, never from anything the client supplies — a
   tampered client can't ask ClickPesa to charge less than the real price.

@@ -259,10 +259,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
 
     final profile = await _profileFuture;
     final businesses = _businessesFromProfile(profile);
-    final normalized = nextContext.toLowerCase();
 
-    final requestedBusinessId = normalized.contains(':')
-        ? normalized.split(':').sublist(1).join(':').trim()
+    // Firestore document IDs are case-sensitive, so the business ID must be
+    // extracted from the original-case string — never from a lowercased
+    // copy, or a business like "r6vNvUx4..." gets written back as
+    // "r6vnvux4...", a document that doesn't exist, and every subsequent
+    // read/write for that account is denied by security rules. (Same bug
+    // class as ContextFirestoreRepository.resolveContextFromData.)
+    final requestedBusinessId = nextContext.contains(':')
+        ? nextContext.split(':').sublist(1).join(':').trim()
         : null;
     final fallbackBusinessId =
         _selectedBusinessId(profile) ??
@@ -880,10 +885,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                         ),
                                   ),
                                 ],
-                                if (ps.isOwner) ...[
-                                  _DrawerSectionLabel(
-                                    label: _tr('SETTINGS', 'MIPANGILIO'),
-                                  ),
+                                _DrawerSectionLabel(
+                                  label: _tr('SETTINGS', 'MIPANGILIO'),
+                                ),
+                                if (ps.isOwner)
                                   _DrawerItemLight(
                                     icon: Icons.storefront_rounded,
                                     iconColor: AppColors.secondary,
@@ -906,26 +911,31 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                           AppRouter.businessesPath,
                                         ),
                                   ),
-                                  _DrawerItemLight(
-                                    icon: Icons.settings_rounded,
-                                    iconColor: AppColors.secondary,
-                                    label: _tr('Settings', 'Mipangilio'),
-                                    semanticsLabel: _tr(
-                                      'App settings',
-                                      'Mipangilio ya programu',
-                                    ),
-                                    selected: _isSelected(
-                                      location,
-                                      AppRouter.settingsPath,
-                                    ),
-                                    onTap: () =>
-                                        _closeNavigationPanelThenNavigate(
-                                          dialogContext,
-                                          context,
-                                          AppRouter.settingsPath,
-                                        ),
+                                // Reachable by every role, owner and team
+                                // member alike — SettingsScreen itself hides
+                                // the owner-only sections (plan/subscription,
+                                // data export, audit log) for team members,
+                                // but everyone needs it to edit their own
+                                // profile or sign out.
+                                _DrawerItemLight(
+                                  icon: Icons.settings_rounded,
+                                  iconColor: AppColors.secondary,
+                                  label: _tr('Settings', 'Mipangilio'),
+                                  semanticsLabel: _tr(
+                                    'App settings',
+                                    'Mipangilio ya programu',
                                   ),
-                                ],
+                                  selected: _isSelected(
+                                    location,
+                                    AppRouter.settingsPath,
+                                  ),
+                                  onTap: () =>
+                                      _closeNavigationPanelThenNavigate(
+                                        dialogContext,
+                                        context,
+                                        AppRouter.settingsPath,
+                                      ),
+                                ),
                               ],
                             ),
                           ),

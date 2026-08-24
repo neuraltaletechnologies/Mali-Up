@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
@@ -18,6 +19,7 @@ import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../rbac/data/role_cache_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -28,11 +30,15 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-int _businessLimitFor(PlanTier tier, PlanDefinitions? definitions) {
-  // Multiple businesses are a Business/Enterprise feature. Keep this rule
-  // deterministic even before remote plan definitions finish loading.
-  if (tier == PlanTier.starter || tier == PlanTier.growth) return 1;
-  return limitsFor(tier, definitions).maxBusinesses;
+/// True if any business in [businesses] (each carrying its own independent
+/// plan — see [PlanService]) is on a paid tier. The first business an
+/// account creates is always free; adding a 2nd+ business requires that at
+/// least one existing business already pays, since a Starter business no
+/// longer implies anything about the account as a whole.
+bool _hasAnyPaidBusiness(List<Map<String, dynamic>> businesses) {
+  return businesses.any(
+    (b) => PlanTierX.fromString(b['plan'] as String?) != PlanTier.starter,
+  );
 }
 
 class ManageBusinessesScreen extends ConsumerStatefulWidget {
@@ -86,27 +92,23 @@ class _ManageBusinessesScreenState
     } catch (_) {}
   }
 
-  /// Add-business entry point (FAB): users who have reached their plan's
-  /// business limit are gated behind the shared slide-up upgrade sheet
-  /// instead of the old blocking dialog, matching the rest of the app's
-  /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
-  /// admin-editable), not hardcoded.
+  /// Add-business entry point (FAB): the first business is always free.
+  /// Adding a 2nd+ business requires the account to already have at least
+  /// one paid business — plans are independent per business now, so owning
+  /// a single Starter business doesn't unlock more of them. Users blocked by
+  /// this are gated behind the shared slide-up upgrade sheet instead of a
+  /// blocking dialog, matching the rest of the app's paywall UX.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-    final tier =
-        ref.read(planStatusProvider).valueOrNull?.tier ??
-        PlanTierX.fromString(profile?['plan'] as String?);
-    final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxBusinesses = _businessLimitFor(tier, defs);
-    final currentCount = _businessesFromProfile(profile).length;
-    if (maxBusinesses != -1 && currentCount >= maxBusinesses) {
+    final businesses = _businessesFromProfile(profile);
+    if (businesses.isNotEmpty && !_hasAnyPaidBusiness(businesses)) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
         triggerReason: _tr(
-          'Multiple businesses are available on Business and Enterprise plans.',
-          'Biashara nyingi zinapatikana kwenye mipango ya Business na Enterprise.',
+          'Upgrade one of your businesses to a paid plan to add another business.',
+          'Panda mpango wa biashara moja kuwa wa malipo ili kuongeza biashara nyingine.',
         ),
       );
       return;
@@ -304,6 +306,10 @@ class _ManageBusinessesScreenState
             'website': (entry['website'] as String?)?.trim() ?? '',
             'x': (entry['x'] as String?)?.trim() ?? '',
             'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
+            // Each business carries its own plan now — used to decide
+            // whether this account may add another business (see
+            // _hasAnyPaidBusiness).
+            'plan': (entry['plan'] as String?)?.trim() ?? '',
           },
         )
         .where((entry) => (entry['id'] as String).isNotEmpty)
@@ -315,13 +321,24 @@ class _ManageBusinessesScreenState
     return value == null || value.trim().isEmpty ? null : value.trim();
   }
 
-  /// Updates only `selectedBusinessId` on the user profile — no more businesses array.
+  /// Updates the user profile's active-business pointers.
+  ///
+  /// Must write `defaultContext` alongside `selectedBusinessId` — see
+  /// [ContextFirestoreRepository.resolveContextFromData]: it checks
+  /// `defaultContext` FIRST and, when set, extracts the businessId straight
+  /// out of that string, ignoring `selectedBusinessId` entirely. Writing
+  /// only `selectedBusinessId` (as this used to) left `defaultContext`
+  /// pointing at whatever business was active before, so every screen kept
+  /// reading the old business's data no matter which one got selected here.
+  /// Mirrors the write in MainShellPage._switchFinanceContext.
   Future<void> _persistSelectedBusiness({
     required String userId,
     required String? selectedBusinessId,
   }) async {
     if (selectedBusinessId == null || selectedBusinessId.isEmpty) return;
     await _firestore.collection('users').doc(userId).set({
+      'defaultContext': 'business:$selectedBusinessId',
+      'defaultAccountType': 'business',
       'selectedBusinessId': selectedBusinessId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -1155,6 +1172,13 @@ class _ManageBusinessesScreenState
       if (pendingSelectId != null) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
+          // Optimistic override, same as MainShellPage._switchFinanceContext —
+          // re-scopes every screen to the new business immediately instead of
+          // waiting on the defaultContext write to round-trip through
+          // Firestore (persistence cache is disabled app-wide).
+          ref.read(pendingBusinessIdOverrideProvider.notifier).state =
+              pendingSelectId;
+          await RoleCacheService.saveBusinessId(user.uid, pendingSelectId!);
           await _persistSelectedBusiness(
             userId: user.uid,
             selectedBusinessId: pendingSelectId,
@@ -1481,13 +1505,15 @@ class _ManageBusinessesScreenState
         final selectedBusinessId = _selectedBusinessId(profile);
         final isLoading =
             snapshot.connectionState != ConnectionState.done && profile == null;
+        // The active business's own plan (each business carries an
+        // independent plan now — see PlanService).
         final livePlanTier = ref.watch(
           planStatusProvider.select((a) => a.valueOrNull?.tier),
         );
         final tier =
             livePlanTier ?? PlanTierX.fromString(profile?['plan'] as String?);
-        final defs = ref.watch(planDefinitionsProvider).valueOrNull;
-        final maxBusinesses = _businessLimitFor(tier, defs);
+        final canAddMoreBusinesses =
+            businesses.isEmpty || _hasAnyPaidBusiness(businesses);
         final isOnline = ref.watch(isOnlineProvider);
 
         return Scaffold(
@@ -1515,7 +1541,7 @@ class _ManageBusinessesScreenState
                     children: [
                       _BusinessDarkHeader(
                         businessCount: businesses.length,
-                        maxBusinesses: maxBusinesses,
+                        canAddMoreBusinesses: canAddMoreBusinesses,
                         tier: tier,
                         searchCtrl: _searchCtrl,
                         searchExpanded: _searchExpanded,
@@ -1562,7 +1588,7 @@ class _ManageBusinessesScreenState
 
 class _BusinessDarkHeader extends StatelessWidget {
   final int businessCount;
-  final int maxBusinesses;
+  final bool canAddMoreBusinesses;
   final PlanTier tier;
   final TextEditingController searchCtrl;
   final bool searchExpanded;
@@ -1570,7 +1596,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   const _BusinessDarkHeader({
     required this.businessCount,
-    required this.maxBusinesses,
+    required this.canAddMoreBusinesses,
     required this.tier,
     required this.searchCtrl,
     required this.searchExpanded,
@@ -1594,7 +1620,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   List<HeaderPillStat> _stats() {
     final isStarter = tier == PlanTier.starter;
-    final atLimit = maxBusinesses != -1 && businessCount >= maxBusinesses;
+    final atLimit = !canAddMoreBusinesses;
     return [
       HeaderPillStat(
         label: _tr('Businesses', 'Biashara'),
@@ -1608,7 +1634,7 @@ class _BusinessDarkHeader extends StatelessWidget {
       ),
       HeaderPillStat(
         label: _tr('Limit', 'Kikomo'),
-        value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
+        value: canAddMoreBusinesses ? '∞' : '1',
         color: atLimit ? AppColors.warning : AppColors.success,
       ),
     ];

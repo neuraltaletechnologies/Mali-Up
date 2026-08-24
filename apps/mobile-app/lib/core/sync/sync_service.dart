@@ -83,6 +83,15 @@ class SyncService extends ChangeNotifier {
   DateTime? _lastSyncAt;
   bool _isSyncing = false;
 
+  /// Set once [dispose] runs. [start] awaits several things (queue recovery,
+  /// connectivity check) before it finishes wiring itself up; if the owning
+  /// provider is rebuilt (e.g. a business switch) and disposes this instance
+  /// while one of those awaits is still pending, the coroutine must not touch
+  /// state or notifyListeners() afterward, and must not go on to subscribe to
+  /// connectivity changes — an orphan subscription would keep calling
+  /// syncNow() against the stale businessId/uid forever.
+  bool _disposed = false;
+
   /// Total records pulled down from Firestore during the most recent
   /// [syncNow] cycle — 0 means the pull ran but found nothing new. Read this
   /// right after awaiting [syncNow] to tell a caller (e.g. a silent
@@ -136,6 +145,7 @@ class SyncService extends ChangeNotifier {
   Future<void> start() async {
     // Recover any entries that were left in `processing` by a prior crash.
     await _queue.recoverStaleProcessing();
+    if (_disposed) return;
 
     // One-time self-heal: debt conflicts used to be a dead end (flagged and
     // never retried) before conflict resolution existed for debts. Give any
@@ -143,9 +153,11 @@ class SyncService extends ChangeNotifier {
     // be resolved — safe for debts specifically (last-write-wins), unlike
     // invoices which stay flagged for manual review on purpose.
     await _queue.requeueConflicts('debt');
+    if (_disposed) return;
 
     // Sync on launch if we have connectivity.
     final initial = await Connectivity().checkConnectivity();
+    if (_disposed) return;
     final isOnline = initial.any((r) => r != ConnectivityResult.none);
     if (isOnline) {
       unawaited(syncNow());
@@ -153,11 +165,13 @@ class SyncService extends ChangeNotifier {
       _setState(SyncState.offline);
       await _markOffline();
     }
+    if (_disposed) return;
 
     // Trigger a sync cycle each time connectivity returns.
     _connectivitySub = Connectivity().onConnectivityChanged.listen((
       results,
     ) async {
+      if (_disposed) return;
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online) {
         await _settings.updateLastOnlineAt(
@@ -190,6 +204,7 @@ class SyncService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     stop();
     super.dispose();
   }
@@ -198,7 +213,7 @@ class SyncService extends ChangeNotifier {
 
   /// Trigger a full push cycle. Safe to call redundantly.
   Future<void> syncNow() async {
-    if (_isSyncing) return;
+    if (_disposed || _isSyncing) return;
     _isSyncing = true;
     _setState(SyncState.syncing);
 
@@ -899,6 +914,7 @@ class SyncService extends ChangeNotifier {
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   void _setState(SyncState newState) {
+    if (_disposed) return;
     if (_state != newState) {
       _state = newState;
       notifyListeners();
