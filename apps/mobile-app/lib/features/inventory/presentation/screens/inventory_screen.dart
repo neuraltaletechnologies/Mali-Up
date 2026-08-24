@@ -4897,48 +4897,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ),
                       const SizedBox(height: 14),
 
-                      if (_type == ProductType.service) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.tealAccent.withValues(alpha: 0.07),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.tealAccent.withValues(
-                                alpha: 0.25,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                size: 18,
-                                color: AppColors.tealAccent,
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  _tr(
-                                    'Choose how this service is measured. In Sales, enter the units used by the customer; service stock is never reduced.',
-                                    'Chagua jinsi huduma inavyopimwa. Kwenye Mauzo, ingiza vitengo alivyotumia mteja; stoo ya huduma haitapunguzwa.',
-                                  ),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    height: 1.35,
-                                    color: AppColors.tealAccent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
+                    
                       // SKU / Barcode — not needed for services or returns
                       if (!isReturn && _type != ProductType.service) ...[
                         _FormLabel(

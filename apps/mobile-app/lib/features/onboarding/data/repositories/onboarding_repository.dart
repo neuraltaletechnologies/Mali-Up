@@ -227,6 +227,11 @@ class OnboardingRepository {
     String inviteId = '',
     String realEmail = '',
   }) async {
+    // The picker on PhoneEntryScreen hands this in as `{dialCode}{local}`
+    // (e.g. "+254712345678") — canonicalize to the same digits-only,
+    // country-code-embedded form saveUser() writes for owners, so a team
+    // member's phone isn't stored in a different shape than everyone else's.
+    final canonicalPhone = PhoneNumberUtils.canonical(phone);
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
 
@@ -256,7 +261,7 @@ class OnboardingRepository {
     // 1. User profile — memberId lets currentMemberProvider locate the
     //    team_member doc directly without a collection-group query.
     batch.set(_db.collection('users').doc(uid), {
-      'phone': phone,
+      'phone': canonicalPhone,
       'name': name,
       'firstName': firstName,
       'lastName': lastName,
@@ -275,7 +280,7 @@ class OnboardingRepository {
       'name': name,
       'firstName': firstName,
       'lastName': lastName,
-      'phone': phone,
+      'phone': canonicalPhone,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -336,7 +341,7 @@ class OnboardingRepository {
           'workerUid': uid,
           'memberId': memberId,
           'permissions': existingPermissions,
-          'phone': phone,
+          'phone': canonicalPhone,
           'status': 'active',
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),

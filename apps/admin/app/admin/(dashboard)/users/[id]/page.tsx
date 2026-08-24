@@ -15,6 +15,7 @@ import { fetchUser, patchUser, editUser, deleteUser, assignPlan, fetchUserActivi
 import type { ActivityEntry } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
+import { COUNTRIES, splitPhone, buildPhone, type Country } from '@/lib/phone'
 import { ArrowLeft, Ban, RotateCcw, AlertCircle, Pencil, X, Loader2, Building2,
   ShoppingCart, FileText, CreditCard, RefreshCw, XCircle, Trash2, Users, UserPlus,
   UserMinus, UserCheck, Tag, Bell, Settings, Shield, TrendingUp, LogIn } from 'lucide-react'
@@ -45,7 +46,9 @@ function EditUserDrawer({
   onSaved: () => void
 }) {
   const [name,  setName]  = useState(user.name)
-  const [phone, setPhone] = useState(user.phone.replace(/^\+255/, ''))
+  const initialPhone = splitPhone(user.phone)
+  const [country, setCountry] = useState<Country>(initialPhone.country)
+  const [phone, setPhone] = useState(initialPhone.local)
   const [email,  setEmail]  = useState(user.email ?? '')
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState<string | null>(null)
@@ -60,7 +63,9 @@ function EditUserDrawer({
   useEffect(() => {
     if (!open) return
     setName(user.name)
-    setPhone(user.phone.replace(/^\+255/, ''))
+    const split = splitPhone(user.phone)
+    setCountry(split.country)
+    setPhone(split.local)
     setEmail(user.email ?? '')
     setErr(null)
     const first = businesses[0]
@@ -87,7 +92,7 @@ function EditUserDrawer({
     try {
       await editUser(user.id, {
         name:  name.trim(),
-        phone: phone.trim() || undefined,
+        phone: phone.trim() ? buildPhone(country, phone) : undefined,
         email: email.trim() || undefined,
       })
       if (planBizId && planChanged) {
@@ -115,7 +120,7 @@ function EditUserDrawer({
         </div>
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
           <DrawerField label="Full Name" value={name} onChange={setName} placeholder="e.g. Amina Juma" required />
-          <DrawerField label="Phone (TZ digits)" value={phone} onChange={setPhone} placeholder="712345678" type="tel" />
+          <PhoneField country={country} onCountryChange={setCountry} local={phone} onLocalChange={setPhone} />
           <DrawerField label="Email (optional)" value={email} onChange={setEmail} placeholder="user@example.com" type="email" />
 
           {/* ── Plan change ── */}
@@ -199,6 +204,43 @@ function EditUserDrawer({
         </form>
       </div>
     </div>
+  )
+}
+
+function PhoneField({
+  country, onCountryChange, local, onLocalChange,
+}: {
+  country: Country; onCountryChange: (c: Country) => void
+  local: string; onLocalChange: (v: string) => void
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] text-slate-400">Phone</span>
+      <div className="flex gap-2">
+        <select
+          value={`${country.iso}:${country.dial}`}
+          onChange={(e) => {
+            const [iso, dial] = e.target.value.split(':')
+            const match = COUNTRIES.find((c) => c.iso === iso && c.dial === dial)
+            if (match) onCountryChange(match)
+          }}
+          className="w-[104px] shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-2 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+        >
+          {COUNTRIES.map((c) => (
+            <option key={`${c.iso}:${c.dial}`} value={`${c.iso}:${c.dial}`} className="bg-[#0D1B3E]">
+              {c.flag} {c.dial}
+            </option>
+          ))}
+        </select>
+        <input
+          type="tel"
+          value={local}
+          onChange={(e) => onLocalChange(e.target.value)}
+          placeholder="712345678"
+          className="flex-1 min-w-0 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+        />
+      </div>
+    </label>
   )
 }
 
