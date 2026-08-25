@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { withCache, invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 function toStr(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
@@ -31,58 +33,27 @@ export async function GET(request: Request) {
   const businessType = searchParams.get('businessType')
 
   try {
-    const [catSnap, prodSnap] = await Promise.all([
-      adminFirestore.collection('master_categories').get(),
-      adminFirestore.collection('master_products').limit(2000).get(),
-    ])
+    // master_categories (full scan) + master_products (up to 2000) is the
+    // heaviest read pair in this app and both collections only change
+    // through the routes below — cache the unfiltered pair and apply the
+    // businessType filter per-request on the cached result.
+    const { categories: allCategories, products: allProducts } = await withCache(
+      CACHE_KEYS.catalog,
+      5 * 60_000,
+      fetchCatalog,
+    )
 
-    // ── Map categories ──────────────────────────────────────────────────────
-    let categories = catSnap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        id:             doc.id,
-        businessTypes:  toBusinessTypes(d),
-        categoryName:   toStr(d.categoryName),
-        categoryNameSw: toStr(d.categoryNameSw),
-        categorySlug:   toStr(d.categorySlug ?? doc.id),
-        icon:           toStr(d.icon),
-        displayOrder:   toNum(d.displayOrder),
-        productCount:   0,
-      }
-    })
-
-    if (businessType) {
-      categories = categories.filter((c) => c.businessTypes.includes(businessType))
-    }
+    // ── Filter + sort categories ────────────────────────────────────────────
+    let categories = businessType
+      ? allCategories.filter((c) => c.businessTypes.includes(businessType))
+      : allCategories.map((c) => ({ ...c }))
     categories.sort((a, b) => a.displayOrder - b.displayOrder || a.categoryName.localeCompare(b.categoryName))
 
-    // ── Map products ────────────────────────────────────────────────────────
-    let products = prodSnap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        id:                   doc.id,
-        businessTypes:        toBusinessTypes(d),
-        categorySlug:         toStr(d.categorySlug ?? d.categoryId),
-        productName:          toStr(d.productName),
-        productNameSw:        toStr(d.productNameSw),
-        productSlug:          toStr(d.productSlug ?? doc.id),
-        genericName:          toStr(d.genericName),
-        brandNames:           toStrArr(d.brandNames),
-        unit:                 toStr(d.unit ?? d.defaultUnit, 'Piece'),
-        unitAlternatives:     toStrArr(d.unitAlternatives),
-        commonBarcodes:       toStrArr(d.commonBarcodes),
-        searchKeywords:       toStrArr(d.searchKeywords ?? d.searchableKeywords),
-        prescriptionRequired: toBool(d.prescriptionRequired),
-        coldStorage:          toBool(d.coldStorage),
-        tags:                 toStrArr(d.tags),
-        categoryName:         toStr(d.categoryName),
-      }
-    })
-
-    if (businessType) {
-      products = products.filter((p) => p.businessTypes.includes(businessType))
-    }
-    products.sort((a, b) => a.productName.localeCompare(b.productName))
+    // ── Filter + sort products ──────────────────────────────────────────────
+    let products = businessType
+      ? allProducts.filter((p) => p.businessTypes.includes(businessType))
+      : allProducts
+    products = [...products].sort((a, b) => a.productName.localeCompare(b.productName))
 
     // ── Fill productCount per category slug ─────────────────────────────────
     const countBySlug: Record<string, number> = {}
@@ -107,6 +78,57 @@ export async function GET(request: Request) {
   } catch (err) {
     console.error('[GET /api/admin/catalog]', err)
     return NextResponse.json({ error: 'Failed to fetch catalog' }, { status: 500 })
+  }
+}
+
+type CatalogCategory = ReturnType<typeof mapCategory>
+type CatalogProduct = ReturnType<typeof mapProduct>
+
+function mapCategory(doc: { id: string; data: () => Record<string, unknown> }) {
+  const d = doc.data()
+  return {
+    id:             doc.id,
+    businessTypes:  toBusinessTypes(d),
+    categoryName:   toStr(d.categoryName),
+    categoryNameSw: toStr(d.categoryNameSw),
+    categorySlug:   toStr(d.categorySlug ?? doc.id),
+    icon:           toStr(d.icon),
+    displayOrder:   toNum(d.displayOrder),
+    productCount:   0,
+  }
+}
+
+function mapProduct(doc: { id: string; data: () => Record<string, unknown> }) {
+  const d = doc.data()
+  return {
+    id:                   doc.id,
+    businessTypes:        toBusinessTypes(d),
+    categorySlug:         toStr(d.categorySlug ?? d.categoryId),
+    productName:          toStr(d.productName),
+    productNameSw:        toStr(d.productNameSw),
+    productSlug:          toStr(d.productSlug ?? doc.id),
+    genericName:          toStr(d.genericName),
+    brandNames:           toStrArr(d.brandNames),
+    unit:                 toStr(d.unit ?? d.defaultUnit, 'Piece'),
+    unitAlternatives:     toStrArr(d.unitAlternatives),
+    commonBarcodes:       toStrArr(d.commonBarcodes),
+    searchKeywords:       toStrArr(d.searchKeywords ?? d.searchableKeywords),
+    prescriptionRequired: toBool(d.prescriptionRequired),
+    coldStorage:          toBool(d.coldStorage),
+    tags:                 toStrArr(d.tags),
+    categoryName:         toStr(d.categoryName),
+  }
+}
+
+async function fetchCatalog(): Promise<{ categories: CatalogCategory[]; products: CatalogProduct[] }> {
+  const [catSnap, prodSnap] = await Promise.all([
+    adminFirestore.collection('master_categories').get(),
+    adminFirestore.collection('master_products').limit(2000).get(),
+  ])
+
+  return {
+    categories: catSnap.docs.map(mapCategory),
+    products: prodSnap.docs.map(mapProduct),
   }
 }
 
@@ -146,6 +168,7 @@ export async function POST(request: Request) {
       createdAt:            new Date(),
       updatedAt:            new Date(),
     })
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'create_catalog_product',

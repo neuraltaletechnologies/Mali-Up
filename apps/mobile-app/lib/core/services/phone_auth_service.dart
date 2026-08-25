@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -89,6 +90,26 @@ class PhoneAuthService {
       if (userSnapshot.docs.isEmpty && !forceResending) {
         // For registration, we can proceed
         // For login, this would be an error
+      }
+
+      // Server-side throttle — the resend countdown below is UI only and
+      // protects nothing against a script calling verifyPhoneNumber directly.
+      // This call decides, via a Firestore-backed counter only the Cloud
+      // Function can touch, whether the SMS actually gets sent (see
+      // functions/src/otp_rate_limit.ts). Every SMS costs money, so this is
+      // the real guard, not the countdown.
+      try {
+        await FirebaseFunctions.instance
+            .httpsCallable('requestOtpAllowance')
+            .call<Map<String, dynamic>>({'phone': normalizedPhone});
+      } on FirebaseFunctionsException catch (e) {
+        if (e.code == 'resource-exhausted') {
+          return AuthResult.tooManyRequests;
+        }
+        // Any other failure (offline function, transient error) must not
+        // block a legitimate user from signing in — fail open on the gate
+        // itself and let Firebase's own phone-auth throttling be the
+        // fallback backstop.
       }
 
       await _auth.verifyPhoneNumber(

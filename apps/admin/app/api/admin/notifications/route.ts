@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
+import { withCache } from '@/lib/api-cache'
 import type { AdminNotification } from '@/types'
 
 function toIso(value: unknown): string {
@@ -23,7 +24,20 @@ export async function GET() {
   if (denied) return denied
 
   try {
-    const [planRequestsSnap, refundsSnap, submissionsSnap, ticketsSnap] = await Promise.all([
+    const { notifications, count } = await withCache('notifications', 10_000, fetchNotifications)
+    return NextResponse.json({ notifications, count })
+  } catch (err) {
+    console.error('[GET /api/admin/notifications]', err)
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
+  }
+}
+
+// The topbar bell polls this often — 4 collection scans per call otherwise —
+// and each source has its own page for anything that needs to be fresh to
+// the second, so a short TTL (not manual invalidation from every one of
+// those pages' write routes) is the right trade here.
+async function fetchNotifications(): Promise<{ notifications: AdminNotification[]; count: number }> {
+  const [planRequestsSnap, refundsSnap, submissionsSnap, ticketsSnap] = await Promise.all([
       adminFirestore.collection('plan_requests').orderBy('createdAt', 'desc').limit(50).get(),
       adminFirestore.collection('platform_refunds').orderBy('requestedAt', 'desc').limit(50).get(),
       adminFirestore.collection('catalog_community_submissions').orderBy('lastSeenAt', 'desc').limit(50).get(),
@@ -87,9 +101,5 @@ export async function GET() {
 
     notifications.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
 
-    return NextResponse.json({ notifications: notifications.slice(0, 50), count: notifications.length })
-  } catch (err) {
-    console.error('[GET /api/admin/notifications]', err)
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
-  }
+    return { notifications: notifications.slice(0, 50), count: notifications.length }
 }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Params = { id: string }
 
@@ -28,6 +30,7 @@ export async function PATCH(
     if (typeof body.rolloutPercent === 'number') update.rolloutPercent = body.rolloutPercent
 
     await ref.update(update)
+    invalidateCache(CACHE_KEYS.features)
 
     await writeAudit({
       action: 'update_feature_flag',

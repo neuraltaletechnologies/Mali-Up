@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -70,6 +72,30 @@ Future<void> _startApp() async {
   // persistence cache is disabled to prevent a dual-cache inconsistency.
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
+  );
+
+  // Attaches an attestation token (Play Integrity on Android, App Attest /
+  // DeviceCheck on iOS) to every Firestore and callable-Functions request,
+  // proving the call comes from a genuine build of this app rather than a
+  // script hitting our endpoints directly. Debug builds use the debug
+  // provider so local development keeps working — see
+  // APP_CHECK_SETUP.md for registering the printed debug token in the
+  // Firebase console.
+  //
+  // Activating App Check does NOT enforce it yet — enforcement (Console →
+  // App Check → APIs → Enforce) is a separate, deliberate switch to flip
+  // only once this build has rolled out to the great majority of installs.
+  // Flipping it earlier locks out every user still on an older app version
+  // that never attaches a token.
+  unawaited(
+    FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    ),
   );
 
   // Fire-and-forget: checks this build against the remote version gate.

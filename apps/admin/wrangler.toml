@@ -25,6 +25,16 @@ head_sampling_rate = 1
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Rate-limit counters for /api/admin/* (lib/rate-limit.ts) and the NextAuth
+# login route (lib/auth.ts). Namespace "mali-up-rate-limit" was created via
+# `wrangler kv namespace create` against this same Cloudflare account. Without
+# a bound namespace, lib/rate-limit.ts falls back to an in-memory per-isolate
+# counter (fine for local `wrangler dev`, not durable in production across
+# multiple Worker instances).
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "233412d3ab2749dab3f50d8f495076a0"
+
 [vars]
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 

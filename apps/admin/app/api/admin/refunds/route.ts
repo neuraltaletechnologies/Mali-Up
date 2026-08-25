@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
+import { withCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 import type { RefundRequest } from '@/types'
 
 function toIso(value: unknown): string {
@@ -18,31 +20,34 @@ export async function GET() {
   if (denied) return denied
 
   try {
-    const snap = await adminFirestore
-      .collection('platform_refunds')
-      .orderBy('requestedAt', 'desc')
-      .get()
-
-    const refunds: RefundRequest[] = snap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        id:           doc.id,
-        businessId:   (d.businessId as string)   || '',
-        businessName: (d.businessName as string) || 'Unknown Business',
-        tier:         (d.tier as 'growth' | 'business') || 'growth',
-        principal:    (d.principal as number)    || 0,
-        monthsHeld:   (d.monthsHeld as number)   || 0,
-        monthlyFee:   (d.monthlyFee as number)   || 0,
-        requestedAt:  toIso(d.requestedAt),
-        status:       (d.status as RefundRequest['status']) || 'requested',
-        processedAt:  d.processedAt ? toIso(d.processedAt) : undefined,
-        completedAt:  d.completedAt ? toIso(d.completedAt) : undefined,
-      }
-    })
-
+    const refunds = await withCache(CACHE_KEYS.refunds, 20_000, fetchRefunds)
     return NextResponse.json({ refunds })
   } catch (err) {
     console.error('[GET /api/admin/refunds]', err)
     return NextResponse.json({ error: 'Failed to fetch refunds' }, { status: 500 })
   }
+}
+
+async function fetchRefunds(): Promise<RefundRequest[]> {
+  const snap = await adminFirestore
+    .collection('platform_refunds')
+    .orderBy('requestedAt', 'desc')
+    .get()
+
+  return snap.docs.map((doc) => {
+    const d = doc.data()
+    return {
+      id:           doc.id,
+      businessId:   (d.businessId as string)   || '',
+      businessName: (d.businessName as string) || 'Unknown Business',
+      tier:         (d.tier as 'growth' | 'business') || 'growth',
+      principal:    (d.principal as number)    || 0,
+      monthsHeld:   (d.monthsHeld as number)   || 0,
+      monthlyFee:   (d.monthlyFee as number)   || 0,
+      requestedAt:  toIso(d.requestedAt),
+      status:       (d.status as RefundRequest['status']) || 'requested',
+      processedAt:  d.processedAt ? toIso(d.processedAt) : undefined,
+      completedAt:  d.completedAt ? toIso(d.completedAt) : undefined,
+    }
+  })
 }

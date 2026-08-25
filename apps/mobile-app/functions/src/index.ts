@@ -1,11 +1,33 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import {GoogleAuth} from "google-auth-library";
+import {enforceRateLimit} from "./rate_limit";
 
 admin.initializeApp();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// App Check
+//
+// main.dart now activates FirebaseAppCheck on every client build (Play
+// Integrity on Android, App Attest/DeviceCheck on iOS), which makes
+// cloud_functions auto-attach an App Check token to every callable request
+// below — no per-function code needed for that half.
+//
+// The other half — actually REJECTING calls that arrive without a valid
+// token — is a deliberate two-step rollout, not done yet:
+//   1. Ship the App-Check-enabled client build and let it reach the large
+//      majority of installs (check release adoption in the Play/App Store
+//      console or Firebase Analytics active-version breakdown).
+//   2. Only then add `enforceAppCheck: true` to the onCall() options below
+//      (and in clickpesa.ts / otp_rate_limit.ts) AND flip Firestore's own
+//      enforcement in Console → App Check → APIs → Cloud Firestore → Enforce.
+// Doing step 2 before step 1 locks out every user still on an older app
+// version, since their build never sends a token at all.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export {initiateClickPesaPayment, verifyClickPesaPayment, clickpesaWebhook} from "./clickpesa";
 export {sendAdminBroadcast} from "./notifications";
+export {requestOtpAllowance} from "./otp_rate_limit";
 
 // Must match `applicationId` in android/app/build.gradle.kts.
 const PACKAGE_NAME = "com.neuraltale.maliup";
@@ -99,6 +121,16 @@ export const checkDeviceIntegrity = onCall<CheckDeviceIntegrityRequest>(
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
 
+    // This calls out to the Play Integrity API on every invocation — cap how
+    // often one account can trigger that, since it's meant to run once per
+    // sensitive action/app-open, not in a loop.
+    await enforceRateLimit({
+      collection: "device_integrity_rate_limits",
+      key: request.auth.uid,
+      windowMs: 60 * 60 * 1000,
+      max: 20,
+    });
+
     const {integrityToken, nonce} = request.data ?? ({} as CheckDeviceIntegrityRequest);
     if (!integrityToken || typeof integrityToken !== "string") {
       throw new HttpsError("invalid-argument", "integrityToken is required.");
@@ -172,6 +204,17 @@ export const deleteAccountData = onCall<never>(
     }
 
     const uid = request.auth.uid;
+
+    // Cheap insurance against a retry storm hammering this — deletion itself
+    // is idempotent (see the doc above), but each retry still walks every
+    // collection below.
+    await enforceRateLimit({
+      collection: "delete_account_rate_limits",
+      key: uid,
+      windowMs: 60 * 60 * 1000,
+      max: 3,
+    });
+
     const db = admin.firestore();
 
     try {

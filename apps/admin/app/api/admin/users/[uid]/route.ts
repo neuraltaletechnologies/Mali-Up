@@ -6,6 +6,8 @@ import { mapUser, mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
 import { deleteUserCascade } from '@/lib/hard-delete'
 import { canonicalPhone, toE164 } from '@/lib/phone'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 export async function GET(
   _request: Request,
@@ -66,6 +68,7 @@ export async function PATCH(
     const userName = (userDoc.data()?.displayName as string) || (userDoc.data()?.name as string) || uid
 
     await userRef.update({ isActive: body.isActive, updatedAt: new Date() })
+    invalidateCache(CACHE_KEYS.users(200))
 
     await writeAudit({
       action: body.isActive ? 'unsuspend_user' : 'suspend_user',
@@ -136,6 +139,7 @@ export async function PUT(
         await adminAuth.updateUser(uid, authUpdate)
       }
     } catch { /* auth update is best-effort */ }
+    invalidateCache(CACHE_KEYS.users(200))
 
     const before: Record<string, unknown> = {}
     const after:  Record<string, unknown> = {}
@@ -181,6 +185,7 @@ export async function DELETE(
     const userName = (before.displayName as string) || (before.name as string) || uid
 
     const { deletedBusinessIds } = await deleteUserCascade(uid)
+    invalidateCache(CACHE_KEYS.users(200))
 
     await writeAudit({
       action: 'delete_user',

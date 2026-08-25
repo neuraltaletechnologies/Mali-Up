@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Params = { id: string }
 
@@ -22,6 +24,7 @@ export async function PATCH(
 
     const before = doc.data()!
     await ref.update({ ...body, updatedAt: new Date() })
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'update_catalog_product',
@@ -57,6 +60,7 @@ export async function DELETE(
 
     const name = (doc.data()!.productName as string) || id
     await ref.delete()
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'delete_product',

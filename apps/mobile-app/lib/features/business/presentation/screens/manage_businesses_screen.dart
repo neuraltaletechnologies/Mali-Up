@@ -1186,7 +1186,9 @@ class _ManageBusinessesScreenState
         }
       }
       if (!mounted) return;
-      setState(() => _profileFuture = _loadProfile());
+      setState(() {
+        _profileFuture = _loadProfile();
+      });
       AppNotification.success(
         context,
         isEditing

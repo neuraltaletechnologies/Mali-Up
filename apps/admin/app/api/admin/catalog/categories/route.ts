@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 function toStr(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
       createdAt:      new Date(),
       updatedAt:      new Date(),
     })
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'create_category',

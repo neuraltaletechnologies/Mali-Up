@@ -658,6 +658,44 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // OTP RATE LIMIT COUNTERS  (functions/src/otp_rate_limit.ts)
+    // Written only by requestOtpAllowance via the Admin SDK, which bypasses
+    // these rules entirely. Explicit deny here (on top of the default-deny
+    // fallback below) so a client can never read its own counter to learn
+    // how close it is to the limit, or write to reset it.
+    // =========================================================================
+    match /otp_rate_limits/{phoneHash} {
+      allow read, write: if false;
+    }
+    match /otp_rate_limits_ip/{ipHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // OTHER RATE LIMIT COUNTERS  (functions/src/rate_limit.ts)
+    // Written only via the Admin SDK inside a Firestore transaction, which
+    // bypasses these rules entirely. Same reasoning as the OTP counters above.
+    // =========================================================================
+    match /device_integrity_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /delete_account_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_initiate_rate_limits_uid/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_initiate_rate_limits_phone/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_verify_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_webhook_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
     // DEFAULT DENY
     // =========================================================================
     match /{document=**} {

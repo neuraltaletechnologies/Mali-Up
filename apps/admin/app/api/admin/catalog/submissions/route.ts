@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
+import { withCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 import type { CommunitySubmission } from '@/types'
 
 function toIso(value: unknown): string {
@@ -21,14 +23,27 @@ export async function GET(request: Request) {
   const statusFilter = searchParams.get('status') // optional: pending|approved|rejected|pushed
 
   try {
-    // Fetch all, sort + filter in memory to avoid composite index requirement
-    const snap = await adminFirestore
-      .collection('catalog_community_submissions')
-      .orderBy('submissionCount', 'desc')
-      .limit(500)
-      .get()
+    const submissions = await withCache(CACHE_KEYS.catalogSubmissions, 20_000, fetchSubmissions)
+    const filtered = statusFilter
+      ? submissions.filter((s) => s.status === statusFilter)
+      : submissions
 
-    const submissions: CommunitySubmission[] = snap.docs.map((doc) => {
+    return NextResponse.json({ submissions: filtered })
+  } catch (err) {
+    console.error('[GET /api/admin/catalog/submissions]', err)
+    return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 })
+  }
+}
+
+async function fetchSubmissions(): Promise<CommunitySubmission[]> {
+  // Fetch all, sort + filter in memory to avoid composite index requirement
+  const snap = await adminFirestore
+    .collection('catalog_community_submissions')
+    .orderBy('submissionCount', 'desc')
+    .limit(500)
+    .get()
+
+  return snap.docs.map((doc) => {
       const d = doc.data()
       return {
         id:                    doc.id,
@@ -52,14 +67,4 @@ export async function GET(request: Request) {
         pushedAt:              toIso(d.pushedAt),
       }
     })
-
-    const filtered = statusFilter
-      ? submissions.filter((s) => s.status === statusFilter)
-      : submissions
-
-    return NextResponse.json({ submissions: filtered })
-  } catch (err) {
-    console.error('[GET /api/admin/catalog/submissions]', err)
-    return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 })
-  }
 }

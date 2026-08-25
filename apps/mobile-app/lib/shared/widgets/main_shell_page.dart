@@ -80,6 +80,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (mounted) setState(() {});
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+    // A business was just added/edited elsewhere (Manage Businesses) — the
+    // nav bar's business pill/switcher holds its own _profileFuture, so it
+    // needs its own nudge to refetch or the new business won't appear (or
+    // become selectable) until the shell itself is torn down and rebuilt.
+    // Mirrors DashboardScreen's listener on the same notifier.
+    BusinessProfileService.updatedNotifier.addListener(_onBusinessProfileUpdated);
     _loadNavSlotOverrides();
     _liveActivity.initialize();
     // The version-gate fetch kicked off in main.dart may still be in flight
@@ -97,6 +103,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
+    BusinessProfileService.updatedNotifier.removeListener(
+      _onBusinessProfileUpdated,
+    );
     VersionGateService.statusNotifier.removeListener(_versionGateListener);
     _removeNavPickOverlay();
     _navPickHighlightIndex.dispose();
@@ -189,6 +198,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       _currentUser = FirebaseAuth.instance.currentUser;
       _profileFuture = _fetchUserProfile(_currentUser);
     });
+  }
+
+  /// A business was just added/edited elsewhere (e.g. Manage Businesses) —
+  /// refetch so the nav bar's business pill/switcher list picks up the new
+  /// business (and its just-persisted selectedBusinessId) right away.
+  void _onBusinessProfileUpdated() {
+    if (!mounted) return;
+    _refreshProfile();
   }
 
   List<Map<String, dynamic>> _businessesFromProfile(
@@ -324,6 +341,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      // DashboardScreen's Hero card (business name/logo/plan) is fetched
+      // through its own 24h-TTL-cached profile fetch, not through
+      // currentBusinessIdProvider — so without this it keeps showing the
+      // previous business until the cache happens to expire. Both
+      // DashboardScreen and this page already listen for this notifier (to
+      // pick up edits made in Manage Businesses); reuse it here so a switch
+      // forces the same immediate refetch.
+      BusinessProfileService.notifyUpdated();
+
       // No manual pre-pull here anymore: syncServiceProvider already
       // watches currentBusinessIdProvider and auto-starts a fresh
       // SyncService (which itself calls syncNow() on start) the moment the
@@ -368,6 +394,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   }
 
   bool _switchingDialogOpen = false;
+  // Captured from the dialog's own builder so it can be dismissed without
+  // going through this State's `context`/`mounted`. If something elsewhere
+  // in the switch (e.g. a router redirect reacting to the RBAC reload that
+  // follows a business switch) unmounts MainShellPage while the Firestore
+  // write is still in flight, `Navigator.of(context, ...)` would no longer
+  // be safe to call and the old `if (!mounted) return;` guard silently
+  // skipped the pop — leaving the "Switching to X…" dialog stuck on screen
+  // forever, since it lives on the root Navigator, independent of this
+  // page's own lifecycle. The dialog's NavigatorState stays valid as long
+  // as the dialog itself is still mounted, so use that instead.
+  NavigatorState? _switchingDialogNavigator;
 
   void _showSwitchingBusinessDialog(String? businessName) {
     if (!mounted) return;
@@ -381,30 +418,36 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: Text(label)),
-            ],
+      builder: (dialogContext) {
+        _switchingDialogNavigator = Navigator.of(
+          dialogContext,
+          rootNavigator: true,
+        );
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: Text(label)),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   void _dismissSwitchingBusinessDialog() {
     if (!_switchingDialogOpen) return;
     _switchingDialogOpen = false;
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop();
+    _switchingDialogNavigator?.pop();
+    _switchingDialogNavigator = null;
   }
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {

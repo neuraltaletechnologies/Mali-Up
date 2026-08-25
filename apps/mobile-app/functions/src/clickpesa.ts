@@ -2,6 +2,7 @@ import {onCall, onRequest, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import {enforceRateLimit} from "./rate_limit";
 
 /**
  * ClickPesa payment gateway integration for Mali Up plan upgrades, using
@@ -200,6 +201,27 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
     if (!businessId) {
       throw new HttpsError("invalid-argument", "businessId is required.");
     }
+
+    // Each call here pushes a real USSD prompt to a phone — the same
+    // real-money-adjacent cost concern as OTP sends (see otp_rate_limit.ts).
+    // Limit both by who's asking and by the phone being pushed to, so
+    // neither one account spamming many numbers nor many accounts spamming
+    // one number gets through unchecked.
+    await enforceRateLimit({
+      collection: "clickpesa_initiate_rate_limits_uid",
+      key: uid,
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      message: "Too many payment attempts. Please wait a few minutes and try again.",
+    });
+    await enforceRateLimit({
+      collection: "clickpesa_initiate_rate_limits_phone",
+      key: phoneNumber,
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      message: "Too many payment attempts for this phone number. Please wait a few minutes and try again.",
+    });
+
     // Plans are independent per business — verify the caller actually owns
     // the business they're paying to upgrade, so one account can never use
     // its own payment to activate a plan on a business it doesn't own.
@@ -473,6 +495,17 @@ export const verifyClickPesaPayment = onCall<VerifyPaymentRequest>(
     }
     const uid = request.auth.uid;
 
+    // MIN_RECHECK_INTERVAL_MS below already throttles the actual ClickPesa
+    // API call, but each invocation of this callable still costs a Firestore
+    // read regardless — cap how often one account can call it at all, so a
+    // runaway client polling loop can't turn into a large read bill.
+    await enforceRateLimit({
+      collection: "clickpesa_verify_rate_limits",
+      key: uid,
+      windowMs: 5 * 60 * 1000,
+      max: 30,
+    });
+
     const orderReference = request.data?.orderReference;
     if (!orderReference || typeof orderReference !== "string") {
       throw new HttpsError("invalid-argument", "orderReference is required.");
@@ -514,6 +547,19 @@ export const clickpesaWebhook = onRequest(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
   async (req, res) => {
     try {
+      // Generous per-IP budget — this endpoint is public, and ClickPesa's own
+      // retries plus a shared NAT for their infra both need headroom. Still
+      // worth a floor so a scanner hitting this URL directly can't turn into
+      // an unbounded stream of Firestore reads. Errors here (including this
+      // one) always fall through to the 200 response below — see the
+      // function doc for why that matters.
+      await enforceRateLimit({
+        collection: "clickpesa_webhook_rate_limits",
+        key: req.ip ?? "unknown",
+        windowMs: 60 * 1000,
+        max: 60,
+      });
+
       const body = req.body as
         | {data?: {orderReference?: string}; orderReference?: string}
         | undefined;
