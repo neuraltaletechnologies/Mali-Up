@@ -21,9 +21,12 @@ String _fmtPriceCompact(int v) => v == 0 ? _t('Free', 'Bure') : _fmtPrice(v);
 String _blurbFor(PlanTier tier, PlanLimits limits) {
   switch (tier) {
     case PlanTier.starter:
+      // maxUsers=1 on Starter means the owner only — phrased as "no team
+      // members" rather than "1 user" so it doesn't read as if the owner
+      // counts as a team member seat.
       return _t(
-        '${limits.monthlyInvoices} invoices/mo · 1 user',
-        'Ankara ${limits.monthlyInvoices}/mwezi · Mtumiaji 1',
+        '${limits.monthlyInvoices} invoices/mo · No team members',
+        'Ankara ${limits.monthlyInvoices}/mwezi · Hakuna wanachama wa timu',
       );
     case PlanTier.growth:
       return _t(

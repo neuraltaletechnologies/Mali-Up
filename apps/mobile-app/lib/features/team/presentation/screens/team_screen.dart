@@ -233,15 +233,24 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
           ref.read(teamMembersProvider).valueOrNull?.length ?? 0;
       // maxUsers counts total users including the owner, so additional
       // members allowed = maxUsers - 1 (Starter=1 means owner only).
-      if (currentCount >= maxUsers - 1) {
+      final additionalAllowed = maxUsers - 1;
+      if (currentCount >= additionalAllowed) {
         await showUpgradeSheet(
           ctx,
           currentStatus: plan,
           featureKey: PlanFeatureKey.teamMembers,
-          triggerReason: _tr(
-            'Your plan supports  $maxUsers user${maxUsers == 1 ? '' : 's'}.',
-            'Mpango wako unasaidia watumiaji $maxUsers.',
-          ),
+          // Phrased around team-member seats (owner excluded) rather than
+          // the raw maxUsers total, so it doesn't read as if the owner is
+          // "using up" one of the team member slots.
+          triggerReason: additionalAllowed <= 0
+              ? _tr(
+                  "Your plan doesn't include team members yet — it's just you as owner. Upgrade to invite your team.",
+                  'Mpango wako hauna nafasi za wanachama wa timu bado — ni wewe tu kama mmiliki. Boresha ili kualika timu yako.',
+                )
+              : _tr(
+                  'Your plan allows up to $additionalAllowed team member${additionalAllowed == 1 ? '' : 's'}, in addition to you as owner.',
+                  'Mpango wako unaruhusu hadi wanachama $additionalAllowed wa timu, mbali na wewe kama mmiliki.',
+                ),
         );
         return;
       }

@@ -75,3 +75,9 @@ android/key.properties
 # IDE credential files
 launch.json
 settings.json
+
+# functions/ is npm-managed (Firebase Cloud Functions deploy expects
+# package-lock.json) — a stray pnpm-lock.yaml here makes Cloud Build's
+# buildpack switch to pnpm mode and fail deploys with a missing
+# @google-cloud/functions-framework dependency. Never commit one.
+functions/pnpm-lock.yaml
