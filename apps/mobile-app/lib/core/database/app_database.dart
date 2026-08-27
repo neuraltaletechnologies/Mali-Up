@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   /// Removes account and business data cached on this device.
   ///
@@ -259,6 +259,17 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               "ALTER TABLE invoices ADD COLUMN credit_note_number TEXT NOT NULL DEFAULT ''",
+            );
+          }
+          if (from < 16) {
+            // Reusable custom roles (e.g. "Driver"): members assigned a saved
+            // role store its id + a denormalized name so the team list can
+            // label them without a lookup, including offline.
+            await customStatement(
+              "ALTER TABLE team_members ADD COLUMN custom_role_id TEXT NOT NULL DEFAULT ''",
+            );
+            await customStatement(
+              "ALTER TABLE team_members ADD COLUMN custom_role_name TEXT NOT NULL DEFAULT ''",
             );
           }
         },

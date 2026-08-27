@@ -328,6 +328,8 @@ export interface PlanDefinition {
   monthlyInvoices: number // -1 = unlimited
   maxBusinesses: number  // -1 = unlimited
   maxCustomers: number   // -1 = unlimited
+  maxProducts: number        // -1 = unlimited; total manually-created inventory items (excludes customer returns)
+  maxServiceProducts: number // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean

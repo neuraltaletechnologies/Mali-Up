@@ -13,13 +13,16 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../customer/domain/models/customer.dart';
 import '../../data/finance_providers.dart';
 import '../../data/payment_account_service.dart';
+import '../../domain/models/cash_account.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/expense_category.dart';
 import '../../domain/models/recurring_expense_template.dart';
@@ -34,7 +37,7 @@ import '../../../debt/domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-enum _ExpenseErrorField { amount, payment, general }
+enum _ExpenseErrorField { amount, payment, paidTo, general }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category meta (mirrors expense_list_screen)
@@ -69,9 +72,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  final _recipientCtrl = TextEditingController();
-  final _supplierPhoneCtrl = TextEditingController();
+  // Up-front payment on a credit purchase. '0' (or blank) means the whole
+  // expense becomes a payable; a smaller amount leaves the chosen payment
+  // account now and only the remainder is recorded as debt. Mirrors the
+  // add-product credit flow in inventory_screen.dart.
+  final _paidNowCtrl = TextEditingController(text: '0');
   final _scrollCtrl = ScrollController();
+
+  // Who the money was paid to. Doubles as the supplier/party for the payable
+  // when [_isCreditPurchase] is on — no separate supplier field needed.
+  Customer? _paidToCustomer;
 
   bool get _isEditing => widget.expenseToEdit != null;
 
@@ -90,13 +100,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           : PaymentMethodAccounts.accountIdForMethod(e.paymentMethod);
       _amountCtrl.text = e.amount;
       _noteCtrl.text = e.note;
-      _recipientCtrl.text = e.recipient;
+      final recipientName = e.recipient.trim();
+      if (recipientName.isNotEmpty) {
+        final customers =
+            ref.read(customerListProvider).valueOrNull ?? const <Customer>[];
+        Customer? match;
+        for (final c in customers) {
+          if (c.name.toLowerCase() == recipientName.toLowerCase()) {
+            match = c;
+            break;
+          }
+        }
+        _paidToCustomer =
+            match ?? Customer(id: '', name: recipientName, phone: '');
+      }
       _date = DateTime.tryParse(e.date) ?? DateTime.now();
       _receiptUrl = e.receiptUrl;
       _isRecurring = e.isRecurring;
       _frequency = e.recurrenceType.isNotEmpty ? e.recurrenceType : 'monthly';
     }
   }
+
+  double get _amountVal => double.tryParse(_amountCtrl.text.trim()) ?? 0;
+
+  /// Amount settled up-front on a credit purchase, as typed (raw, unclamped).
+  double get _paidNowVal =>
+      double.tryParse(_paidNowCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
 
   ExpenseCategory get _selectedCategory {
     final categories =
@@ -127,8 +156,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void dispose() {
     _amountCtrl.dispose();
     _noteCtrl.dispose();
-    _recipientCtrl.dispose();
-    _supplierPhoneCtrl.dispose();
+    _paidNowCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -261,36 +289,59 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    // Money paid out must leave a chosen, activated payment account —
+    final total = _amountVal;
+    // On a credit purchase only the "amount paid now" leaves an account; the
+    // rest becomes a payable. A normal expense pays the whole amount now.
+    final paidNow = _isCreditPurchase
+        ? _paidNowVal.clamp(0.0, total).toDouble()
+        : total;
+
+    // A credit purchase must name who is owed — that same contact becomes the
+    // party on the payable, so there is no separate supplier field.
+    if (_isCreditPurchase && _paidToCustomer == null) {
+      _showValidation(
+        _tr('Select who you paid / owe', 'Chagua uliyemlipa / unayemdai'),
+        _ExpenseErrorField.paidTo,
+      );
+      return;
+    }
+
+    // A payment account is only required when money actually leaves now —
     // PaymentAccountChips only lets an activated built-in or custom account
     // become selected, so a null selection here just means nothing was picked.
-    if (_selectedAccountId == null) {
+    if (paidNow > 0 && _selectedAccountId == null) {
       _showValidation(
         _tr('Select a payment account', 'Chagua akaunti ya malipo'),
         _ExpenseErrorField.payment,
       );
       return;
     }
-    final account = await ref
-        .read(cashRepositoryProvider)
-        .getAccountById(_selectedAccountId!);
-    if (account == null) {
-      _showValidation(
-        _tr(
-          'That payment account is no longer available. Choose another.',
-          'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
-        ),
-        _ExpenseErrorField.payment,
-      );
-      return;
+
+    CashAccount? account;
+    if (_selectedAccountId != null) {
+      account = await ref
+          .read(cashRepositoryProvider)
+          .getAccountById(_selectedAccountId!);
+      if (account == null && paidNow > 0) {
+        _showValidation(
+          _tr(
+            'That payment account is no longer available. Choose another.',
+            'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
+          ),
+          _ExpenseErrorField.payment,
+        );
+        return;
+      }
     }
-    final paymentMethodValue = switch (account.id) {
-      PaymentMethodAccounts.cashId => 'cash',
-      PaymentMethodAccounts.mpesaId => 'mpesa',
-      PaymentMethodAccounts.bankId => 'bank',
-      PaymentMethodAccounts.cardId => 'card',
-      _ => account.name,
-    };
+    final paymentMethodValue = account == null
+        ? 'credit'
+        : switch (account.id) {
+            PaymentMethodAccounts.cashId => 'cash',
+            PaymentMethodAccounts.mpesaId => 'mpesa',
+            PaymentMethodAccounts.bankId => 'bank',
+            PaymentMethodAccounts.cardId => 'card',
+            _ => account.name,
+          };
 
     setState(() => _saving = true);
 
@@ -331,12 +382,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         amount: amountStr,
         date: dateStr,
         note: _noteCtrl.text.trim(),
-        recipient: _recipientCtrl.text.trim(),
+        recipient: _paidToCustomer?.name.trim() ?? '',
         isRecurring: _isRecurring,
         recurrenceType: _isRecurring ? _frequency : '',
         receiptUrl: finalReceiptUrl,
         paymentMethod: paymentMethodValue,
-        paymentAccountId: account.id,
+        paymentAccountId: account?.id ?? '',
         createdBy: user.uid,
       );
 
@@ -350,61 +401,59 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       }
 
       // Money paid out leaves the chosen account — Drift balance moves
-      // instantly, the queued op replays on Firestore later. Credit
-      // purchases move no money now (a payable debt is recorded instead),
-      // and edits never re-withdraw for money already paid the first time.
-      if (!_isEditing && !_isCreditPurchase) {
+      // instantly, the queued op replays on Firestore later. On a credit
+      // purchase only the up-front portion leaves now (the remainder is a
+      // payable debt); edits never re-withdraw for money already paid.
+      final description = _paidToCustomer?.name.trim().isNotEmpty ?? false
+          ? _paidToCustomer!.name.trim()
+          : _selectedCategory.label;
+      if (!_isEditing && paidNow > 0 && account != null) {
         await moveMoneyForAccount(
           ref,
           accountId: account.id,
-          amount: double.tryParse(amountStr) ?? 0,
+          amount: paidNow,
           isDeposit: false,
-          description: _recipientCtrl.text.trim().isNotEmpty
-              ? _recipientCtrl.text.trim()
-              : _selectedCategory.label,
+          description: description,
           createdBy: user.uid,
         );
       }
 
-      // Auto-create payable debt when expense is not fully paid to supplier
-      if (!_isEditing && _isCreditPurchase) {
-        final amount = double.tryParse(amountStr) ?? 0;
-        if (amount > 0) {
-          final dueDate = DateTime.now().add(const Duration(days: 30));
-          final dueDateStr =
-              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
-          await ref
-              .read(debtRepositoryProvider)
-              .save(
-                Debt(
-                  id: '',
-                  partyName: _recipientCtrl.text.trim(),
-                  partyPhone: _supplierPhoneCtrl.text.trim(),
-                  type: 'payable',
-                  originalAmount: amount,
-                  dueDate: dueDateStr,
-                  note: _tr(
-                    'Expense: ${_selectedCategory.label}',
-                    'Matumizi: ${_selectedCategory.label}',
-                  ),
-                  createdBy: user.uid,
-                  createdAt: DateTime.now().toIso8601String(),
+      // Whatever is still unpaid on a credit purchase becomes a payable
+      // linked to the Paid-To contact (originalAmount = full expense,
+      // paidAmount = the part settled up-front — mirrors the add-product
+      // credit flow so the debt shows the whole transaction).
+      final creditRecorded =
+          !_isEditing && _isCreditPurchase && (total - paidNow) > 0;
+      if (creditRecorded) {
+        final dueDate = DateTime.now().add(const Duration(days: 30));
+        final dueDateStr =
+            '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+        await ref
+            .read(debtRepositoryProvider)
+            .save(
+              Debt(
+                id: '',
+                partyName: _paidToCustomer?.name.trim() ?? '',
+                partyPhone: _paidToCustomer?.phone.trim() ?? '',
+                partyId: _paidToCustomer?.id ?? '',
+                type: 'payable',
+                originalAmount: total,
+                paidAmount: paidNow,
+                dueDate: dueDateStr,
+                note: _tr(
+                  'Expense: ${_selectedCategory.label}',
+                  'Matumizi: ${_selectedCategory.label}',
                 ),
-              );
-        }
+                createdBy: user.uid,
+                createdAt: DateTime.now().toIso8601String(),
+              ),
+            );
       }
 
       if (mounted) {
-        if (!_isEditing && _isCreditPurchase) {
-          AppNotification.warning(
-            context,
-            _tr(
-              'Expense saved – debt recorded in Payables',
-              'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
-            ),
-          );
-        }
-        Navigator.of(context).pop({'saved': true});
+        Navigator.of(
+          context,
+        ).pop({'saved': true, 'creditRecorded': creditRecorded});
       }
     } catch (e) {
       if (!mounted) return;
@@ -437,7 +486,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'category': _categoryKey,
           'note': _noteCtrl.text.trim(),
           'amount': _amountCtrl.text.trim(),
-          'recipient': _recipientCtrl.text.trim(),
+          'recipient': _paidToCustomer?.name.trim() ?? '',
           'recurrenceType': _frequency,
           'nextDueDate': nextDue,
           'isActive': true,
@@ -592,83 +641,143 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _recipientCtrl,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
-                      decoration: _fieldDec(
-                        label: _tr('Paid To (recipient)', 'Imelipwa Kwa'),
-                        prefix: Icons.person_outline_rounded,
-                      ),
+                    CustomerPickerField(
+                      selected: _paidToCustomer,
+                      labelEn: 'Paid To',
+                      labelSw: 'Imelipwa Kwa',
+                      onSelected: (c) => setState(() {
+                        _paidToCustomer = c;
+                        if (_errorField == _ExpenseErrorField.paidTo) {
+                          _errorMessage = null;
+                        }
+                      }),
                     ),
+                    _buildValidation(_ExpenseErrorField.paidTo),
                     const SizedBox(height: 20),
                     _FieldCard(
                       child: _ToggleRow(
                         icon: Icons.credit_score_rounded,
                         label: _tr('Bought on Credit', 'Umenunua kwa Mkopo'),
                         subtitle: _tr(
-                          'Not fully paid – record as payable debt',
-                          'Haujalipia kikamilifu – rekodi kama deni',
+                          'Not fully paid – record the balance as a payable',
+                          'Haujalipia kikamilifu – rekodi salio kama deni',
                         ),
                         value: _isCreditPurchase,
                         color: AppColors.error,
-                        onChanged: (v) => setState(() => _isCreditPurchase = v),
+                        onChanged: (v) => setState(() {
+                          _isCreditPurchase = v;
+                          if (!v) _paidNowCtrl.text = '0';
+                          if (_errorField == _ExpenseErrorField.paidTo ||
+                              _errorField == _ExpenseErrorField.payment) {
+                            _errorMessage = null;
+                          }
+                        }),
                       ),
                     ),
                     if (_isCreditPurchase) ...[
                       const SizedBox(height: 12),
                       TextFormField(
-                        controller: _supplierPhoneCtrl,
+                        controller: _paidNowCtrl,
+                        onChanged: (_) => setState(() {}),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d*'),
+                          ),
+                        ],
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: AppColors.textPrimary,
                         ),
                         decoration: _fieldDec(
                           label: _tr(
-                            'Supplier Phone (optional)',
-                            'Simu ya Muuzaji (hiari)',
+                            'Amount paid now',
+                            'Kiasi kilicholipwa sasa',
                           ),
-                          prefix: Icons.phone_outlined,
+                          prefix: Icons.payments_outlined,
+                          hint: '0',
                         ),
-                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _tr(
+                          'Leave as 0 if the whole amount is on credit.',
+                          'Acha 0 kama kiasi chote ni cha mkopo.',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.error.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.warning_amber_rounded,
-                              color: AppColors.error,
-                              size: 15,
+                      Builder(
+                        builder: (context) {
+                          final total = _amountVal;
+                          final paidNow = _paidNowVal
+                              .clamp(0.0, total)
+                              .toDouble();
+                          final remaining = total - paidNow;
+                          final settled = total > 0 && remaining <= 0;
+                          final color = settled
+                              ? AppColors.navyPrimary
+                              : AppColors.error;
+                          final message = total <= 0
+                              ? _tr(
+                                  'Enter the expense amount above',
+                                  'Weka kiasi cha gharama hapo juu',
+                                )
+                              : settled
+                              ? _tr(
+                                  'Paid in full — no debt recorded',
+                                  'Kimelipwa kikamilifu — hakuna deni',
+                                )
+                              : paidNow > 0
+                              ? _tr(
+                                  'Paid TZS ${_fmtAmount(paidNow)} now · TZS ${_fmtAmount(remaining)} recorded as debt',
+                                  'Kimelipwa TZS ${_fmtAmount(paidNow)} sasa · TZS ${_fmtAmount(remaining)} kitarekodiwa kama deni',
+                                )
+                              : _tr(
+                                  'TZS ${_fmtAmount(total)} will be recorded as a debt',
+                                  'TZS ${_fmtAmount(total)} itarekodiwa kama deni',
+                                );
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _tr(
-                                  'A payable debt will be recorded for this supplier',
-                                  'Deni la kulipa litarekodiwa kwa muuzaji huyu',
-                                ),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  color: AppColors.error,
-                                ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: color.withValues(alpha: 0.2),
                               ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  settled
+                                      ? Icons.check_circle_outline_rounded
+                                      : Icons.warning_amber_rounded,
+                                  color: color,
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    message,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: color,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -751,6 +860,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       ),
     );
   }
+}
+
+/// Thousands-separated whole-number amount for inline summaries (no currency).
+String _fmtAmount(double value) {
+  final digits = value.abs().toStringAsFixed(0);
+  final buf = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
+    buf.write(digits[i]);
+  }
+  return buf.toString();
 }
 
 InputDecoration _fieldDec({

@@ -18,6 +18,8 @@ abstract final class TeamMemberMapper {
       phone: row.phone,
       role: TeamRole.fromString(row.role),
       customPermissions: customPerms,
+      customRoleId: row.customRoleId.isNotEmpty ? row.customRoleId : null,
+      customRoleName: row.customRoleName.isNotEmpty ? row.customRoleName : null,
       status: row.status,
       invitedAt: DateTime.fromMillisecondsSinceEpoch(row.invitedAt),
       acceptedAt: row.acceptedAt != null
@@ -51,6 +53,8 @@ abstract final class TeamMemberMapper {
       customPermissions: Value(
         jsonEncode(member.customPermissions.map((p) => p.name).toList()),
       ),
+      customRoleId: Value(member.customRoleId ?? ''),
+      customRoleName: Value(member.customRoleName ?? ''),
       status: Value(member.status),
       invitedAt: Value(member.invitedAt.millisecondsSinceEpoch),
       acceptedAt: Value(member.acceptedAt?.millisecondsSinceEpoch),

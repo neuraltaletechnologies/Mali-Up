@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -14,6 +15,7 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
@@ -44,6 +46,54 @@ import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+/// Free-plan product caps. Starter limits the total number of manually-created
+/// inventory items (`maxProducts`) and, within that, service-type products
+/// (`maxServiceProducts`). Both are admin-editable via Firestore `platform_config/plans`
+/// and default to unlimited (-1) on every paid tier. Customer-return items never count.
+class _ProductLimitCheck {
+  final int maxProducts;
+  final int maxServiceProducts;
+  final int productCount;
+  final int serviceCount;
+
+  const _ProductLimitCheck({
+    required this.maxProducts,
+    required this.maxServiceProducts,
+    required this.productCount,
+    required this.serviceCount,
+  });
+
+  static _ProductLimitCheck read(WidgetRef ref, {String? excludeId}) {
+    final tier =
+        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final limits = limitsFor(tier, defs);
+    final items =
+        ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+    var products = 0;
+    var services = 0;
+    for (final i in items) {
+      if (i.productType == 'customerReturn') continue;
+      if (excludeId != null && excludeId.isNotEmpty && i.id == excludeId) {
+        continue;
+      }
+      products++;
+      if (i.productType == 'service') services++;
+    }
+    return _ProductLimitCheck(
+      maxProducts: limits.maxProducts,
+      maxServiceProducts: limits.maxServiceProducts,
+      productCount: products,
+      serviceCount: services,
+    );
+  }
+
+  bool get productLimitReached =>
+      maxProducts != -1 && productCount >= maxProducts;
+  bool get serviceLimitReached =>
+      maxServiceProducts != -1 && serviceCount >= maxServiceProducts;
+}
 
 // ─── Palette (3 semantic tones + white/black) ─────────────────────────────────
 // ink   = AppColors.navyPrimary  (#0D1B3E) — primary text, headers
@@ -340,6 +390,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openCustomProductForm(BuildContext ctx) {
+    final check = _ProductLimitCheck.read(ref);
+    if (check.productLimitReached) {
+      showUpgradeSheet(
+        ctx,
+        featureKey: PlanFeatureKey.productLimit,
+        triggerReason: _tr(
+          'You have reached the ${check.maxProducts}-product limit on the free '
+          'plan. Upgrade for unlimited products.',
+          'Umefika kikomo cha bidhaa ${check.maxProducts} kwenye mpango wa bure. '
+          'Panda mpango kupata bidhaa zisizo na kikomo.',
+        ),
+      );
+      return;
+    }
     showAppSheet<void>(ctx, builder: (_) => const _ProductFormSheet());
   }
 
@@ -3227,6 +3291,25 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   bool get _isEdit => widget.existingItem != null;
 
+  /// True when the free plan's service-product sub-cap is already full. The
+  /// item being edited is excluded so re-saving an existing service never
+  /// counts against itself.
+  bool _serviceLimitReached() =>
+      _ProductLimitCheck.read(ref, excludeId: widget.existingId)
+          .serviceLimitReached;
+
+  void _showServiceLimitSheet() {
+    final max = _ProductLimitCheck.read(ref).maxServiceProducts;
+    showUpgradeSheet(
+      context,
+      featureKey: PlanFeatureKey.serviceProductLimit,
+      triggerReason: _tr(
+        'The free plan includes $max service products. Upgrade to add more.',
+        'Mpango wa bure una huduma $max. Panda mpango kuongeza zaidi.',
+      ),
+    );
+  }
+
   // For manufactured: cost is auto-derived from BOM
   double get _bomMaterialCost =>
       _bomIngredients.fold(0.0, (s, i) => s + i.totalCost);
@@ -3398,6 +3481,33 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
     final isReturn = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
+
+    // Free-plan caps. Re-checked here (not just at the type pill) so a form
+    // that opened pre-set to 'service' for a service-first business, or a
+    // brand-new product created while already at the total cap, is still
+    // blocked before it is written. Restocks (inline or direct) re-save an
+    // item that already exists, so they are exempt.
+    if (!_isEdit && _restockTarget == null) {
+      final check =
+          _ProductLimitCheck.read(ref, excludeId: widget.existingId);
+      if (check.productLimitReached) {
+        showUpgradeSheet(
+          context,
+          featureKey: PlanFeatureKey.productLimit,
+          triggerReason: _tr(
+            'You have reached the ${check.maxProducts}-product limit on the '
+            'free plan. Upgrade for unlimited products.',
+            'Umefika kikomo cha bidhaa ${check.maxProducts} kwenye mpango wa '
+            'bure. Panda mpango kupata bidhaa zisizo na kikomo.',
+          ),
+        );
+        return;
+      }
+      if (_type == ProductType.service && check.serviceLimitReached) {
+        _showServiceLimitSheet();
+        return;
+      }
+    }
 
     if (!isReturn && _sellVal <= 0) {
       _snack(_tr('Enter a selling price', 'Ingiza bei ya kuuza'));
@@ -4448,18 +4558,31 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             }
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() {
-                                  _typeUserSet = true;
-                                  if (t != _type &&
-                                      t == ProductType.service &&
-                                      _unit == 'pcs') {
-                                    _unit = 'units';
+                                onTap: () {
+                                  // Gate the free-plan service sub-cap before
+                                  // switching to a service product (an edit
+                                  // already occupying a slot is exempt).
+                                  if (t == ProductType.service &&
+                                      _type != ProductType.service &&
+                                      !_isEdit &&
+                                      _restockTarget == null &&
+                                      _serviceLimitReached()) {
+                                    _showServiceLimitSheet();
+                                    return;
                                   }
-                                  if (!(t == ProductType.stock &&
-                                      _type == ProductType.perishable)) {
-                                    _type = t;
-                                  }
-                                }),
+                                  setState(() {
+                                    _typeUserSet = true;
+                                    if (t != _type &&
+                                        t == ProductType.service &&
+                                        _unit == 'pcs') {
+                                      _unit = 'units';
+                                    }
+                                    if (!(t == ProductType.stock &&
+                                        _type == ProductType.perishable)) {
+                                      _type = t;
+                                    }
+                                  });
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(

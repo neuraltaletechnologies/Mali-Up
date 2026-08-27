@@ -282,6 +282,16 @@ class TeamMember {
   final String phone;
   final TeamRole role;
   final Set<AppPermission> customPermissions;
+
+  /// When [role] is [TeamRole.custom] and the member was assigned a saved,
+  /// reusable custom role (see [CustomRole]), this is that role's document ID.
+  /// Empty / null for one-off custom permission sets and built-in roles.
+  final String? customRoleId;
+
+  /// Denormalized display name of the assigned [customRoleId] (e.g. "Driver"),
+  /// stored on the member so the team list can label them without a lookup —
+  /// including offline. Null for built-in roles and one-off custom members.
+  final String? customRoleName;
   final String status; // 'active' | 'pending' | 'suspended'
   final DateTime invitedAt;
   final DateTime? acceptedAt;
@@ -300,6 +310,8 @@ class TeamMember {
     required this.phone,
     required this.role,
     required this.customPermissions,
+    this.customRoleId,
+    this.customRoleName,
     required this.status,
     required this.invitedAt,
     this.acceptedAt,
@@ -311,6 +323,17 @@ class TeamMember {
 
   Set<AppPermission> get effectivePermissions =>
       role == TeamRole.custom ? customPermissions : defaultPermissionsFor(role);
+
+  /// Human-readable role label for lists and headers. Falls back to the
+  /// built-in role label; for a saved custom role it returns its name.
+  String roleLabel({bool sw = false}) {
+    if (role == TeamRole.custom &&
+        customRoleName != null &&
+        customRoleName!.trim().isNotEmpty) {
+      return customRoleName!.trim();
+    }
+    return sw ? role.labelSw : role.label;
+  }
 
   bool can(AppPermission p) => effectivePermissions.contains(p);
 
@@ -341,6 +364,13 @@ class TeamMember {
       phone: (data['phone'] as String?) ?? '',
       role: TeamRole.fromString((data['role'] as String?) ?? 'custom'),
       customPermissions: permList,
+      customRoleId: (data['customRoleId'] as String?)?.trim().isNotEmpty == true
+          ? (data['customRoleId'] as String).trim()
+          : null,
+      customRoleName:
+          (data['customRoleName'] as String?)?.trim().isNotEmpty == true
+              ? (data['customRoleName'] as String).trim()
+              : null,
       status: (data['status'] as String?) ?? 'active',
       invitedAt: data['invitedAt'] is Timestamp
           ? (data['invitedAt'] as Timestamp).toDate()
@@ -363,6 +393,10 @@ class TeamMember {
         'customPermissions': customPermissions.map((p) => p.name).toList(),
         // Flat effective-permissions list for Firestore security rule checks.
         'permissions': effectivePermissionsList,
+        if (customRoleId != null && customRoleId!.isNotEmpty)
+          'customRoleId': customRoleId,
+        if (customRoleName != null && customRoleName!.isNotEmpty)
+          'customRoleName': customRoleName,
         'status': status,
         'invitedAt': Timestamp.fromDate(invitedAt),
         if (acceptedAt != null)
@@ -379,6 +413,9 @@ class TeamMember {
     String? phone,
     TeamRole? role,
     Set<AppPermission>? customPermissions,
+    String? customRoleId,
+    String? customRoleName,
+    bool clearCustomRole = false,
     String? status,
     DateTime? acceptedAt,
     String? notes,
@@ -392,6 +429,9 @@ class TeamMember {
         phone: phone ?? this.phone,
         role: role ?? this.role,
         customPermissions: customPermissions ?? this.customPermissions,
+        customRoleId: clearCustomRole ? null : (customRoleId ?? this.customRoleId),
+        customRoleName:
+            clearCustomRole ? null : (customRoleName ?? this.customRoleName),
         status: status ?? this.status,
         invitedAt: invitedAt,
         acceptedAt: acceptedAt ?? this.acceptedAt,

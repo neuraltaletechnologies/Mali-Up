@@ -46,6 +46,8 @@ class PlanLimits {
   final int maxUsers;        // -1 = unlimited
   final int maxBusinesses;   // -1 = unlimited
   final int maxCustomers;    // -1 = unlimited
+  final int maxProducts;        // -1 = unlimited; counts manually-created inventory items (excludes customer returns)
+  final int maxServiceProducts; // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -67,6 +69,8 @@ class PlanLimits {
     required this.maxUsers,
     this.maxBusinesses = -1,
     this.maxCustomers = -1,
+    this.maxProducts = -1,
+    this.maxServiceProducts = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -101,6 +105,8 @@ class PlanLimits {
       maxUsers:            asInt('maxUsers',            fallback.maxUsers),
       maxBusinesses:       asInt('maxBusinesses',       fallback.maxBusinesses),
       maxCustomers:        asInt('maxCustomers',        fallback.maxCustomers),
+      maxProducts:         asInt('maxProducts',         fallback.maxProducts),
+      maxServiceProducts:  asInt('maxServiceProducts',  fallback.maxServiceProducts),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -124,6 +130,8 @@ class PlanLimits {
         'maxUsers': maxUsers,
         'maxBusinesses': maxBusinesses,
         'maxCustomers': maxCustomers,
+        'maxProducts': maxProducts,
+        'maxServiceProducts': maxServiceProducts,
         'pricePerCycle': pricePerCycle,
         'cycleMonths': cycleMonths,
         'fullReports': fullReports,
@@ -153,6 +161,8 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     monthlyInvoices: 50,
     maxUsers: 1,
     maxBusinesses: 1,
+    maxProducts: 15,
+    maxServiceProducts: 3,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,

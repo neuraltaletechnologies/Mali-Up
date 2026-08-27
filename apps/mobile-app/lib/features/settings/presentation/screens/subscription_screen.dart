@@ -24,9 +24,13 @@ String _blurbFor(PlanTier tier, PlanLimits limits) {
       // maxUsers=1 on Starter means the owner only — phrased as "no team
       // members" rather than "1 user" so it doesn't read as if the owner
       // counts as a team member seat.
+      final productBlurb = limits.maxProducts == -1
+          ? ''
+          : _t(' · ${limits.maxProducts} products',
+              ' · Bidhaa ${limits.maxProducts}');
       return _t(
-        '${limits.monthlyInvoices} invoices/mo · No team members',
-        'Ankara ${limits.monthlyInvoices}/mwezi · Hakuna wanachama wa timu',
+        '${limits.monthlyInvoices} invoices/mo$productBlurb · No team members',
+        'Ankara ${limits.monthlyInvoices}/mwezi$productBlurb · Hakuna wanachama wa timu',
       );
     case PlanTier.growth:
       return _t(

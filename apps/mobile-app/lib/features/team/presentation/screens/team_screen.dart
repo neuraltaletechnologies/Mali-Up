@@ -28,6 +28,7 @@ import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/mappers/team_member_mapper.dart';
 import '../../data/team_providers.dart';
+import '../../domain/models/custom_role.dart';
 import '../../domain/models/team_member.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
@@ -53,6 +54,14 @@ IconData _roleIcon(TeamRole r) => switch (r) {
   TeamRole.stockClerk => Icons.inventory_2_rounded,
   TeamRole.custom => Icons.tune_rounded,
 };
+
+/// Result of the role picker: a built-in [TeamRole], or [TeamRole.custom]
+/// paired with a saved [CustomRole] when the owner picked a reusable role.
+class _RoleSelection {
+  final TeamRole role;
+  final CustomRole? customRole;
+  const _RoleSelection(this.role, [this.customRole]);
+}
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 
@@ -795,7 +804,7 @@ class _MemberCard extends StatelessWidget {
                           Icon(_roleIcon(member.role), size: 12, color: rc),
                           const SizedBox(width: 4),
                           Text(
-                            member.role.label,
+                            member.roleLabel(sw: LocalizationService.isSwahili),
                             style: GoogleFonts.dmSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -920,6 +929,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
   bool _ownRecordsOnly = false;
   bool _isSaving = false;
 
+  /// Non-null when a saved, reusable custom role is selected (in which case
+  /// [_selectedRole] is [TeamRole.custom] and permissions come from the role).
+  CustomRole? _selectedCustomRole;
+
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
@@ -950,22 +963,30 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     super.dispose();
   }
 
-  void _onRoleChanged(TeamRole r) {
+  void _applySelection(_RoleSelection sel) {
     setState(() {
-      _selectedRole = r;
-      if (r != TeamRole.custom) {
-        _customPerms = Set.of(defaultPermissionsFor(r));
+      _selectedRole = sel.role;
+      _selectedCustomRole = sel.customRole;
+      if (sel.customRole != null) {
+        _customPerms = Set.of(sel.customRole!.permissions);
+        _ownRecordsOnly = sel.customRole!.dataScope == DataScope.own;
+      } else if (sel.role != TeamRole.custom) {
+        _customPerms = Set.of(defaultPermissionsFor(sel.role));
         _ownRecordsOnly = false;
       }
+      // Generic (one-off) custom: keep whatever permissions were toggled.
     });
   }
 
   Future<void> _pickRole(BuildContext context) async {
-    final picked = await showAppSheet<TeamRole>(
+    final picked = await showAppSheet<_RoleSelection>(
       context,
-      builder: (_) => _RolePickerSheet(current: _selectedRole),
+      builder: (_) => _RolePickerSheet(
+        currentRole: _selectedRole,
+        currentCustomRoleId: _selectedCustomRole?.id,
+      ),
     );
-    if (picked != null) _onRoleChanged(picked);
+    if (picked != null) _applySelection(picked);
   }
 
   Future<void> _save() async {
@@ -997,15 +1018,24 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
 
-      final permsToStore = _selectedRole == TeamRole.custom
-          ? _customPerms
-          : defaultPermissionsFor(_selectedRole);
+      final savedRole = _selectedCustomRole;
+      final permsToStore = savedRole != null
+          ? savedRole.permissions
+          : (_selectedRole == TeamRole.custom
+              ? _customPerms
+              : defaultPermissionsFor(_selectedRole));
 
       final storedPhone = normalizedPhone.isNotEmpty
           ? normalizedPhone
           : rawPhone;
 
       final permNames = permsToStore.map((p) => p.name).toList();
+
+      final effectiveScope = savedRole != null
+          ? savedRole.dataScope
+          : ((_selectedRole == TeamRole.custom && _ownRecordsOnly)
+              ? DataScope.own
+              : DataScope.all);
 
       // OnlineGuard only checks that a network interface is up (e.g.
       // connectivity_plus), not that Firestore is actually reachable — a
@@ -1027,14 +1057,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
               'customPermissions': permNames,
               // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
               'permissions': permNames,
+              if (savedRole != null) 'customRoleId': savedRole.id,
+              if (savedRole != null) 'customRoleName': savedRole.name,
               'status': 'pending',
               'invitedAt': FieldValue.serverTimestamp(),
               'invitedBy': user.uid,
               if (_notesCtrl.text.trim().isNotEmpty)
                 'notes': _notesCtrl.text.trim(),
-              'dataScope': (_selectedRole == TeamRole.custom && _ownRecordsOnly)
-                  ? DataScope.own.name
-                  : DataScope.all.name,
+              'dataScope': effectiveScope.name,
             },
           )
           .timeout(writeTimeout);
@@ -1084,15 +1114,15 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           phone: storedPhone,
           role: _selectedRole,
           customPermissions: permsToStore,
+          customRoleId: savedRole?.id,
+          customRoleName: savedRole?.name,
           status: 'pending',
           invitedAt: DateTime.now(),
           invitedBy: user.uid,
           notes: _notesCtrl.text.trim().isNotEmpty
               ? _notesCtrl.text.trim()
               : null,
-          dataScope: (_selectedRole == TeamRole.custom && _ownRecordsOnly)
-              ? DataScope.own
-              : DataScope.all,
+          dataScope: effectiveScope,
         );
         await db.teamDao.upsert(
           TeamMemberMapper.toCompanion(
@@ -1289,10 +1319,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _tr(
-                                            _selectedRole.label,
-                                            _selectedRole.labelSw,
-                                          ),
+                                          _selectedCustomRole?.name ??
+                                              _tr(
+                                                _selectedRole.label,
+                                                _selectedRole.labelSw,
+                                              ),
                                           style: GoogleFonts.dmSans(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w700,
@@ -1300,10 +1331,15 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                           ),
                                         ),
                                         Text(
-                                          _tr(
-                                            _selectedRole.description,
-                                            _selectedRole.descriptionSw,
-                                          ),
+                                          _selectedCustomRole != null
+                                              ? _tr(
+                                                  'Saved custom role',
+                                                  'Jukumu maalum lililohifadhiwa',
+                                                )
+                                              : _tr(
+                                                  _selectedRole.description,
+                                                  _selectedRole.descriptionSw,
+                                                ),
                                           style: GoogleFonts.dmSans(
                                             fontSize: 11,
                                             color: AppColors.textMuted,
@@ -1324,7 +1360,8 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           const SizedBox(height: 16),
 
                           // ── Permissions ───────────────────────────────
-                          if (_selectedRole == TeamRole.custom) ...[
+                          if (_selectedRole == TeamRole.custom &&
+                              _selectedCustomRole == null) ...[
                             _sectionLabel(_tr('Permissions', 'Ruhusa')),
                             const SizedBox(height: 10),
                             _PermissionEditor(
@@ -1337,6 +1374,28 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                               value: _ownRecordsOnly,
                               onChanged: (v) =>
                                   setState(() => _ownRecordsOnly = v),
+                            ),
+                            const SizedBox(height: 16),
+                          ] else if (_selectedCustomRole != null) ...[
+                            _sectionLabel(_tr('Permissions', 'Ruhusa')),
+                            const SizedBox(height: 10),
+                            _PermissionSummary(
+                              role: TeamRole.custom,
+                              overridePerms: _selectedCustomRole!.permissions,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _tr(
+                                'From the "${_selectedCustomRole!.name}" role. '
+                                'Edit the role to change these.',
+                                'Kutoka jukumu la "${_selectedCustomRole!.name}". '
+                                'Hariri jukumu kubadilisha ruhusa hizi.',
+                              ),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                                height: 1.3,
+                              ),
                             ),
                             const SizedBox(height: 16),
                           ] else ...[
@@ -1432,6 +1491,18 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
   TeamRole _pendingRole = TeamRole.cashier;
   Set<AppPermission> _pendingPerms = {};
   DataScope _pendingDataScope = DataScope.all;
+
+  /// Non-null when the owner picked a saved custom role in the change-role
+  /// editor. When null while [_pendingRole] is custom, permissions are edited
+  /// inline (one-off). Starts null even if the member already has a saved
+  /// role — reassigning is an explicit choice.
+  CustomRole? _pendingCustomRole;
+
+  /// True once the owner has actually chosen a role in the picker. Until then
+  /// we must not rewrite the member's role identity on save — otherwise
+  /// opening "Change Role" and hitting Save would silently detach a member
+  /// from their saved custom role.
+  bool _rolePicked = false;
 
   @override
   void initState() {
@@ -1539,7 +1610,23 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           dataScope: data.containsKey('dataScope')
               ? DataScope.fromString(data['dataScope'] as String)
               : null,
+          customPermissions: data['customPermissions'] is List
+              ? (data['customPermissions'] as List)
+                  .whereType<String>()
+                  .map(AppPermissionX.fromString)
+                  .whereType<AppPermission>()
+                  .toSet()
+              : null,
+          customRoleId: data['customRoleId'] is String
+              ? data['customRoleId'] as String
+              : null,
+          customRoleName: data['customRoleName'] is String
+              ? data['customRoleName'] as String
+              : null,
+          clearCustomRole:
+              data.containsKey('customRoleId') && data['customRoleId'] is! String,
         );
+        _pendingCustomRole = null;
         _isSaving = false;
         _editingRole = false;
       });
@@ -1555,6 +1642,71 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
         type: AppNotificationType.error,
       );
     }
+  }
+
+  Future<void> _pickPendingRole() async {
+    final sel = await showAppSheet<_RoleSelection>(
+      context,
+      builder: (_) => _RolePickerSheet(
+        currentRole: _pendingRole,
+        currentCustomRoleId: _pendingCustomRole?.id ?? _member.customRoleId,
+      ),
+    );
+    if (sel == null || !mounted) return;
+    setState(() {
+      _rolePicked = true;
+      _pendingRole = sel.role;
+      _pendingCustomRole = sel.customRole;
+      if (sel.customRole != null) {
+        _pendingPerms = Set.of(sel.customRole!.permissions);
+        _pendingDataScope = sel.customRole!.dataScope;
+      } else if (sel.role != TeamRole.custom) {
+        _pendingPerms = Set.of(defaultPermissionsFor(sel.role));
+        _pendingDataScope = DataScope.all;
+      }
+    });
+  }
+
+  void _savePendingRole() {
+    final cr = _pendingCustomRole;
+
+    // Untouched saved-role member (owner opened the editor but didn't repick):
+    // don't rewrite anything — that would strip the customRoleId linkage.
+    if (!_rolePicked && _member.customRoleId != null) {
+      setState(() => _editingRole = false);
+      return;
+    }
+
+    final effectivePerms = cr != null
+        ? cr.permissions
+        : (_pendingRole == TeamRole.custom
+            ? _pendingPerms
+            : defaultPermissionsFor(_pendingRole));
+    final permNames = effectivePerms.map((p) => p.name).toList();
+    // Non-custom roles always carry their view-all permission alongside
+    // create/manage (see _roleDefaults), so 'own' scoping only makes sense for
+    // custom roles — reset otherwise.
+    final scope = cr != null
+        ? cr.dataScope
+        : (_pendingRole == TeamRole.custom ? _pendingDataScope : DataScope.all);
+
+    final data = <String, dynamic>{
+      'role': _pendingRole.name,
+      'customPermissions': permNames,
+      // Keep flat list in sync for isStaffWithAny() rules.
+      'permissions': permNames,
+      'dataScope': scope.name,
+    };
+    if (_rolePicked) {
+      if (cr != null) {
+        data['customRoleId'] = cr.id;
+        data['customRoleName'] = cr.name;
+      } else {
+        data['customRoleId'] = FieldValue.delete();
+        data['customRoleName'] = FieldValue.delete();
+      }
+    }
+    _updateMember(data);
   }
 
   Future<void> _delete() async {
@@ -1682,7 +1834,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                             Icon(_roleIcon(_member.role), size: 12, color: rc),
                             const SizedBox(width: 4),
                             Text(
-                              _member.role.label,
+                              _member.roleLabel(
+                                sw: LocalizationService.isSwahili,
+                              ),
                               style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1720,7 +1874,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                         icon: Icons.swap_horiz_rounded,
                         color: AppColors.navyPrimary,
                         title: _tr('Change Role', 'Badilisha Jukumu'),
-                        subtitle: _member.role.label,
+                        subtitle:
+                            _member.roleLabel(sw: LocalizationService.isSwahili),
                         trailing: Icon(
                           _editingRole
                               ? Icons.expand_less_rounded
@@ -1733,18 +1888,16 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                       ),
                       if (_editingRole) ...[
                         const SizedBox(height: 10),
-                        ...TeamRole.values.map(
-                          (r) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _RoleCard(
-                              role: r,
-                              selected: _pendingRole == r,
-                              onTap: () => setState(() => _pendingRole = r),
-                              compact: true,
-                            ),
-                          ),
+                        _RolePickerButton(
+                          role: _pendingRole,
+                          customRoleName: _pendingCustomRole?.name ??
+                              (_pendingRole == _member.role
+                                  ? _member.customRoleName
+                                  : null),
+                          onTap: _isSaving ? null : _pickPendingRole,
                         ),
-                        if (_pendingRole == TeamRole.custom) ...[
+                        if (_pendingRole == TeamRole.custom &&
+                            _pendingCustomRole == null) ...[
                           const SizedBox(height: 8),
                           _PermissionEditor(
                             perms: _pendingPerms,
@@ -1759,37 +1912,18 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                                   : DataScope.all,
                             ),
                           ),
+                        ] else if (_pendingCustomRole != null) ...[
+                          const SizedBox(height: 8),
+                          _PermissionSummary(
+                            role: TeamRole.custom,
+                            overridePerms: _pendingCustomRole!.permissions,
+                          ),
                         ],
                         const SizedBox(height: 8),
                         SizedBox(
                           height: 44,
                           child: ElevatedButton(
-                            onPressed: _isSaving
-                                ? null
-                                : () {
-                                    final effectivePerms =
-                                        _pendingRole == TeamRole.custom
-                                        ? _pendingPerms
-                                        : defaultPermissionsFor(_pendingRole);
-                                    final permNames = effectivePerms
-                                        .map((p) => p.name)
-                                        .toList();
-                                    // Non-custom roles always carry their view-all
-                                    // permission alongside create/manage (see
-                                    // _roleDefaults), so 'own' scoping only makes
-                                    // sense for custom roles — reset otherwise.
-                                    final scope =
-                                        _pendingRole == TeamRole.custom
-                                        ? _pendingDataScope
-                                        : DataScope.all;
-                                    _updateMember({
-                                      'role': _pendingRole.name,
-                                      'customPermissions': permNames,
-                                      // Keep flat list in sync for isStaffWithAny() rules.
-                                      'permissions': permNames,
-                                      'dataScope': scope.name,
-                                    });
-                                  },
+                            onPressed: _isSaving ? null : _savePendingRole,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.navyPrimary,
@@ -1887,21 +2021,105 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 // ROLE PICKER SHEET
 // ═════════════════════════════════════════════════════════════════════════════
 
-class _RolePickerSheet extends StatelessWidget {
-  final TeamRole current;
+class _RolePickerSheet extends ConsumerStatefulWidget {
+  final TeamRole currentRole;
+  final String? currentCustomRoleId;
 
-  const _RolePickerSheet({required this.current});
+  const _RolePickerSheet({
+    required this.currentRole,
+    this.currentCustomRoleId,
+  });
+
+  @override
+  ConsumerState<_RolePickerSheet> createState() => _RolePickerSheetState();
+}
+
+class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
+  // Built-in roles offered here. `owner` is intentionally excluded — it is not
+  // assignable to invitees.
+  static const _builtInRoles = [
+    TeamRole.manager,
+    TeamRole.accountant,
+    TeamRole.cashier,
+    TeamRole.stockClerk,
+    TeamRole.custom,
+  ];
+
+  Future<void> _confirmDelete(CustomRole role) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_tr('Delete Role', 'Futa Jukumu')),
+        content: Text(
+          _tr(
+            'Delete the "${role.name}" role? Members already assigned it keep '
+            'their current permissions.',
+            'Futa jukumu la "${role.name}"? Wanachama waliopewa tayari '
+            'watabaki na ruhusa zao za sasa.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Delete', 'Futa')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+      await repo.deleteCustomRole(
+        uid: user.uid,
+        context: ctx,
+        roleId: role.id,
+      );
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr('Could not delete role.', 'Imeshindwa kufuta jukumu.'),
+        );
+      }
+    }
+  }
+
+  void _openEditor([CustomRole? existing]) {
+    showAppSheet<void>(
+      context,
+      builder: (_) => _CustomRoleEditorSheet(existing: existing),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
+    final size = MediaQuery.sizeOf(context);
+    final customRolesAsync = ref.watch(customRolesProvider);
+
+    final sectionLabelStyle = GoogleFonts.dmSans(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textMuted,
+      letterSpacing: 0.4,
+    );
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: size.height * 0.85),
+        child: SafeArea(
+          top: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1916,13 +2134,517 @@ class _RolePickerSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              ...TeamRole.values.map(
-                (r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _RoleCard(
-                    role: r,
-                    selected: current == r,
-                    onTap: () => Navigator.of(context).pop(r),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, bottom + 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ..._builtInRoles.map(
+                        (r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _RoleCard(
+                            role: r,
+                            selected: widget.currentRole == r &&
+                                (r != TeamRole.custom ||
+                                    widget.currentCustomRoleId == null),
+                            onTap: () => Navigator.of(context)
+                                .pop(_RoleSelection(r)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _tr('CUSTOM ROLES', 'MAJUKUMU MAALUM'),
+                        style: sectionLabelStyle,
+                      ),
+                      const SizedBox(height: 10),
+                      customRolesAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                        error: (_, _) => Text(
+                          _tr(
+                            'Could not load custom roles.',
+                            'Imeshindwa kupakia majukumu maalum.',
+                          ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        data: (roles) {
+                          if (roles.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                _tr(
+                                  'No custom roles yet. Create one to reuse '
+                                  'across team members.',
+                                  'Hakuna majukumu maalum bado. Tengeneza moja '
+                                  'ili kulitumia kwa wanachama wengi.',
+                                ),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                  height: 1.4,
+                                ),
+                              ),
+                            );
+                          }
+                          return Column(
+                            children: [
+                              for (final role in roles)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _CustomRoleRow(
+                                    role: role,
+                                    selected:
+                                        widget.currentCustomRoleId == role.id,
+                                    onTap: () => Navigator.of(context).pop(
+                                      _RoleSelection(TeamRole.custom, role),
+                                    ),
+                                    onEdit: () => _openEditor(role),
+                                    onDelete: () => _confirmDelete(role),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _openEditor(),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: Text(
+                          _tr(
+                            'Create custom role',
+                            'Tengeneza jukumu maalum',
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.navyPrimary,
+                          side: const BorderSide(color: AppColors.border),
+                          minimumSize: const Size.fromHeight(46),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Selected-role button (opens the picker) ───────────────────────────────────
+
+class _RolePickerButton extends StatelessWidget {
+  final TeamRole role;
+  final String? customRoleName;
+  final VoidCallback? onTap;
+
+  const _RolePickerButton({
+    required this.role,
+    this.customRoleName,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rc = _roleColor(role);
+    final label = (customRoleName != null && customRoleName!.trim().isNotEmpty)
+        ? customRoleName!.trim()
+        : _tr(role.label, role.labelSw);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: rc.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_roleIcon(role), size: 17, color: rc),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: rc,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Custom-role row in the picker (select / edit / delete) ────────────────────
+
+class _CustomRoleRow extends StatelessWidget {
+  final CustomRole role;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _CustomRoleRow({
+    required this.role,
+    required this.selected,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const rc = AppColors.textSecondary;
+    return Container(
+      decoration: BoxDecoration(
+        color: selected ? rc.withValues(alpha: 0.08) : AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: selected ? rc.withValues(alpha: 0.5) : AppColors.border,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: rc.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.badge_outlined,
+                        size: 17,
+                        color: rc,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            role.name,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                          Text(
+                            _tr(
+                              '${role.permissions.length} permissions',
+                              'Ruhusa ${role.permissions.length}',
+                            ),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            color: AppColors.textMuted,
+            tooltip: _tr('Edit', 'Hariri'),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            color: AppColors.error,
+            tooltip: _tr('Delete', 'Futa'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CUSTOM ROLE EDITOR SHEET (create / edit a reusable named role)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _CustomRoleEditorSheet extends ConsumerStatefulWidget {
+  final CustomRole? existing;
+
+  const _CustomRoleEditorSheet({this.existing});
+
+  @override
+  ConsumerState<_CustomRoleEditorSheet> createState() =>
+      _CustomRoleEditorSheetState();
+}
+
+class _CustomRoleEditorSheetState
+    extends ConsumerState<_CustomRoleEditorSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late Set<AppPermission> _perms;
+  late bool _ownRecordsOnly;
+  bool _isSaving = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _nameCtrl = TextEditingController(text: e?.name ?? '');
+    _perms = Set.of(e?.permissions ?? defaultPermissionsFor(TeamRole.cashier));
+    _ownRecordsOnly = e?.dataScope == DataScope.own;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_perms.isEmpty) {
+      AppNotification.warning(
+        context,
+        _tr('Select at least one permission.', 'Chagua angalau ruhusa moja.'),
+      );
+      return;
+    }
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+
+    setState(() => _isSaving = true);
+    final navigator = Navigator.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    final name = _nameCtrl.text.trim();
+    final scope = _ownRecordsOnly ? DataScope.own : DataScope.all;
+    final permNames = _perms.map((p) => p.name).toList();
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not logged in');
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+      final data = <String, dynamic>{
+        'name': name,
+        'permissions': permNames,
+        'dataScope': scope.name,
+      };
+
+      var affected = 0;
+      if (_isEdit) {
+        await repo.updateCustomRole(
+          uid: user.uid,
+          context: ctx,
+          roleId: widget.existing!.id,
+          data: data,
+        );
+        affected = await repo.propagateCustomRole(
+          context: ctx,
+          roleId: widget.existing!.id,
+          roleName: name,
+          permissions: permNames,
+          dataScope: scope.name,
+        );
+      } else {
+        await repo.addCustomRole(uid: user.uid, context: ctx, data: data);
+      }
+
+      navigator.pop();
+      final msg = !_isEdit
+          ? _tr('"$name" role created.', 'Jukumu la "$name" limetengenezwa.')
+          : (affected == 0
+              ? _tr('"$name" role updated.', 'Jukumu la "$name" limesasishwa.')
+              : _tr(
+                  '"$name" role updated — $affected member(s) refreshed.',
+                  'Jukumu la "$name" limesasishwa — wanachama $affected '
+                  'wamesasishwa.',
+                ));
+      AppNotification.showVia(
+        overlay,
+        msg,
+        type: AppNotificationType.success,
+      );
+    } catch (e, st) {
+      unawaited(Sentry.captureException(e, stackTrace: st));
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppNotification.showVia(
+        overlay,
+        _tr(
+          'Could not save role. Please try again.',
+          'Imeshindwa kuhifadhi jukumu. Jaribu tena.',
+        ),
+        type: AppNotificationType.error,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
+      child: Material(
+        color: AppColors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SheetHandle(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Text(
+                          _isEdit
+                              ? _tr('Edit Role', 'Hariri Jukumu')
+                              : _tr('New Custom Role', 'Jukumu Maalum Jipya'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 18,
+                            color: AppColors.navyPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionLabel(_tr('Role name', 'Jina la jukumu')),
+                      const SizedBox(height: 8),
+                      OnboardingField(
+                        controller: _nameCtrl,
+                        label: _tr('Name *', 'Jina *'),
+                        hint: _tr('e.g. Driver', 'mf. Dereva'),
+                        autofocus: !_isEdit,
+                        prefix: const Icon(
+                          Icons.badge_outlined,
+                          size: 18,
+                          color: AppColors.textMuted,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? _tr('Name is required.', 'Jina linahitajika.')
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionLabel(_tr('Permissions', 'Ruhusa')),
+                      const SizedBox(height: 10),
+                      _PermissionEditor(
+                        perms: _perms,
+                        onChanged: (p) => setState(() => _perms = p),
+                      ),
+                      const SizedBox(height: 12),
+                      _OwnRecordsOnlyToggle(
+                        value: _ownRecordsOnly,
+                        onChanged: (v) => setState(() => _ownRecordsOnly = v),
+                      ),
+                      if (_isEdit) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _tr(
+                            'Saving updates every team member currently '
+                            'assigned this role.',
+                            'Kuhifadhi kunasasisha kila mwanachama aliye na '
+                            'jukumu hili sasa.',
+                          ),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.navyPrimary,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.navyPrimary,
+                                  ),
+                                )
+                              : Text(
+                                  _isEdit
+                                      ? _tr('Save Changes', 'Hifadhi Mabadiliko')
+                                      : _tr('Create Role', 'Tengeneza Jukumu'),
+                                  style: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1940,13 +2662,11 @@ class _RoleCard extends StatelessWidget {
   final TeamRole role;
   final bool selected;
   final VoidCallback onTap;
-  final bool compact;
 
   const _RoleCard({
     required this.role,
     required this.selected,
     required this.onTap,
-    this.compact = false,
   });
 
   @override
@@ -1956,10 +2676,7 @@ class _RoleCard extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: compact ? 10 : 14,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: selected ? rc.withValues(alpha: 0.08) : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
@@ -1985,21 +2702,20 @@ class _RoleCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    role.label,
+                    _tr(role.label, role.labelSw),
                     style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: selected ? rc : AppColors.navyPrimary,
                     ),
                   ),
-                  if (!compact)
-                    Text(
-                      role.description,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
+                  Text(
+                    _tr(role.description, role.descriptionSw),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
                     ),
+                  ),
                 ],
               ),
             ),

@@ -13,6 +13,10 @@ class TeamMembersTable extends Table {
   // JSON array of AppPermission names for custom roles
   TextColumn get customPermissions =>
       text().withDefault(const Constant('[]'))();
+  // Saved custom-role pointer + denormalized name (see CustomRole). Empty for
+  // built-in roles and one-off custom permission sets.
+  TextColumn get customRoleId => text().withDefault(const Constant(''))();
+  TextColumn get customRoleName => text().withDefault(const Constant(''))();
   TextColumn get status => text().withDefault(const Constant('active'))();
   IntColumn get invitedAt => integer()();
   IntColumn get acceptedAt => integer().nullable()();

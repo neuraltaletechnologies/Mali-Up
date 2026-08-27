@@ -26,7 +26,7 @@ export async function PATCH(
 
     // Sanitise — only allow known fields
     const patch: Partial<PlanDefinition> = {}
-    const numFields = ['pricePerCycle', 'cycleMonths', 'maxUsers', 'monthlyInvoices', 'maxBusinesses', 'maxCustomers'] as const
+    const numFields = ['pricePerCycle', 'cycleMonths', 'maxUsers', 'monthlyInvoices', 'maxBusinesses', 'maxCustomers', 'maxProducts', 'maxServiceProducts'] as const
     const boolFields = [
       'cashFlow', 'expenseTracking', 'manualDebt',
       'fullReports', 'mpesaImport', 'smsReminders', 'allExports',

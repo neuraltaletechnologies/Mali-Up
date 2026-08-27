@@ -70,11 +70,25 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       );
       return;
     }
-    await showAppSheet(
+    final result = await showAppSheet<Map<String, dynamic>>(
       context,
       maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: edit),
     );
+    if (!mounted) return;
+    // Shown from the list screen (not the sheet) so the toast clears the pill
+    // nav bar and paints over the "Add Expense" button. Navy background, white
+    // text — the app's default notification look.
+    if (result?['saved'] == true && result?['creditRecorded'] == true) {
+      AppNotification.info(
+        context,
+        _tr(
+          'Expense saved – balance recorded in Payables',
+          'Gharama imehifadhiwa – salio limerekodiwa kwenye Madeni',
+        ),
+        icon: Icons.check_circle_rounded,
+      );
+    }
   }
 
   Future<void> _openDetail(Expense expense) async {
