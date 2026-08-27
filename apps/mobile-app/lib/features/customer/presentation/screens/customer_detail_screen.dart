@@ -18,6 +18,9 @@ import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../debt/data/customer_debt_sync_service.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
+import '../../../debt/presentation/screens/debt_detail_screen.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
@@ -40,7 +43,12 @@ const _kTagVip = 'VIP';
 const _kTagWholesale = 'Jumla';
 const _kTagRetail = 'Reja reja';
 const _kTagBlacklisted = 'Orodha Nyeusi';
-const _kStandardTags = [_kTagVip, _kTagWholesale, _kTagRetail, _kTagBlacklisted];
+const _kStandardTags = [
+  _kTagVip,
+  _kTagWholesale,
+  _kTagRetail,
+  _kTagBlacklisted,
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Note types
@@ -50,28 +58,28 @@ enum _NoteType { note, call, email, meeting, reminder }
 
 extension _NoteTypeX on _NoteType {
   String get label => switch (this) {
-        _NoteType.note => _tr('Note', 'Kumbukumbu'),
-        _NoteType.call => _tr('Call', 'Simu'),
-        _NoteType.email => _tr('Email', 'Barua pepe'),
-        _NoteType.meeting => _tr('Meeting', 'Mkutano'),
-        _NoteType.reminder => _tr('Reminder', 'Kumbusho'),
-      };
+    _NoteType.note => _tr('Note', 'Kumbukumbu'),
+    _NoteType.call => _tr('Call', 'Simu'),
+    _NoteType.email => _tr('Email', 'Barua pepe'),
+    _NoteType.meeting => _tr('Meeting', 'Mkutano'),
+    _NoteType.reminder => _tr('Reminder', 'Kumbusho'),
+  };
 
   IconData get icon => switch (this) {
-        _NoteType.note => Icons.sticky_note_2_rounded,
-        _NoteType.call => Icons.phone_rounded,
-        _NoteType.email => Icons.email_rounded,
-        _NoteType.meeting => Icons.handshake_rounded,
-        _NoteType.reminder => Icons.alarm_rounded,
-      };
+    _NoteType.note => Icons.sticky_note_2_rounded,
+    _NoteType.call => Icons.phone_rounded,
+    _NoteType.email => Icons.email_rounded,
+    _NoteType.meeting => Icons.handshake_rounded,
+    _NoteType.reminder => Icons.alarm_rounded,
+  };
 
   Color get color => switch (this) {
-        _NoteType.note => AppColors.navyPrimary,
-        _NoteType.call => AppColors.success,
-        _NoteType.email => AppColors.tealAccent,
-        _NoteType.meeting => const Color(0xFFB45309),
-        _NoteType.reminder => AppColors.warning,
-      };
+    _NoteType.note => AppColors.navyPrimary,
+    _NoteType.call => AppColors.success,
+    _NoteType.email => AppColors.tealAccent,
+    _NoteType.meeting => const Color(0xFFB45309),
+    _NoteType.reminder => AppColors.warning,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,8 +158,9 @@ class _Insights {
       avgDays = (sum / gaps.length).round();
     }
 
-    final paidCount =
-        invoices.where((i) => (i['status'] ?? '') == 'paid').length;
+    final paidCount = invoices
+        .where((i) => (i['status'] ?? '') == 'paid')
+        .length;
     final avgOrder = paidCount > 0 ? totalSpent / paidCount : 0.0;
 
     return _Insights(
@@ -207,7 +216,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     _customer = widget.customer;
     _tabCtrl = TabController(length: 2, vsync: this);
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -230,8 +241,10 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
   void _whatsappCustomer() async {
     if (_customer.phone.isEmpty) return;
     final phone = _customer.phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    await launchUrl(Uri.parse('https://wa.me/$phone'),
-        mode: LaunchMode.externalApplication);
+    await launchUrl(
+      Uri.parse('https://wa.me/$phone'),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   void _smsCustomer() async {
@@ -261,10 +274,14 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
 
     await _saveNote(
       type: _NoteType.reminder,
-      text: _tr('Payment reminder sent via WhatsApp',
-          'Kumbusho la malipo kilitumwa kupitia WhatsApp'),
+      text: _tr(
+        'Payment reminder sent via WhatsApp',
+        'Kumbusho la malipo kilitumwa kupitia WhatsApp',
+      ),
     );
-    await ref.read(customerAuditLoggerProvider).log(
+    await ref
+        .read(customerAuditLoggerProvider)
+        .log(
           AuditLogService.reminderSent,
           customerId: _customer.id,
           customerName: _customer.name,
@@ -273,13 +290,19 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
   }
 
   String _buildReminderText(
-      Customer c, double balance, List<Map<String, dynamic>> overdue) {
+    Customer c,
+    double balance,
+    List<Map<String, dynamic>> overdue,
+  ) {
     final buf = StringBuffer();
     buf.writeln(_tr('Dear *${c.name}*,', 'Ndugu *${c.name}*,'));
     buf.writeln();
-    buf.writeln(_tr(
+    buf.writeln(
+      _tr(
         'This is a friendly reminder of your outstanding balance with us.',
-        'Hii ni ukumbusho wa kirafiki wa salio lako linalodaiwa kwetu.'));
+        'Hii ni ukumbusho wa kirafiki wa salio lako linalodaiwa kwetu.',
+      ),
+    );
     buf.writeln();
     if (overdue.isNotEmpty) {
       buf.writeln(_tr('Unpaid invoices:', 'Ankara ambazo hazijalipwa:'));
@@ -289,7 +312,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         final amt = readInvoiceTotal(inv);
         final date = readTimestamp(inv['invoiceDate'] ?? inv['createdAt']);
         final datePart = date != null ? ' (${_fmtDate(date)})' : '';
-        buf.writeln('• ${_tr('Invoice', 'Ankara')} $invNum$datePart — TZS ${_fmtNum(amt)}');
+        buf.writeln(
+          '• ${_tr('Invoice', 'Ankara')} $invNum$datePart — TZS ${_fmtNum(amt)}',
+        );
 
         // List the purchased items so the customer knows which purchase created this debt.
         final rawItems = inv['lineItems'] ?? inv['items'];
@@ -306,7 +331,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
           }
           if (rawItems.length > 3) {
             final extra = rawItems.length - 3;
-            buf.writeln('   ${_tr('+ $extra more item${extra == 1 ? '' : 's'}', '+ vitu $extra zaidi')}');
+            buf.writeln(
+              '   ${_tr('+ $extra more item${extra == 1 ? '' : 's'}', '+ vitu $extra zaidi')}',
+            );
           }
           buf.writeln();
         }
@@ -314,10 +341,15 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
       buf.writeln();
     }
     buf.writeln(
-        '*${_tr('Total Outstanding: TZS ${_fmtNum(balance)}', 'Jumla Inayodaiwa: TZS ${_fmtNum(balance)}')}*');
+      '*${_tr('Total Outstanding: TZS ${_fmtNum(balance)}', 'Jumla Inayodaiwa: TZS ${_fmtNum(balance)}')}*',
+    );
     buf.writeln();
-    buf.writeln(_tr('Please arrange payment at your earliest convenience.',
-        'Tafadhali panga malipo haraka iwezekanavyo.'));
+    buf.writeln(
+      _tr(
+        'Please arrange payment at your earliest convenience.',
+        'Tafadhali panga malipo haraka iwezekanavyo.',
+      ),
+    );
     buf.writeln(_tr('Thank you!', 'Asante!'));
     return buf.toString();
   }
@@ -338,9 +370,10 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
       if (bizId.isEmpty) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final customersCol = repo.scopeCollection(
-          uid: ownerUid,
-          context: ResolvedFinanceContext.business(bizId),
-          childCollection: 'customers');
+        uid: ownerUid,
+        context: ResolvedFinanceContext.business(bizId),
+        childCollection: 'customers',
+      );
       await customersCol.doc(_customer.id).collection('notes').add({
         'type': type.name,
         'text': text,
@@ -364,16 +397,20 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
 
       final logger = ref.read(customerAuditLoggerProvider);
       for (final tag in newTags.where((t) => !previous.contains(t))) {
-        await logger.log(AuditLogService.tagAdded,
-            customerId: _customer.id,
-            customerName: _customer.name,
-            newValue: tag);
+        await logger.log(
+          AuditLogService.tagAdded,
+          customerId: _customer.id,
+          customerName: _customer.name,
+          newValue: tag,
+        );
       }
       for (final tag in previous.where((t) => !newTags.contains(t))) {
-        await logger.log(AuditLogService.tagRemoved,
-            customerId: _customer.id,
-            customerName: _customer.name,
-            previousValue: tag);
+        await logger.log(
+          AuditLogService.tagRemoved,
+          customerId: _customer.id,
+          customerName: _customer.name,
+          previousValue: tag,
+        );
       }
     } catch (_) {
       _showSnack(_tr('Update failed', 'Imeshindwa kusasisha'));
@@ -387,7 +424,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
           .read(customerRepositoryProvider)
           .save(_customer.copyWith(creditLimit: limit));
       setState(() => _customer = _customer.copyWith(creditLimit: limit));
-      await ref.read(customerAuditLoggerProvider).log(
+      await ref
+          .read(customerAuditLoggerProvider)
+          .log(
             AuditLogService.creditLimitChanged,
             customerId: _customer.id,
             customerName: _customer.name,
@@ -475,8 +514,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                         onWhatsApp: _whatsappCustomer,
                         onSms: _smsCustomer,
                         onReminder: _sendReminder,
-                        onPayDebt:
-                            showFinancials ? _showPayDebtSheet : null,
+                        onPayDebt: showFinancials ? _showPayDebtSheet : null,
                       ),
                       _ActivityTab(
                         customerId: _customer.id,
@@ -501,11 +539,11 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     final hasBalance = balance > 0;
     final initials = _customer.name.isNotEmpty
         ? _customer.name
-            .trim()
-            .split(' ')
-            .take(2)
-            .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-            .join()
+              .trim()
+              .split(' ')
+              .take(2)
+              .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+              .join()
         : '?';
 
     return SliverAppBar(
@@ -556,16 +594,18 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          width: 1.5),
+                        color: Colors.white.withValues(alpha: 0.2),
+                        width: 1.5,
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       initials,
                       style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 11),
@@ -581,9 +621,10 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                               child: Text(
                                 _customer.name,
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -591,7 +632,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                               Container(
                                 margin: const EdgeInsets.only(left: 6),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 2),
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(4),
@@ -599,18 +642,23 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                                 child: Text(
                                   _tr('ORG', 'SHIRIKA'),
                                   style: GoogleFonts.dmSans(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white70),
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white70,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                         if (_customer.phone.isNotEmpty) ...[
                           const SizedBox(height: 2),
-                          Text(_customer.phone,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11, color: Colors.white60)),
+                          Text(
+                            _customer.phone,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: Colors.white60,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -638,7 +686,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                           Container(
                             margin: const EdgeInsets.only(top: 3),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 2),
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.error.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(4),
@@ -646,9 +696,10 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                             child: Text(
                               _tr('OVER LIMIT', 'IMEZIDI'),
                               style: GoogleFonts.dmSans(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFFFC8181)),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFFC8181),
+                              ),
                             ),
                           ),
                       ],
@@ -670,10 +721,14 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         children: [
           TabBar(
             controller: _tabCtrl,
-            labelStyle:
-                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
-            unselectedLabelStyle:
-                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
+            labelStyle: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelStyle: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
             labelColor: AppColors.navyPrimary,
             unselectedLabelColor: AppColors.textMuted,
             indicatorColor: AppColors.navyPrimary,
@@ -750,24 +805,29 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                 });
               }
             }
-            await ref.read(customerAuditLoggerProvider).log(
-              AuditLogService.customerUpdated,
-              customerId: _customer.id,
-              customerName: _customer.name,
-              previousValue: 'balance:$balance',
-              newValue: 'balance:$newBalance',
-            );
+            await ref
+                .read(customerAuditLoggerProvider)
+                .log(
+                  AuditLogService.customerUpdated,
+                  customerId: _customer.id,
+                  customerName: _customer.name,
+                  previousValue: 'balance:$balance',
+                  newValue: 'balance:$newBalance',
+                );
             if (mounted) {
               _showSnack(
-                _tr('Payment recorded successfully',
-                    'Malipo yamerekodiwa kikamilifu'),
+                _tr(
+                  'Payment recorded successfully',
+                  'Malipo yamerekodiwa kikamilifu',
+                ),
                 color: AppColors.success,
               );
             }
           } catch (_) {
             if (mounted) {
-              _showSnack(_tr(
-                  'Failed to record payment', 'Imeshindwa kurekodi malipo'));
+              _showSnack(
+                _tr('Failed to record payment', 'Imeshindwa kurekodi malipo'),
+              );
             }
           }
         },
@@ -886,8 +946,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         const SizedBox(height: 16),
 
         // ── Smart Insights ────────────────────────────────────────────────
-        if (widget.showFinancials)
-          _InsightsCard(customerId: c.id),
+        if (widget.showFinancials) _InsightsCard(customerId: c.id),
         if (widget.showFinancials) const SizedBox(height: 16),
 
         // ── Balance + credit limit ────────────────────────────────────────
@@ -901,6 +960,9 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             onPayDebt: widget.onPayDebt,
           ),
           const SizedBox(height: 16),
+          // Payables this business owes this contact (as a supplier) —
+          // created from credit purchases in Add Product / expenses.
+          _SupplierPayablesCard(customerId: c.id),
         ],
 
         // ── Contact info ──────────────────────────────────────────────────
@@ -993,11 +1055,12 @@ class _ActionBtn extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionBtn(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1011,7 +1074,10 @@ class _ActionBtn extends StatelessWidget {
           border: Border.all(color: AppColors.border),
           boxShadow: const [
             BoxShadow(
-                color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+              color: AppColors.shadowCard,
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
           ],
         ),
         child: Column(
@@ -1026,11 +1092,14 @@ class _ActionBtn extends StatelessWidget {
               child: Icon(icon, size: 18, color: color),
             ),
             const SizedBox(height: 6),
-            Text(label,
-                style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary)),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
@@ -1073,8 +1142,9 @@ class _BalanceCardState extends State<_BalanceCard> {
         ? (widget.balance / widget.limit).clamp(0.0, 1.0)
         : 0.0;
     final overLimit = hasLimit && widget.balance > widget.limit;
-    final availableCredit =
-        hasLimit ? (widget.limit - widget.balance).clamp(0.0, widget.limit) : 0.0;
+    final availableCredit = hasLimit
+        ? (widget.limit - widget.balance).clamp(0.0, widget.limit)
+        : 0.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -1087,7 +1157,10 @@ class _BalanceCardState extends State<_BalanceCard> {
         ),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 2))
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -1110,8 +1183,8 @@ class _BalanceCardState extends State<_BalanceCard> {
                   widget.balance > 0
                       ? Icons.account_balance_wallet_rounded
                       : widget.balance < 0
-                          ? Icons.savings_rounded
-                          : Icons.check_circle_rounded,
+                      ? Icons.savings_rounded
+                      : Icons.check_circle_rounded,
                   size: 16,
                   color: widget.balance > 0
                       ? AppColors.error
@@ -1128,29 +1201,33 @@ class _BalanceCardState extends State<_BalanceCard> {
                           ? _tr('Reserve Credit', 'Akiba ya Mteja')
                           : _tr('Outstanding Balance', 'Deni Linalodaiwa'),
                       style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                          letterSpacing: 0.4),
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                     Text(
                       widget.balance > 0
                           ? 'TZS ${_fmtNum(widget.balance)}'
                           : widget.balance < 0
-                              ? '+TZS ${_fmtNum(widget.balance.abs())}'
-                              : _tr('All clear', 'Hakuna deni'),
+                          ? '+TZS ${_fmtNum(widget.balance.abs())}'
+                          : _tr('All clear', 'Hakuna deni'),
                       style: GoogleFonts.dmSerifDisplay(
-                          fontSize: 22,
-                          color: widget.balance > 0
-                              ? AppColors.error
-                              : AppColors.success),
+                        fontSize: 22,
+                        color: widget.balance > 0
+                            ? AppColors.error
+                            : AppColors.success,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (overLimit)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.errorBg,
                     borderRadius: BorderRadius.circular(6),
@@ -1158,9 +1235,10 @@ class _BalanceCardState extends State<_BalanceCard> {
                   child: Text(
                     _tr('OVER LIMIT', 'IMEZIDI'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.error),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
             ],
@@ -1176,7 +1254,8 @@ class _BalanceCardState extends State<_BalanceCard> {
                 minHeight: 6,
                 backgroundColor: AppColors.surfaceVariant,
                 valueColor: AlwaysStoppedAnimation(
-                    overLimit ? AppColors.error : AppColors.warning),
+                  overLimit ? AppColors.error : AppColors.warning,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -1195,8 +1274,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                     value: overLimit
                         ? _tr('Exceeded', 'Imezidi')
                         : 'TZS ${_fmtShort(availableCredit)}',
-                    color:
-                        overLimit ? AppColors.error : AppColors.success,
+                    color: overLimit ? AppColors.error : AppColors.success,
                   ),
                 ),
                 Expanded(
@@ -1225,13 +1303,15 @@ class _BalanceCardState extends State<_BalanceCard> {
                           autofocus: true,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                           style: GoogleFonts.jetBrainsMono(fontSize: 14),
                           decoration: InputDecoration(
                             prefixText: 'TZS ',
                             prefixStyle: GoogleFonts.dmSans(
-                                fontSize: 12, color: AppColors.textMuted),
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
                             hintText: _tr('0 = no limit', '0 = bila kikomo'),
                             isDense: true,
                             filled: true,
@@ -1241,15 +1321,16 @@ class _BalanceCardState extends State<_BalanceCard> {
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 10),
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       FilledButton(
                         onPressed: () {
-                          final v =
-                              double.tryParse(widget.limitCtrl.text) ?? 0;
+                          final v = double.tryParse(widget.limitCtrl.text) ?? 0;
                           widget.onSaveLimit(v);
                           setState(() => _editingLimit = false);
                         },
@@ -1257,18 +1338,26 @@ class _BalanceCardState extends State<_BalanceCard> {
                           backgroundColor: AppColors.navyPrimary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: Text(_tr('Save', 'Hifadhi'),
-                            style: GoogleFonts.dmSans(fontSize: 13)),
+                        child: Text(
+                          _tr('Save', 'Hifadhi'),
+                          style: GoogleFonts.dmSans(fontSize: 13),
+                        ),
                       ),
                       const SizedBox(width: 6),
                       GestureDetector(
                         onTap: () => setState(() => _editingLimit = false),
-                        child: const Icon(Icons.close_rounded,
-                            size: 18, color: AppColors.textMuted),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   )
@@ -1276,35 +1365,46 @@ class _BalanceCardState extends State<_BalanceCard> {
                     onTap: () => setState(() => _editingLimit = true),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.tealAccent.withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color:
-                                AppColors.tealAccent.withValues(alpha: 0.30)),
+                          color: AppColors.tealAccent.withValues(alpha: 0.30),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.credit_score_rounded,
-                              size: 16, color: AppColors.tealAccent),
+                          const Icon(
+                            Icons.credit_score_rounded,
+                            size: 16,
+                            color: AppColors.tealAccent,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             hasLimit
-                                ? _tr('Edit credit limit',
-                                    'Badilisha kikomo cha mkopo')
-                                : _tr('Set credit limit',
-                                    'Weka kikomo cha mkopo'),
+                                ? _tr(
+                                    'Edit credit limit',
+                                    'Badilisha kikomo cha mkopo',
+                                  )
+                                : _tr(
+                                    'Set credit limit',
+                                    'Weka kikomo cha mkopo',
+                                  ),
                             style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                color: AppColors.tealAccent,
-                                fontWeight: FontWeight.w600),
+                              fontSize: 13,
+                              color: AppColors.tealAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const Spacer(),
-                          Icon(Icons.chevron_right_rounded,
-                              size: 16,
-                              color:
-                                  AppColors.tealAccent.withValues(alpha: 0.6)),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: AppColors.tealAccent.withValues(alpha: 0.6),
+                          ),
                         ],
                       ),
                     ),
@@ -1312,16 +1412,23 @@ class _BalanceCardState extends State<_BalanceCard> {
           else
             Row(
               children: [
-                const Icon(Icons.credit_score_rounded,
-                    size: 16, color: AppColors.textDisabled),
+                const Icon(
+                  Icons.credit_score_rounded,
+                  size: 16,
+                  color: AppColors.textDisabled,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   hasLimit
-                      ? _tr('Credit limit: TZS ${_fmtNum(widget.limit)}',
-                          'Kikomo cha mkopo: TZS ${_fmtNum(widget.limit)}')
+                      ? _tr(
+                          'Credit limit: TZS ${_fmtNum(widget.limit)}',
+                          'Kikomo cha mkopo: TZS ${_fmtNum(widget.limit)}',
+                        )
                       : _tr('No credit limit set', 'Hakuna kikomo cha mkopo'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.textMuted),
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -1337,14 +1444,17 @@ class _BalanceCardState extends State<_BalanceCard> {
                 label: Text(
                   _tr('Pay Debt', 'Lipa Deni'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.navyPrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ),
@@ -1359,21 +1469,30 @@ class _CreditStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _CreditStat(
-      {required this.label, required this.value, required this.color});
+  const _CreditStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style:
-                GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
-        Text(value,
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 11, fontWeight: FontWeight.w700, color: color),
-            overflow: TextOverflow.ellipsis),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }
@@ -1407,9 +1526,10 @@ class _InsightsCard extends ConsumerWidget {
             border: Border.all(color: AppColors.border),
             boxShadow: const [
               BoxShadow(
-                  color: AppColors.shadowCard,
-                  blurRadius: 6,
-                  offset: Offset(0, 2))
+                color: AppColors.shadowCard,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
           padding: const EdgeInsets.all(16),
@@ -1425,25 +1545,31 @@ class _InsightsCard extends ConsumerWidget {
                       color: AppColors.navyPrimary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.insights_rounded,
-                        size: 15, color: AppColors.navyPrimary),
+                    child: const Icon(
+                      Icons.insights_rounded,
+                      size: 15,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     _tr('Customer Insights', 'Uchambuzi wa Mteja'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              ...items.map((item) => _InsightRow(
-                    icon: item.icon,
-                    text: item.text,
-                    color: item.color,
-                  )),
+              ...items.map(
+                (item) => _InsightRow(
+                  icon: item.icon,
+                  text: item.text,
+                  color: item.color,
+                ),
+              ),
             ],
           ),
         );
@@ -1456,112 +1582,132 @@ class _InsightsCard extends ConsumerWidget {
 
     // Total spent
     if (ins.totalSpent > 0) {
-      items.add(_InsightItem(
-        icon: Icons.payments_rounded,
-        text: _tr(
-          'Spent TZS ${_fmtNum(ins.totalSpent)} in total',
-          'Ametumia TZS ${_fmtNum(ins.totalSpent)} jumla',
+      items.add(
+        _InsightItem(
+          icon: Icons.payments_rounded,
+          text: _tr(
+            'Spent TZS ${_fmtNum(ins.totalSpent)} in total',
+            'Ametumia TZS ${_fmtNum(ins.totalSpent)} jumla',
+          ),
+          color: AppColors.navyPrimary,
         ),
-        color: AppColors.navyPrimary,
-      ));
+      );
     }
 
     // Invoice count
     if (ins.totalInvoices > 0) {
-      items.add(_InsightItem(
-        icon: Icons.receipt_long_rounded,
-        text: _tr(
-          '${ins.totalInvoices} invoice${ins.totalInvoices == 1 ? '' : 's'} recorded',
-          'Ankara ${ins.totalInvoices} zimerekodiwa',
+      items.add(
+        _InsightItem(
+          icon: Icons.receipt_long_rounded,
+          text: _tr(
+            '${ins.totalInvoices} invoice${ins.totalInvoices == 1 ? '' : 's'} recorded',
+            'Ankara ${ins.totalInvoices} zimerekodiwa',
+          ),
+          color: AppColors.tealAccent,
         ),
-        color: AppColors.tealAccent,
-      ));
+      );
     }
 
     // Average order value
     if (ins.avgOrderValue > 0) {
-      items.add(_InsightItem(
-        icon: Icons.bar_chart_rounded,
-        text: _tr(
-          'Avg. order: TZS ${_fmtNum(ins.avgOrderValue)}',
-          'Wastani wa agizo: TZS ${_fmtNum(ins.avgOrderValue)}',
+      items.add(
+        _InsightItem(
+          icon: Icons.bar_chart_rounded,
+          text: _tr(
+            'Avg. order: TZS ${_fmtNum(ins.avgOrderValue)}',
+            'Wastani wa agizo: TZS ${_fmtNum(ins.avgOrderValue)}',
+          ),
+          color: AppColors.navySecondary,
         ),
-        color: AppColors.navySecondary,
-      ));
+      );
     }
 
     // Purchase frequency
     if (ins.avgDaysBetweenOrders > 0) {
-      items.add(_InsightItem(
-        icon: Icons.autorenew_rounded,
-        text: _tr(
-          'Purchases every ~${ins.avgDaysBetweenOrders} days on average',
-          'Ananunua kila ~${ins.avgDaysBetweenOrders} siku kwa wastani',
+      items.add(
+        _InsightItem(
+          icon: Icons.autorenew_rounded,
+          text: _tr(
+            'Purchases every ~${ins.avgDaysBetweenOrders} days on average',
+            'Ananunua kila ~${ins.avgDaysBetweenOrders} siku kwa wastani',
+          ),
+          color: AppColors.success,
         ),
-        color: AppColors.success,
-      ));
+      );
     }
 
     // Days since last purchase
     if (ins.daysSinceLastPurchase >= 0) {
       if (ins.daysSinceLastPurchase == 0) {
-        items.add(_InsightItem(
-          icon: Icons.today_rounded,
-          text: _tr('Last purchase: Today', 'Ununuzi wa mwisho: Leo'),
-          color: AppColors.success,
-        ));
+        items.add(
+          _InsightItem(
+            icon: Icons.today_rounded,
+            text: _tr('Last purchase: Today', 'Ununuzi wa mwisho: Leo'),
+            color: AppColors.success,
+          ),
+        );
       } else if (ins.daysSinceLastPurchase <= 30) {
-        items.add(_InsightItem(
-          icon: Icons.history_rounded,
-          text: _tr(
-            'Last purchase: ${ins.daysSinceLastPurchase} days ago',
-            'Ununuzi wa mwisho: siku ${ins.daysSinceLastPurchase} zilizopita',
+        items.add(
+          _InsightItem(
+            icon: Icons.history_rounded,
+            text: _tr(
+              'Last purchase: ${ins.daysSinceLastPurchase} days ago',
+              'Ununuzi wa mwisho: siku ${ins.daysSinceLastPurchase} zilizopita',
+            ),
+            color: AppColors.success,
           ),
-          color: AppColors.success,
-        ));
+        );
       } else if (ins.daysSinceLastPurchase <= 60) {
-        items.add(_InsightItem(
-          icon: Icons.history_rounded,
-          text: _tr(
-            'No purchases in ${ins.daysSinceLastPurchase} days',
-            'Hakuna ununuzi kwa siku ${ins.daysSinceLastPurchase}',
+        items.add(
+          _InsightItem(
+            icon: Icons.history_rounded,
+            text: _tr(
+              'No purchases in ${ins.daysSinceLastPurchase} days',
+              'Hakuna ununuzi kwa siku ${ins.daysSinceLastPurchase}',
+            ),
+            color: AppColors.warning,
           ),
-          color: AppColors.warning,
-        ));
+        );
       } else {
-        items.add(_InsightItem(
-          icon: Icons.history_rounded,
-          text: _tr(
-            'Inactive for ${ins.daysSinceLastPurchase} days — follow up!',
-            'Hamna shughuli kwa siku ${ins.daysSinceLastPurchase} — wasiliana!',
+        items.add(
+          _InsightItem(
+            icon: Icons.history_rounded,
+            text: _tr(
+              'Inactive for ${ins.daysSinceLastPurchase} days — follow up!',
+              'Hamna shughuli kwa siku ${ins.daysSinceLastPurchase} — wasiliana!',
+            ),
+            color: AppColors.error,
           ),
-          color: AppColors.error,
-        ));
+        );
       }
     }
 
     // Pending amount
     if (ins.totalPending > 0) {
-      items.add(_InsightItem(
-        icon: Icons.pending_actions_rounded,
-        text: _tr(
-          'TZS ${_fmtNum(ins.totalPending)} pending payment',
-          'TZS ${_fmtNum(ins.totalPending)} inasubiri malipo',
+      items.add(
+        _InsightItem(
+          icon: Icons.pending_actions_rounded,
+          text: _tr(
+            'TZS ${_fmtNum(ins.totalPending)} pending payment',
+            'TZS ${_fmtNum(ins.totalPending)} inasubiri malipo',
+          ),
+          color: AppColors.warning,
         ),
-        color: AppColors.warning,
-      ));
+      );
     }
 
     // Overdue warning
     if (ins.overdueCount > 0) {
-      items.add(_InsightItem(
-        icon: Icons.warning_amber_rounded,
-        text: _tr(
-          '${ins.overdueCount} overdue invoice${ins.overdueCount == 1 ? '' : 's'} — action needed',
-          'Ankara ${ins.overdueCount} zimekwisha muda — hatua inahitajika',
+      items.add(
+        _InsightItem(
+          icon: Icons.warning_amber_rounded,
+          text: _tr(
+            '${ins.overdueCount} overdue invoice${ins.overdueCount == 1 ? '' : 's'} — action needed',
+            'Ankara ${ins.overdueCount} zimekwisha muda — hatua inahitajika',
+          ),
+          color: AppColors.error,
         ),
-        color: AppColors.error,
-      ));
+      );
     }
 
     return items;
@@ -1572,15 +1718,22 @@ class _InsightItem {
   final IconData icon;
   final String text;
   final Color color;
-  const _InsightItem({required this.icon, required this.text, required this.color});
+  const _InsightItem({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
 }
 
 class _InsightRow extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
-  const _InsightRow(
-      {required this.icon, required this.text, required this.color});
+  const _InsightRow({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1603,13 +1756,179 @@ class _InsightRow extends StatelessWidget {
             child: Text(
               text,
               style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  height: 1.4),
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Supplier payables card — debts this business owes the contact
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SupplierPayablesCard extends ConsumerWidget {
+  final String customerId;
+  const _SupplierPayablesCard({required this.customerId});
+
+  Future<void> _openDetail(BuildContext context, Debt debt) {
+    return showAppSheet<Object?>(
+      context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      maxHeightFactor: 0.92,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => DebtDetailScreen(debt: debt),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final payables =
+        ref
+            .watch(debtListProvider)
+            .maybeWhen(data: (d) => d, orElse: () => const <Debt>[])
+            .where(
+              (d) =>
+                  d.type == 'payable' &&
+                  d.partyId == customerId &&
+                  !d.isWrittenOff &&
+                  !d.isFullyPaid,
+            )
+            .toList()
+          ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+    if (payables.isEmpty) return const SizedBox.shrink();
+
+    final totalRemaining = payables.fold<double>(
+      0,
+      (s, d) => s + d.remainingAmount,
+    );
+
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.shadowCard,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.errorBg,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(
+                      Icons.local_shipping_rounded,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _tr('You owe this supplier', 'Unamdaiwa msambazaji huyu'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'TZS ${_fmtNum(totalRemaining)}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              for (final d in payables)
+                InkWell(
+                  onTap: () => _openDetail(context, d),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                d.note.isNotEmpty
+                                    ? d.note
+                                    : _tr('Payable', 'Deni'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _tr(
+                                  'Paid TZS ${_fmtNum(d.paidAmount)} of TZS ${_fmtNum(d.originalAmount)}${d.dueDate.isNotEmpty ? ' · due ${d.dueDate}' : ''}',
+                                  'Kimelipwa TZS ${_fmtNum(d.paidAmount)} kati ya TZS ${_fmtNum(d.originalAmount)}${d.dueDate.isNotEmpty ? ' · mwisho ${d.dueDate}' : ''}',
+                                ),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'TZS ${_fmtNum(d.remainingAmount)}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: AppColors.textDisabled,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }
@@ -1638,7 +1957,10 @@ class _ContactCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+            color: AppColors.shadowCard,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Column(
@@ -1656,16 +1978,20 @@ class _ContactCard extends StatelessWidget {
                     color: AppColors.tealAccent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.contact_page_rounded,
-                      size: 15, color: AppColors.tealAccent),
+                  child: const Icon(
+                    Icons.contact_page_rounded,
+                    size: 15,
+                    color: AppColors.tealAccent,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   _tr('Contact Info', 'Mawasiliano'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -1679,8 +2005,10 @@ class _ContactCard extends StatelessWidget {
               label: _tr('Phone', 'Simu'),
               value: customer.phone,
               copyValue: customer.phone,
-              onCopied: (ctx) => _toast(ctx,
-                  _tr('Phone number copied', 'Namba ya simu imenakiliwa')),
+              onCopied: (ctx) => _toast(
+                ctx,
+                _tr('Phone number copied', 'Namba ya simu imenakiliwa'),
+              ),
             ),
           if (customer.email.isNotEmpty) ...[
             const Divider(height: 1, color: AppColors.border),
@@ -1773,20 +2101,30 @@ class _ContactRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 10, color: AppColors.textMuted)),
-                  Text(value,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary)),
+                  Text(
+                    label,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                 ],
               ),
             ),
             if (copyValue != null)
-              const Icon(Icons.copy_rounded,
-                  size: 14, color: AppColors.textDisabled),
+              const Icon(
+                Icons.copy_rounded,
+                size: 14,
+                color: AppColors.textDisabled,
+              ),
           ],
         ),
       ),
@@ -1839,8 +2177,9 @@ class _TagsCardState extends State<_TagsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final customTags =
-        widget.tags.where((t) => !widget.standardTags.contains(t)).toList();
+    final customTags = widget.tags
+        .where((t) => !widget.standardTags.contains(t))
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -1849,7 +2188,10 @@ class _TagsCardState extends State<_TagsCard> {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+            color: AppColors.shadowCard,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -1861,9 +2203,10 @@ class _TagsCardState extends State<_TagsCard> {
               Text(
                 _tr('Segment Tags', 'Lebo za Kundi'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const Spacer(),
               GestureDetector(
@@ -1872,8 +2215,10 @@ class _TagsCardState extends State<_TagsCard> {
                   if (!_addingCustom) _customTagCtrl.clear();
                 }),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.navyPrimary.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(8),
@@ -1882,9 +2227,7 @@ class _TagsCardState extends State<_TagsCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        _addingCustom
-                            ? Icons.close_rounded
-                            : Icons.add_rounded,
+                        _addingCustom ? Icons.close_rounded : Icons.add_rounded,
                         size: 14,
                         color: AppColors.navyPrimary,
                       ),
@@ -1894,9 +2237,10 @@ class _TagsCardState extends State<_TagsCard> {
                             ? _tr('Cancel', 'Ghairi')
                             : _tr('Custom tag', 'Lebo maalum'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.navyPrimary),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.navyPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -1918,12 +2262,15 @@ class _TagsCardState extends State<_TagsCard> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: active ? color : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: active ? color : AppColors.border),
+                      color: active ? color : AppColors.border,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1931,17 +2278,19 @@ class _TagsCardState extends State<_TagsCard> {
                       if (active)
                         const Padding(
                           padding: EdgeInsets.only(right: 5),
-                          child: Icon(Icons.check_rounded,
-                              size: 13, color: Colors.white),
+                          child: Icon(
+                            Icons.check_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          ),
                         ),
                       Text(
                         tag,
                         style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: active
-                                ? Colors.white
-                                : AppColors.textMuted),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white : AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -1963,10 +2312,13 @@ class _TagsCardState extends State<_TagsCard> {
                     style: GoogleFonts.dmSans(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: _tr(
-                          'e.g. Frequent Buyer, Corporate…',
-                          'mfano: Mnunuzi wa kawaida, Kampuni…'),
+                        'e.g. Frequent Buyer, Corporate…',
+                        'mfano: Mnunuzi wa kawaida, Kampuni…',
+                      ),
                       hintStyle: GoogleFonts.dmSans(
-                          fontSize: 12, color: AppColors.textMuted),
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
                       isDense: true,
                       filled: true,
                       fillColor: AppColors.surfaceVariant,
@@ -1975,7 +2327,9 @@ class _TagsCardState extends State<_TagsCard> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                     onSubmitted: (v) {
                       final tag = v.trim();
@@ -2001,13 +2355,20 @@ class _TagsCardState extends State<_TagsCard> {
                     backgroundColor: AppColors.navyPrimary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: Text(_tr('Add', 'Ongeza'),
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13, color: Colors.white)),
+                  child: Text(
+                    _tr('Add', 'Ongeza'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2021,17 +2382,21 @@ class _TagsCardState extends State<_TagsCard> {
             Text(
               _tr('Custom Tags', 'Lebo za Mtumiaji'),
               style: GoogleFonts.dmSans(
-                  fontSize: 11, color: AppColors.textMuted),
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: customTags
-                  .map((tag) => _CustomTagPill(
-                        tag: tag,
-                        onRemove: () => widget.onRemoveCustom(tag),
-                      ))
+                  .map(
+                    (tag) => _CustomTagPill(
+                      tag: tag,
+                      onRemove: () => widget.onRemoveCustom(tag),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -2054,21 +2419,28 @@ class _CustomTagPill extends StatelessWidget {
         color: AppColors.navyPrimary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: AppColors.navyPrimary.withValues(alpha: 0.15)),
+          color: AppColors.navyPrimary.withValues(alpha: 0.15),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(tag,
-              style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.navyPrimary)),
+          Text(
+            tag,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.navyPrimary,
+            ),
+          ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded,
-                size: 14, color: AppColors.textMuted),
+            child: const Icon(
+              Icons.close_rounded,
+              size: 14,
+              color: AppColors.textMuted,
+            ),
           ),
         ],
       ),
@@ -2105,19 +2477,20 @@ class _InvoicesTab extends ConsumerWidget {
         if (invoices.isEmpty) {
           return EmptyState(
             icon: Icons.receipt_long_outlined,
-            title: _tr(
-                'No invoices yet', 'Bado hakuna ankara'),
+            title: _tr('No invoices yet', 'Bado hakuna ankara'),
             subtitle: _tr(
-                'Record a sale to see invoices here.',
-                'Rekodi uuzaji ili kuona ankara hapa.'),
+              'Record a sale to see invoices here.',
+              'Rekodi uuzaji ili kuona ankara hapa.',
+            ),
           );
         }
 
         // ── Compute stats ───────────────────────────────────────────────
         final ins = _Insights.fromInvoices(invoices);
         final totalCount = invoices.length;
-        final paidCount =
-            invoices.where((i) => (i['status'] ?? '') == 'paid').length;
+        final paidCount = invoices
+            .where((i) => (i['status'] ?? '') == 'paid')
+            .length;
 
         return Column(
           children: [
@@ -2154,23 +2527,27 @@ class _InvoicesTab extends ConsumerWidget {
               ),
               if (ins.avgOrderValue > 0)
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.navyPrimary.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: AppColors.navyPrimary
-                              .withValues(alpha: 0.08)),
+                        color: AppColors.navyPrimary.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.bar_chart_rounded,
-                            size: 14, color: AppColors.navyPrimary),
+                        const Icon(
+                          Icons.bar_chart_rounded,
+                          size: 14,
+                          color: AppColors.navyPrimary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _tr(
@@ -2178,9 +2555,10 @@ class _InvoicesTab extends ConsumerWidget {
                             'Wastani wa agizo: TZS ${_fmtNum(ins.avgOrderValue)}',
                           ),
                           style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: AppColors.navyPrimary,
-                              fontWeight: FontWeight.w500),
+                            fontSize: 12,
+                            color: AppColors.navyPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -2211,11 +2589,13 @@ class _InvoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = (invoice['status'] ?? 'pending').toString().toLowerCase();
     final total = readInvoiceTotal(invoice);
-    final number = invoice['invoiceNumber']?.toString() ??
+    final number =
+        invoice['invoiceNumber']?.toString() ??
         invoice['id']?.toString() ??
         '—';
-    final createdAt =
-        readTimestamp(invoice['createdAt'] ?? invoice['invoiceDate']);
+    final createdAt = readTimestamp(
+      invoice['createdAt'] ?? invoice['invoiceDate'],
+    );
     final dueDate = readTimestamp(invoice['dueDate']);
     final isQuotation =
         (invoice['type'] ?? '').toString().toLowerCase() == 'quotation';
@@ -2223,7 +2603,8 @@ class _InvoiceTile extends StatelessWidget {
     final rawItems = invoice['lineItems'] ?? invoice['items'];
     final itemCount = rawItems is List ? rawItems.length : 0;
 
-    final isOverdue = status != 'paid' &&
+    final isOverdue =
+        status != 'paid' &&
         status != 'cancelled' &&
         dueDate != null &&
         dueDate.isBefore(DateTime.now());
@@ -2242,9 +2623,11 @@ class _InvoiceTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => InvoiceDetailScreen(invoice: invoice),
-        )),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => InvoiceDetailScreen(invoice: invoice),
+          ),
+        ),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -2267,25 +2650,31 @@ class _InvoiceTile extends StatelessWidget {
                         Text(
                           number,
                           style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         if (isQuotation) ...[
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.tealAccent.withValues(alpha: 0.1),
+                              color: AppColors.tealAccent.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               _tr('QUOTE', 'NUKUU'),
                               style: GoogleFonts.dmSans(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.tealAccent),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.tealAccent,
+                              ),
                             ),
                           ),
                         ],
@@ -2295,13 +2684,18 @@ class _InvoiceTile extends StatelessWidget {
                     Row(
                       children: [
                         if (createdAt != null) ...[
-                          const Icon(Icons.calendar_today_rounded,
-                              size: 10, color: AppColors.textDisabled),
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 10,
+                            color: AppColors.textDisabled,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             _fmtDate(createdAt),
                             style: GoogleFonts.dmSans(
-                                fontSize: 11, color: AppColors.textMuted),
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                         if (createdAt != null && itemCount > 0)
@@ -2311,16 +2705,21 @@ class _InvoiceTile extends StatelessWidget {
                               width: 3,
                               height: 3,
                               decoration: const BoxDecoration(
-                                  color: AppColors.textDisabled,
-                                  shape: BoxShape.circle),
+                                color: AppColors.textDisabled,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                         if (itemCount > 0)
                           Text(
-                            _tr('$itemCount item${itemCount == 1 ? '' : 's'}',
-                                'vitu $itemCount'),
+                            _tr(
+                              '$itemCount item${itemCount == 1 ? '' : 's'}',
+                              'vitu $itemCount',
+                            ),
                             style: GoogleFonts.dmSans(
-                                fontSize: 11, color: AppColors.textMuted),
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                       ],
                     ),
@@ -2361,17 +2760,21 @@ class _InvoiceTile extends StatelessWidget {
                   Text(
                     'TZS ${_fmtNum(total)}',
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   PaymentStatusChip(status: status),
                 ],
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 16, color: AppColors.textDisabled),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AppColors.textDisabled,
+              ),
             ],
           ),
         ),
@@ -2439,7 +2842,9 @@ class _NotesTab extends ConsumerWidget {
                 label: Text(
                   _tr('Add Note', 'Ongeza Logi'),
                   style: GoogleFonts.dmSans(
-                      fontWeight: FontWeight.w700, color: Colors.white),
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -2497,24 +2902,31 @@ class _NoteTile extends StatelessWidget {
               Text(
                 type.label,
                 style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: type.color),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: type.color,
+                ),
               ),
               const Spacer(),
               if (addedAt != null)
                 Text(
                   _fmtDate(addedAt),
                   style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
                 ),
             ],
           ),
           if (text.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(text,
-                style: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textPrimary)),
+            Text(
+              text,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ],
           if (isReminder && scheduledFor != null) ...[
             const SizedBox(height: 8),
@@ -2529,17 +2941,18 @@ class _NoteTile extends StatelessWidget {
                 Text(
                   '${_tr("Scheduled:", "Imepangwa:")} ${_fmtDate(scheduledFor)}',
                   style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      color: reminderSent
-                          ? AppColors.success
-                          : AppColors.warning),
+                    fontSize: 11,
+                    color: reminderSent ? AppColors.success : AppColors.warning,
+                  ),
                 ),
                 if (reminderSent) ...[
                   const SizedBox(width: 6),
                   Text(
                     _tr('Sent', 'Imetumwa'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 10, color: AppColors.success),
+                      fontSize: 10,
+                      color: AppColors.success,
+                    ),
                   ),
                 ],
               ],
@@ -2557,7 +2970,11 @@ class _NoteTile extends StatelessWidget {
 
 class _AddNoteSheet extends StatefulWidget {
   final Future<void> Function(
-      _NoteType type, String text, DateTime? scheduledFor) onSave;
+    _NoteType type,
+    String text,
+    DateTime? scheduledFor,
+  )
+  onSave;
 
   const _AddNoteSheet({required this.onSave});
 
@@ -2590,8 +3007,9 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -2603,15 +3021,18 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2)),
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               _tr('Log Activity', 'Rekodi Shughuli'),
               style: GoogleFonts.dmSans(
-                  fontSize: 18, fontWeight: FontWeight.w700),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 16),
             // Type selector
@@ -2627,27 +3048,35 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
                         decoration: BoxDecoration(
                           color: active ? t.color : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: active ? t.color : AppColors.border),
+                            color: active ? t.color : AppColors.border,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(t.icon,
-                                size: 13,
-                                color: active ? Colors.white : t.color),
+                            Icon(
+                              t.icon,
+                              size: 13,
+                              color: active ? Colors.white : t.color,
+                            ),
                             const SizedBox(width: 5),
-                            Text(t.label,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: active
-                                        ? Colors.white
-                                        : AppColors.textMuted)),
+                            Text(
+                              t.label,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: active
+                                    ? Colors.white
+                                    : AppColors.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2670,12 +3099,14 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                   hintText: _type == _NoteType.call
                       ? _tr('What was discussed?', 'Nini kilijadiliwa?')
                       : _type == _NoteType.reminder
-                          ? _tr('Reminder details…', 'Maelezo ya kumbusho…')
-                          : _type == _NoteType.meeting
-                              ? _tr('Meeting outcome…', 'Matokeo ya mkutano…')
-                              : _tr('Add notes…', 'Ongeza maelezo…'),
+                      ? _tr('Reminder details…', 'Maelezo ya kumbusho…')
+                      : _type == _NoteType.meeting
+                      ? _tr('Meeting outcome…', 'Matokeo ya mkutano…')
+                      : _tr('Add notes…', 'Ongeza maelezo…'),
                   hintStyle: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.textMuted),
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(14),
                 ),
@@ -2688,31 +3119,43 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                 onTap: _pickDate,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.warning.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.3)),
+                      color: AppColors.warning.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.alarm_rounded,
-                          size: 16, color: AppColors.warning),
+                      const Icon(
+                        Icons.alarm_rounded,
+                        size: 16,
+                        color: AppColors.warning,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         _scheduledFor != null
                             ? _fmtDate(_scheduledFor!)
                             : _tr(
-                                'Set reminder date', 'Weka tarehe ya kumbusho'),
+                                'Set reminder date',
+                                'Weka tarehe ya kumbusho',
+                              ),
                         style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.warning),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.warning,
+                        ),
                       ),
                       const Spacer(),
-                      const Icon(Icons.chevron_right_rounded,
-                          size: 16, color: AppColors.warning),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: AppColors.warning,
+                      ),
                     ],
                   ),
                 ),
@@ -2738,17 +3181,23 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _saving
                     ? const SizedBox.square(
                         dimension: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
                         _tr('Save Note', 'Hifadhi Maelezo'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 15, fontWeight: FontWeight.w700),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
               ),
             ),
@@ -2768,8 +3217,7 @@ class _EditCustomerFullSheet extends ConsumerStatefulWidget {
   final Customer customer;
   final ValueChanged<Customer> onSaved;
 
-  const _EditCustomerFullSheet(
-      {required this.customer, required this.onSaved});
+  const _EditCustomerFullSheet({required this.customer, required this.onSaved});
 
   @override
   ConsumerState<_EditCustomerFullSheet> createState() =>
@@ -2798,7 +3246,8 @@ class _EditCustomerFullSheetState
     _tinCtrl = TextEditingController(text: c.tinNumber);
     _addressCtrl = TextEditingController(text: c.address);
     _limitCtrl = TextEditingController(
-        text: c.creditLimit > 0 ? c.creditLimit.toStringAsFixed(0) : '');
+      text: c.creditLimit > 0 ? c.creditLimit.toStringAsFixed(0) : '',
+    );
     _isOrg = c.isOrganisation;
   }
 
@@ -2831,7 +3280,9 @@ class _EditCustomerFullSheetState
 
       // Offline-first: Drift + sync queue in one transaction.
       await ref.read(customerRepositoryProvider).save(updated);
-      await ref.read(customerAuditLoggerProvider).log(
+      await ref
+          .read(customerAuditLoggerProvider)
+          .log(
             AuditLogService.customerUpdated,
             customerId: updated.id,
             customerName: updated.name,
@@ -2844,28 +3295,30 @@ class _EditCustomerFullSheetState
       setState(() => _saving = false);
       AppNotification.error(
         context,
-        _tr('Could not save changes. Please try again.', 'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.'),
+        _tr(
+          'Could not save changes. Please try again.',
+          'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.',
+        ),
       );
     }
   }
 
   InputDecoration _dec(String label, IconData icon) => InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.dmSans(fontSize: 13),
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.navyPrimary, width: 2),
-        ),
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      );
+    labelText: label,
+    labelStyle: GoogleFonts.dmSans(fontSize: 13),
+    prefixIcon: Icon(icon, size: 20),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.navyPrimary, width: 2),
+    ),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -2876,7 +3329,11 @@ class _EditCustomerFullSheetState
         top: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-              20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+            20,
+            12,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
@@ -2889,17 +3346,19 @@ class _EditCustomerFullSheetState
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                          color: Colors.black12,
-                          borderRadius: BorderRadius.circular(999)),
+                        color: Colors.black12,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     _tr('Edit Profile', 'Hariri Wasifu'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navyPrimary),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _TypeToggleRow(
@@ -2926,8 +3385,10 @@ class _EditCustomerFullSheetState
                   TextFormField(
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration:
-                        _dec(_tr('Phone *', 'Simu *'), Icons.phone_outlined),
+                    decoration: _dec(
+                      _tr('Phone *', 'Simu *'),
+                      Icons.phone_outlined,
+                    ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? _tr('Required', 'Inahitajika')
                         : null,
@@ -2937,7 +3398,9 @@ class _EditCustomerFullSheetState
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _dec(
-                        _tr('Email', 'Barua pepe'), Icons.email_outlined),
+                      _tr('Email', 'Barua pepe'),
+                      Icons.email_outlined,
+                    ),
                   ),
                   if (_isOrg) ...[
                     const SizedBox(height: 12),
@@ -2945,8 +3408,9 @@ class _EditCustomerFullSheetState
                       controller: _tinCtrl,
                       textCapitalization: TextCapitalization.characters,
                       decoration: _dec(
-                          _tr('TIN Number', 'Namba ya TIN'),
-                          Icons.numbers_outlined),
+                        _tr('TIN Number', 'Namba ya TIN'),
+                        Icons.numbers_outlined,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -2954,7 +3418,9 @@ class _EditCustomerFullSheetState
                     controller: _addressCtrl,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: _dec(
-                        _tr('Address', 'Anwani'), Icons.location_on_outlined),
+                      _tr('Address', 'Anwani'),
+                      Icons.location_on_outlined,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -2971,16 +3437,19 @@ class _EditCustomerFullSheetState
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed:
-                              _saving ? null : () => Navigator.of(context).pop(),
+                          onPressed: _saving
+                              ? null
+                              : () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          child: Text(_tr('Cancel', 'Ghairi'),
-                              style: GoogleFonts.dmSans()),
+                          child: Text(
+                            _tr('Cancel', 'Ghairi'),
+                            style: GoogleFonts.dmSans(),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2992,18 +3461,23 @@ class _EditCustomerFullSheetState
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: _saving
                               ? const SizedBox.square(
                                   dimension: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2.5, color: Colors.white))
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : Text(
                                   _tr('Save Changes', 'Hifadhi Mabadiliko'),
                                   style: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white),
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
@@ -3065,11 +3539,12 @@ class _ToggleTab extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  const _ToggleTab(
-      {required this.label,
-      required this.icon,
-      required this.active,
-      required this.onTap});
+  const _ToggleTab({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3086,9 +3561,11 @@ class _ToggleTab extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 16,
-                  color: active ? Colors.white : AppColors.textMuted),
+              Icon(
+                icon,
+                size: 16,
+                color: active ? Colors.white : AppColors.textMuted,
+              ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
@@ -3096,9 +3573,10 @@ class _ToggleTab extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.dmSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: active ? Colors.white : AppColors.textMuted),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: active ? Colors.white : AppColors.textMuted,
+                  ),
                 ),
               ),
             ],
@@ -3114,8 +3592,11 @@ class _MiniStat extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _MiniStat(
-      {required this.label, required this.value, required this.color});
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3129,13 +3610,19 @@ class _MiniStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: color),
-              overflow: TextOverflow.ellipsis),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 10, color: AppColors.textMuted)),
+          Text(
+            value,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+          ),
         ],
       ),
     );
@@ -3154,7 +3641,8 @@ class CustomerPayDebtSheet extends ConsumerStatefulWidget {
     String method,
     String accountId,
     String note,
-  ) onSave;
+  )
+  onSave;
 
   const CustomerPayDebtSheet({
     super.key,
@@ -3209,7 +3697,7 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
     setState(() => _saving = true);
     final amount =
         double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
+        0;
     final method = switch (account.id) {
       PaymentMethodAccounts.cashId => 'cash',
       PaymentMethodAccounts.mpesaId => 'mpesa',
@@ -3251,23 +3739,27 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2)),
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               _tr('Record Debt Payment', 'Rekodi Malipo ya Deni'),
               style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               '${_tr('Outstanding balance', 'Deni linalobaki')}: TZS ${_fmtNum(widget.balance)}',
               style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 18),
 
@@ -3278,29 +3770,37 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               autofocus: true,
               style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary),
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
               decoration: InputDecoration(
                 prefixText: 'TZS  ',
                 prefixStyle: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500),
+                  fontSize: 15,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
                 hintText: '0',
                 hintStyle: GoogleFonts.jetBrainsMono(
-                    fontSize: 22,
-                    color: AppColors.textDisabled,
-                    fontWeight: FontWeight.w700),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  fontSize: 22,
+                  color: AppColors.textDisabled,
+                  fontWeight: FontWeight.w700,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppColors.tealAccent,
+                    width: 1.5,
+                  ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -3319,9 +3819,10 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
             Text(
               _tr('Payment Method', 'Njia ya Malipo'),
               style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 8),
             PaymentAccountChips(
@@ -3346,16 +3847,23 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
               decoration: InputDecoration(
                 hintText: _tr('Note (optional)', 'Maelezo (hiari)'),
                 hintStyle: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textDisabled),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  fontSize: 13,
+                  color: AppColors.textDisabled,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppColors.tealAccent,
+                    width: 1.5,
+                  ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               maxLines: 2,
               minLines: 1,
@@ -3368,23 +3876,29 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
               child: FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  backgroundColor:
-                      _saving ? AppColors.border : AppColors.tealAccent,
+                  backgroundColor: _saving
+                      ? AppColors.border
+                      : AppColors.tealAccent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: _saving
                     ? const SizedBox.square(
                         dimension: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
                         _tr('Confirm Payment', 'Thibitisha Malipo'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
               ),
             ),
@@ -3420,21 +3934,18 @@ class _ActivityEntry {
 }
 
 String _payMethodLabel(String method) => switch (method) {
-      'cash' => _tr('Cash', 'Taslimu'),
-      'mpesa' => 'M-Pesa',
-      'bank' => _tr('Bank', 'Benki'),
-      'card' => _tr('Card', 'Kadi'),
-      _ => method,
-    };
+  'cash' => _tr('Cash', 'Taslimu'),
+  'mpesa' => 'M-Pesa',
+  'bank' => _tr('Bank', 'Benki'),
+  'card' => _tr('Card', 'Kadi'),
+  _ => method,
+};
 
 class _ActivityTab extends ConsumerWidget {
   final String customerId;
   final bool showFinancials;
 
-  const _ActivityTab({
-    required this.customerId,
-    required this.showFinancials,
-  });
+  const _ActivityTab({required this.customerId, required this.showFinancials});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -3445,15 +3956,19 @@ class _ActivityTab extends ConsumerWidget {
     // stream has no local cache (persistence is disabled), so it may never emit
     // when offline — treat it as empty until it resolves.
     if (invoicesAsync.isLoading) {
-      return const CustomScrollView(slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: CircularProgressIndicator(
-                color: AppColors.navyPrimary, strokeWidth: 2),
+      return const CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.navyPrimary,
+                strokeWidth: 2,
+              ),
+            ),
           ),
-        ),
-      ]);
+        ],
+      );
     }
 
     final invoices = invoicesAsync.valueOrNull ?? [];
@@ -3463,13 +3978,11 @@ class _ActivityTab extends ConsumerWidget {
       ...invoices.map((inv) {
         final date =
             readTimestamp(inv['createdAt'] ?? inv['invoiceDate']) ??
-                DateTime(2000);
+            DateTime(2000);
         final amount = readInvoiceTotal(inv);
-        final status =
-            (inv['status'] ?? 'pending').toString().toLowerCase();
-        final number = inv['invoiceNumber']?.toString() ??
-            inv['id']?.toString() ??
-            '—';
+        final status = (inv['status'] ?? 'pending').toString().toLowerCase();
+        final number =
+            inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '—';
         final rawItems = inv['lineItems'] ?? inv['items'];
         final itemCount = rawItems is List ? rawItems.length : 0;
         return _ActivityEntry(
@@ -3478,8 +3991,10 @@ class _ActivityTab extends ConsumerWidget {
           amount: amount,
           title: '${_tr('Invoice', 'Ankara')} $number',
           subtitle: itemCount > 0
-              ? _tr('$itemCount item${itemCount == 1 ? '' : 's'}',
-                  'vitu $itemCount')
+              ? _tr(
+                  '$itemCount item${itemCount == 1 ? '' : 's'}',
+                  'vitu $itemCount',
+                )
               : null,
           status: status,
         );
@@ -3505,19 +4020,21 @@ class _ActivityTab extends ConsumerWidget {
     items.sort((a, b) => b.date.compareTo(a.date));
 
     if (items.isEmpty) {
-      return CustomScrollView(slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: EmptyState(
-            icon: Icons.timeline_rounded,
-            title: _tr('No activity yet', 'Bado hakuna shughuli'),
-            subtitle: _tr(
-              'Sales and debt payments will appear here.',
-              'Uuzaji na malipo ya deni vitaonekana hapa.',
+      return CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: EmptyState(
+              icon: Icons.timeline_rounded,
+              title: _tr('No activity yet', 'Bado hakuna shughuli'),
+              subtitle: _tr(
+                'Sales and debt payments will appear here.',
+                'Uuzaji na malipo ya deni vitaonekana hapa.',
+              ),
             ),
           ),
-        ),
-      ]);
+        ],
+      );
     }
 
     return ListView.separated(
@@ -3527,10 +4044,8 @@ class _ActivityTab extends ConsumerWidget {
         padding: EdgeInsets.only(left: 58, right: 16),
         child: Divider(height: 1, color: AppColors.border, thickness: 0.8),
       ),
-      itemBuilder: (_, i) => _ActivityTile(
-        entry: items[i],
-        showFinancials: showFinancials,
-      ),
+      itemBuilder: (_, i) =>
+          _ActivityTile(entry: items[i], showFinancials: showFinancials),
     );
   }
 }
@@ -3539,8 +4054,7 @@ class _ActivityTile extends StatelessWidget {
   final _ActivityEntry entry;
   final bool showFinancials;
 
-  const _ActivityTile(
-      {required this.entry, required this.showFinancials});
+  const _ActivityTile({required this.entry, required this.showFinancials});
 
   @override
   Widget build(BuildContext context) {
@@ -3587,9 +4101,10 @@ class _ActivityTile extends StatelessWidget {
                   Text(
                     entry.title,
                     style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -3597,7 +4112,9 @@ class _ActivityTile extends StatelessWidget {
                         ? '${entry.subtitle!} · ${_fmtDate(entry.date)}'
                         : _fmtDate(entry.date),
                     style: GoogleFonts.dmSans(
-                        fontSize: 10, color: AppColors.textMuted),
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -3611,11 +4128,12 @@ class _ActivityTile extends StatelessWidget {
                   Text(
                     'TZS ${_fmtNum(entry.amount)}',
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isPayment
-                            ? AppColors.tealAccent
-                            : AppColors.textPrimary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isPayment
+                          ? AppColors.tealAccent
+                          : AppColors.textPrimary,
+                    ),
                   ),
                 if (isPurchase && entry.status != null) ...[
                   const SizedBox(height: 4),
@@ -3625,7 +4143,9 @@ class _ActivityTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.tealAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -3633,9 +4153,10 @@ class _ActivityTile extends StatelessWidget {
                     child: Text(
                       _tr('Paid', 'Imelipwa'),
                       style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.tealAccent),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.tealAccent,
+                      ),
                     ),
                   ),
                 ],

@@ -45,6 +45,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Profile cache keys (SharedPreferences).
   static const _kDisplayName = 'cached_profile_display_name';
   static const _kBizName = 'cached_business_name';
+  static const _kBizId = 'cached_business_id';
   static const _kLogoUrl = 'cached_business_logo_url';
   static const _kPlan = 'cached_business_plan';
   static const _kFetchedAt = 'cached_profile_fetched_at';
@@ -112,11 +113,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// [_kTtl] (default 24 h). Skips the network call entirely on most opens.
   Future<void> _maybeRefreshFromFirestore({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
+
+    // A business switch (MainShellPage._switchFinanceContext) writes the new
+    // selectedBusinessId to Firestore and pings BusinessProfileService right
+    // away, but that only reaches *this* screen if a DashboardScreen instance
+    // happens to be mounted at that moment — switch from any other tab and
+    // there's no listener alive to catch it. Without this check the 24h TTL
+    // would then happily keep serving the previous business's cached name
+    // for up to a day. currentBusinessIdProvider is the app's canonical,
+    // always-live source for the active business, so compare against that
+    // instead of relying solely on the notifier + TTL.
+    final activeBusinessId = ref.read(currentBusinessIdProvider).valueOrNull;
+    final cachedBusinessId = prefs.getString(_kBizId);
+    final businessChanged =
+        activeBusinessId != null &&
+        activeBusinessId.isNotEmpty &&
+        cachedBusinessId != null &&
+        cachedBusinessId != activeBusinessId;
+
     final lastFetchMs = prefs.getInt(_kFetchedAt) ?? 0;
     final cacheAge = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(lastFetchMs),
     );
-    if (!force && lastFetchMs > 0 && cacheAge < _kTtl) {
+    if (!force && !businessChanged && lastFetchMs > 0 && cacheAge < _kTtl) {
       return; // cache is fresh, skip
     }
 
@@ -139,6 +158,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bizName = _getBusinessName(profile);
     if (bizName != null && bizName.isNotEmpty) {
       prefs.setString(_kBizName, bizName);
+    }
+    final bizId = profile['selectedBusinessId'] as String?;
+    if (bizId != null && bizId.isNotEmpty) {
+      prefs.setString(_kBizId, bizId);
     }
     final logoUrl = _getBusinessLogoUrl(profile);
     if (logoUrl != null && logoUrl.isNotEmpty) {

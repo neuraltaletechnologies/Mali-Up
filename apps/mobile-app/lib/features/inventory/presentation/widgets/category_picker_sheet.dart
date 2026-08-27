@@ -26,10 +26,8 @@ Future<MasterCategory?> showCategoryPicker({
 }) {
   return showAppSheet<MasterCategory>(
     context,
-    builder: (_) => _CategoryPickerSheet(
-      categories: categories,
-      selected: selected,
-    ),
+    builder: (_) =>
+        _CategoryPickerSheet(categories: categories, selected: selected),
   );
 }
 
@@ -53,10 +51,10 @@ class _CategoryPickerSheet extends ConsumerStatefulWidget {
 
 class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   final _searchCtrl = TextEditingController();
-  final _newCtrl    = TextEditingController();
-  String _query  = '';
-  bool _showAdd  = false;
-  bool _adding   = false;
+  final _newCtrl = TextEditingController();
+  String _query = '';
+  bool _showAdd = false;
+  bool _adding = false;
 
   @override
   void dispose() {
@@ -69,9 +67,11 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     if (_query.isEmpty) return widget.categories;
     final q = _query.toLowerCase();
     return widget.categories
-        .where((c) =>
-            c.categoryName.toLowerCase().contains(q) ||
-            c.categoryNameSw.toLowerCase().contains(q))
+        .where(
+          (c) =>
+              c.categoryName.toLowerCase().contains(q) ||
+              c.categoryNameSw.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -101,229 +101,273 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   Widget build(BuildContext context) {
     final filtered = _filtered;
 
-    return ConstrainedBox(
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
-          ],
-        ),
-        child: Column(
-          children: [
-            const SheetHandle(),
-            const SizedBox(height: 4),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: MediaQuery.sizeOf(context).width,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 20,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                const SheetHandle(),
+                const SizedBox(height: 4),
 
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _tr('Select Category', 'Kategoria'),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _tr('Select Category', 'Kategoria'),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                            Text(
+                              _tr(
+                                '${widget.categories.length} categories available',
+                                'Kategoria ${widget.categories.length} zinapatikana',
+                              ),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _showAdd = !_showAdd;
+                          if (!_showAdd) _newCtrl.clear();
+                        }),
+                        icon: Icon(
+                          _showAdd ? Icons.close_rounded : Icons.add_rounded,
+                          size: 18,
+                          color: AppColors.tealAccent,
+                        ),
+                        label: Text(
+                          _showAdd
+                              ? _tr('Cancel', 'Ghairi')
+                              : _tr('Add New', 'Ongeza Mpya'),
                           style: GoogleFonts.dmSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.tealAccent,
                           ),
                         ),
-                        Text(
-                          _tr(
-                            '${widget.categories.length} categories available',
-                            'Kategoria ${widget.categories.length} zinapatikana',
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded, size: 22),
+                        color: AppColors.textMuted,
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.surfaceVariant,
+                          shape: const CircleBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_showAdd) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _newCtrl,
+                            textCapitalization: TextCapitalization.words,
+                            autofocus: true,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navyPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Category name',
+                                'Jina la kategoria',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.card,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.border,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.tealAccent,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
                           ),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _adding ? null : _addCommunityCategory,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _adding
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _tr('Save', 'Hifadhi'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () => setState(() {
-                      _showAdd = !_showAdd;
-                      if (!_showAdd) _newCtrl.clear();
-                    }),
-                    icon: Icon(
-                      _showAdd ? Icons.close_rounded : Icons.add_rounded,
-                      size: 18, color: AppColors.tealAccent,
-                    ),
-                    label: Text(
-                      _showAdd
-                          ? _tr('Cancel', 'Ghairi')
-                          : _tr('Add New', 'Ongeza Mpya'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: AppColors.tealAccent,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, size: 22),
-                    color: AppColors.textMuted,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.surfaceVariant,
-                      shape: const CircleBorder(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                  const SizedBox(height: 8),
+                ] else
+                  const SizedBox(height: 16),
 
-            if (_showAdd) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _newCtrl,
-                        textCapitalization: TextCapitalization.words,
-                        autofocus: true,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14, fontWeight: FontWeight.w600,
+                // Search field
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: AppColors.navyPrimary,
+                    ),
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      hintText: _tr('Search categories…', 'Tafuta kategoria…'),
+                      hintStyle: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: AppColors.textMuted,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: AppColors.textMuted,
+                      ),
+                      suffixIcon: _query.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: AppColors.textMuted,
+                              ),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() => _query = '');
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      filled: true,
+                      fillColor: AppColors.card,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
                           color: AppColors.navyPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: _tr('Category name', 'Jina la kategoria'),
-                          hintStyle: GoogleFonts.dmSans(
-                              fontSize: 14, color: AppColors.textMuted),
-                          filled: true,
-                          fillColor: AppColors.card,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide:
-                                const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                                color: AppColors.tealAccent, width: 1.5),
-                          ),
+                          width: 1.5,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _adding ? null : _addCommunityCategory,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.navyPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        child: _adding
-                            ? const SizedBox(
-                                width: 16, height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : Text(_tr('Save', 'Hifadhi'),
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700)),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ] else
-              const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
-            // Search field
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: _searchCtrl,
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.navyPrimary),
-                onChanged: (v) => setState(() => _query = v),
-                decoration: InputDecoration(
-                  hintText: _tr(
-                    'Search categories…',
-                    'Tafuta kategoria…',
-                  ),
-                  hintStyle: GoogleFonts.dmSans(
-                      fontSize: 14, color: AppColors.textMuted),
-                  prefixIcon: const Icon(Icons.search_rounded,
-                      size: 20, color: AppColors.textMuted),
-                  suffixIcon: _query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              size: 18, color: AppColors.textMuted),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _query = '');
+                const Divider(height: 1, color: AppColors.border),
+
+                // Category list
+                Expanded(
+                  child: filtered.isEmpty
+                      ? _EmptySearch(query: _query)
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) {
+                            final cat = filtered[i];
+                            final isSelected = cat.categorySlug.isNotEmpty
+                                ? cat.categorySlug ==
+                                      widget.selected?.categorySlug
+                                : cat.id == widget.selected?.id;
+                            return _CategoryTile(
+                              category: cat,
+                              isSelected: isSelected,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).pop(cat);
+                              },
+                            );
                           },
-                        )
-                      : null,
-                  isDense: true,
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                        color: AppColors.navyPrimary, width: 1.5),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
-
-            const Divider(height: 1, color: AppColors.border),
-
-            // Category list
-            Expanded(
-              child: filtered.isEmpty
-                  ? _EmptySearch(query: _query)
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) {
-                        final cat = filtered[i];
-                        final isSelected = cat.categorySlug.isNotEmpty
-                            ? cat.categorySlug == widget.selected?.categorySlug
-                            : cat.id == widget.selected?.id;
-                        return _CategoryTile(
-                          category: cat,
-                          isSelected: isSelected,
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            Navigator.of(context).pop(cat);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -360,8 +404,7 @@ class _CategoryTile extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.navyPrimary.withValues(alpha: 0.06)
@@ -377,7 +420,8 @@ class _CategoryTile extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
@@ -398,11 +442,17 @@ class _CategoryTile extends StatelessWidget {
                   ),
                 ),
                 if (isSelected)
-                  const Icon(Icons.check_circle_rounded,
-                      size: 20, color: AppColors.navyPrimary)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 20,
+                    color: AppColors.navyPrimary,
+                  )
                 else
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 18, color: AppColors.textDisabled),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.textDisabled,
+                  ),
               ],
             ),
           ),
@@ -429,13 +479,17 @@ class _EmptySearch extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64, height: 64,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.search_off_rounded,
-                  size: 30, color: AppColors.textMuted),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 30,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -454,7 +508,9 @@ class _EmptySearch extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),
@@ -495,21 +551,22 @@ class CategorySelectField extends ConsumerWidget {
             }
           : null,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                hasValue ? AppColors.navyPrimary.withValues(alpha: 0.3) : AppColors.border,
+            color: hasValue
+                ? AppColors.navyPrimary.withValues(alpha: 0.3)
+                : AppColors.border,
           ),
         ),
         child: categoriesAsync.isLoading
             ? Row(
                 children: [
                   Container(
-                    width: 38, height: 38,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(10),
@@ -520,20 +577,22 @@ class CategorySelectField extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                          height: 10,
-                          width: 60,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          )),
+                        height: 10,
+                        width: 60,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Container(
-                          height: 13,
-                          width: 140,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          )),
+                        height: 13,
+                        width: 140,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -542,7 +601,8 @@ class CategorySelectField extends ConsumerWidget {
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: 38, height: 38,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: hasValue
                           ? AppColors.tealAccent.withValues(alpha: 0.10)
@@ -597,8 +657,7 @@ class CategorySelectField extends ConsumerWidget {
                         ? Icons.check_circle_rounded
                         : Icons.expand_more_rounded,
                     size: 20,
-                    color:
-                        hasValue ? AppColors.success : AppColors.textMuted,
+                    color: hasValue ? AppColors.success : AppColors.textMuted,
                   ),
                 ],
               ),

@@ -19,6 +19,7 @@ import '../../core/services/version_gate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_motion.dart';
+import '../../core/utils/online_guard.dart';
 import '../../config/routing.dart';
 import '../../core/providers/business_id_provider.dart';
 import '../../core/providers/connectivity_provider.dart';
@@ -327,6 +328,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         : _businessLabelForId(businesses, selectedBusinessId);
     _showSwitchingBusinessDialog(targetName);
 
+    var switchSucceeded = false;
     try {
       // Cache it too so a cold start (app fully closed and reopened) also
       // resolves it instantly, without waiting on Firestore.
@@ -334,12 +336,24 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         await RoleCacheService.saveBusinessId(user.uid, selectedBusinessId);
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'defaultContext': resolvedNextContext,
-        'defaultAccountType': 'business',
-        'selectedBusinessId': selectedBusinessId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Bounded: without persistence, an offline device or a misconfigured
+      // backend (e.g. App Check/security-rule rejection that never settles)
+      // can leave this write pending indefinitely. The dialog is
+      // barrierDismissible: false with PopScope(canPop: false), so an
+      // unbounded await here would strand the user on a spinner with no way
+      // out — surface a retryable error instead of hanging forever.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+            'defaultContext': resolvedNextContext,
+            'defaultAccountType': 'business',
+            'selectedBusinessId': selectedBusinessId,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 15));
+
+      switchSucceeded = true;
 
       // DashboardScreen's Hero card (business name/logo/plan) is fetched
       // through its own 24h-TTL-cached profile fetch, not through
@@ -358,10 +372,40 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       // why switching businesses felt as slow as it did; the destination
       // screens already render from Drift reactively and fill in as the
       // background sync lands, the same way they do on a normal cold start.
+    } catch (e) {
+      // Roll back the optimistic override set above — the write never
+      // landed, so every screen scoped by currentBusinessIdProvider must
+      // keep showing the business that's actually saved, not the one the
+      // user tapped.
+      if (selectedBusinessId != null) {
+        ref.read(pendingBusinessIdOverrideProvider.notifier).state = null;
+      }
+      if (mounted) {
+        final timedOut = e is TimeoutException;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                timedOut
+                    ? _tr(
+                        'Switching business is taking too long. Check your connection and try again.',
+                        'Kubadilisha biashara kunachukua muda mrefu. Angalia mtandao wako kisha jaribu tena.',
+                      )
+                    : _tr(
+                        'Could not switch business. Please try again.',
+                        'Imeshindikana kubadilisha biashara. Tafadhali jaribu tena.',
+                      ),
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
     } finally {
       _dismissSwitchingBusinessDialog();
     }
 
+    if (!switchSucceeded) return;
     if (!mounted) return;
     // Deferred one frame: popping the "switching…" dialog above schedules
     // element teardown that Flutter finishes at the end of this frame.
@@ -405,10 +449,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // page's own lifecycle. The dialog's NavigatorState stays valid as long
   // as the dialog itself is still mounted, so use that instead.
   NavigatorState? _switchingDialogNavigator;
+  // Set when _dismissSwitchingBusinessDialog runs before the dialog's route
+  // has finished building (its builder is what captures
+  // _switchingDialogNavigator, and that only runs on the frame after
+  // showDialog pushes the route). On a warm switch — e.g. switching *back*
+  // to a business whose caches/sync are already primed — the Firestore write
+  // and everything after it can complete inside that one-frame window, so
+  // the dismiss lands with a null navigator and used to silently no-op,
+  // stranding the "Switching to X…" dialog forever. When that happens we
+  // remember it here and the builder pops the route as soon as it appears.
+  bool _switchingDialogDismissPending = false;
 
   void _showSwitchingBusinessDialog(String? businessName) {
     if (!mounted) return;
     _switchingDialogOpen = true;
+    _switchingDialogDismissPending = false;
+    _switchingDialogNavigator = null;
     final label = businessName == null
         ? _tr('Switching business…', 'Inabadilisha biashara…')
         : _tr(
@@ -423,6 +479,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           dialogContext,
           rootNavigator: true,
         );
+        // The switch already finished before this route rendered — pop it
+        // straight back off once the current build/frame settles.
+        if (_switchingDialogDismissPending) {
+          _switchingDialogDismissPending = false;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _switchingDialogNavigator?.pop();
+            _switchingDialogNavigator = null;
+          });
+        }
         return PopScope(
           canPop: false,
           child: AlertDialog(
@@ -446,7 +511,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   void _dismissSwitchingBusinessDialog() {
     if (!_switchingDialogOpen) return;
     _switchingDialogOpen = false;
-    _switchingDialogNavigator?.pop();
+    final navigator = _switchingDialogNavigator;
+    if (navigator == null) {
+      // Dialog route hasn't built yet — let its builder pop it on arrival.
+      _switchingDialogDismissPending = true;
+      return;
+    }
+    navigator.pop();
     _switchingDialogNavigator = null;
   }
 
@@ -2001,6 +2072,15 @@ class _FinanceContextSwitcher extends StatelessWidget {
   ) async {
     if (!canSwitch || businesses.isEmpty) return;
 
+    // Switching business means writing the new selection to Firestore and
+    // re-scoping every sync repository to it — same "must be online" class
+    // of action as inviting a team member or upgrading a plan, unlike core
+    // CRUD (customers, sales, inventory…) which works fully offline. Reuse
+    // the same reusable online-guard notification those flows use instead
+    // of opening the sheet only to have the switch itself hang/fail later.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!context.mounted) return;
+
     // The sheet returns the tapped business id (or '__manage__') instead of
     // acting immediately inside the tap handler. Calling onChanged (which
     // writes to Firestore and can pop up the "switching…" dialog) or
@@ -2107,8 +2187,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
 
   static const _manageBusinessesTag = '__manage_businesses__';
 
-  void _switchToNextBusiness() {
+  Future<void> _switchToNextBusiness(BuildContext context) async {
     if (!canSwitch || businesses.length < 2) return;
+    // Same online requirement as the tap-to-open-sheet path above.
+    if (!await OnlineGuard.ensureOnline(context)) return;
     final currentBusinessId = _selectedBusinessId();
     final currentIndex = businesses.indexWhere(
       (business) => business['id'] == currentBusinessId,
@@ -2151,7 +2233,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
           onTap: canSwitch
               ? () => _openBusinessSwitcherSheet(context, selectedBusinessId)
               : null,
-          onDoubleTap: canSwitch ? _switchToNextBusiness : null,
+          onDoubleTap: canSwitch
+              ? () => _switchToNextBusiness(context)
+              : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

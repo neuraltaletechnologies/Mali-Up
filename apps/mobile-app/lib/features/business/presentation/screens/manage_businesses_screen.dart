@@ -30,6 +30,24 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
+/// Localized short label for a single business's own plan tier. Each business
+/// carries an independent plan now (see [PlanService]), so this is shown as a
+/// badge on every business card in place of the old generic "Active" tag.
+String _planLabel(PlanTier tier) {
+  switch (tier) {
+    case PlanTier.starter:
+      return _tr('Starter', 'Bure');
+    case PlanTier.growth:
+      return 'Growth';
+    case PlanTier.business:
+      return 'Business';
+    case PlanTier.enterprise:
+      return 'Enterprise';
+    case PlanTier.lifetime:
+      return 'Lifetime';
+  }
+}
+
 /// True if any business in [businesses] (each carrying its own independent
 /// plan — see [PlanService]) is on a paid tier. The first business an
 /// account creates is always free; adding a 2nd+ business requires that at
@@ -1518,6 +1536,20 @@ class _ManageBusinessesScreenState
             businesses.isEmpty || _hasAnyPaidBusiness(businesses);
         final isOnline = ref.watch(isOnlineProvider);
 
+        // The active business always sits on top of the list. When offline the
+        // other businesses are hidden entirely — they can't be switched to or
+        // edited without a connection, and their cached plan/details may be
+        // stale — so only the active business is shown.
+        final activeBusinesses = businesses
+            .where((b) => b['id'] == selectedBusinessId)
+            .toList();
+        final otherBusinesses = businesses
+            .where((b) => b['id'] != selectedBusinessId)
+            .toList();
+        final visibleBusinesses = isOnline
+            ? [...activeBusinesses, ...otherBusinesses]
+            : (activeBusinesses.isNotEmpty ? activeBusinesses : businesses);
+
         return Scaffold(
           backgroundColor: AppColors.background,
           floatingActionButton: NavAwareFab(
@@ -1557,24 +1589,36 @@ class _ManageBusinessesScreenState
                       const SizedBox(height: HeaderStatsPill.pillHalf + 8),
                       if (!isOnline) const _OfflineBusinessBanner(),
                       Expanded(
-                        child: businesses.isEmpty
+                        child: visibleBusinesses.isEmpty
                             ? const _BusinessEmptyState()
                             : ListView.builder(
                                 padding: const EdgeInsets.only(bottom: 120),
-                                itemCount: businesses.length,
-                                itemBuilder: (_, i) => _BusinessRow(
-                                  business: businesses[i],
-                                  isActive:
-                                      businesses[i]['id'] == selectedBusinessId,
-                                  isLast: i == businesses.length - 1,
-                                  isReadOnly: !isOnline,
-                                  onTap: isOnline
-                                      ? () => _openBusinessActionsSheet(
-                                          profile,
-                                          businesses[i],
-                                        )
-                                      : null,
-                                ),
+                                itemCount: visibleBusinesses.length,
+                                itemBuilder: (_, i) {
+                                  final biz = visibleBusinesses[i];
+                                  final isActive =
+                                      biz['id'] == selectedBusinessId;
+                                  return _BusinessRow(
+                                    business: biz,
+                                    isActive: isActive,
+                                    // Active row reflects the live plan tier
+                                    // (planStatusProvider); the rest show their
+                                    // own cached per-business plan.
+                                    planTier: isActive
+                                        ? tier
+                                        : PlanTierX.fromString(
+                                            biz['plan'] as String?,
+                                          ),
+                                    isLast: i == visibleBusinesses.length - 1,
+                                    isReadOnly: !isOnline,
+                                    onTap: isOnline
+                                        ? () => _openBusinessActionsSheet(
+                                            profile,
+                                            biz,
+                                          )
+                                        : null,
+                                  );
+                                },
                               ),
                       ),
                     ],
@@ -1699,8 +1743,8 @@ class _OfflineBusinessBanner extends StatelessWidget {
           Expanded(
             child: Text(
               _tr(
-                'Offline: businesses are available to view, but changes are disabled.',
-                'Nje ya mtandao: biashara zinaweza kutazamwa, lakini mabadiliko yamezuiwa.',
+                'Offline: only your active business is shown. Other businesses and changes are available once you reconnect.',
+                'Nje ya mtandao: biashara yako inayotumika pekee ndiyo inaonyeshwa. Biashara nyingine na mabadiliko yatapatikana ukirudi mtandaoni.',
               ),
               style: GoogleFonts.dmSans(
                 color: AppColors.textPrimary,
@@ -1718,6 +1762,7 @@ class _OfflineBusinessBanner extends StatelessWidget {
 class _BusinessRow extends StatelessWidget {
   final Map<String, dynamic> business;
   final bool isActive;
+  final PlanTier planTier;
   final bool isLast;
   final bool isReadOnly;
   final VoidCallback? onTap;
@@ -1725,6 +1770,7 @@ class _BusinessRow extends StatelessWidget {
   const _BusinessRow({
     required this.business,
     required this.isActive,
+    required this.planTier,
     required this.isLast,
     required this.isReadOnly,
     required this.onTap,
@@ -1810,28 +1856,8 @@ class _BusinessRow extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (isActive) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.navyPrimary,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                _tr('Active', 'Hai'),
-                                style: GoogleFonts.dmSans(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ],
+                          const SizedBox(width: 6),
+                          _PlanBadge(tier: planTier, active: isActive),
                         ],
                       ),
                       if (category.isNotEmpty || place.isNotEmpty) ...[
@@ -1873,6 +1899,52 @@ class _BusinessRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Plan badge (per-business plan, replaces the old "Active" tag) ──────────
+
+class _PlanBadge extends StatelessWidget {
+  final PlanTier tier;
+  final bool active;
+
+  const _PlanBadge({required this.tier, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final isStarter = tier == PlanTier.starter;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: active ? AppColors.navyPrimary : AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: active ? null : Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            active
+                ? Icons.check_circle_rounded
+                : Icons.workspace_premium_rounded,
+            size: 10,
+            color: active
+                ? AppColors.yellowBrand
+                : (isStarter ? AppColors.textMuted : AppColors.tealAccent),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            _planLabel(tier),
+            style: GoogleFonts.dmSans(
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
