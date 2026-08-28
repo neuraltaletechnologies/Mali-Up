@@ -31,6 +31,12 @@ interface RateLimitResult {
   retryAfterSeconds: number
 }
 
+// Cloudflare KV rejects any expirationTtl below 60 seconds. Our fixed-window
+// logic already re-checks `now - windowStart >= windowMs` on read, so letting a
+// spent counter linger a few extra seconds past the window is harmless — it's
+// treated as expired on the next read regardless of when KV actually evicts it.
+const KV_MIN_TTL_SECONDS = 60
+
 const memoryStore = new Map<string, { count: number; windowStart: number }>()
 
 async function getKv(): Promise<KvLike | null> {
@@ -73,7 +79,9 @@ async function checkRateLimit(
   const parsed = raw ? (JSON.parse(raw) as { count: number; windowStart: number }) : null
 
   if (!parsed || now - parsed.windowStart >= windowMs) {
-    await kv.put(key, JSON.stringify({ count: 1, windowStart: now }), { expirationTtl: windowSeconds })
+    await kv.put(key, JSON.stringify({ count: 1, windowStart: now }), {
+      expirationTtl: Math.max(windowSeconds, KV_MIN_TTL_SECONDS),
+    })
     return { allowed: true, retryAfterSeconds: 0 }
   }
 
@@ -81,7 +89,10 @@ async function checkRateLimit(
     return { allowed: false, retryAfterSeconds: Math.ceil((parsed.windowStart + windowMs - now) / 1000) }
   }
 
-  const remainingTtl = Math.max(Math.ceil((parsed.windowStart + windowMs - now) / 1000), 1)
+  const remainingTtl = Math.max(
+    Math.ceil((parsed.windowStart + windowMs - now) / 1000),
+    KV_MIN_TTL_SECONDS,
+  )
   await kv.put(
     key,
     JSON.stringify({ count: parsed.count + 1, windowStart: parsed.windowStart }),

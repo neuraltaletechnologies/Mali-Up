@@ -114,7 +114,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
             height: topHeight,
             child: ClipRect(
               child: Image.asset(
-                'assets/Picture/sign_up.png',
+                'assets/Picture/sign_up.webp',
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

@@ -107,6 +107,10 @@ flutter:
     - assets/branding/
     - assets/lottie/
     - assets/Picture/
+    # Bundled Google Fonts (DM Sans, JetBrains Mono, DM Serif Display, DM Mono).
+    # google_fonts picks these up by filename so the app never fetches fonts
+    # over the network — see GoogleFonts.config.allowRuntimeFetching in main.dart.
+    - assets/google_fonts/
 
 flutter_launcher_icons:
   android: true

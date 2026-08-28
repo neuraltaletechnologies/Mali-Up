@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -47,6 +48,12 @@ const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
 const bool _sentryTestEvent = bool.fromEnvironment('SENTRY_TEST_EVENT');
 
 Future<void> _startApp() async {
+  // Fonts are bundled under assets/google_fonts/ — never fetch them over the
+  // network. Without this, google_fonts tries to download DM Sans / JetBrains
+  // Mono / DM Serif Display from fonts.gstatic.com on first use and throws an
+  // unhandled exception on offline / DNS-restricted networks.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
   // SharedPreferences and Firebase init are independent — kick both off now.
   final prefsFuture = SharedPreferences.getInstance();
   // Guard: if env vars weren't injected (e.g. --dart-define-from-file missing),
@@ -128,11 +135,20 @@ Future<void> _startApp() async {
       ? null
       : OnboardingService.loadDraft(prefs);
 
+  // Edge-to-edge is the default on Flutter targeting Android SDK 35+, but set it
+  // explicitly so the behaviour doesn't depend on the framework default and the
+  // app draws behind the status/navigation bars on every supported version.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       statusBarBrightness: Brightness.light,
+      // Transparent nav bar with contrast enforcement off: setting an opaque
+      // colour maps to Window.setNavigationBarColor, which Android 15 deprecates.
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 

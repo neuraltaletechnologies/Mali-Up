@@ -55,7 +55,10 @@ class _SplashScreenState extends State<SplashScreen>
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: _bg,
+        // Transparent so the navy splash draws edge-to-edge behind the nav bar;
+        // an opaque colour here maps to the deprecated Window.setNavigationBarColor.
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
