@@ -241,7 +241,16 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                   style: subtitleStyle,
                                 ),
                               ),
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 20),
+
+                              // "No account found for this number" notice
+                              _NoAccountNotice(
+                                phone: state.phone,
+                                isSwahili: sw,
+                                onChangeNumber: () =>
+                                    context.go(AppRoutes.phone),
+                              ),
+                              const SizedBox(height: 24),
 
                               // First name
                               OnboardingField(
@@ -358,6 +367,98 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                 ),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Info banner explaining that the phone number typed on the previous screen
+/// matched no existing account, with a shortcut back to fix a mistyped number.
+class _NoAccountNotice extends StatelessWidget {
+  const _NoAccountNotice({
+    required this.phone,
+    required this.isSwahili,
+    required this.onChangeNumber,
+  });
+
+  final String phone;
+  final bool isSwahili;
+  final VoidCallback onChangeNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.infoBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.person_search_rounded,
+                  size: 18, color: AppColors.info),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      OnboardingStrings.s(isSwahili,
+                          en: OnboardingStrings.newUserNoAccountEn,
+                          sw: OnboardingStrings.newUserNoAccountSw),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                    if (phone.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        phone,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onChangeNumber,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: const Size(0, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppColors.info,
+              ),
+              icon: const Icon(Icons.edit_rounded, size: 15),
+              label: Text(
+                OnboardingStrings.s(isSwahili,
+                    en: OnboardingStrings.newUserWrongNumberEn,
+                    sw: OnboardingStrings.newUserWrongNumberSw),
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),
