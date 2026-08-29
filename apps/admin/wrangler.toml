@@ -93,6 +93,12 @@ AUTH_TRUST_HOST = "true"
 #      FIREBASE_PROJECT_ID    (Variable) — neuraltale-mali-up
 #      FIREBASE_CLIENT_EMAIL  (Variable) — firebase-adminsdk-fbsvc@neuraltale-mali-up.iam.gserviceaccount.com
 #      FIREBASE_PRIVATE_KEY   (Secret) — full PEM, literal \n escapes, not real newlines
+#      PLAY_REPORTS_BUCKET    (Variable, optional) — pubsite_prod_… id of the Play
+#                             Console report bucket; enables the dashboard's
+#                             installs/uninstalls section. See docs/play-console-reports.md
+#      PLAY_PACKAGE_NAME      (Variable, optional) — com.neuraltale.maliup
+#      PLAY_SA_CLIENT_EMAIL / PLAY_SA_PRIVATE_KEY (optional) — dedicated report SA;
+#                             falls back to FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY
 #
 # 2) Settings → Build → Variables and secrets (BUILD-TIME — inlined into the
 #    client JS bundle by `next build`; changing these requires a fresh build,

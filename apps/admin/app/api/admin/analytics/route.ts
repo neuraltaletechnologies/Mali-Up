@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { withCache } from '@/lib/api-cache'
+import { lastNMonths, toMs } from '@/lib/analytics-shared'
 
 // Plan monthly fees in TZS
 const PLAN_FEES: Record<string, number> = {
@@ -36,28 +37,6 @@ function normalisePlan(raw: string | undefined | null): string {
 
 function mrrForPlan(plan: string): number {
   return PLAN_FEES[plan] ?? 0
-}
-
-/** Returns the last N months as { label, endMs } pairs, oldest first. */
-function lastNMonths(n: number): { label: string; endMs: number }[] {
-  const result: { label: string; endMs: number }[] = []
-  const now = new Date()
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i + 1, 0) // last day of month
-    const label = d.toLocaleString('en-GB', { month: 'short', year: '2-digit' })
-    result.push({ label, endMs: d.getTime() })
-  }
-  return result
-}
-
-function toMs(value: unknown): number {
-  if (!value) return 0
-  if (typeof value === 'string') return new Date(value).getTime()
-  if (typeof value === 'object' && value !== null) {
-    const s = (value as Record<string, number>)._seconds ?? (value as Record<string, number>).seconds
-    if (typeof s === 'number') return s * 1000
-  }
-  return 0
 }
 
 export async function GET() {
