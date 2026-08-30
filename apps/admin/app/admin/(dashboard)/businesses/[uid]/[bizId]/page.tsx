@@ -722,13 +722,19 @@ function EnterpriseTermsPanel({
   const baseline = plansData?.plans.enterprise
 
   const [form, setForm] = useState<PlanDefinition | null>(null)
+  // Collected per-month; stored as pricePerCycle (monthly × cycleMonths).
+  const [monthlyPrice, setMonthlyPrice] = useState(0)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!baseline) return
-    setForm({ ...baseline, ...business.enterpriseOverrides })
+    const merged = { ...baseline, ...business.enterpriseOverrides }
+    setForm(merged)
+    setMonthlyPrice(
+      merged.cycleMonths > 0 ? Math.round(merged.pricePerCycle / merged.cycleMonths) : 0,
+    )
     setNotes(business.enterpriseOverrides?.notes ?? '')
   }, [baseline, business.enterpriseOverrides])
 
@@ -744,7 +750,12 @@ function EnterpriseTermsPanel({
     if (!form) return
     setSaving(true); setErr(null)
     try {
-      await setEnterpriseTerms(uid, bizId, { ...form, notes: notes.trim() || undefined })
+      const cycleMonths = form.cycleMonths > 0 ? form.cycleMonths : 1
+      await setEnterpriseTerms(uid, bizId, {
+        ...form,
+        pricePerCycle: Math.round(monthlyPrice * cycleMonths),
+        notes: notes.trim() || undefined,
+      })
       onSaved()
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Failed to save terms')
@@ -794,12 +805,17 @@ function EnterpriseTermsPanel({
 
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="flex flex-col gap-1.5">
-          <label className={labelCls}>Price per billing cycle (TZS)</label>
-          <input type="number" min="0" value={form.pricePerCycle} onChange={num('pricePerCycle')} className={inputCls} />
+          <label className={labelCls}>Price per month (TZS)</label>
+          <input type="number" min="0" value={monthlyPrice} onChange={(e) => setMonthlyPrice(Number(e.target.value))} className={inputCls} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className={labelCls}>Billing cycle (months)</label>
           <input type="number" min="1" max="24" value={form.cycleMonths} onChange={num('cycleMonths')} className={inputCls} />
+          {monthlyPrice > 0 && form.cycleMonths > 0 && (
+            <p className="text-[11px] text-[var(--ink-faint)]">
+              {formatTZS(Math.round(monthlyPrice * form.cycleMonths))} billed every {form.cycleMonths} months
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className={labelCls}>Max users (−1 = unlimited)</label>
