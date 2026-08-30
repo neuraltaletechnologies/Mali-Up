@@ -5,6 +5,9 @@ import { requireAdminSession } from '@/lib/api-guard'
 import { mapUser, mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
 import { deleteUserCascade } from '@/lib/hard-delete'
+import { canonicalPhone, toE164 } from '@/lib/phone'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 export async function GET(
   _request: Request,
@@ -65,6 +68,7 @@ export async function PATCH(
     const userName = (userDoc.data()?.displayName as string) || (userDoc.data()?.name as string) || uid
 
     await userRef.update({ isActive: body.isActive, updatedAt: new Date() })
+    invalidateCache(CACHE_KEYS.users(200))
 
     await writeAudit({
       action: body.isActive ? 'unsuspend_user' : 'suspend_user',
@@ -107,8 +111,11 @@ export async function PUT(
       updates.name        = body.name.trim()
     }
     if (body.phone?.trim()) {
-      const normalized = body.phone.trim().replace(/\D/g, '').replace(/^0/, '').replace(/^255/, '')
-      updates.phone = normalized
+      // The client sends the full international number (country the admin
+      // picked + local digits). Normalise the same way the mobile app does
+      // so the stored value keeps carrying its country code — stripping it
+      // here would break phone-based login lookups for that user.
+      updates.phone = canonicalPhone(body.phone)
     }
     if (body.email !== undefined) {
       updates.email = body.email.trim().toLowerCase() || null
@@ -127,11 +134,12 @@ export async function PUT(
       const authUpdate: { displayName?: string; email?: string; phoneNumber?: string } = {}
       if (updates.displayName)                               authUpdate.displayName = updates.displayName as string
       if (updates.email && typeof updates.email === 'string') authUpdate.email      = updates.email
-      if (updates.phone  && typeof updates.phone === 'string') authUpdate.phoneNumber = `+255${updates.phone}`
+      if (updates.phone  && typeof updates.phone === 'string') authUpdate.phoneNumber = toE164(updates.phone)
       if (Object.keys(authUpdate).length > 0) {
         await adminAuth.updateUser(uid, authUpdate)
       }
     } catch { /* auth update is best-effort */ }
+    invalidateCache(CACHE_KEYS.users(200))
 
     const before: Record<string, unknown> = {}
     const after:  Record<string, unknown> = {}
@@ -177,6 +185,7 @@ export async function DELETE(
     const userName = (before.displayName as string) || (before.name as string) || uid
 
     const { deletedBusinessIds } = await deleteUserCascade(uid)
+    invalidateCache(CACHE_KEYS.users(200))
 
     await writeAudit({
       action: 'delete_user',

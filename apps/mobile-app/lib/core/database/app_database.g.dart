@@ -10432,6 +10432,30 @@ class $TeamMembersTableTable extends TeamMembersTable
         requiredDuringInsert: false,
         defaultValue: const Constant('[]'),
       );
+  static const VerificationMeta _customRoleIdMeta = const VerificationMeta(
+    'customRoleId',
+  );
+  @override
+  late final GeneratedColumn<String> customRoleId = GeneratedColumn<String>(
+    'custom_role_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _customRoleNameMeta = const VerificationMeta(
+    'customRoleName',
+  );
+  @override
+  late final GeneratedColumn<String> customRoleName = GeneratedColumn<String>(
+    'custom_role_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -10574,6 +10598,8 @@ class $TeamMembersTableTable extends TeamMembersTable
     phone,
     role,
     customPermissions,
+    customRoleId,
+    customRoleName,
     status,
     invitedAt,
     acceptedAt,
@@ -10646,6 +10672,24 @@ class $TeamMembersTableTable extends TeamMembersTable
         customPermissions.isAcceptableOrUnknown(
           data['custom_permissions']!,
           _customPermissionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_role_id')) {
+      context.handle(
+        _customRoleIdMeta,
+        customRoleId.isAcceptableOrUnknown(
+          data['custom_role_id']!,
+          _customRoleIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_role_name')) {
+      context.handle(
+        _customRoleNameMeta,
+        customRoleName.isAcceptableOrUnknown(
+          data['custom_role_name']!,
+          _customRoleNameMeta,
         ),
       );
     }
@@ -10767,6 +10811,14 @@ class $TeamMembersTableTable extends TeamMembersTable
         DriftSqlType.string,
         data['${effectivePrefix}custom_permissions'],
       )!,
+      customRoleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_role_id'],
+      )!,
+      customRoleName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_role_name'],
+      )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -10833,6 +10885,8 @@ class TeamMembersTableData extends DataClass
   final String phone;
   final String role;
   final String customPermissions;
+  final String customRoleId;
+  final String customRoleName;
   final String status;
   final int invitedAt;
   final int? acceptedAt;
@@ -10853,6 +10907,8 @@ class TeamMembersTableData extends DataClass
     required this.phone,
     required this.role,
     required this.customPermissions,
+    required this.customRoleId,
+    required this.customRoleName,
     required this.status,
     required this.invitedAt,
     this.acceptedAt,
@@ -10876,6 +10932,8 @@ class TeamMembersTableData extends DataClass
     map['phone'] = Variable<String>(phone);
     map['role'] = Variable<String>(role);
     map['custom_permissions'] = Variable<String>(customPermissions);
+    map['custom_role_id'] = Variable<String>(customRoleId);
+    map['custom_role_name'] = Variable<String>(customRoleName);
     map['status'] = Variable<String>(status);
     map['invited_at'] = Variable<int>(invitedAt);
     if (!nullToAbsent || acceptedAt != null) {
@@ -10904,6 +10962,8 @@ class TeamMembersTableData extends DataClass
       phone: Value(phone),
       role: Value(role),
       customPermissions: Value(customPermissions),
+      customRoleId: Value(customRoleId),
+      customRoleName: Value(customRoleName),
       status: Value(status),
       invitedAt: Value(invitedAt),
       acceptedAt: acceptedAt == null && nullToAbsent
@@ -10936,6 +10996,8 @@ class TeamMembersTableData extends DataClass
       phone: serializer.fromJson<String>(json['phone']),
       role: serializer.fromJson<String>(json['role']),
       customPermissions: serializer.fromJson<String>(json['customPermissions']),
+      customRoleId: serializer.fromJson<String>(json['customRoleId']),
+      customRoleName: serializer.fromJson<String>(json['customRoleName']),
       status: serializer.fromJson<String>(json['status']),
       invitedAt: serializer.fromJson<int>(json['invitedAt']),
       acceptedAt: serializer.fromJson<int?>(json['acceptedAt']),
@@ -10961,6 +11023,8 @@ class TeamMembersTableData extends DataClass
       'phone': serializer.toJson<String>(phone),
       'role': serializer.toJson<String>(role),
       'customPermissions': serializer.toJson<String>(customPermissions),
+      'customRoleId': serializer.toJson<String>(customRoleId),
+      'customRoleName': serializer.toJson<String>(customRoleName),
       'status': serializer.toJson<String>(status),
       'invitedAt': serializer.toJson<int>(invitedAt),
       'acceptedAt': serializer.toJson<int?>(acceptedAt),
@@ -10984,6 +11048,8 @@ class TeamMembersTableData extends DataClass
     String? phone,
     String? role,
     String? customPermissions,
+    String? customRoleId,
+    String? customRoleName,
     String? status,
     int? invitedAt,
     Value<int?> acceptedAt = const Value.absent(),
@@ -11004,6 +11070,8 @@ class TeamMembersTableData extends DataClass
     phone: phone ?? this.phone,
     role: role ?? this.role,
     customPermissions: customPermissions ?? this.customPermissions,
+    customRoleId: customRoleId ?? this.customRoleId,
+    customRoleName: customRoleName ?? this.customRoleName,
     status: status ?? this.status,
     invitedAt: invitedAt ?? this.invitedAt,
     acceptedAt: acceptedAt.present ? acceptedAt.value : this.acceptedAt,
@@ -11032,6 +11100,12 @@ class TeamMembersTableData extends DataClass
       customPermissions: data.customPermissions.present
           ? data.customPermissions.value
           : this.customPermissions,
+      customRoleId: data.customRoleId.present
+          ? data.customRoleId.value
+          : this.customRoleId,
+      customRoleName: data.customRoleName.present
+          ? data.customRoleName.value
+          : this.customRoleName,
       status: data.status.present ? data.status.value : this.status,
       invitedAt: data.invitedAt.present ? data.invitedAt.value : this.invitedAt,
       acceptedAt: data.acceptedAt.present
@@ -11063,6 +11137,8 @@ class TeamMembersTableData extends DataClass
           ..write('phone: $phone, ')
           ..write('role: $role, ')
           ..write('customPermissions: $customPermissions, ')
+          ..write('customRoleId: $customRoleId, ')
+          ..write('customRoleName: $customRoleName, ')
           ..write('status: $status, ')
           ..write('invitedAt: $invitedAt, ')
           ..write('acceptedAt: $acceptedAt, ')
@@ -11080,7 +11156,7 @@ class TeamMembersTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     businessId,
     name,
@@ -11088,6 +11164,8 @@ class TeamMembersTableData extends DataClass
     phone,
     role,
     customPermissions,
+    customRoleId,
+    customRoleName,
     status,
     invitedAt,
     acceptedAt,
@@ -11100,7 +11178,7 @@ class TeamMembersTableData extends DataClass
     serverUpdatedAt,
     syncStatus,
     isDeleted,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -11112,6 +11190,8 @@ class TeamMembersTableData extends DataClass
           other.phone == this.phone &&
           other.role == this.role &&
           other.customPermissions == this.customPermissions &&
+          other.customRoleId == this.customRoleId &&
+          other.customRoleName == this.customRoleName &&
           other.status == this.status &&
           other.invitedAt == this.invitedAt &&
           other.acceptedAt == this.acceptedAt &&
@@ -11134,6 +11214,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
   final Value<String> phone;
   final Value<String> role;
   final Value<String> customPermissions;
+  final Value<String> customRoleId;
+  final Value<String> customRoleName;
   final Value<String> status;
   final Value<int> invitedAt;
   final Value<int?> acceptedAt;
@@ -11155,6 +11237,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     this.phone = const Value.absent(),
     this.role = const Value.absent(),
     this.customPermissions = const Value.absent(),
+    this.customRoleId = const Value.absent(),
+    this.customRoleName = const Value.absent(),
     this.status = const Value.absent(),
     this.invitedAt = const Value.absent(),
     this.acceptedAt = const Value.absent(),
@@ -11177,6 +11261,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     this.phone = const Value.absent(),
     required String role,
     this.customPermissions = const Value.absent(),
+    this.customRoleId = const Value.absent(),
+    this.customRoleName = const Value.absent(),
     this.status = const Value.absent(),
     required int invitedAt,
     this.acceptedAt = const Value.absent(),
@@ -11205,6 +11291,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     Expression<String>? phone,
     Expression<String>? role,
     Expression<String>? customPermissions,
+    Expression<String>? customRoleId,
+    Expression<String>? customRoleName,
     Expression<String>? status,
     Expression<int>? invitedAt,
     Expression<int>? acceptedAt,
@@ -11227,6 +11315,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
       if (phone != null) 'phone': phone,
       if (role != null) 'role': role,
       if (customPermissions != null) 'custom_permissions': customPermissions,
+      if (customRoleId != null) 'custom_role_id': customRoleId,
+      if (customRoleName != null) 'custom_role_name': customRoleName,
       if (status != null) 'status': status,
       if (invitedAt != null) 'invited_at': invitedAt,
       if (acceptedAt != null) 'accepted_at': acceptedAt,
@@ -11251,6 +11341,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     Value<String>? phone,
     Value<String>? role,
     Value<String>? customPermissions,
+    Value<String>? customRoleId,
+    Value<String>? customRoleName,
     Value<String>? status,
     Value<int>? invitedAt,
     Value<int?>? acceptedAt,
@@ -11273,6 +11365,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       customPermissions: customPermissions ?? this.customPermissions,
+      customRoleId: customRoleId ?? this.customRoleId,
+      customRoleName: customRoleName ?? this.customRoleName,
       status: status ?? this.status,
       invitedAt: invitedAt ?? this.invitedAt,
       acceptedAt: acceptedAt ?? this.acceptedAt,
@@ -11312,6 +11406,12 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
     }
     if (customPermissions.present) {
       map['custom_permissions'] = Variable<String>(customPermissions.value);
+    }
+    if (customRoleId.present) {
+      map['custom_role_id'] = Variable<String>(customRoleId.value);
+    }
+    if (customRoleName.present) {
+      map['custom_role_name'] = Variable<String>(customRoleName.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -11365,6 +11465,8 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
           ..write('phone: $phone, ')
           ..write('role: $role, ')
           ..write('customPermissions: $customPermissions, ')
+          ..write('customRoleId: $customRoleId, ')
+          ..write('customRoleName: $customRoleName, ')
           ..write('status: $status, ')
           ..write('invitedAt: $invitedAt, ')
           ..write('acceptedAt: $acceptedAt, ')
@@ -21220,6 +21322,8 @@ typedef $$TeamMembersTableTableCreateCompanionBuilder =
       Value<String> phone,
       required String role,
       Value<String> customPermissions,
+      Value<String> customRoleId,
+      Value<String> customRoleName,
       Value<String> status,
       required int invitedAt,
       Value<int?> acceptedAt,
@@ -21243,6 +21347,8 @@ typedef $$TeamMembersTableTableUpdateCompanionBuilder =
       Value<String> phone,
       Value<String> role,
       Value<String> customPermissions,
+      Value<String> customRoleId,
+      Value<String> customRoleName,
       Value<String> status,
       Value<int> invitedAt,
       Value<int?> acceptedAt,
@@ -21299,6 +21405,16 @@ class $$TeamMembersTableTableFilterComposer
 
   ColumnFilters<String> get customPermissions => $composableBuilder(
     column: $table.customPermissions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customRoleId => $composableBuilder(
+    column: $table.customRoleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customRoleName => $composableBuilder(
+    column: $table.customRoleName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21407,6 +21523,16 @@ class $$TeamMembersTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get customRoleId => $composableBuilder(
+    column: $table.customRoleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customRoleName => $composableBuilder(
+    column: $table.customRoleName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -21502,6 +21628,16 @@ class $$TeamMembersTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get customRoleId => $composableBuilder(
+    column: $table.customRoleId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get customRoleName => $composableBuilder(
+    column: $table.customRoleName,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -21589,6 +21725,8 @@ class $$TeamMembersTableTableTableManager
                 Value<String> phone = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String> customPermissions = const Value.absent(),
+                Value<String> customRoleId = const Value.absent(),
+                Value<String> customRoleName = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> invitedAt = const Value.absent(),
                 Value<int?> acceptedAt = const Value.absent(),
@@ -21610,6 +21748,8 @@ class $$TeamMembersTableTableTableManager
                 phone: phone,
                 role: role,
                 customPermissions: customPermissions,
+                customRoleId: customRoleId,
+                customRoleName: customRoleName,
                 status: status,
                 invitedAt: invitedAt,
                 acceptedAt: acceptedAt,
@@ -21633,6 +21773,8 @@ class $$TeamMembersTableTableTableManager
                 Value<String> phone = const Value.absent(),
                 required String role,
                 Value<String> customPermissions = const Value.absent(),
+                Value<String> customRoleId = const Value.absent(),
+                Value<String> customRoleName = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required int invitedAt,
                 Value<int?> acceptedAt = const Value.absent(),
@@ -21654,6 +21796,8 @@ class $$TeamMembersTableTableTableManager
                 phone: phone,
                 role: role,
                 customPermissions: customPermissions,
+                customRoleId: customRoleId,
+                customRoleName: customRoleName,
                 status: status,
                 invitedAt: invitedAt,
                 acceptedAt: acceptedAt,

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore, FieldValue } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Entity = 'category' | 'product'
 type Mode = 'add' | 'remove' | 'replace'
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
       }
       await batch.commit()
     }
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'bulk_reassign_catalog_business_types',

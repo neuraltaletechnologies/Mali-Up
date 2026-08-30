@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Params = { id: string }
 
@@ -21,6 +23,7 @@ export async function PATCH(
     if (!doc.exists) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
 
     await ref.update({ ...body, updatedAt: new Date() })
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'update_category',
@@ -53,6 +56,7 @@ export async function DELETE(
 
     const name = (doc.data()!.categoryName as string) || id
     await ref.delete()
+    invalidateCache(CACHE_KEYS.catalog)
 
     await writeAudit({
       action: 'delete_category',

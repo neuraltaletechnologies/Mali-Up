@@ -117,7 +117,17 @@ service cloud.firestore {
         (!data.keys().hasAny(['city'])             || data.city is string) &&
         (!data.keys().hasAny(['district'])         || data.district is string) &&
         (!data.keys().hasAny(['region'])           || data.region is string) &&
-        (!data.keys().hasAny(['country'])          || data.country is string);
+        (!data.keys().hasAny(['country'])          || data.country is string) &&
+        // Entitlement fields are never client-settable, not even at business
+        // creation — 'plan' may only be the free-tier default a brand-new
+        // business starts on. Paid activation only ever happens server-side
+        // (Cloud Functions Admin SDK, after a verified ClickPesa payment or
+        // admin approval), which bypasses these rules entirely. Mirrors
+        // isValidUserCreate below, now that the plan lives on the business
+        // document instead of the owner's user document.
+        (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
+        !data.keys().hasAny(
+          ['planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
     }
 
     function isValidWorkerCreate(data) {
@@ -287,8 +297,16 @@ service cloud.firestore {
       // Create: ownerUid must be the caller.
       allow create: if isSignedIn() && isValidBusinessCreate(request.resource.data);
 
-      // Update / delete: owner only.
-      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      // Update: owner only, and never the entitlement fields — those change
+      // only via the admin portal / Cloud Functions on the Admin SDK, which
+      // bypasses these rules. Without this, an owner could self-grant a paid
+      // plan by writing straight to their own business document (the plan
+      // now lives here instead of on their user document).
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['plan', 'planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
+      // Delete: owner only.
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
 
       // ── Customers ──────────────────────────────────────────────────────────
       match /customers/{customerId} {
@@ -637,6 +655,44 @@ service cloud.firestore {
       // writes: status only ever changes via the webhook or the fallback
       // poll, both server-side.
       allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // =========================================================================
+    // OTP RATE LIMIT COUNTERS  (functions/src/otp_rate_limit.ts)
+    // Written only by requestOtpAllowance via the Admin SDK, which bypasses
+    // these rules entirely. Explicit deny here (on top of the default-deny
+    // fallback below) so a client can never read its own counter to learn
+    // how close it is to the limit, or write to reset it.
+    // =========================================================================
+    match /otp_rate_limits/{phoneHash} {
+      allow read, write: if false;
+    }
+    match /otp_rate_limits_ip/{ipHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // OTHER RATE LIMIT COUNTERS  (functions/src/rate_limit.ts)
+    // Written only via the Admin SDK inside a Firestore transaction, which
+    // bypasses these rules entirely. Same reasoning as the OTP counters above.
+    // =========================================================================
+    match /device_integrity_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /delete_account_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_initiate_rate_limits_uid/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_initiate_rate_limits_phone/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_verify_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+    match /clickpesa_webhook_rate_limits/{keyHash} {
+      allow read, write: if false;
     }
 
     // =========================================================================

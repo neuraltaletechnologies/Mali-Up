@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { verifyIdToken, isAdminUser } from './firebase-admin'
+import { clientIp, rateLimitIp } from './rate-limit'
 import { z } from 'zod'
 
 // The login page signs the user in via the Firebase client SDK, gets an
@@ -44,7 +45,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // The raw password is never sent here — only the Firebase ID token.
         idToken: { label: 'Firebase ID Token', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        // Brute-force guard: a stolen/expired ID token, or a script probing
+        // this endpoint directly, would otherwise get unlimited attempts —
+        // each one still costs a Firebase token-verify + Firestore admin
+        // check below. Keyed by IP, tighter than the general admin API
+        // budget in lib/rate-limit.ts since this path is reachable with no
+        // session at all.
+        const ip = clientIp(request.headers)
+        const throttled = await rateLimitIp(ip, { limit: 10, windowSeconds: 5 * 60 })
+        if (throttled) {
+          console.warn('[Auth] Sign-in rate limited', { ip })
+          return null
+        }
+
         const parsed = credentialsSchema.safeParse(credentials)
         if (!parsed.success) return null
 

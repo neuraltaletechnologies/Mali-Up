@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
@@ -18,6 +19,7 @@ import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../rbac/data/role_cache_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -28,11 +30,33 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-int _businessLimitFor(PlanTier tier, PlanDefinitions? definitions) {
-  // Multiple businesses are a Business/Enterprise feature. Keep this rule
-  // deterministic even before remote plan definitions finish loading.
-  if (tier == PlanTier.starter || tier == PlanTier.growth) return 1;
-  return limitsFor(tier, definitions).maxBusinesses;
+/// Localized short label for a single business's own plan tier. Each business
+/// carries an independent plan now (see [PlanService]), so this is shown as a
+/// badge on every business card in place of the old generic "Active" tag.
+String _planLabel(PlanTier tier) {
+  switch (tier) {
+    case PlanTier.starter:
+      return _tr('Starter', 'Bure');
+    case PlanTier.growth:
+      return 'Growth';
+    case PlanTier.business:
+      return 'Business';
+    case PlanTier.enterprise:
+      return 'Enterprise';
+    case PlanTier.lifetime:
+      return 'Lifetime';
+  }
+}
+
+/// True if any business in [businesses] (each carrying its own independent
+/// plan — see [PlanService]) is on a paid tier. The first business an
+/// account creates is always free; adding a 2nd+ business requires that at
+/// least one existing business already pays, since a Starter business no
+/// longer implies anything about the account as a whole.
+bool _hasAnyPaidBusiness(List<Map<String, dynamic>> businesses) {
+  return businesses.any(
+    (b) => PlanTierX.fromString(b['plan'] as String?) != PlanTier.starter,
+  );
 }
 
 class ManageBusinessesScreen extends ConsumerStatefulWidget {
@@ -86,27 +110,23 @@ class _ManageBusinessesScreenState
     } catch (_) {}
   }
 
-  /// Add-business entry point (FAB): users who have reached their plan's
-  /// business limit are gated behind the shared slide-up upgrade sheet
-  /// instead of the old blocking dialog, matching the rest of the app's
-  /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
-  /// admin-editable), not hardcoded.
+  /// Add-business entry point (FAB): the first business is always free.
+  /// Adding a 2nd+ business requires the account to already have at least
+  /// one paid business — plans are independent per business now, so owning
+  /// a single Starter business doesn't unlock more of them. Users blocked by
+  /// this are gated behind the shared slide-up upgrade sheet instead of a
+  /// blocking dialog, matching the rest of the app's paywall UX.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
-    final tier =
-        ref.read(planStatusProvider).valueOrNull?.tier ??
-        PlanTierX.fromString(profile?['plan'] as String?);
-    final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxBusinesses = _businessLimitFor(tier, defs);
-    final currentCount = _businessesFromProfile(profile).length;
-    if (maxBusinesses != -1 && currentCount >= maxBusinesses) {
+    final businesses = _businessesFromProfile(profile);
+    if (businesses.isNotEmpty && !_hasAnyPaidBusiness(businesses)) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
         triggerReason: _tr(
-          'Multiple businesses are available on Business and Enterprise plans.',
-          'Biashara nyingi zinapatikana kwenye mipango ya Business na Enterprise.',
+          'Upgrade one of your businesses to a paid plan to add another business.',
+          'Panda mpango wa biashara moja kuwa wa malipo ili kuongeza biashara nyingine.',
         ),
       );
       return;
@@ -304,6 +324,10 @@ class _ManageBusinessesScreenState
             'website': (entry['website'] as String?)?.trim() ?? '',
             'x': (entry['x'] as String?)?.trim() ?? '',
             'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
+            // Each business carries its own plan now — used to decide
+            // whether this account may add another business (see
+            // _hasAnyPaidBusiness).
+            'plan': (entry['plan'] as String?)?.trim() ?? '',
           },
         )
         .where((entry) => (entry['id'] as String).isNotEmpty)
@@ -315,13 +339,24 @@ class _ManageBusinessesScreenState
     return value == null || value.trim().isEmpty ? null : value.trim();
   }
 
-  /// Updates only `selectedBusinessId` on the user profile — no more businesses array.
+  /// Updates the user profile's active-business pointers.
+  ///
+  /// Must write `defaultContext` alongside `selectedBusinessId` — see
+  /// [ContextFirestoreRepository.resolveContextFromData]: it checks
+  /// `defaultContext` FIRST and, when set, extracts the businessId straight
+  /// out of that string, ignoring `selectedBusinessId` entirely. Writing
+  /// only `selectedBusinessId` (as this used to) left `defaultContext`
+  /// pointing at whatever business was active before, so every screen kept
+  /// reading the old business's data no matter which one got selected here.
+  /// Mirrors the write in MainShellPage._switchFinanceContext.
   Future<void> _persistSelectedBusiness({
     required String userId,
     required String? selectedBusinessId,
   }) async {
     if (selectedBusinessId == null || selectedBusinessId.isEmpty) return;
     await _firestore.collection('users').doc(userId).set({
+      'defaultContext': 'business:$selectedBusinessId',
+      'defaultAccountType': 'business',
       'selectedBusinessId': selectedBusinessId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -1155,6 +1190,13 @@ class _ManageBusinessesScreenState
       if (pendingSelectId != null) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
+          // Optimistic override, same as MainShellPage._switchFinanceContext —
+          // re-scopes every screen to the new business immediately instead of
+          // waiting on the defaultContext write to round-trip through
+          // Firestore (persistence cache is disabled app-wide).
+          ref.read(pendingBusinessIdOverrideProvider.notifier).state =
+              pendingSelectId;
+          await RoleCacheService.saveBusinessId(user.uid, pendingSelectId!);
           await _persistSelectedBusiness(
             userId: user.uid,
             selectedBusinessId: pendingSelectId,
@@ -1162,7 +1204,9 @@ class _ManageBusinessesScreenState
         }
       }
       if (!mounted) return;
-      setState(() => _profileFuture = _loadProfile());
+      setState(() {
+        _profileFuture = _loadProfile();
+      });
       AppNotification.success(
         context,
         isEditing
@@ -1481,14 +1525,30 @@ class _ManageBusinessesScreenState
         final selectedBusinessId = _selectedBusinessId(profile);
         final isLoading =
             snapshot.connectionState != ConnectionState.done && profile == null;
+        // The active business's own plan (each business carries an
+        // independent plan now — see PlanService).
         final livePlanTier = ref.watch(
           planStatusProvider.select((a) => a.valueOrNull?.tier),
         );
         final tier =
             livePlanTier ?? PlanTierX.fromString(profile?['plan'] as String?);
-        final defs = ref.watch(planDefinitionsProvider).valueOrNull;
-        final maxBusinesses = _businessLimitFor(tier, defs);
+        final canAddMoreBusinesses =
+            businesses.isEmpty || _hasAnyPaidBusiness(businesses);
         final isOnline = ref.watch(isOnlineProvider);
+
+        // The active business always sits on top of the list. When offline the
+        // other businesses are hidden entirely — they can't be switched to or
+        // edited without a connection, and their cached plan/details may be
+        // stale — so only the active business is shown.
+        final activeBusinesses = businesses
+            .where((b) => b['id'] == selectedBusinessId)
+            .toList();
+        final otherBusinesses = businesses
+            .where((b) => b['id'] != selectedBusinessId)
+            .toList();
+        final visibleBusinesses = isOnline
+            ? [...activeBusinesses, ...otherBusinesses]
+            : (activeBusinesses.isNotEmpty ? activeBusinesses : businesses);
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -1515,7 +1575,7 @@ class _ManageBusinessesScreenState
                     children: [
                       _BusinessDarkHeader(
                         businessCount: businesses.length,
-                        maxBusinesses: maxBusinesses,
+                        canAddMoreBusinesses: canAddMoreBusinesses,
                         tier: tier,
                         searchCtrl: _searchCtrl,
                         searchExpanded: _searchExpanded,
@@ -1529,24 +1589,36 @@ class _ManageBusinessesScreenState
                       const SizedBox(height: HeaderStatsPill.pillHalf + 8),
                       if (!isOnline) const _OfflineBusinessBanner(),
                       Expanded(
-                        child: businesses.isEmpty
+                        child: visibleBusinesses.isEmpty
                             ? const _BusinessEmptyState()
                             : ListView.builder(
                                 padding: const EdgeInsets.only(bottom: 120),
-                                itemCount: businesses.length,
-                                itemBuilder: (_, i) => _BusinessRow(
-                                  business: businesses[i],
-                                  isActive:
-                                      businesses[i]['id'] == selectedBusinessId,
-                                  isLast: i == businesses.length - 1,
-                                  isReadOnly: !isOnline,
-                                  onTap: isOnline
-                                      ? () => _openBusinessActionsSheet(
-                                          profile,
-                                          businesses[i],
-                                        )
-                                      : null,
-                                ),
+                                itemCount: visibleBusinesses.length,
+                                itemBuilder: (_, i) {
+                                  final biz = visibleBusinesses[i];
+                                  final isActive =
+                                      biz['id'] == selectedBusinessId;
+                                  return _BusinessRow(
+                                    business: biz,
+                                    isActive: isActive,
+                                    // Active row reflects the live plan tier
+                                    // (planStatusProvider); the rest show their
+                                    // own cached per-business plan.
+                                    planTier: isActive
+                                        ? tier
+                                        : PlanTierX.fromString(
+                                            biz['plan'] as String?,
+                                          ),
+                                    isLast: i == visibleBusinesses.length - 1,
+                                    isReadOnly: !isOnline,
+                                    onTap: isOnline
+                                        ? () => _openBusinessActionsSheet(
+                                            profile,
+                                            biz,
+                                          )
+                                        : null,
+                                  );
+                                },
                               ),
                       ),
                     ],
@@ -1562,7 +1634,7 @@ class _ManageBusinessesScreenState
 
 class _BusinessDarkHeader extends StatelessWidget {
   final int businessCount;
-  final int maxBusinesses;
+  final bool canAddMoreBusinesses;
   final PlanTier tier;
   final TextEditingController searchCtrl;
   final bool searchExpanded;
@@ -1570,7 +1642,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   const _BusinessDarkHeader({
     required this.businessCount,
-    required this.maxBusinesses,
+    required this.canAddMoreBusinesses,
     required this.tier,
     required this.searchCtrl,
     required this.searchExpanded,
@@ -1594,7 +1666,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   List<HeaderPillStat> _stats() {
     final isStarter = tier == PlanTier.starter;
-    final atLimit = maxBusinesses != -1 && businessCount >= maxBusinesses;
+    final atLimit = !canAddMoreBusinesses;
     return [
       HeaderPillStat(
         label: _tr('Businesses', 'Biashara'),
@@ -1608,7 +1680,7 @@ class _BusinessDarkHeader extends StatelessWidget {
       ),
       HeaderPillStat(
         label: _tr('Limit', 'Kikomo'),
-        value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
+        value: canAddMoreBusinesses ? '∞' : '1',
         color: atLimit ? AppColors.warning : AppColors.success,
       ),
     ];
@@ -1671,8 +1743,8 @@ class _OfflineBusinessBanner extends StatelessWidget {
           Expanded(
             child: Text(
               _tr(
-                'Offline: businesses are available to view, but changes are disabled.',
-                'Nje ya mtandao: biashara zinaweza kutazamwa, lakini mabadiliko yamezuiwa.',
+                'Offline: only your active business is shown. Other businesses and changes are available once you reconnect.',
+                'Nje ya mtandao: biashara yako inayotumika pekee ndiyo inaonyeshwa. Biashara nyingine na mabadiliko yatapatikana ukirudi mtandaoni.',
               ),
               style: GoogleFonts.dmSans(
                 color: AppColors.textPrimary,
@@ -1690,6 +1762,7 @@ class _OfflineBusinessBanner extends StatelessWidget {
 class _BusinessRow extends StatelessWidget {
   final Map<String, dynamic> business;
   final bool isActive;
+  final PlanTier planTier;
   final bool isLast;
   final bool isReadOnly;
   final VoidCallback? onTap;
@@ -1697,6 +1770,7 @@ class _BusinessRow extends StatelessWidget {
   const _BusinessRow({
     required this.business,
     required this.isActive,
+    required this.planTier,
     required this.isLast,
     required this.isReadOnly,
     required this.onTap,
@@ -1782,28 +1856,8 @@ class _BusinessRow extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (isActive) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.navyPrimary,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                _tr('Active', 'Hai'),
-                                style: GoogleFonts.dmSans(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ],
+                          const SizedBox(width: 6),
+                          _PlanBadge(tier: planTier, active: isActive),
                         ],
                       ),
                       if (category.isNotEmpty || place.isNotEmpty) ...[
@@ -1845,6 +1899,52 @@ class _BusinessRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Plan badge (per-business plan, replaces the old "Active" tag) ──────────
+
+class _PlanBadge extends StatelessWidget {
+  final PlanTier tier;
+  final bool active;
+
+  const _PlanBadge({required this.tier, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final isStarter = tier == PlanTier.starter;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: active ? AppColors.navyPrimary : AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: active ? null : Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            active
+                ? Icons.check_circle_rounded
+                : Icons.workspace_premium_rounded,
+            size: 10,
+            color: active
+                ? AppColors.yellowBrand
+                : (isStarter ? AppColors.textMuted : AppColors.tealAccent),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            _planLabel(tier),
+            style: GoogleFonts.dmSans(
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }

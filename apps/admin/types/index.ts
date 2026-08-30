@@ -283,6 +283,54 @@ export interface AnalyticsOverview {
   recentClickPesaPayments: ClickPesaPaymentRecord[]
 }
 
+// ─── Growth & Retention (Platform Dashboard) ─────────────────────────────────
+// Play Store install/uninstall data comes from Google Play Console's exported
+// CSV reports (lib/play-reports.ts); everything else is derived from Firestore.
+
+export interface GrowthFunnelStep {
+  label: string
+  count: number
+  /** Share of the previous step, 0–100. `null` for the first step. */
+  pctOfPrev: number | null
+}
+
+export interface GrowthOverview {
+  play:
+    | {
+        available: true
+        /** Last ~90 days, oldest first. */
+        dailySeries: { date: string; installs: number; uninstalls: number }[]
+        activeDeviceInstalls: number
+        totalUserInstalls: number
+        lastReportDate: string
+        // Trailing 30d vs the prior 30d.
+        installs30d: number
+        uninstalls30d: number
+        installsDeltaPct: number | null
+        uninstallsDeltaPct: number | null
+      }
+    | { available: false; reason: string }
+
+  // Firestore-derived.
+  totalUsers: number
+  totalBusinesses: number
+  signupTrend: { label: string; value: number }[]      // weekly, last 12 weeks
+  businessTrend: { label: string; value: number }[]     // weekly, last 12 weeks
+
+  /** Businesses bucketed by how recently they were touched (updatedAt). */
+  usage: { active7d: number; dormant30d: number; inactive: number }
+
+  /** Active (touched ≤30d) businesses still on the free Starter plan — the upsell pool. */
+  activeButFree: number
+
+  payingBusinesses: number
+  freeBusinesses: number
+  conversionRatePct: number
+  conversionDeltaPct: number | null
+
+  funnel: GrowthFunnelStep[]
+}
+
 // One row from the clickpesa_payments collection (functions/src/clickpesa.ts
 // is the only writer — created by initiateClickPesaPayment, updated by
 // verifyClickPesaPayment once ClickPesa confirms a status).
@@ -328,6 +376,8 @@ export interface PlanDefinition {
   monthlyInvoices: number // -1 = unlimited
   maxBusinesses: number  // -1 = unlimited
   maxCustomers: number   // -1 = unlimited
+  maxProducts: number        // -1 = unlimited; total manually-created inventory items (excludes customer returns)
+  maxServiceProducts: number // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean

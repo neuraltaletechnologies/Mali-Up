@@ -1,5 +1,6 @@
 import type {
   AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory,
+  GrowthOverview,
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
@@ -133,6 +134,12 @@ export async function postQuickSetup(
 
 export async function fetchAnalytics(): Promise<AnalyticsOverview> {
   return apiFetch('/api/admin/analytics')
+}
+
+// ─── Growth & Retention (installs, uninstalls, funnel, usage) ─────────────────
+
+export async function fetchGrowth(): Promise<GrowthOverview> {
+  return apiFetch('/api/admin/growth')
 }
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────

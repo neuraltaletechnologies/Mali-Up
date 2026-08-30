@@ -148,8 +148,11 @@ abstract final class AppRoutes {
 
   /// Routes that only the business owner may access (no team-member permission
   /// maps to these — they control the business itself, not day-to-day ops).
+  /// Settings is deliberately NOT here: every signed-in user — owner or team
+  /// member — needs to reach it to edit their own profile or sign out.
+  /// SettingsScreen itself hides the owner-only sections (plan/subscription,
+  /// data export, audit log) from team members.
   static bool isOwnerOnly(String path) =>
-      path.startsWith(settings) ||
       path.startsWith(subscription) ||
       path.startsWith(businesses) ||
       path.startsWith(syncDiagnostics);

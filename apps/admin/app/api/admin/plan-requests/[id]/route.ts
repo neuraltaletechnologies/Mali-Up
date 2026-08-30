@@ -3,6 +3,8 @@ import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 import { FieldValue } from '@/lib/firestore-rest'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 export async function PATCH(
   req: Request,
@@ -38,6 +40,7 @@ export async function PATCH(
       },
       { merge: true },
     )
+    invalidateCache(CACHE_KEYS.planRequests)
 
     await writeAudit({
       action: `plan_request.${action}`,

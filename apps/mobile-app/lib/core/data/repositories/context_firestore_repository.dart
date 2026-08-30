@@ -7,6 +7,7 @@ import '../../../features/finance/domain/models/cash_transaction.dart';
 import '../../../features/finance/domain/models/daily_reconciliation.dart';
 import '../../../features/finance/domain/models/expense.dart';
 import '../../services/sentry_metrics_service.dart';
+import '../../../features/team/domain/models/custom_role.dart';
 import '../../../features/team/domain/models/team_member.dart';
 
 
@@ -48,13 +49,19 @@ class ContextFirestoreRepository {
   /// Resolves finance context synchronously from an already-fetched profile map.
   /// Used by [currentBusinessIdProvider] to avoid redundant Firestore reads.
   ResolvedFinanceContext resolveContextFromData(Map<String, dynamic>? data) {
-    final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
+    // Firestore document IDs are case-sensitive, so only the prefix check
+    // below may be lowercased — the ID itself must be extracted from the
+    // original-case string, or a businessId like "r6vNvUx4..." gets mangled
+    // into "r6vnvux4...", a document that doesn't exist, and every
+    // downstream read/write against it is denied by security rules.
+    final rawDefaultContext = (data?['defaultContext'] as String?)?.trim();
+    final defaultContext = rawDefaultContext?.toLowerCase();
     final selectedBusinessId = (data?['selectedBusinessId'] as String?)?.trim();
     // Fallback for team members: they have `businessId` but not `selectedBusinessId`.
     final memberBusinessId = (data?['businessId'] as String?)?.trim();
 
     if (defaultContext != null && defaultContext.startsWith('business')) {
-      final businessId = _businessIdFromContext(defaultContext) ??
+      final businessId = _businessIdFromContext(rawDefaultContext!) ??
           selectedBusinessId ??
           memberBusinessId;
       if (businessId != null && businessId.isNotEmpty) {
@@ -520,6 +527,127 @@ class ContextFirestoreRepository {
         await doc.reference.delete();
       }
     }
+  }
+
+  // ── Custom roles (reusable named permission sets) ──────────────────────────
+  //
+  // Owner-only: the `businesses/{bizId}/{collection}/{docId}` fallback rule in
+  // firestore.rules already restricts this sub-collection to the business
+  // owner, so no rule changes are needed.
+
+  Stream<List<CustomRole>> watchCustomRoles({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) {
+    final bizId = context.businessId ?? '';
+    if (bizId.isEmpty) return const Stream.empty();
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('customRoles')
+        .orderBy('name')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => CustomRole.fromFirestore(d.data(), d.id))
+            .toList());
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>> addCustomRole({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Map<String, dynamic> data,
+  }) {
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('customRoles')
+        .add({
+      ...data,
+      'createdBy': uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateCustomRole({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String roleId,
+    required Map<String, dynamic> data,
+  }) {
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('customRoles')
+        .doc(roleId)
+        .update({...data, 'updatedAt': FieldValue.serverTimestamp()});
+  }
+
+  Future<void> deleteCustomRole({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String roleId,
+  }) {
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('customRoles')
+        .doc(roleId)
+        .delete();
+  }
+
+  /// Rewrites every staff member currently assigned [roleId] with the role's
+  /// new [permissions] + [dataScope] and refreshed [roleName]. Also mirrors
+  /// the permission list onto each member's UID-keyed pointer doc so
+  /// `isStaffWithAny()` in the security rules reflects the change immediately.
+  /// Returns the number of members updated.
+  Future<int> propagateCustomRole({
+    required ResolvedFinanceContext context,
+    required String roleId,
+    required String roleName,
+    required List<String> permissions,
+    required String dataScope,
+  }) async {
+    final bizId = context.businessId ?? '';
+    if (bizId.isEmpty) return 0;
+    final staffRef =
+        _firestore.collection('businesses').doc(bizId).collection('staff');
+    final assigned =
+        await staffRef.where('customRoleId', isEqualTo: roleId).get();
+    if (assigned.docs.isEmpty) return 0;
+
+    final batch = _firestore.batch();
+    var count = 0;
+    for (final doc in assigned.docs) {
+      final data = doc.data();
+      // Defensive: never touch a UID-keyed pointer doc (workerUid == its id).
+      if ((data['workerUid'] as String?) == doc.id) continue;
+      batch.update(doc.reference, {
+        'customRoleName': roleName,
+        'customPermissions': permissions,
+        'permissions': permissions,
+        'dataScope': dataScope,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      count++;
+      final workerUid = (data['workerUid'] as String?)?.trim() ?? '';
+      if (workerUid.isNotEmpty) {
+        // merge (not update) so a missing pointer doc can't abort the batch.
+        batch.set(
+          staffRef.doc(workerUid),
+          {
+            'permissions': permissions,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+    }
+    await batch.commit();
+    return count;
   }
 
   // ── Pending invites (top-level collection for easy phone lookup) ─────────────

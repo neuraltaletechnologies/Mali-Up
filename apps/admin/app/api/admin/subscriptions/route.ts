@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { normalisePlan, mrrForPlan } from '@/lib/firestore-mappers'
+import { withCache } from '@/lib/api-cache'
 import type { Subscription } from '@/types'
 
 function toIso(value: unknown): string {
@@ -19,17 +20,29 @@ export async function GET() {
   if (denied) return denied
 
   try {
-    // Fetch all businesses and filter in-memory to avoid needing a
-    // COLLECTION_GROUP index on the 'plan' field.
-    const snap = await adminFirestore
-      .collectionGroup('businesses')
-      .limit(1000)
-      .get()
+    const subscriptions = await withCache('subscriptions', 60_000, fetchSubscriptions)
+    return NextResponse.json({ subscriptions, total: subscriptions.length })
+  } catch (err) {
+    console.error('[GET /api/admin/subscriptions]', err)
+    return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
+  }
+}
 
-    const paidPlans = new Set(['growth', 'business', 'enterprise'])
-    const subscriptions: Subscription[] = snap.docs
-      .filter((doc) => paidPlans.has((doc.data().plan as string | undefined)?.toLowerCase() ?? ''))
-      .map((doc) => {
+// Plans change through several routes (businesses PUT, plans/assign,
+// ClickPesa webhook) — a TTL is simpler and cheap enough here than
+// invalidating from every one of them.
+async function fetchSubscriptions(): Promise<Subscription[]> {
+  // Fetch all businesses and filter in-memory to avoid needing a
+  // COLLECTION_GROUP index on the 'plan' field.
+  const snap = await adminFirestore
+    .collectionGroup('businesses')
+    .limit(1000)
+    .get()
+
+  const paidPlans = new Set(['growth', 'business', 'enterprise'])
+  return snap.docs
+    .filter((doc) => paidPlans.has((doc.data().plan as string | undefined)?.toLowerCase() ?? ''))
+    .map((doc) => {
       const d  = doc.data()
       const uid = doc.ref.parent.parent?.id ?? ''
       const plan = normalisePlan(d.plan as string)
@@ -59,10 +72,4 @@ export async function GET() {
         planSource,
       }
     })
-
-    return NextResponse.json({ subscriptions, total: subscriptions.length })
-  } catch (err) {
-    console.error('[GET /api/admin/subscriptions]', err)
-    return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
-  }
 }

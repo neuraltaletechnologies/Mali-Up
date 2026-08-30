@@ -3,6 +3,8 @@ import { FieldValue } from '@/lib/firestore-rest'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Params = { id: string }
 
@@ -104,6 +106,8 @@ export async function PATCH(
         pushedAt:   FieldValue.serverTimestamp(),
         adminNotes: adminEdits.adminNotes || (data.adminNotes as string) || '',
       })
+      invalidateCache(CACHE_KEYS.catalogSubmissions)
+      invalidateCache(CACHE_KEYS.catalog)
 
       await writeAudit({
         action:       'push_to_master_catalog',
@@ -125,6 +129,7 @@ export async function PATCH(
       reviewedAt: FieldValue.serverTimestamp(),
       ...(body.adminNotes ? { adminNotes: body.adminNotes } : {}),
     })
+    invalidateCache(CACHE_KEYS.catalogSubmissions)
 
     await writeAudit({
       action:       body.action === 'approve' ? 'approve_submission' : 'reject_submission',

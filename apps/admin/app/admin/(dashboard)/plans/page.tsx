@@ -14,7 +14,7 @@ import { addDuration, formatDuration, type DurationUnit } from '@/lib/duration'
 import type { PlanTier, PlanDefinition, PlanDefinitions } from '@/types'
 import {
   Pencil, Users, FileText, CheckCircle2, XCircle, AlertCircle,
-  Building2, Zap, Crown, Star, Layers, Gift, UserPlus,
+  Building2, Zap, Crown, Star, Layers, Gift, UserPlus, Package, Wrench,
 } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ const TIER_META: Record<PlanTier, {
   },
 }
 
-const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers'>, string> = {
+const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts'>, string> = {
   cashFlow:             'Cash flow tracking',
   expenseTracking:      'Expense tracking',
   manualDebt:           'Manual debt entry',
@@ -176,6 +176,14 @@ function TierCard({
         <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
           <UserPlus className="h-3.5 w-3.5" />
           <span>{plan.maxCustomers === -1 ? 'Unlimited' : plan.maxCustomers} customers</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <Package className="h-3.5 w-3.5" />
+          <span>{plan.maxProducts === -1 ? 'Unlimited' : plan.maxProducts} products</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <Wrench className="h-3.5 w-3.5" />
+          <span>{plan.maxServiceProducts === -1 ? 'Unlimited' : plan.maxServiceProducts} service products</span>
         </div>
       </div>
 
@@ -286,6 +294,15 @@ function EditPlanDrawer({
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Max customers (−1 = unlimited)</label>
               <input type="number" min="-1" value={form.maxCustomers ?? 0} onChange={num('maxCustomers')} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Max products (−1 = unlimited)</label>
+              <input type="number" min="-1" value={form.maxProducts ?? 0} onChange={num('maxProducts')} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Max service products (−1 = unlimited)</label>
+              <input type="number" min="-1" value={form.maxServiceProducts ?? 0} onChange={num('maxServiceProducts')} className={inputCls} />
+              <p className="text-[11px] text-[var(--ink-faint)]">Sub-cap on service-type products, counted within max products</p>
             </div>
           </div>
         </div>
@@ -625,6 +642,8 @@ export default function PlansPage() {
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Invoices / mo</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max businesses</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max customers</th>
+                <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max products</th>
+                <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max services</th>
               </tr>
             </thead>
             <tbody>
@@ -656,6 +675,12 @@ export default function PlansPage() {
                     </td>
                     <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
                       {p.maxCustomers === -1 ? '∞' : p.maxCustomers}
+                    </td>
+                    <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
+                      {p.maxProducts === -1 ? '∞' : p.maxProducts}
+                    </td>
+                    <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
+                      {p.maxServiceProducts === -1 ? '∞' : p.maxServiceProducts}
                     </td>
                   </tr>
                 )

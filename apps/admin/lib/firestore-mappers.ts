@@ -1,4 +1,5 @@
 import type { AdminUser, Business, PlanTier, PlanSource, BusinessStatus, UserStatus } from '@/types'
+import { toE164 } from './phone'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export function mapUser(uid: string, data: Record<string, unknown>): AdminUser {
   return {
     id:            uid,
     name:          (data.displayName as string) || (data.name as string) || 'Unknown',
-    phone:         (data.phone as string) ? `+255${data.phone}` : '',
+    phone:         toE164(data.phone as string | undefined),
     email:         (data.email as string) || undefined,
     status:        normaliseUserStatus(data),
     businessCount: businesses.length,
@@ -78,9 +79,7 @@ export function mapBusiness(
     name:         (data.businessName as string) || 'Unnamed Business',
     ownerId:      (data.ownerUid as string) || uid,
     ownerName:    (data.ownerName as string) || '',
-    ownerPhone:   (data.ownerPhone as string)
-                    ? `+255${data.ownerPhone}`
-                    : '',
+    ownerPhone:   toE164(data.ownerPhone as string | undefined),
     plan,
     status:       normaliseBusinessStatus(data),
     staffCount,

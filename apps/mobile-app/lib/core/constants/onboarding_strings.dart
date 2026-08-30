@@ -278,6 +278,17 @@ abstract final class OnboardingStrings {
   static const newUserCtaEn = 'Continue';
   static const newUserCtaSw = 'Endelea';
 
+  // "No account found for this number" notice — shown at the top of the
+  // new-user screen so a returning user who mistyped their number realises
+  // why they landed on registration instead of PIN login.
+  static const newUserNoAccountEn =
+      'No Mali Up account uses this number yet — you are creating a new one.';
+  static const newUserNoAccountSw =
+      'Hakuna akaunti ya Mali Up inayotumia namba hii bado — unatengeneza akaunti mpya.';
+
+  static const newUserWrongNumberEn = 'Wrong number? Change it';
+  static const newUserWrongNumberSw = 'Namba si sahihi? Ibadilishe';
+
   // Errors
   static const nameRequiredEn = 'Name is required.';
   static const nameRequiredSw = 'Jina linahitajika.';

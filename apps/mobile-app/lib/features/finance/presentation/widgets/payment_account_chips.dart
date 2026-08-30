@@ -58,11 +58,35 @@ class PaymentAccountChips extends ConsumerStatefulWidget {
 class _PaymentAccountChipsState extends ConsumerState<PaymentAccountChips> {
   String? _activationMessage;
 
+  /// Id of the account we last auto-selected, so we fire the callback once per
+  /// distinct sole account instead of on every rebuild.
+  String? _autoSelectedFor;
+
+  /// When the business has exactly one usable money account there is nothing to
+  /// choose — pre-select it so the user doesn't have to tap. Only fires while
+  /// the caller has no selection yet and isn't on credit, so it never overrides
+  /// an edit-screen prefill, a user's later choice, or an "On Account" invoice.
+  void _maybeAutoSelectSoleAccount(List<CashAccount> accounts) {
+    if (widget.selectedAccountId != null || widget.selectedIsCredit) return;
+    if (accounts.length != 1) return;
+    final sole = accounts.first;
+    if (_autoSelectedFor == sole.id) return;
+    _autoSelectedFor = sole.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          widget.selectedAccountId == null &&
+          !widget.selectedIsCredit) {
+        widget.onSelectAccount(sole);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final accounts = ref
         .watch(cashAccountListProvider)
         .maybeWhen(data: (d) => d, orElse: () => const <CashAccount>[]);
+    _maybeAutoSelectSoleAccount(accounts);
     final byId = {for (final a in accounts) a.id: a};
     final custom = accounts
         .where((a) => !PaymentMethodAccounts.isMethodAccountId(a.id))

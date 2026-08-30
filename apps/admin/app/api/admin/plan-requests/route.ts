@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
+import { withCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 import type { PlanRequest } from '@/types'
 
 function toIso(value: unknown): string {
@@ -21,14 +23,27 @@ export async function GET(request: Request) {
   const statusFilter = searchParams.get('status') // optional: pending|approved|rejected
 
   try {
-    // Fetch recent requests, filter in memory to avoid composite index requirement
-    const snap = await adminFirestore
-      .collection('plan_requests')
-      .orderBy('createdAt', 'desc')
-      .limit(500)
-      .get()
+    const requests = await withCache(CACHE_KEYS.planRequests, 20_000, fetchPlanRequests)
+    const filtered = statusFilter
+      ? requests.filter((r) => r.status === statusFilter)
+      : requests
 
-    const requests: PlanRequest[] = snap.docs
+    return NextResponse.json({ requests: filtered })
+  } catch (err) {
+    console.error('[GET /api/admin/plan-requests]', err)
+    return NextResponse.json({ error: 'Failed to fetch plan requests' }, { status: 500 })
+  }
+}
+
+async function fetchPlanRequests(): Promise<PlanRequest[]> {
+  // Fetch recent requests, filter in memory to avoid composite index requirement
+  const snap = await adminFirestore
+    .collection('plan_requests')
+    .orderBy('createdAt', 'desc')
+    .limit(500)
+    .get()
+
+  return snap.docs
       // The mobile app's manual "payment confirmation" claim flow was
       // retired once ClickPesa started activating plans automatically —
       // any payment_claim docs left over from before that point are
@@ -54,14 +69,4 @@ export async function GET(request: Request) {
           resolvedAt:    toIso(d.resolvedAt),
         }
       })
-
-    const filtered = statusFilter
-      ? requests.filter((r) => r.status === statusFilter)
-      : requests
-
-    return NextResponse.json({ requests: filtered })
-  } catch (err) {
-    console.error('[GET /api/admin/plan-requests]', err)
-    return NextResponse.json({ error: 'Failed to fetch plan requests' }, { status: 500 })
-  }
 }

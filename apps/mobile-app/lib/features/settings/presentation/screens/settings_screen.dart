@@ -21,6 +21,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
 
@@ -250,6 +251,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Team members (created by the owner) reach this same screen, but the
+    // sections below that control the business itself — plan/billing, bulk
+    // data export, the cross-team audit trail — stay owner-only. Everyone
+    // still gets their own profile edit, language, and sign-out.
+    final isOwner = ref.watch(permissionServiceProvider).isOwner;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
@@ -276,7 +283,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── Profile & Plan card ─────────────────────────────
-          _ProfileAndPlanCard(tr: _tr, onSwitchAccount: _switchAccount),
+          _ProfileAndPlanCard(
+            tr: _tr,
+            onSwitchAccount: _switchAccount,
+            showPlan: isOwner,
+          ),
           const SizedBox(height: 20),
 
           // ── Preferences ──────────────────────────────────────
@@ -328,46 +339,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          // Data export and the cross-team audit trail are business-wide
+          // tools, not personal ones — team members don't get to pull every
+          // invoice/customer record or see every teammate's activity.
+          if (isOwner) ...[
+            const SizedBox(height: 20),
 
-          // ── Data & Sync ───────────────────────────────────────
-          _SectionHeader(label: _tr('Data & Sync', 'Data na Usawazishaji')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.download_rounded,
-                iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
-                iconColor: AppColors.tealAccent,
-                title: _tr('Export Data', 'Hamisha Data'),
-                subtitle: _tr('Download as CSV or PDF', 'Pakua kama CSV au PDF'),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const DataExportScreen(),
-                )),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
+            // ── Data & Sync ───────────────────────────────────────
+            _SectionHeader(label: _tr('Data & Sync', 'Data na Usawazishaji')),
+            const SizedBox(height: 8),
+            _SettingCard(
+              children: [
+                _SettingTile(
+                  icon: Icons.download_rounded,
+                  iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
+                  iconColor: AppColors.tealAccent,
+                  title: _tr('Export Data', 'Hamisha Data'),
+                  subtitle: _tr('Download as CSV or PDF', 'Pakua kama CSV au PDF'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const DataExportScreen(),
+                  )),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.textMuted,
+                  ),
                 ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.history_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.07),
-                iconColor: AppColors.secondary,
-                title: _tr('Audit Log', 'Kumbukumbu ya Matukio'),
-                subtitle: _tr('View account activity history', 'Angalia historia ya shughuli za akaunti'),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const AuditLogScreen(),
-                )),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
+                const _TileDivider(),
+                _SettingTile(
+                  icon: Icons.history_rounded,
+                  iconBg: AppColors.secondary.withValues(alpha: 0.07),
+                  iconColor: AppColors.secondary,
+                  title: _tr('Audit Log', 'Kumbukumbu ya Matukio'),
+                  subtitle: _tr('View account activity history', 'Angalia historia ya shughuli za akaunti'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const AuditLogScreen(),
+                  )),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.textMuted,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
 
           // ── Legal & Compliance ────────────────────────────────
@@ -486,7 +502,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 class _ProfileAndPlanCard extends ConsumerWidget {
   final String Function(String en, String sw) tr;
   final VoidCallback onSwitchAccount;
-  const _ProfileAndPlanCard({required this.tr, required this.onSwitchAccount});
+  // Plan/billing is a business-level concern — team members don't see it.
+  final bool showPlan;
+  const _ProfileAndPlanCard({
+    required this.tr,
+    required this.onSwitchAccount,
+    required this.showPlan,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -606,13 +628,16 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                     ),
                   ),
                   // Plan section — tapping opens the subscription screen.
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                    ),
-                    child: Column(
-                      children: [
+                  // Owner-only: the subscription route itself is gated the
+                  // same way, and billing isn't a team member's concern.
+                  if (showPlan)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                      ),
+                      child: Column(
+                        children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Divider(

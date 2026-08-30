@@ -45,6 +45,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Profile cache keys (SharedPreferences).
   static const _kDisplayName = 'cached_profile_display_name';
   static const _kBizName = 'cached_business_name';
+  static const _kBizId = 'cached_business_id';
   static const _kLogoUrl = 'cached_business_logo_url';
   static const _kPlan = 'cached_business_plan';
   static const _kFetchedAt = 'cached_profile_fetched_at';
@@ -112,11 +113,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// [_kTtl] (default 24 h). Skips the network call entirely on most opens.
   Future<void> _maybeRefreshFromFirestore({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
+
+    // A business switch (MainShellPage._switchFinanceContext) writes the new
+    // selectedBusinessId to Firestore and pings BusinessProfileService right
+    // away, but that only reaches *this* screen if a DashboardScreen instance
+    // happens to be mounted at that moment — switch from any other tab and
+    // there's no listener alive to catch it. Without this check the 24h TTL
+    // would then happily keep serving the previous business's cached name
+    // for up to a day. currentBusinessIdProvider is the app's canonical,
+    // always-live source for the active business, so compare against that
+    // instead of relying solely on the notifier + TTL.
+    final activeBusinessId = ref.read(currentBusinessIdProvider).valueOrNull;
+    final cachedBusinessId = prefs.getString(_kBizId);
+    final businessChanged =
+        activeBusinessId != null &&
+        activeBusinessId.isNotEmpty &&
+        cachedBusinessId != null &&
+        cachedBusinessId != activeBusinessId;
+
     final lastFetchMs = prefs.getInt(_kFetchedAt) ?? 0;
     final cacheAge = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(lastFetchMs),
     );
-    if (!force && lastFetchMs > 0 && cacheAge < _kTtl) {
+    if (!force && !businessChanged && lastFetchMs > 0 && cacheAge < _kTtl) {
       return; // cache is fresh, skip
     }
 
@@ -139,6 +158,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bizName = _getBusinessName(profile);
     if (bizName != null && bizName.isNotEmpty) {
       prefs.setString(_kBizName, bizName);
+    }
+    final bizId = profile['selectedBusinessId'] as String?;
+    if (bizId != null && bizId.isNotEmpty) {
+      prefs.setString(_kBizId, bizId);
     }
     final logoUrl = _getBusinessLogoUrl(profile);
     if (logoUrl != null && logoUrl.isNotEmpty) {
@@ -304,12 +327,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           return d != null && d.year == now2.year && d.month == now2.month;
         })
         .fold<double>(0, (t, e) => t + _numericValue(e.amount));
-    final yearExpenses = countedExpenses
-        .where((e) {
-          final d = DateTime.tryParse(e.date);
-          return d != null && d.year == now2.year;
-        })
-        .fold<double>(0, (t, e) => t + _numericValue(e.amount));
     // All-time total, regardless of the period selector above — this is the
     // figure the Mali Up hero card's "EXPENSES" stat reads.
     final allTimeExpenses = countedExpenses.fold<double>(
@@ -321,17 +338,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       data: (items) => items,
       orElse: () => const <Map<String, dynamic>>[],
     );
-    // Cash actually on hand: every shilling collected against a sale/invoice
-    // (amountPaid — set at sale time for cash sales, incremented by
-    // recordPayment for credit collections) minus every recorded expense,
-    // all-time. Previously this summed a separate "cash accounts" ledger
-    // (Cash Flow feature) that most businesses never touch, so it showed 0
-    // or a stale number even after real sales and payments went through.
+    // Every shilling collected against a sale/invoice (amountPaid — set at sale
+    // time for cash sales, incremented by recordPayment for credit collections).
+    // Previously the balance summed a separate "cash accounts" ledger (Cash Flow
+    // feature) that most businesses never touch, so it showed 0 or a stale
+    // number even after real sales and payments went through.
     final allTimeCollected = salesItems.fold<double>(
       0,
       (t, inv) => t + parseNumericAmount(inv['amountPaid']),
     );
-    final totalCash = allTimeCollected - allTimeExpenses;
     final activityLoading = expenses.isLoading || salesAsyncValue.isLoading;
     final inventoryItems = ref
         .watch(inventoryItemListProvider)
@@ -339,6 +354,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           data: (items) => items,
           orElse: () => const <Map<String, dynamic>>[],
         );
+
+    // Buying cost of every product sold (costPrice × quantity), looked up from
+    // the current catalogue — invoices don't snapshot cost at sale time.
+    final costByProductId = _costByProductId(inventoryItems);
+    final allTimeCogs = _cogsForRevenueSales(salesItems, costByProductId);
+
+    // All-time sales revenue (full invoice total of every confirmed, paid or
+    // part-paid sale) — the basis for the card's profit figure.
+    final allTimeRevenue = salesItems.fold<double>(
+      0,
+      (t, inv) => _isRevenueSale(inv) ? t + readInvoiceTotal(inv) : t,
+    );
+
+    // Cash actually on hand, all-time: everything collected against sales, minus
+    // every recorded expense, minus the buying cost of goods already sold. Moves
+    // whenever a sale, payment, expense or product cost changes.
+    final totalCash = allTimeCollected - allTimeExpenses - allTimeCogs;
 
     // ── Revenue calculations ─────────────────────────────────────────────────
     final todayRevenue = _revenueForPeriod(salesItems, 0);
@@ -507,7 +539,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     totalCash: totalCash,
                     monthRevenue: monthRevenue,
                     monthExpenses: allTimeExpenses,
-                    yearNetProfit: yearRevenue - yearExpenses,
+                    netProfit: allTimeRevenue - allTimeCogs - allTimeExpenses,
                     customerCount: customerCount,
                     businessName: _getBusinessName(_profile),
                     logoUrl: _getBusinessLogoUrl(_profile),
@@ -975,7 +1007,8 @@ class _UnifiedHeroCard extends StatefulWidget {
   // call site — the "EXPENSES" stat below reads the whole business history,
   // not just the current month.
   final double monthExpenses;
-  final double yearNetProfit;
+  // All-time net profit: revenue − cost of goods sold − expenses.
+  final double netProfit;
   final int customerCount;
   final String? businessName;
   final String? logoUrl;
@@ -985,7 +1018,7 @@ class _UnifiedHeroCard extends StatefulWidget {
     required this.totalCash,
     required this.monthRevenue,
     required this.monthExpenses,
-    required this.yearNetProfit,
+    required this.netProfit,
     required this.customerCount,
     this.businessName,
     this.logoUrl,
@@ -1016,9 +1049,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
         ? _fmtCompactAmount(widget.monthExpenses)
         : '••••';
     final netText = _detailsVisible
-        ? _fmtCompactAmount(widget.yearNetProfit)
+        ? _fmtCompactAmount(widget.netProfit)
         : '••••';
-    final netColor = widget.yearNetProfit >= 0
+    final netColor = widget.netProfit >= 0
         ? const Color(0xFF34D399)
         : const Color(0xFFF87171);
 
@@ -1270,7 +1303,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             ),
                             const SizedBox(width: 18),
                             _CardFooterStat(
-                              label: _tr('NET YTD', 'FAIDA MWAKA'),
+                              label: _tr('NET PROFIT', 'FAIDA'),
                               value: netText,
                               color: netText == '••••' ? null : netColor,
                             ),
@@ -3301,6 +3334,60 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(lastMonthStart) || !d.isBefore(lastMonthEnd)) return total;
     return total + readInvoiceTotal(inv);
+  });
+}
+
+// ── Cost of goods sold ────────────────────────────────────────────────────────
+
+/// Maps each catalogue product id to its buying price (costPrice). Used to
+/// value goods sold — invoices only store the selling price, not the cost.
+Map<String, double> _costByProductId(List<Map<String, dynamic>> inventoryItems) {
+  final map = <String, double>{};
+  for (final item in inventoryItems) {
+    final id = (item['id'] ?? item['productId'] ?? '').toString();
+    if (id.isEmpty) continue;
+    map[id] = _numericValue(item['costPrice'] ?? item['buyingPrice']);
+  }
+  return map;
+}
+
+/// Total buying cost of every product sold on confirmed revenue sales,
+/// optionally restricted to sales on or after [since]. Falls back to a cost
+/// snapshot on the line item when present, otherwise the current catalogue cost.
+double _cogsForRevenueSales(
+  List<Map<String, dynamic>> invoices,
+  Map<String, double> costByProductId, {
+  DateTime? since,
+}) {
+  return invoices.fold<double>(0, (running, inv) {
+    if (!_isRevenueSale(inv)) return running;
+    if (since != null) {
+      final ts = readTimestamp(inv['createdAt']);
+      if (ts == null) return running;
+      final d = DateTime(ts.year, ts.month, ts.day);
+      if (d.isBefore(since)) return running;
+    }
+    final rawItems = (inv['items'] as List?)?.isNotEmpty == true
+        ? inv['items'] as List
+        : (inv['lineItems'] as List?) ?? const [];
+    var invoiceCogs = 0.0;
+    for (final item in rawItems.whereType<Map>()) {
+      final productId =
+          (item['productId'] ??
+                  item['inventoryItemId'] ??
+                  item['id'] ??
+                  '')
+              .toString();
+      final quantity = _numericValue(item['quantity'] ?? item['qty'] ?? 1);
+      final unitCost = _numericValue(
+        item['costPrice'] ??
+            item['buyingPrice'] ??
+            item['unitCost'] ??
+            costByProductId[productId],
+      );
+      invoiceCogs += unitCost * quantity;
+    }
+    return running + invoiceCogs;
   });
 }
 

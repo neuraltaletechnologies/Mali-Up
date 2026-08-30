@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,6 +48,12 @@ const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
 const bool _sentryTestEvent = bool.fromEnvironment('SENTRY_TEST_EVENT');
 
 Future<void> _startApp() async {
+  // Fonts are bundled under assets/google_fonts/ — never fetch them over the
+  // network. Without this, google_fonts tries to download DM Sans / JetBrains
+  // Mono / DM Serif Display from fonts.gstatic.com on first use and throws an
+  // unhandled exception on offline / DNS-restricted networks.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
   // SharedPreferences and Firebase init are independent — kick both off now.
   final prefsFuture = SharedPreferences.getInstance();
   // Guard: if env vars weren't injected (e.g. --dart-define-from-file missing),
@@ -70,6 +79,30 @@ Future<void> _startApp() async {
   // persistence cache is disabled to prevent a dual-cache inconsistency.
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
+  );
+
+  // Attaches an attestation token (Play Integrity on Android, App Attest /
+  // DeviceCheck on iOS) to every Firestore and callable-Functions request,
+  // proving the call comes from a genuine build of this app rather than a
+  // script hitting our endpoints directly. Debug builds use the debug
+  // provider so local development keeps working — see
+  // APP_CHECK_SETUP.md for registering the printed debug token in the
+  // Firebase console.
+  //
+  // Activating App Check does NOT enforce it yet — enforcement (Console →
+  // App Check → APIs → Enforce) is a separate, deliberate switch to flip
+  // only once this build has rolled out to the great majority of installs.
+  // Flipping it earlier locks out every user still on an older app version
+  // that never attaches a token.
+  unawaited(
+    FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    ),
   );
 
   // Fire-and-forget: checks this build against the remote version gate.
@@ -102,11 +135,20 @@ Future<void> _startApp() async {
       ? null
       : OnboardingService.loadDraft(prefs);
 
+  // Edge-to-edge is the default on Flutter targeting Android SDK 35+, but set it
+  // explicitly so the behaviour doesn't depend on the framework default and the
+  // app draws behind the status/navigation bars on every supported version.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       statusBarBrightness: Brightness.light,
+      // Transparent nav bar with contrast enforcement off: setting an opaque
+      // colour maps to Window.setNavigationBarColor, which Android 15 deprecates.
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 

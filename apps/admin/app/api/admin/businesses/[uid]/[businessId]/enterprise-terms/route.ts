@@ -43,16 +43,14 @@ export async function PATCH(
       setBy: session?.user?.name ?? session?.user?.email ?? 'Admin',
     }
 
-    const ownerUid = (raw.ownerUid as string) || uid
-
     // mergeFields (not a plain merge:true) so the whole enterpriseOverrides
     // object is replaced wholesale — a plain merge would deep-merge the
     // nested map and leave stale fields the admin meant to clear behind.
+    // Enterprise terms are negotiated per business, not per owner, so this
+    // only ever touches the targeted business document — it used to also
+    // mirror onto users/{ownerUid} for the mobile app, which now reads
+    // businesses/{businessId} directly instead.
     await bizRef.set({ enterpriseOverrides: override }, { mergeFields: ['enterpriseOverrides'] })
-    await adminFirestore.collection('users').doc(ownerUid).set(
-      { enterpriseOverrides: override },
-      { mergeFields: ['enterpriseOverrides'] },
-    )
 
     await writeAudit({
       action: 'set_enterprise_terms',

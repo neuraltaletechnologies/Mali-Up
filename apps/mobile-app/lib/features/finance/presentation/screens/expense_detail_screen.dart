@@ -892,6 +892,10 @@ class _PayMethodLabel {
         label: _tr('Card', 'Kadi'),
         icon: Icons.credit_card_rounded,
       ),
+      'credit' => _PayMethodLabel(
+        label: _tr('On credit', 'Kwa mkopo'),
+        icon: Icons.credit_score_rounded,
+      ),
       _ => _PayMethodLabel(
         label: _tr('Cash', 'Taslimu'),
         icon: Icons.payments_rounded,

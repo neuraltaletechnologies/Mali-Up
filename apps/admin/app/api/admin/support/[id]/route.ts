@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
+import { invalidateCache } from '@/lib/api-cache'
+import { CACHE_KEYS } from '@/lib/cache-keys'
 
 type Params = { id: string }
 
@@ -30,6 +32,7 @@ export async function PATCH(
     if (body.assignedAdmin) update.assignedAdmin = body.assignedAdmin
 
     await ref.update(update)
+    invalidateCache(CACHE_KEYS.support)
 
     await writeAudit({
       action: 'update_ticket',
