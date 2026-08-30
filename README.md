@@ -6,7 +6,7 @@
 
 Mali Up B v1.0 is the current business-only MVP for Tanzanian small business owners. It is a premium fintech-style Flutter app backed by Firebase, Riverpod, and a feature-first architecture that is ready to grow into a microservice-based platform later.
 
-## Current Scope
+## The Current Scope
 
 The MVP ships only five core modules:
 
