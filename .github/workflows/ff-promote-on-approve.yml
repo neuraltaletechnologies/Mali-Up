@@ -1,0 +1,88 @@
+name: Fast-forward production on approval
+
+# The other half of promote-to-production.yml. When the auto-generated
+# "Promote main to production" PR gets an approving review from someone with
+# write access, this fast-forwards `production` to the approved `main` commit
+# and lets GitHub close the PR as merged.
+#
+# Why fast-forward instead of the Merge button: any merge/squash/rebase from
+# the button leaves `production` with a commit `main` doesn't have, so GitHub
+# marks `production` "ahead" and keeps offering a `production -> main` PR.
+# Merging that reverse PR was creating an endless merge-commit ping-pong.
+# A fast-forward keeps `production` byte-identical to a past `main`, so the
+# reverse PR is never suggested. (block-reverse-promotion.yml closes it if a
+# human opens one anyway.)
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  fast-forward:
+    # Only the auto-generated main -> production promotion PR, and only on an
+    # approving review from a repo member/collaborator (not a drive-by fork).
+    if: >
+      github.event.review.state == 'approved' &&
+      github.event.pull_request.base.ref == 'production' &&
+      github.event.pull_request.head.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward production to the approved commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MAIN_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin production main
+
+          BEFORE=$(git rev-parse origin/production)
+          echo "production is at $BEFORE"
+          echo "approved main commit is $MAIN_SHA"
+
+          if [ "$BEFORE" = "$MAIN_SHA" ]; then
+            echo "production already at this commit."
+          else
+            # Must be a real fast-forward: current production has to be an
+            # ancestor of the approved commit. If it isn't, production has
+            # diverged (someone used the Merge button, or force-pushed) --
+            # fail loudly rather than force anything.
+            if ! git merge-base --is-ancestor "$BEFORE" "$MAIN_SHA"; then
+              echo "::error::production ($BEFORE) is not an ancestor of main ($MAIN_SHA); not a fast-forward. Resync production onto main (git push --force origin origin/main:production) once trees match, then re-approve."
+              exit 1
+            fi
+            git push origin "$MAIN_SHA:refs/heads/production"
+            echo "production fast-forwarded to $MAIN_SHA"
+          fi
+
+          # Pushes made with GITHUB_TOKEN do not start new workflow runs, so
+          # release-android.yml won't fire on its own. Dispatch it when the
+          # mobile app (or its release workflow) actually changed in this
+          # promotion. The Cloudflare web build watches the branch ref
+          # directly and needs no nudge.
+          if git diff --quiet "$BEFORE" "$MAIN_SHA" -- apps/mobile-app .github/workflows/release-android.yml; then
+            echo "no apps/mobile-app changes in this promotion -- skipping Play Store release."
+          else
+            echo "apps/mobile-app changed -- dispatching release-android.yml on production."
+            gh workflow run release-android.yml --repo "$GITHUB_REPOSITORY" --ref production
+          fi
+
+          # GitHub normally auto-marks the PR merged once production contains
+          # the head SHA. Close it explicitly if it's somehow still open.
+          sleep 5
+          state=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq .state)
+          if [ "$state" = "OPEN" ]; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Fast-forwarded \`production\` to \`$MAIN_SHA\`. Closing."
+            gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+          fi

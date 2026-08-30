@@ -2502,13 +2502,7 @@ class _PillNotchPainter extends CustomPainter {
 
   const _PillNotchPainter({
     required this.t,
-    // Half the 40px row height exactly — the two-quarter-circle cap
-    // construction below only traces a true, fully-rounded semicircle
-    // when capRadius == height / 2; anything else leaves it slightly
-    // egg-shaped rather than a clean full curve.
-    this.capRadius = 20,
-    this.notchRadius = 22,
-  });
+  }) : capRadius = 20 : notchRadius = 22;
 
   Path _tabPath(Size size) {
     final w = size.width + _overshoot;
