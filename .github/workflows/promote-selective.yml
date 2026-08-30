@@ -4,6 +4,14 @@ name: Promote selectively (mobile / web / both)
 # promote-to-production.yml, for when main has BOTH mobile-app and admin
 # (web) changes but you only want one of them to ship right now.
 #
+# WARNING: merging a PR from this workflow is a normal (non-fast-forward)
+# merge, so `production` stops being a strict fast-forward of `main`. The
+# next run of ff-promote-on-approve.yml will then FAIL its ancestor check on
+# purpose. After the selective release, resync once the trees match again:
+#   git fetch origin && git push --force origin origin/main:production
+# Prefer the normal approve-the-full-PR flow unless you specifically need to
+# hold one app back.
+#
 # Run it from the Actions tab ("Run workflow") and pick a target:
 #   - mobile: opens/updates a PR into `production` containing only the
 #             current apps/mobile-app/** content from main (plus

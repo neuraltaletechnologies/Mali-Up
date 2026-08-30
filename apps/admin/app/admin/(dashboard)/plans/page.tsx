@@ -218,9 +218,22 @@ function EditPlanDrawer({
   onSave: (patch: Partial<PlanDefinition>) => void
 }) {
   const [form, setForm] = useState<PlanDefinition>(plan)
+  // The drawer collects a *monthly* price, but pricePerCycle stays the stored
+  // field (monthly × cycleMonths). Nothing downstream changes — the mobile
+  // paywall, ClickPesa's charged amount, and revenue math all keep reading
+  // pricePerCycle as the full-cycle total.
+  const [monthlyPrice, setMonthlyPrice] = useState(
+    plan.cycleMonths > 0 ? Math.round(plan.pricePerCycle / plan.cycleMonths) : 0,
+  )
   const meta = TIER_META[tier] ?? TIER_META.starter
 
-  useEffect(() => { if (open) setForm(plan) }, [open, plan])
+  useEffect(() => {
+    if (!open) return
+    setForm(plan)
+    setMonthlyPrice(
+      plan.cycleMonths > 0 ? Math.round(plan.pricePerCycle / plan.cycleMonths) : 0,
+    )
+  }, [open, plan])
 
   function num(field: keyof PlanDefinition) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -232,7 +245,8 @@ function EditPlanDrawer({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave(form)
+    const cycleMonths = form.cycleMonths > 0 ? form.cycleMonths : 1
+    onSave({ ...form, pricePerCycle: Math.round(monthlyPrice * cycleMonths) })
   }
 
   return (
@@ -244,13 +258,13 @@ function EditPlanDrawer({
           <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Pricing</div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Price per billing cycle (TZS)</label>
+              <label className={labelCls}>Price per month (TZS)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-[var(--ink-faint)]">TZS</span>
                 <input
                   type="number" min="0"
-                  value={form.pricePerCycle}
-                  onChange={num('pricePerCycle')}
+                  value={monthlyPrice}
+                  onChange={(e) => setMonthlyPrice(Number(e.target.value))}
                   className={`${inputCls} pl-10`}
                   disabled={tier === 'starter'}
                 />
@@ -266,9 +280,9 @@ function EditPlanDrawer({
                 className={inputCls}
                 disabled={tier === 'starter' || tier === 'enterprise'}
               />
-              {form.pricePerCycle > 0 && form.cycleMonths > 0 && (
+              {monthlyPrice > 0 && form.cycleMonths > 0 && (
                 <p className="text-[11px] text-[var(--ink-faint)]">
-                  ≈ {formatTZS(Math.round(form.pricePerCycle / form.cycleMonths))}/month
+                  {formatTZS(Math.round(monthlyPrice * form.cycleMonths))} billed every {form.cycleMonths} months
                 </p>
               )}
             </div>
