@@ -18,6 +18,10 @@ on:
     paths:
       - 'apps/mobile-app/**'
       - '.github/workflows/release-android.yml'
+  # ff-promote-on-approve.yml fast-forwards `production` with GITHUB_TOKEN,
+  # and token pushes don't start workflow runs -- so that job dispatches this
+  # one explicitly (only when apps/mobile-app/** changed in the promotion).
+  workflow_dispatch:
 
 jobs:
   release:
