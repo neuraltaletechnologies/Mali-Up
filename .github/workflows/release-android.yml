@@ -2,25 +2,24 @@ name: Release Android (Open Testing)
 
 # Auto-releases the mobile app to Google Play's Open Testing track (the
 # Play Developer API still calls this track id "beta"; Play Console's UI
-# label is "Open testing"). Deliberately scoped to the `production` branch
-# only -- pushes to `main` never trigger a store release; promotion happens
-# via the PR opened by promote-to-production.yml. The branch is still named
-# `production` for now to keep this a minimal change; it gates a release to
-# testers, not to the Play Store production track.
+# label is "Open testing").
 #
-# To actually ship to the Play Store production track, promote a build from
-# Open Testing to Production manually in Play Console once it's been
-# verified by testers. There is currently no automated production-track
-# release in this repo.
+# `main` is the live branch. Merging a PR into `main` that touches
+# apps/mobile-app/** ships an Open Testing release; the PR review is the
+# checkpoint. A web-only merge never triggers this (paths filter). Direct
+# work belongs on feature branches or `dev` -- see CLAUDE.md "Branching".
+#
+# To ship to the Play Store *production* track, promote a build from Open
+# Testing to Production manually in Play Console once testers have verified
+# it. There is no automated production-track release in this repo.
 on:
   push:
-    branches: [production]
+    branches: [main]
     paths:
       - 'apps/mobile-app/**'
       - '.github/workflows/release-android.yml'
-  # ff-promote-on-approve.yml fast-forwards `production` with GITHUB_TOKEN,
-  # and token pushes don't start workflow runs -- so that job dispatches this
-  # one explicitly (only when apps/mobile-app/** changed in the promotion).
+  # Manual re-run from the Actions tab if a release needs to go out without
+  # a fresh apps/mobile-app change (e.g. a failed upload to retry).
   workflow_dispatch:
 
 jobs:

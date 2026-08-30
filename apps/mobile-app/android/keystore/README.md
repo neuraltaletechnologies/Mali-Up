@@ -35,8 +35,8 @@ the upload from a keystore it doesn't recognize.
    `mali-up-release.jks` at `android/keystore/mali-up-release.jks` and
    continue with the CI/CD checklist below.
 
-Do not generate the keystore and start pushing to the `production` branch
-before the reset is approved — the first automated release will fail.
+Do not merge an `apps/mobile-app/**` change into `main` before the reset is
+approved — the automated release will fail.
 
 ## Security Notice
 ⚠️ **CRITICAL**: This keystore file is used to sign all releases on Google Play Store. 
@@ -57,24 +57,14 @@ before the reset is approved — the first automated release will fail.
 
 ## CI/CD setup checklist (`.github/workflows/release-android.yml`)
 
-The release pipeline only runs on pushes to the **`production`** branch —
-pushes to `main` never trigger a store release directly.
+`main` is the live branch. `release-android.yml` runs when a push to `main`
+touches `apps/mobile-app/**`. In practice that means: **merging a reviewed
+PR into `main` that changed the mobile app ships an Open Testing release.**
+The PR review is the human checkpoint. Day-to-day work goes on feature
+branches or `dev`, never straight to `main` — see the repo-root `CLAUDE.md`
+section "Branching & releases".
 
-Promotion is automated but still has a human checkpoint:
-`.github/workflows/promote-to-production.yml` opens (or updates) a PR from
-`main` into `production` on every push to `main`. Nothing ships until someone
-reviews and merges that PR — merging it is what triggers
-`release-android.yml`.
-
-### 1. Create the `production` branch
-```bash
-git checkout main
-git pull
-git checkout -b production
-git push -u origin production
-```
-
-### 2. Add repo secrets
+### 1. Add repo secrets
 Repo → Settings → Secrets and variables → Actions → New repository secret:
 
 | Secret | Value |
@@ -83,7 +73,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 | `KEYSTORE_PASSWORD` | The keystore/key password |
 | `PLAY_SERVICE_ACCOUNT_JSON` | Full contents of the Play service account JSON key (see step 3) |
 
-### 3. Create a Google Play service account (one-time)
+### 2. Create a Google Play service account (one-time)
 1. In [Google Cloud Console](https://console.cloud.google.com/), create (or pick)
    a project, then **IAM & Admin → Service Accounts → Create Service Account**.
 2. Create a JSON key for it and download it.
@@ -94,24 +84,14 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 4. Paste the full JSON file contents into the `PLAY_SERVICE_ACCOUNT_JSON`
    secret.
 
-### 4. First automated release
-The workflow ships to the `production` Play track at a **20% staged
-rollout** (`status: inProgress`). This is deliberate: Google Play's automatic
-bad-release detection (crash-rate/ANR anomaly halting) only has room to act
-on a rollout that hasn't already reached 100% of users — it can't undo a
-release that went out to everyone instantly. Check Play Console → your app →
-Quality → Android vitals to confirm this protection is active for the app.
+### 3. What the workflow ships
+`release-android.yml` uploads the App Bundle to the **Open Testing** track
+(`track: beta`, `status: completed`) — a full release to testers, not the
+Play Store production track. To reach production, promote a verified build
+from Open Testing → Production manually in Play Console.
 
-Bump the rollout to 100% manually in Play Console once you've confirmed the
-release is healthy (no crash-rate spike, no halt triggered). Adjust
-`userFraction` in the workflow if you'd rather change the starting
-percentage.
+The version code is minutes-since-epoch, computed at build time, so it is
+always monotonic with no manual bookkeeping.
 
-Reviewing and merging the promotion PR (opened by
-`promote-to-production.yml`, described above) is still the first gate before
-anything ships — the staged rollout is a second layer, not a replacement for
-reviewing the diff.
-
-Do not merge the first `main` → `production` promotion PR until the upload
-key reset above has been approved — the first automated release will fail
-otherwise.
+Do not merge an `apps/mobile-app/**` change into `main` until the upload key
+reset above has been approved — the release will fail otherwise.
