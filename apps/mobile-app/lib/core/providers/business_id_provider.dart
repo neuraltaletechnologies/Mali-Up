@@ -58,11 +58,24 @@ final currentBusinessIdProvider = StreamProvider<String>((ref) async* {
   }
 
   final override = ref.watch(pendingBusinessIdOverrideProvider);
+  // Track the last id we emitted so we never yield the same value twice.
+  // Every business-scoped repository (invoices, customers, inventory…) is
+  // rebuilt from scratch on each distinct emission here — a duplicate emit
+  // tears those streams down and back up for nothing, which is what made
+  // the sales/inventory pages flash skeleton→data repeatedly after a
+  // switch. The users/{uid} doc fires several snapshots per write (the
+  // serverTimestamp on `updatedAt` alone resolves in two steps), all with
+  // the same businessId.
+  String? lastEmitted;
   if (override != null && override.isNotEmpty) {
+    lastEmitted = override;
     yield override;
   } else {
     final cached = await RoleCacheService.loadBusinessId(user.uid);
-    if (cached != null && cached.isNotEmpty) yield cached;
+    if (cached != null && cached.isNotEmpty) {
+      lastEmitted = cached;
+      yield cached;
+    }
   }
 
   final repo = ContextFirestoreRepository();
@@ -77,9 +90,22 @@ final currentBusinessIdProvider = StreamProvider<String>((ref) async* {
     // every Drift-scoped screen. '' from the server, however, is
     // authoritative (no business yet) and must pass through.
     if (businessId.isEmpty && snap.metadata.isFromCache) continue;
+    // An in-session switch set an optimistic override before writing the
+    // new selection to Firestore. The very first .snapshots() echoes of
+    // that write can still carry the PREVIOUS selectedBusinessId (the write
+    // hasn't round-tripped yet). Yielding it would flip every scoped
+    // repository back to the old business and then forward again the moment
+    // the write lands — the skeleton/black/real-data flicker on the sales
+    // page after switching. Ignore snapshots that disagree with a live
+    // override; once the write settles the snapshot matches and we proceed.
+    if (override != null && override.isNotEmpty && businessId != override) {
+      continue;
+    }
     if (businessId.isNotEmpty) {
       unawaited(RoleCacheService.saveBusinessId(user.uid, businessId));
     }
+    if (businessId == lastEmitted) continue;
+    lastEmitted = businessId;
     yield businessId;
   }
 });

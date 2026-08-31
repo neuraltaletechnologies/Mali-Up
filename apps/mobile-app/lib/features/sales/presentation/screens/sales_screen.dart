@@ -336,6 +336,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
             ),
       body: salesAsync.when(
+        // A business switch rebuilds the invoice repository, briefly putting
+        // this stream back into a loading state. Keep the current list on
+        // screen through that reload instead of flashing the skeleton.
+        skipLoadingOnReload: true,
         loading: () => const SalesPageSkeleton(),
         error: (_, _) => Center(
           child: EmptyState(

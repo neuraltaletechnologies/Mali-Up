@@ -133,6 +133,20 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
 
   // Stream live Firestore updates and keep the SharedPreferences cache fresh.
   if (kDebugMode) debugPrint('[RBAC] userProfile: opening Firestore stream uid=${user.uid}');
+  // Only the RBAC/context signature below matters to anything downstream of
+  // this provider (session state, tenant owner, member lookup, permissions,
+  // sales scope). A single write to users/{uid} fires several snapshots —
+  // the serverTimestamp on `updatedAt` alone resolves null→value in a second
+  // frame, and a business switch rewrites `selectedBusinessId`/`updatedAt`
+  // together. Re-yielding on those no-op-for-RBAC snapshots cascaded into
+  // repeated router re-evaluations and shell rebuilds (and, downstream, the
+  // sales page's skeleton flicker) on every switch. Skip a snapshot whose
+  // signature is unchanged from the one we last yielded.
+  String? lastSignature;
+  String signatureOf(Map<String, dynamic>? d) => d == null
+      ? '<null>'
+      : '${d['isTeamMember']}|${d['ownerUid']}|${d['businessId']}|'
+            '${d['memberId']}|${d['selectedBusinessId']}|${d['defaultContext']}';
   await for (final snap in FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
@@ -152,6 +166,9 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
       // Fire-and-forget: cache update is idempotent and non-critical.
       RoleCacheService.save(user.uid, data);
     }
+    final signature = signatureOf(data);
+    if (signature == lastSignature) continue;
+    lastSignature = signature;
     yield data;
   }
   if (kDebugMode) debugPrint('[RBAC] userProfile: Firestore stream closed uid=${user.uid}');
