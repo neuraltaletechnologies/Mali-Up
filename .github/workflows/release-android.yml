@@ -22,6 +22,13 @@ on:
   # a fresh apps/mobile-app change (e.g. a failed upload to retry).
   workflow_dispatch:
 
+# One release at a time. Two overlapping runs race on the same Play version
+# code and the same Gradle cache key; queue the newer one instead (never
+# cancel — a cancelled run could abort a half-finished Play upload).
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -36,6 +43,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # ubuntu-latest ships with only ~14 GB free on /. A release Flutter +
+      # Gradle build plus the pub and Gradle caches overruns that, and the
+      # runner then dies with "No space left on device" in its post-run steps
+      # even though the Play upload itself already succeeded (runs
+      # 33421604984 and 33423264413, Aug 31 2026 — every step green, job
+      # still failed). Reclaim the big preinstalled toolchains this build
+      # never touches. Each rm is best-effort so a layout change on the
+      # runner image can't break the release.
+      - name: Free up runner disk space
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc /usr/local/.ghcup || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk || true
+          sudo docker image prune --all --force || true
+          sudo apt-get clean || true
+          echo "After:"; df -h /
 
       - uses: subosito/flutter-action@v2
         with:
