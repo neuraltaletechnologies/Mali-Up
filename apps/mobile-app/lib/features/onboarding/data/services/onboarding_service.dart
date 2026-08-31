@@ -117,6 +117,9 @@ class OnboardingService {
     await _repository.loginWithPin(phone: phone, pin: pin);
     await Future.wait([
       _repository.touchLastActive(userId),
+      // Owner picked this business on the PIN screen (or it's their only one)
+      // — make the dashboard open it rather than whatever was last active.
+      _repository.setSelectedBusiness(userId, businessId),
       completeOnboarding(),
       AuditLogService().logSignIn(
         businessId: businessId,

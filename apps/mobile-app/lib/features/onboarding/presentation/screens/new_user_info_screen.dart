@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 class NewUserInfoScreen extends ConsumerStatefulWidget {
@@ -101,7 +102,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
       fontWeight: FontWeight.w400,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -370,6 +371,10 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
           ),
         ],
       ),
+    );
+    return OnboardingBackHandler(
+      onBack: () => context.go(AppRoutes.phone),
+      child: scaffold,
     );
   }
 }

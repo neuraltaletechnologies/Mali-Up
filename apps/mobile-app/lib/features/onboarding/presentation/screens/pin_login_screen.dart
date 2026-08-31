@@ -15,6 +15,7 @@ import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 /// Screen 4A — shown when an existing owner/activated team member
@@ -98,6 +99,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     }
   }
 
+  void _handleSystemBack() {
+    _pinCtrl.clear();
+    context.go(AppRoutes.phone);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
@@ -126,7 +132,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
       fontWeight: FontWeight.w400,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -155,10 +161,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    onPressed: () {
-                      _pinCtrl.clear();
-                      context.go(AppRoutes.phone);
-                    },
+                    onPressed: _handleSystemBack,
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.white,
@@ -269,8 +272,42 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               ),
                             ),
 
-                            // Business card
-                            if (state.businessName.isNotEmpty) ...[
+                            // Business card — a picker when the owner has more
+                            // than one business, otherwise a single info card.
+                            if (state.ownedBusinesses.length > 1) ...[
+                              const SizedBox(height: 24),
+                              Text(
+                                sw
+                                    ? 'Chagua biashara ya kufungua'
+                                    : 'Choose a business to open',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              for (final biz in state.ownedBusinesses) ...[
+                                _BusinessCard(
+                                  businessName: biz.name,
+                                  businessType: biz.type,
+                                  logoUrl: biz.logoUrl ?? '',
+                                  role: state.role,
+                                  isSwahili: sw,
+                                  selected: biz.id == state.businessId,
+                                  onTap: isLoading
+                                      ? null
+                                      : () => ref
+                                            .read(
+                                              onboardingNotifierProvider
+                                                  .notifier,
+                                            )
+                                            .selectLoginBusiness(biz.id),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ] else if (state.businessName.isNotEmpty) ...[
                               const SizedBox(height: 24),
                               _BusinessCard(
                                 businessName: state.businessName,
@@ -412,6 +449,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
         ],
       ),
     );
+    return OnboardingBackHandler(onBack: _handleSystemBack, child: scaffold);
   }
 }
 
@@ -424,6 +462,8 @@ class _BusinessCard extends StatelessWidget {
     required this.logoUrl,
     required this.role,
     required this.isSwahili,
+    this.selected = false,
+    this.onTap,
   });
 
   final String businessName;
@@ -432,18 +472,27 @@ class _BusinessCard extends StatelessWidget {
   final String role;
   final bool isSwahili;
 
+  /// Picker mode: [onTap] non-null renders the card as a selectable option
+  /// with a radio indicator; [selected] draws the chosen-state border.
+  final bool selected;
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final initial = businessName.trim().isNotEmpty
         ? businessName.trim()[0].toUpperCase()
         : 'M';
+    final pickable = onTap != null;
 
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.border,
+          width: selected ? 1.5 : 1,
+        ),
       ),
       child: Row(
         children: [
@@ -498,12 +547,31 @@ class _BusinessCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.verified_rounded,
-            color: AppColors.success,
-            size: 18,
-          ),
+          if (pickable)
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? AppColors.primary : AppColors.border,
+              size: 20,
+            )
+          else
+            const Icon(
+              Icons.verified_rounded,
+              color: AppColors.success,
+              size: 18,
+            ),
         ],
+      ),
+    );
+
+    if (!pickable) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: card,
       ),
     );
   }

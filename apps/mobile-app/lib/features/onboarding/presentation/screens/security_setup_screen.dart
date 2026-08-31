@@ -12,6 +12,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 /// Screen 6 — PIN creation for new owner accounts.
@@ -114,6 +115,14 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     }
   }
 
+  void _handleSystemBack() {
+    if (_showConfirm) {
+      _backToPin();
+    } else {
+      context.go(AppRoutes.business);
+    }
+  }
+
   void _backToPin() {
     _confirmCtrl.clear();
     setState(() {
@@ -148,7 +157,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     final isOnline = ref.watch(isOnlineProvider);
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -177,9 +186,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    onPressed: _showConfirm
-                        ? _backToPin
-                        : () => context.go(AppRoutes.business),
+                    onPressed: _handleSystemBack,
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.white,
@@ -330,6 +337,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
         ],
       ),
     );
+    return OnboardingBackHandler(onBack: _handleSystemBack, child: scaffold);
   }
 }
 

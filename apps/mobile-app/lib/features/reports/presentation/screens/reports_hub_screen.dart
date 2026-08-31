@@ -355,7 +355,7 @@ class _ReportCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
-            onTap: locked ? onLockedTap : () => context.go(route),
+            onTap: locked ? onLockedTap : () => context.push(route),
             borderRadius: BorderRadius.circular(14),
             child: Container(
               decoration: BoxDecoration(

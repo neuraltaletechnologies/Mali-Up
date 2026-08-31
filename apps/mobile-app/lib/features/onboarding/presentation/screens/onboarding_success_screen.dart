@@ -11,6 +11,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '../../providers/onboarding_notifier.dart';
+import '../widgets/onboarding_back_handler.dart';
 
 class OnboardingSuccessScreen extends ConsumerStatefulWidget {
   const OnboardingSuccessScreen({super.key});
@@ -115,7 +116,7 @@ class _OnboardingSuccessScreenState
       fontWeight: FontWeight.w400,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -359,6 +360,7 @@ class _OnboardingSuccessScreenState
         ],
       ),
     );
+    return OnboardingBackHandler(onBack: _goBack, child: scaffold);
   }
 }
 

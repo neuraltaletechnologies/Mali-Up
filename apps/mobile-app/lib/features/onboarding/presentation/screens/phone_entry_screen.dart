@@ -15,6 +15,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 // ─── Country data ─────────────────────────────────────────────────────────────
@@ -230,6 +231,13 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     }
   }
 
+  /// Hardware back mirrors the on-screen back arrow: return to the intro
+  /// slides during normal onboarding. The "switch account" flow has no
+  /// on-screen back button, so drop the user back on the dashboard.
+  void _handleSystemBack() {
+    context.go(widget.isSwitchAccount ? AppRoutes.dashboard : AppRoutes.intro);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
@@ -252,7 +260,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
       fontWeight: FontWeight.w400,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -282,7 +290,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                 children: [
                   if (!widget.isSwitchAccount)
                     IconButton(
-                      onPressed: () => context.go(AppRoutes.intro),
+                      onPressed: _handleSystemBack,
                       icon: const Icon(
                         Icons.arrow_back_ios_new_rounded,
                         color: Colors.white,
@@ -508,6 +516,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
         ],
       ),
     );
+    return OnboardingBackHandler(onBack: _handleSystemBack, child: scaffold);
   }
 }
 

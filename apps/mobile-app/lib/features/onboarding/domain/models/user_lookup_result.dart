@@ -12,6 +12,37 @@ sealed class UserLookupResult {
   const UserLookupResult();
 }
 
+/// One business owned by a [ReturningUser]. Used to render the business
+/// picker on the PIN login screen when an owner has more than one.
+final class BusinessSummary {
+  const BusinessSummary({
+    required this.id,
+    required this.name,
+    this.type = '',
+    this.logoUrl,
+  });
+
+  /// Firestore document ID in the `businesses` collection.
+  final String id;
+  final String name;
+  final String type;
+
+  /// Logo URL — null/empty falls back to an initials avatar.
+  final String? logoUrl;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BusinessSummary &&
+          other.id == id &&
+          other.name == name &&
+          other.type == type &&
+          other.logoUrl == logoUrl);
+
+  @override
+  int get hashCode => Object.hash(id, name, type, logoUrl);
+}
+
 /// The phone number maps to an existing user document in the `users` collection.
 /// This user already has a Firebase Auth account and a PIN.
 /// Both business owners and previously-activated team members fall here.
@@ -28,6 +59,7 @@ final class ReturningUser extends UserLookupResult {
     required this.businessType,
     required this.businessId,
     this.businessLogo,
+    this.businesses = const [],
   });
 
   /// Firestore document ID in the `users` collection.
@@ -53,6 +85,12 @@ final class ReturningUser extends UserLookupResult {
 
   /// Business logo URL — null/empty falls back to an initials avatar.
   final String? businessLogo;
+
+  /// Every business this user owns (`ownerUid == userId`), newest-relevant
+  /// first. Contains a single entry (matching the `business*` fields above)
+  /// for the common one-business case; the PIN screen shows a picker when
+  /// there is more than one. Empty when the user owns no business doc.
+  final List<BusinessSummary> businesses;
 
   @override
   String toString() =>

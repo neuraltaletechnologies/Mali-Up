@@ -14,6 +14,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 // ─── Business type data ───────────────────────────────────────────────────────
@@ -239,7 +240,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
       fontWeight: FontWeight.w400,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -652,6 +653,10 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
           ),
         ],
       ),
+    );
+    return OnboardingBackHandler(
+      onBack: () => context.go(AppRoutes.newUser),
+      child: scaffold,
     );
   }
 }

@@ -60,15 +60,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Future<void> _onTapItem(NotificationLogTableData item) async {
     await ref.read(appDatabaseProvider).notificationLogDao.markAsRead(item.id);
     if (!mounted) return;
+    // push (not go) so the system back button returns to this list.
     switch (item.type) {
       case 'low_stock':
-        context.go(AppRouter.inventoryPath);
+        context.push(AppRouter.inventoryPath);
       case 'overdue_debt':
-        context.go(AppRouter.debtPath);
+        context.push(AppRouter.debtPath);
       case 'overdue_invoice':
-        context.go(AppRouter.salesPath);
+        context.push(AppRouter.salesPath);
       case 'sync_failure':
-        context.go(AppRouter.syncDiagnosticsPath);
+        context.push(AppRouter.syncDiagnosticsPath);
     }
   }
 

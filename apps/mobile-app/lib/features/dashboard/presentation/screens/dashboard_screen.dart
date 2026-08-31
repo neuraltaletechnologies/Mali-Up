@@ -472,7 +472,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               AppTheme.pageHorizontalPadding,
               MediaQuery.of(context).padding.top + AppTheme.headerTopPadding,
               AppTheme.pageHorizontalPadding,
-              AppTheme.pageVerticalPadding,
+              // extendBody: true on the shell Scaffold pushes the floating nav
+              // pill's height into MediaQuery.padding.bottom — add it so the
+              // last card scrolls clear of the pill instead of hiding under it.
+              AppTheme.pageVerticalPadding +
+                  MediaQuery.of(context).padding.bottom,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2527,7 +2531,9 @@ class _RecentTransactionsList extends StatelessWidget {
       if (db == null) return -1;
       return db.compareTo(da);
     });
-    return result.take(20).toList();
+    // Dashboard shows only the 5 most recent activities — "View All" opens the
+    // full Sales screen.
+    return result.take(5).toList();
   }
 
   String _groupLabel(DateTime? date) {
@@ -2573,7 +2579,7 @@ class _RecentTransactionsList extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.go(AppRouter.salesPath),
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,

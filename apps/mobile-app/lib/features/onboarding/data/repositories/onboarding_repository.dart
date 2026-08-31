@@ -58,25 +58,37 @@ class OnboardingRepository {
         final userData = userDoc.data();
         final userId = userDoc.id;
 
+        // Every business this user owns — the PIN screen shows a picker when
+        // there is more than one. Sorted by name for a stable list order.
         final businessSnap = await _db
             .collection('businesses')
             .where('ownerUid', isEqualTo: userId)
-            .limit(1)
             .get();
 
-        String businessName = '';
-        String businessType = '';
-        String businessId = '';
-        String? businessLogo;
+        final businesses =
+            businessSnap.docs
+                .map((doc) {
+                  final data = doc.data();
+                  return BusinessSummary(
+                    id: doc.id,
+                    name: (data['businessName'] as String?) ?? '',
+                    type: (data['businessType'] as String?) ?? '',
+                    logoUrl: (data['logoUrl'] as String?)?.trim(),
+                  );
+                })
+                .toList()
+              ..sort(
+                (a, b) =>
+                    a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              );
 
-        if (businessSnap.docs.isNotEmpty) {
-          final businessDoc = businessSnap.docs[0];
-          final businessData = businessDoc.data();
-          businessId = businessDoc.id;
-          businessName = (businessData['businessName'] as String?) ?? '';
-          businessType = (businessData['businessType'] as String?) ?? '';
-          businessLogo = (businessData['logoUrl'] as String?)?.trim();
-        }
+        final primary = businesses.isNotEmpty
+            ? businesses.first
+            : const BusinessSummary(id: '', name: '');
+        final businessName = primary.name;
+        final businessType = primary.type;
+        final businessId = primary.id;
+        final businessLogo = primary.logoUrl;
 
         final fullName = (userData['name'] as String?) ?? '';
         final parts = fullName.trim().split(RegExp(r'\s+'));
@@ -96,6 +108,7 @@ class OnboardingRepository {
           businessType: businessType,
           businessId: businessId,
           businessLogo: businessLogo,
+          businesses: businesses,
         );
       }
 
@@ -526,6 +539,22 @@ class OnboardingRepository {
       });
     } catch (e) {
       if (kDebugMode) debugPrint('[OnboardingRepository.touchLastActive] $e');
+    }
+  }
+
+  /// Persists the business the owner picked on the PIN screen so the dashboard
+  /// opens it — `currentBusinessIdProvider` reads `selectedBusinessId`.
+  /// Best-effort: a failure here just means the last-used business opens.
+  Future<void> setSelectedBusiness(String userId, String businessId) async {
+    if (userId.isEmpty || businessId.isEmpty) return;
+    try {
+      await _db.collection('users').doc(userId).update({
+        'selectedBusinessId': businessId,
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[OnboardingRepository.setSelectedBusiness] $e');
+      }
     }
   }
 

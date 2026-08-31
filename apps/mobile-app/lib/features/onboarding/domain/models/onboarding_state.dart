@@ -2,7 +2,10 @@
 //
 // Written as a hand-rolled copyWith class so it compiles without build_runner.
 
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/services/localization_service.dart';
+import 'user_lookup_result.dart';
 
 // ─── STEP ENUM ────────────────────────────────────────────────────────────────
 
@@ -57,6 +60,7 @@ class OnboardingState {
     this.businessType = '',
     this.businessLogo = '',
     this.businessId = '',
+    this.ownedBusinesses = const [],
     this.businessCountry = 'TZ',
     this.businessRegion = '',
     this.businessDistrict = '',
@@ -115,6 +119,12 @@ class OnboardingState {
   final String businessType;
   final String businessLogo;
   final String businessId;
+
+  /// Businesses owned by a returning user (from the phone lookup). When this
+  /// has more than one entry the PIN screen shows a picker; [businessId] holds
+  /// the currently-selected one.
+  final List<BusinessSummary> ownedBusinesses;
+
   final String businessCountry;  // ISO-2 code, default 'TZ'
   final String businessRegion;
   final String businessDistrict;
@@ -169,6 +179,7 @@ class OnboardingState {
     String? businessType,
     String? businessLogo,
     String? businessId,
+    List<BusinessSummary>? ownedBusinesses,
     String? businessCountry,
     String? businessRegion,
     String? businessDistrict,
@@ -203,6 +214,7 @@ class OnboardingState {
       businessType: businessType ?? this.businessType,
       businessLogo: businessLogo ?? this.businessLogo,
       businessId: businessId ?? this.businessId,
+      ownedBusinesses: ownedBusinesses ?? this.ownedBusinesses,
       businessCountry: businessCountry ?? this.businessCountry,
       businessRegion: businessRegion ?? this.businessRegion,
       businessDistrict: businessDistrict ?? this.businessDistrict,
@@ -240,6 +252,7 @@ class OnboardingState {
         other.businessType == businessType &&
         other.businessLogo == businessLogo &&
         other.businessId == businessId &&
+        listEquals(other.ownedBusinesses, ownedBusinesses) &&
         other.businessCountry == businessCountry &&
         other.businessRegion == businessRegion &&
         other.businessDistrict == businessDistrict &&
@@ -261,6 +274,7 @@ class OnboardingState {
         isTeamMember, teamMemberId, teamOwnerUid, inviteId, memberEmail,
         firstName, lastName, city, role,
         businessName, businessType, businessLogo, businessId,
+        Object.hashAll(ownedBusinesses),
         businessCountry, businessRegion, businessDistrict, email,
         websiteUrl, hasWebsite, websiteInterest,
         pin, confirmPin, isLoading, errorMessage, isComplete,

@@ -198,6 +198,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             businessType: r.businessType,
             businessLogo: r.businessLogo ?? '',
             businessId: r.businessId,
+            ownedBusinesses: r.businesses,
             currentStep: OnboardingStep.pinLogin,
             isLoading: false,
           );
@@ -320,6 +321,28 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ),
       );
     }
+  }
+
+  /// Owner tapped a business in the PIN-screen picker. Mirrors the chosen
+  /// business into the `business*` fields so [loginWithPin] signs them in
+  /// against it and the dashboard opens it.
+  void selectLoginBusiness(String businessId) {
+    if (businessId == state.businessId) return;
+    BusinessSummary? match;
+    for (final b in state.ownedBusinesses) {
+      if (b.id == businessId) {
+        match = b;
+        break;
+      }
+    }
+    if (match == null) return;
+    state = state.copyWith(
+      businessId: match.id,
+      businessName: match.name,
+      businessType: match.type,
+      businessLogo: match.logoUrl ?? '',
+      clearError: true,
+    );
   }
 
   // ─── SCREEN 4B — TEAM MEMBER SETUP ───────────────────────────────────────

@@ -8,6 +8,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/onboarding_strings.dart';
+import '../widgets/onboarding_back_handler.dart';
 
 /// Premium onboarding carousel highlighting Mali Up's flagship features
 /// (offline-first sync, real-time insights, invoicing/inventory automation,
@@ -121,6 +122,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     context.go(AppRoutes.welcome);
   }
 
+  /// Hardware back: retreat one slide first, then leave the carousel.
+  void _handleSystemBack() {
+    if (_current > 0) {
+      _pageCtrl.previousPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.fastOutSlowIn,
+      );
+      return;
+    }
+    _goBack();
+  }
+
   void _onPageChanged(int index) {
     setState(() => _current = index);
   }
@@ -138,7 +151,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
@@ -263,6 +276,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
       ),
     );
+    return OnboardingBackHandler(onBack: _handleSystemBack, child: scaffold);
   }
 }
 

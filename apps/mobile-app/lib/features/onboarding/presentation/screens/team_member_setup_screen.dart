@@ -13,6 +13,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 /// Screen 4B — shown when the phone number matches a pending team-member
@@ -188,7 +189,7 @@ class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
     final name = state.firstName.isNotEmpty ? state.firstName : state.fullName;
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
@@ -384,6 +385,7 @@ class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
         ],
       ),
     );
+    return OnboardingBackHandler(onBack: _onBack, child: scaffold);
   }
 }
 
