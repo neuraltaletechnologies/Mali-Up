@@ -449,6 +449,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // page's own lifecycle. The dialog's NavigatorState stays valid as long
   // as the dialog itself is still mounted, so use that instead.
   NavigatorState? _switchingDialogNavigator;
+  // The switching dialog's own ModalRoute, captured in its builder. Dismissal
+  // MUST target this exact route (navigator.removeRoute) rather than a blind
+  // navigator.pop(): the "switching…" dialog lives on the root Navigator, and
+  // other root-Navigator routes can land on top of it while the switch is in
+  // flight — most notably the PlanActivatedDialog congrats popup, which
+  // planStatusProvider re-emits and fires whenever you switch to a business
+  // on a higher plan tier than the one you were just viewing. A bare pop()
+  // then dismissed *that* route instead, stranding the "Inabadilisha
+  // kwenda…" spinner forever (with _switchingDialogOpen already flipped to
+  // false, so nothing ever retried).
+  Route<dynamic>? _switchingDialogRoute;
   // Set when _dismissSwitchingBusinessDialog runs before the dialog's route
   // has finished building (its builder is what captures
   // _switchingDialogNavigator, and that only runs on the frame after
@@ -465,6 +476,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _switchingDialogOpen = true;
     _switchingDialogDismissPending = false;
     _switchingDialogNavigator = null;
+    _switchingDialogRoute = null;
     final label = businessName == null
         ? _tr('Switching business…', 'Inabadilisha biashara…')
         : _tr(
@@ -479,13 +491,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           dialogContext,
           rootNavigator: true,
         );
-        // The switch already finished before this route rendered — pop it
+        _switchingDialogRoute = ModalRoute.of(dialogContext);
+        // The switch already finished before this route rendered — remove it
         // straight back off once the current build/frame settles.
         if (_switchingDialogDismissPending) {
           _switchingDialogDismissPending = false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _switchingDialogNavigator?.pop();
-            _switchingDialogNavigator = null;
+            _removeSwitchingDialogRoute();
           });
         }
         return PopScope(
@@ -511,14 +523,26 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   void _dismissSwitchingBusinessDialog() {
     if (!_switchingDialogOpen) return;
     _switchingDialogOpen = false;
-    final navigator = _switchingDialogNavigator;
-    if (navigator == null) {
-      // Dialog route hasn't built yet — let its builder pop it on arrival.
+    if (_switchingDialogNavigator == null || _switchingDialogRoute == null) {
+      // Dialog route hasn't built yet — let its builder remove it on arrival.
       _switchingDialogDismissPending = true;
       return;
     }
-    navigator.pop();
+    _removeSwitchingDialogRoute();
+  }
+
+  // Removes the "switching…" dialog's *own* route. Never a blind
+  // navigator.pop(): another root-Navigator route (e.g. PlanActivatedDialog)
+  // can be sitting on top of it by the time the switch resolves, and popping
+  // that one instead left the spinner stranded. removeRoute targets the exact
+  // route whether it is on top or buried.
+  void _removeSwitchingDialogRoute() {
+    final navigator = _switchingDialogNavigator;
+    final route = _switchingDialogRoute;
     _switchingDialogNavigator = null;
+    _switchingDialogRoute = null;
+    if (navigator == null || route == null || !route.isActive) return;
+    navigator.removeRoute(route);
   }
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
@@ -1534,9 +1558,25 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     ref.listen<AsyncValue<PlanStatus>>(planStatusProvider, (prev, next) {
       final status = next.valueOrNull;
       if (status == null) return;
-      _planActivationWatcher.checkAndUpdate(status.tier).then((previousTier) {
+      // Scope the baseline to the active business. planStatusProvider is
+      // per-business, so without this a single global baseline meant that
+      // hopping between businesses on different tiers (e.g. a Business-tier
+      // one and a Starter-tier one) re-fired the congrats popup every time
+      // you landed on the higher-tier business — and on every fresh login.
+      final businessId =
+          ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
+      if (businessId.isEmpty) return;
+      _planActivationWatcher.checkAndUpdate(businessId, status.tier).then((
+        previousTier,
+      ) {
         if (!context.mounted) return;
-        // No baseline yet (first load on this device) — just seed it.
+        // A business switch re-emits planStatusProvider for the new business;
+        // that tier change is not a plan *activation*, so don't fire the
+        // congrats popup on top of the "switching…" dialog (doing so also
+        // used to strand that dialog). The per-business baseline above is
+        // still updated, so a genuine later upgrade is celebrated normally.
+        if (_switchingDialogOpen) return;
+        // No baseline yet for this business on this device — just seed it.
         if (previousTier == null) return;
         // Only celebrate genuine upgrades, not no-ops or expiry downgrades.
         if (_planTierRank(status.tier) <= _planTierRank(previousTier)) return;
@@ -1878,30 +1918,35 @@ int _planTierRank(PlanTier tier) {
   }
 }
 
-/// Remembers, per device, the last plan tier the user has been shown —
-/// so the congrats popup only fires once per activation and never on a
-/// fresh install where the account may already be on a paid tier.
+/// Remembers, per device and per business, the last plan tier the user has
+/// been shown — so the congrats popup only fires once per activation, never
+/// on a fresh install where the business is already on a paid tier, and
+/// never when switching back to a business whose tier outranks the one just
+/// viewed.
 class _PlanActivationWatcher {
-  static const _prefsKey = 'last_seen_plan_tier';
+  static const _prefsKeyPrefix = 'last_seen_plan_tier_';
 
-  PlanTier? _cached;
-  bool _loaded = false;
+  static String _prefsKey(String businessId) => '$_prefsKeyPrefix$businessId';
 
-  /// Compares [tier] against the last recorded tier and persists [tier] as
-  /// the new baseline. Returns the previous tier, or null if this device
-  /// has no baseline yet (the caller should not celebrate in that case).
-  Future<PlanTier?> checkAndUpdate(PlanTier tier) async {
-    if (!_loaded) {
+  final Map<String, PlanTier> _cached = {};
+  final Set<String> _loaded = {};
+
+  /// Compares [tier] against the last recorded tier for [businessId] and
+  /// persists [tier] as the new baseline. Returns the previous tier, or
+  /// null if this device has no baseline yet for that business (the caller
+  /// should not celebrate in that case).
+  Future<PlanTier?> checkAndUpdate(String businessId, PlanTier tier) async {
+    if (!_loaded.contains(businessId)) {
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString(_prefsKey);
-      _cached = stored != null ? PlanTierX.fromString(stored) : null;
-      _loaded = true;
+      final stored = prefs.getString(_prefsKey(businessId));
+      if (stored != null) _cached[businessId] = PlanTierX.fromString(stored);
+      _loaded.add(businessId);
     }
-    final previous = _cached;
+    final previous = _cached[businessId];
     if (previous != tier) {
-      _cached = tier;
+      _cached[businessId] = tier;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKey, tier.name);
+      await prefs.setString(_prefsKey(businessId), tier.name);
     }
     return previous;
   }
@@ -2502,7 +2547,8 @@ class _PillNotchPainter extends CustomPainter {
 
   const _PillNotchPainter({
     required this.t,
-  }) : capRadius = 20 : notchRadius = 22;
+  })  : capRadius = 20,
+        notchRadius = 22;
 
   Path _tabPath(Size size) {
     final w = size.width + _overshoot;
