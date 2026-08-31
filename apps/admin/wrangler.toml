@@ -71,12 +71,11 @@ AUTH_TRUST_HOST = "true"
 # Deployment: Cloudflare's native Git Build integration (Workers & Pages →
 # mali-up → Settings → Build) is the ONLY deployer, and its build report is the
 # single source of truth for deploy readiness. It triggers on pushes to the
-# `production` branch — see promote-to-production.yml for the main → production
-# release checkpoint, and promote-selective.yml for promoting mobile/web
-# independently when both changed on main.
+# `main` branch (the live branch — merging a reviewed PR into `main` is the
+# release checkpoint; see CLAUDE.md "Branching & releases").
 #
 # By default this build has NO path scoping, so it rebuilds/redeploys on
-# every push to `production` even when a push only touched apps/mobile-app.
+# every push to `main` even when a push only touched apps/mobile-app.
 # Run .github/scripts/set-cloudflare-build-watch-paths.sh once (needs a
 # Cloudflare API token — see that script) to scope it to apps/admin/**,
 # matching what release-android.yml already does for mobile via its

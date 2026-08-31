@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-time fix for the gap noted in promote-selective.yml: the mali-up
-# Worker (apps/admin, the web app) rebuilds/redeploys on EVERY push to the
-# `production` branch, unlike release-android.yml which only fires when
-# apps/mobile-app/** changed. This sets a "Build Watch Path" on the
-# Worker's production build trigger via the Cloudflare Builds API, so it
-# only rebuilds when apps/admin/** actually changed -- the repo-side
+# One-time fix: the mali-up Worker (apps/admin, the web app) rebuilds/
+# redeploys on EVERY push to the live branch, unlike release-android.yml
+# which only fires when apps/mobile-app/** changed. This sets a "Build
+# Watch Path" on the Worker's build trigger via the Cloudflare Builds API,
+# so it only rebuilds when apps/admin/** actually changed -- the repo-side
 # equivalent of release-android.yml's `paths:` filter. Run once; safe to
 # re-run (idempotent PATCH).
+#
+# Prerequisite: the mali-up Worker's production branch in Cloudflare
+# (Workers & Pages -> mali-up -> Settings -> Build) must be set to `main`.
 #
 # Requires a Cloudflare *user-scoped* API token (account-scoped tokens
 # return "Invalid token" on these endpoints) with:
@@ -28,7 +30,7 @@ set -euo pipefail
 : "${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
 
 WORKER_NAME="mali-up"
-PRODUCTION_BRANCH="production"
+PRODUCTION_BRANCH="main"
 WATCH_PATH="apps/admin/**"
 
 API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID"

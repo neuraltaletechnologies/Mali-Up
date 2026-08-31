@@ -47,6 +47,31 @@ npm run build && npm start
 npm run prisma:generate / prisma:migrate
 ```
 
+## Branching & releases
+
+`main` is the **live branch** — whatever is on `main` is what deploys.
+
+- **Never commit or push directly to `main`.** All work goes on feature
+  branches (or the shared `dev` integration branch), then a PR.
+- `dev` is the integration branch: feature branches merge here first for
+  testing. Release by opening a PR `dev → main` (or merge a feature branch
+  straight into `main` for an isolated web-only or mobile-only change).
+- **Merging a reviewed PR into `main` is the release.** There is no
+  separate promotion step, no "approve don't merge" rule — merge means ship.
+  - `apps/admin/**` changed → Cloudflare rebuilds the `mali-up` Worker
+    (it watches the `main` branch; scoped to `apps/admin/**` once
+    `.github/scripts/set-cloudflare-build-watch-paths.sh` has run).
+  - `apps/mobile-app/**` changed → `.github/workflows/release-android.yml`
+    ships a Play Store **Open Testing** release (not the production track;
+    promote Open Testing → Production manually in Play Console).
+  - A web-only merge never triggers the Android release, and vice versa
+    (both are path-filtered).
+- After a `dev → main` release, sync `dev` back up (`git merge main` into
+  `dev`, or rebase) so it doesn't drift far behind.
+- There is **no `production` branch** — it was removed when `main` became
+  the live branch. Ignore any GitHub banner suggesting a PR between
+  long-lived branches other than `dev → main`.
+
 ## Mobile app architecture
 
 Feature-first layout under `lib/`:
