@@ -42,7 +42,7 @@ jobs:
         working-directory: apps/mobile-app
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # ubuntu-latest ships with only ~14 GB free on /. A release Flutter +
       # Gradle build plus the pub and Gradle caches overruns that, and the
@@ -72,14 +72,14 @@ jobs:
           cache: true
 
       - name: Cache pub packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('apps/mobile-app/pubspec.lock') }}
           restore-keys: ${{ runner.os }}-pub-
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -164,7 +164,9 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.neuraltale.maliup
           releaseFiles: apps/mobile-app/build/app/outputs/bundle/release/app-release.aab
-          track: beta
+          # "beta" is the Play Developer API track id for the "Open testing"
+          # channel. `tracks` (plural) replaces the deprecated `track` scalar.
+          tracks: beta
           status: completed
 
       - name: Remove decoded keystore
