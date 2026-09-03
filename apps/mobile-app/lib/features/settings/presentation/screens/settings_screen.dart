@@ -514,19 +514,34 @@ class _ProfileAndPlanCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(planStatusProvider);
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName?.trim();
-    final initial = displayName != null && displayName.isNotEmpty
-        ? displayName[0].toUpperCase()
-        : 'M';
-    final name = displayName?.isNotEmpty == true
-        ? displayName!
-        : tr('Mali Up User', 'Mtumiaji wa Mali Up');
-    final contact = (user?.phoneNumber?.trim().isNotEmpty == true
-            ? user!.phoneNumber!
-            : user?.email?.trim().isNotEmpty == true
-                ? user!.email!
-                : null) ??
-        tr('No contact details', 'Hakuna mawasiliano');
+
+    // Name + phone are the source of truth in Firestore `users/{uid}`, not on
+    // the Firebase Auth record — the Auth account uses a derived
+    // `phone@mali.up` email and never gets a displayName set, so reading
+    // `user.displayName` / `user.email` here showed the generic fallback name
+    // and the synthetic login email instead of the person's real details.
+    final profile = ref.watch(userProfileStreamProvider).valueOrNull;
+    final profileName = (profile?['name'] as String?)?.trim();
+    final firstLast = [
+      (profile?['firstName'] as String?)?.trim() ?? '',
+      (profile?['lastName'] as String?)?.trim() ?? '',
+    ].where((s) => s.isNotEmpty).join(' ');
+    final resolvedName = (profileName?.isNotEmpty == true)
+        ? profileName!
+        : firstLast.isNotEmpty
+            ? firstLast
+            : (user?.displayName?.trim().isNotEmpty == true
+                ? user!.displayName!.trim()
+                : null);
+    final name = resolvedName ?? tr('Mali Up User', 'Mtumiaji wa Mali Up');
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'M';
+
+    final profilePhone = (profile?['phone'] as String?)?.trim();
+    final contact = (profilePhone?.isNotEmpty == true)
+        ? profilePhone!
+        : (user?.phoneNumber?.trim().isNotEmpty == true
+            ? user!.phoneNumber!.trim()
+            : tr('No contact details', 'Hakuna mawasiliano'));
 
     return Container(
       decoration: BoxDecoration(
