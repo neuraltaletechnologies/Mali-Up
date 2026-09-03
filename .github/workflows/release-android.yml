@@ -90,6 +90,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Gate the release on the same checks a PR reviewer relies on. A red
+      # `main` otherwise ships straight to Open Testing before anyone runs
+      # these locally. Generated *.g.dart / *.freezed.dart are committed, so
+      # no build_runner step is needed here.
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
       - name: Decode signing keystore
         run: |
           mkdir -p android/app/keystore
