@@ -600,32 +600,86 @@ class _FaqList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final growthLimits = limitsFor(PlanTier.growth, defs);
-    final businessLimits = limitsFor(PlanTier.business, defs);
+    final starterLimits = limitsFor(PlanTier.starter, defs);
 
     final items = [
       (
         _t('How do I pay?', 'Ninalipaje?'),
         _t(
-          'Send ${_fmtPrice(growthLimits.pricePerCycle)} (${growthLimits.cycleMonths} months × Growth) or ${_fmtPrice(businessLimits.pricePerCycle)} (${businessLimits.cycleMonths} months × Business) via M-Pesa to our business number. Our team activates your plan within 24 hours.',
-          'Tuma ${_fmtPrice(growthLimits.pricePerCycle)} (miezi ${growthLimits.cycleMonths} × Growth) au ${_fmtPrice(businessLimits.pricePerCycle)} (miezi ${businessLimits.cycleMonths} × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
+          'Open My Plan, pick Growth or Business, and enter your mobile money '
+              'number. We send a payment prompt to that phone — enter your PIN '
+              'to confirm and your plan activates on the spot. No forms, no '
+              'waiting for our team.',
+          'Fungua Mpango Wangu, chagua Growth au Business, kisha weka namba '
+              'yako ya pesa ya simu. Tutatuma ombi la malipo kwenye simu hiyo '
+              '— weka PIN yako kuthibitisha na mpango wako unaanza papo hapo. '
+              'Hakuna fomu, hakuna kusubiri timu yetu.',
         ),
       ),
       (
-        _t('Can I cancel?', 'Ninaweza kughairi?'),
         _t(
-          'Yes. When your paid period ends it simply reverts to Starter — no automatic charges.',
-          'Ndiyo. Wakati kipindi chako cha malipo kinapoisha, moja kwa moja inarudi Starter — hakuna malipo ya moja kwa moja.',
+          'Which mobile money can I use?',
+          'Naweza kutumia pesa ya simu gani?',
+        ),
+        _t(
+          'M-Pesa, Tigo Pesa (Mixx by Yas), Airtel Money, and HaloPesa all '
+              "work. The number you pay from doesn't have to be the same as "
+              'your account number.',
+          'M-Pesa, Tigo Pesa (Mixx by Yas), Airtel Money, na HaloPesa zote '
+              'zinafanya kazi. Namba unayolipia haihitaji kufanana na namba '
+              'ya akaunti yako.',
         ),
       ),
       (
         _t(
-          'What happens to my data if I downgrade?',
-          'Nini kinatokea kwa data yangu nikienda chini?',
+          'Does it renew automatically?',
+          'Je, inajilipa yenyewe kila mwezi?',
         ),
         _t(
-          'All your data stays safe. You can only create new invoices up to the Starter limit; everything already recorded remains accessible.',
-          'Data yako yote inabaki salama. Unaweza tu kuunda ankara mpya hadi kikomo cha Starter; kila kitu kilichorekodiwa tayari kinabaki kinaweza kufikiwa.',
+          'No. Each payment covers one cycle. When it ends, your plan simply '
+              'drops back to Starter — we never auto-charge your phone. Pay '
+              "again whenever you're ready to continue, nothing to cancel.",
+          'Hapana. Kila malipo hufunika mzunguko mmoja. Ukiisha, mpango wako '
+              'unarudi Starter tu — hatutozi simu yako kiotomatiki. Lipa tena '
+              'wakati wowote ukiwa tayari kuendelea, hakuna cha kughairi.',
+        ),
+      ),
+      (
+        _t(
+          'What happens to my data if I go back to Starter?',
+          'Nini kinatokea kwa data yangu nikirudi Starter?',
+        ),
+        _t(
+          "Everything you've recorded stays and stays visible. You just "
+              "can't create new invoices past the Starter limit of "
+              '${starterLimits.monthlyInvoices}/month until you upgrade again.',
+          'Kila ulichorekodi kinabaki na kinaonekana. Utashindwa tu '
+              'kutengeneza ankara mpya zaidi ya kikomo cha Starter cha '
+              '${starterLimits.monthlyInvoices}/mwezi mpaka upande tena.',
+        ),
+      ),
+      (
+        _t(
+          'Is each business billed separately?',
+          'Je, kila biashara hulipiwa peke yake?',
+        ),
+        _t(
+          "Yes. Plans are per business — upgrading one business doesn't "
+              'upgrade the others. Switch business at the top of the '
+              'dashboard, then open My Plan for that one.',
+          'Ndiyo. Mipango ni kwa kila biashara — kupandisha biashara moja '
+              'hakupandishi nyingine. Badilisha biashara juu ya dashibodi, '
+              'kisha fungua Mpango Wangu kwa hiyo.',
+        ),
+      ),
+      (
+        _t('Do I need internet to pay?', 'Nahitaji intaneti kulipa?'),
+        _t(
+          'Only for the payment itself — the prompt and confirmation need a '
+              'connection. Everything else in Mali Up keeps working offline.',
+          'Kwa malipo yenyewe tu — ombi na uthibitisho vinahitaji mtandao. '
+              'Kila kitu kingine katika Mali Up kinaendelea kufanya kazi bila '
+              'intaneti.',
         ),
       ),
     ];
