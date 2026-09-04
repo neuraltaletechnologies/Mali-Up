@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,15 +88,25 @@ class CustomerAuditLogger {
     required this.actorUid,
   });
 
+  /// Records an audit event. **Fire-and-forget** — this always completes
+  /// immediately even though callers `await` it for sequencing.
+  ///
+  /// The underlying write goes straight to Firestore, whose future never
+  /// resolves while offline (its own persistence cache is disabled — see
+  /// `main.dart`). Awaiting it directly would hang the calling UI (e.g. the
+  /// "Add customer" spinner never stops offline even though the customer is
+  /// already committed to Drift). Audit logging is best-effort, so we let the
+  /// write finish — or fail — in the background; Firestore flushes the queued
+  /// mutation when connectivity returns.
   Future<void> log(
     String action, {
     required String customerId,
     required String customerName,
     Object? previousValue,
     Object? newValue,
-  }) {
-    if (ownerUid.isEmpty || businessId.isEmpty) return Future.value();
-    return service.logCustomerAction(
+  }) async {
+    if (ownerUid.isEmpty || businessId.isEmpty) return;
+    unawaited(service.logCustomerAction(
       ownerUid: ownerUid,
       businessId: businessId,
       performedByUid: actorUid,
@@ -103,7 +115,7 @@ class CustomerAuditLogger {
       customerName: customerName,
       previousValue: previousValue,
       newValue: newValue,
-    );
+    ));
   }
 }
 

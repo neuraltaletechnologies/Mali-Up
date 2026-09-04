@@ -25,6 +25,10 @@ class DailyReconciliationsTable extends Table {
       text().withDefault(const Constant('pending_create'))();
   IntColumn get isDeleted => integer().withDefault(const Constant(0))();
 
+  // (businessId, id) — the deterministic id is '<accountId>_<date>', and for
+  // the built-in channels accountId is a fixed value shared across businesses
+  // (e.g. 'pm_cash_2026-09-04'). Keying on id alone collided between
+  // businesses on a device that holds more than one.
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {businessId, id};
 }

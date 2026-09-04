@@ -488,6 +488,134 @@ class PlanStatusCache {
   }
 }
 
+/// Orders tiers so an upgrade (rank increases) can be told apart from a
+/// no-op, an expiry-driven revert to Starter, or the transient Starter
+/// placeholder [planStatusProvider] emits before the real tier loads.
+int _planTierRank(PlanTier tier) {
+  switch (tier) {
+    case PlanTier.starter:
+      return 0;
+    case PlanTier.growth:
+      return 1;
+    case PlanTier.business:
+      return 2;
+    case PlanTier.enterprise:
+      return 3;
+    case PlanTier.lifetime:
+      return 4;
+  }
+}
+
+/// Remembers, per device and per business, the highest plan tier the user
+/// has already been *shown* — so the "plan activated" celebration fires
+/// exactly once per genuine upgrade:
+///
+/// - never on a fresh install where the business is already on a paid tier
+///   (the first sighting only seeds the baseline),
+/// - never on the transient Starter placeholder [planStatusProvider] yields
+///   before the real tier loads, nor on any other dip to a lower tier (an
+///   expiry downgrade included) — the baseline never moves *down*, so the
+///   real tier coming back matches it and stays silent,
+/// - never a second time for an upgrade the in-app purchase flow already
+///   celebrated itself: that flow calls [expectPurchase] before it starts,
+///   so the `businesses/{id}` doc change landing via [planStatusProvider]
+///   is absorbed silently no matter when it arrives.
+///
+/// A single shared [instance] keeps this state consistent between the
+/// passive watcher in MainShellPage and the purchase flow in the upgrade
+/// sheet.
+class PlanActivationWatcher {
+  PlanActivationWatcher._();
+
+  static final PlanActivationWatcher instance = PlanActivationWatcher._();
+
+  static const _prefsKeyPrefix = 'last_seen_plan_tier_';
+
+  static String _prefsKey(String businessId) => '$_prefsKeyPrefix$businessId';
+
+  final Map<String, PlanTier> _cached = {};
+  final Set<String> _loaded = {};
+
+  /// Businesses whose next upgrade the in-app purchase flow owns and will
+  /// celebrate itself — see [expectPurchase] / [checkForUpgrade].
+  final Set<String> _purchaseInFlight = {};
+
+  Future<void> _ensureLoaded(String businessId) async {
+    if (_loaded.contains(businessId)) return;
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_prefsKey(businessId));
+    if (stored != null) _cached[businessId] = PlanTierX.fromString(stored);
+    _loaded.add(businessId);
+  }
+
+  Future<void> _persist(String businessId, PlanTier tier) async {
+    _cached[businessId] = tier;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey(businessId), tier.name);
+  }
+
+  /// The purchase flow is about to drive [businessId] to a higher tier and
+  /// will show its own celebration. Call this *before* initiating payment:
+  /// it is synchronous, so it always wins the race against the
+  /// `businesses/{id}` snapshot that [planStatusProvider] will emit once the
+  /// server activates the plan, and [checkForUpgrade] then records that
+  /// upgrade silently instead of firing a duplicate popup.
+  ///
+  /// Pair every call with [markSeen] on success or [forgetPurchase] on
+  /// failure / abandonment.
+  void expectPurchase(String businessId) {
+    if (businessId.isEmpty) return;
+    _purchaseInFlight.add(businessId);
+  }
+
+  /// Cancels a prior [expectPurchase] — the payment failed or the user
+  /// walked away — so a later genuine activation of that tier is celebrated
+  /// normally.
+  void forgetPurchase(String businessId) => _purchaseInFlight.remove(businessId);
+
+  /// Records [tier] as the highest tier shown for [businessId] without
+  /// celebrating, and ends any in-flight purchase claim. The purchase flow
+  /// calls this once it has shown its own celebration.
+  Future<void> markSeen(String businessId, PlanTier tier) async {
+    if (businessId.isEmpty) return;
+    _purchaseInFlight.remove(businessId);
+    await _ensureLoaded(businessId);
+    if (_cached[businessId] == null ||
+        _planTierRank(tier) > _planTierRank(_cached[businessId]!)) {
+      await _persist(businessId, tier);
+    }
+  }
+
+  /// Compares [tier] against the highest tier recorded for [businessId].
+  /// Returns true — and raises the baseline — only for a genuine upgrade the
+  /// caller should celebrate. Returns false (leaving the baseline at its
+  /// highest-seen value) for a first sighting, a no-op, any dip to a lower
+  /// tier (an expiry downgrade or the Starter placeholder included), or an
+  /// upgrade the in-app purchase flow has claimed via [expectPurchase].
+  Future<bool> checkForUpgrade(String businessId, PlanTier tier) async {
+    if (businessId.isEmpty) return false;
+    await _ensureLoaded(businessId);
+    final previous = _cached[businessId];
+    if (previous == null) {
+      // No baseline on this device yet — seed it, never celebrate.
+      await _persist(businessId, tier);
+      return false;
+    }
+    if (_planTierRank(tier) <= _planTierRank(previous)) return false;
+    await _persist(businessId, tier);
+    // A real upgrade — but if the purchase flow claimed it, that flow shows
+    // the celebration; record it here, stay silent.
+    return !_purchaseInFlight.remove(businessId);
+  }
+
+  @visibleForTesting
+  void resetForTest() {
+    _cached.clear();
+    _loaded.clear();
+    _purchaseInFlight.clear();
+  }
+}
+
 class PlanService {
   /// Derives entitlements from a `businesses/{businessId}` document. The
   /// plan belongs to the business, not to whichever account is signed in —

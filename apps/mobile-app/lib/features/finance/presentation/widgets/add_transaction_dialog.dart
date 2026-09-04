@@ -507,6 +507,7 @@ class _AccountDropdown extends StatelessWidget {
         excludeId != null ? accounts.where((a) => a.id != excludeId).toList() : accounts;
 
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: (value != null && filtered.any((a) => a.id == value)) ? value : null,
       decoration: InputDecoration(
         labelText: label,

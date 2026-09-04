@@ -4060,7 +4060,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         return;
       }
 
-      AppNotification.success(
+      // Navy "info" card (white text, above the nav bar, in front of the
+      // add-product sheet) — not the green success toast.
+      AppNotification.info(
         context,
         _isEdit
             ? _tr('Product updated', 'Bidhaa imesasishwa')

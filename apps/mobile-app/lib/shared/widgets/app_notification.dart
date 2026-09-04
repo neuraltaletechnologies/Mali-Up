@@ -248,14 +248,25 @@ class _AppToastState extends State<_AppToast> {
     Future.delayed(AppNotification._transitionDuration, widget.onDismissed);
   }
 
+  /// Extra bottom clearance so a toast never lands on top of a bottom-anchored
+  /// floating action button (e.g. the "Ongeza Biashara" / "Add" FABs). The
+  /// toast lives in the root overlay and can't see the current screen's
+  /// Scaffold, so rather than wire every FAB screen up we just always float
+  /// toasts one extended-FAB height (48) + a gap (16) higher. Dropped while
+  /// the keyboard is open — the FAB is hidden/irrelevant then and the toast
+  /// should sit close to the input instead.
+  static const double _fabClearance = 64;
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final bottomInset = (media.viewInsets.bottom > 0
+    final keyboardOpen = media.viewInsets.bottom > 0;
+    final bottomInset = (keyboardOpen
             ? media.viewInsets.bottom
             : media.padding.bottom) +
         16 +
-        widget.navLift;
+        widget.navLift +
+        (keyboardOpen ? 0.0 : _fabClearance);
 
     return Positioned(
       left: 16,

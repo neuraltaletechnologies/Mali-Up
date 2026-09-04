@@ -21,13 +21,13 @@ class LocalCashRepository {
   /// Domain-level lookup — a soft-deleted account does not exist.
   /// Sync/save paths that need tombstones use [getRawAccountById].
   Future<CashAccount?> getAccountById(String id) async {
-    final row = await _dao.getAccountById(id);
+    final row = await _dao.getAccountById(businessId, id);
     if (row == null || row.isDeleted != 0) return null;
     return CashAccountMapper.fromRow(row);
   }
 
   Future<CashAccountsTableData?> getRawAccountById(String id) =>
-      _dao.getAccountById(id);
+      _dao.getAccountById(businessId, id);
 
   Future<void> upsertAccount(
     CashAccount account, {
@@ -47,15 +47,18 @@ class LocalCashRepository {
         ),
       );
 
-  Future<void> softDeleteAccount(String id) => _dao.softDeleteAccount(id);
+  Future<void> softDeleteAccount(String id) =>
+      _dao.softDeleteAccount(businessId, id);
   Future<void> applyRemoteAccountDeletion(String id, int serverUpdatedAtMs) =>
-      _dao.applyRemoteAccountDeletion(id, serverUpdatedAt: serverUpdatedAtMs);
+      _dao.applyRemoteAccountDeletion(businessId, id,
+          serverUpdatedAt: serverUpdatedAtMs);
   Future<void> markAccountSynced(String id, int serverUpdatedAtMs) =>
-      _dao.markAccountSynced(id, serverUpdatedAt: serverUpdatedAtMs);
+      _dao.markAccountSynced(businessId, id,
+          serverUpdatedAt: serverUpdatedAtMs);
   Future<void> adjustAccountBalance(String id, double delta) =>
-      _dao.adjustAccountBalance(id, delta);
+      _dao.adjustAccountBalance(businessId, id, delta);
   Future<void> updateAccountLastReconciled(String id, String date) =>
-      _dao.updateAccountLastReconciled(id, date);
+      _dao.updateAccountLastReconciled(businessId, id, date);
 
   // ─── Transactions ──────────────────────────────────────────────────────────
 
@@ -93,7 +96,7 @@ class LocalCashRepository {
 
   Future<DailyReconciliationsTableData?> getRawReconciliationById(
           String id) =>
-      _dao.getReconciliationById(id);
+      _dao.getReconciliationById(businessId, id);
 
   Future<void> upsertReconciliation(
     DailyReconciliation rec, {
@@ -112,5 +115,6 @@ class LocalCashRepository {
       );
 
   Future<void> markReconciliationSynced(String id, int serverUpdatedAtMs) =>
-      _dao.markReconciliationSynced(id, serverUpdatedAt: serverUpdatedAtMs);
+      _dao.markReconciliationSynced(businessId, id,
+          serverUpdatedAt: serverUpdatedAtMs);
 }

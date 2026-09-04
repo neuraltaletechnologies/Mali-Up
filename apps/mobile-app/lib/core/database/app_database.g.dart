@@ -11784,7 +11784,7 @@ class $CashAccountsTableTable extends CashAccountsTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {businessId, id};
   @override
   CashAccountsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -13559,7 +13559,7 @@ class $DailyReconciliationsTableTable extends DailyReconciliationsTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {businessId, id};
   @override
   DailyReconciliationsTableData map(
     Map<String, dynamic> data, {

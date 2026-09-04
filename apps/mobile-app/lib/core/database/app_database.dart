@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   /// Removes account and business data cached on this device.
   ///
@@ -271,6 +271,21 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
               "ALTER TABLE team_members ADD COLUMN custom_role_name TEXT NOT NULL DEFAULT ''",
             );
+          }
+          if (from < 17) {
+            // cash_accounts / daily_reconciliations used deterministic ids
+            // (pm_cash, pm_mpesa, …, and '<accountId>_<date>') that are only
+            // unique *within* a business — but this device holds rows for
+            // every business the user has opened, and the primary key was
+            // `id` alone. So one business's `pm_mpesa` shadowed another's:
+            // activating a channel in the second business found the first
+            // one's row and silently no-op'd, leaving the chip locked.
+            // Primary key is now (business_id, id). No column changes — a
+            // plain table rebuild preserves every row (they already carry a
+            // business_id, so nothing collides on the way across).
+            await m.alterTable(TableMigration(cashAccountsTable));
+            await m.alterTable(TableMigration(dailyReconciliationsTable));
+            await _createV5Indexes();
           }
         },
         beforeOpen: (details) async {

@@ -1,0 +1,100 @@
+name: Dev integration
+
+# Runs on every push to `dev`, the shared integration branch.
+#
+# 1. `mobile-checks` — `flutter analyze` + `flutter test` when the push
+#    touched `apps/mobile-app/**`, so breakage surfaces here instead of
+#    during the release run on `main`.
+# 2. `open-release-pr` — opens a `dev -> main` pull request if one isn't
+#    already open. An existing PR needs no action: GitHub keeps it in sync
+#    with new `dev` commits. Merging that PR is the release (see CLAUDE.md
+#    "Branching & releases"); a mobile change then ships to Play Open
+#    Testing via release-android.yml.
+#
+# Pushing to `dev` never triggers a release directly — only a merge into
+# `main` does.
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# A burst of pushes to `dev` only needs the latest checked and one PR.
+concurrency:
+  group: dev-integration
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            mobile:
+              - 'apps/mobile-app/**'
+
+  mobile-checks:
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile-app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('apps/mobile-app/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  open-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Open dev -> main PR if none is open
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing (dev -> main) is already open; GitHub keeps it up to date with new commits."
+            exit 0
+          fi
+          cat > /tmp/pr-body.md <<'EOF'
+          Automated integration PR opened by `dev-integration.yml`.
+
+          Merging this ships whatever is on `dev`:
+          - a mobile change -> Play Store Open Testing (release-android.yml)
+          - a web/admin change -> Cloudflare Worker rebuild
+
+          Review the diff before merging. After merging, sync `dev` back up with `main`.
+          EOF
+          gh pr create --base main --head dev --title "Release: dev -> main" --body-file /tmp/pr-body.md
