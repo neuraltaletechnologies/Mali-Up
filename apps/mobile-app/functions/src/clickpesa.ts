@@ -128,8 +128,10 @@ function canonicalize(value: unknown): unknown {
  * (Settings → Developers → Checksum in the ClickPesa dashboard). Deliberately
  * read from a plain (non-secret) env var, not `defineSecret`, so leaving it
  * unset never blocks deployment — set `CLICKPESA_CHECKSUM_KEY` in
- * `functions/.env` (or `.secret.local` for the emulator) only if checksum
- * validation is turned on for this application.
+ * `functions/.env` (deployed + emulator) or `functions/.env.local`
+ * (emulator-only override) only if checksum validation is turned on for this
+ * application. Both files are gitignored; `functions/.env.example` is the
+ * committed template.
  */
 function checksumFor(payload: Record<string, unknown>): string | null {
   const key = process.env.CLICKPESA_CHECKSUM_KEY;

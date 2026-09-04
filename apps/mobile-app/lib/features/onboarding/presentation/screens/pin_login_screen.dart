@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/services/plan_service.dart' show PlanTier, PlanTierX;
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -295,6 +296,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   logoUrl: biz.logoUrl ?? '',
                                   role: state.role,
                                   isSwahili: sw,
+                                  plan: biz.plan,
+                                  planExpiresAt: biz.planExpiresAt,
                                   selected: biz.id == state.businessId,
                                   onTap: isLoading
                                       ? null
@@ -315,6 +318,12 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                 logoUrl: state.businessLogo,
                                 role: state.role,
                                 isSwahili: sw,
+                                plan: state.ownedBusinesses.isNotEmpty
+                                    ? state.ownedBusinesses.first.plan
+                                    : '',
+                                planExpiresAt: state.ownedBusinesses.isNotEmpty
+                                    ? state.ownedBusinesses.first.planExpiresAt
+                                    : null,
                               ),
                             ],
 
@@ -361,7 +370,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
 
                             // Offline banner
                             if (!isOnline) ...[
-                              _PinLoginOfflineBanner(sw: sw),
+                              OnboardingOfflineBanner(
+                                message: sw
+                                    ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
+                                    : 'Signing in requires internet. Please connect and try again.',
+                              ),
                               const SizedBox(height: 16),
                             ],
 
@@ -462,6 +475,8 @@ class _BusinessCard extends StatelessWidget {
     required this.logoUrl,
     required this.role,
     required this.isSwahili,
+    this.plan = '',
+    this.planExpiresAt,
     this.selected = false,
     this.onTap,
   });
@@ -471,6 +486,11 @@ class _BusinessCard extends StatelessWidget {
   final String logoUrl;
   final String role;
   final bool isSwahili;
+
+  /// Raw `plan` string + optional expiry from the business doc — resolved to
+  /// a tier label badge ("Free plan", "Growth", …).
+  final String plan;
+  final DateTime? planExpiresAt;
 
   /// Picker mode: [onTap] non-null renders the card as a selectable option
   /// with a radio indicator; [selected] draws the chosen-state border.
@@ -483,6 +503,7 @@ class _BusinessCard extends StatelessWidget {
         ? businessName.trim()[0].toUpperCase()
         : 'M';
     final pickable = onTap != null;
+    final planBadge = _resolvePlan(plan, planExpiresAt, isSwahili);
 
     final card = Container(
       padding: const EdgeInsets.all(16),
@@ -528,22 +549,29 @@ class _BusinessCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (businessType.isNotEmpty || role.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      if (businessType.isNotEmpty)
-                        _CardBadge(
-                          label: businessType,
-                          color: AppColors.tealAccent,
-                        ),
-                      if (role.isNotEmpty)
-                        _CardBadge(label: role, color: AppColors.navySecondary),
-                    ],
-                  ),
-                ],
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (businessType.isNotEmpty)
+                      _CardBadge(
+                        label: businessType,
+                        color: AppColors.tealAccent,
+                      ),
+                    _CardBadge(
+                      label: planBadge.label,
+                      color: planBadge.paid
+                          ? AppColors.warning
+                          : AppColors.textMuted,
+                      icon: planBadge.paid
+                          ? Icons.workspace_premium_rounded
+                          : null,
+                    ),
+                    if (role.isNotEmpty)
+                      _CardBadge(label: role, color: AppColors.navySecondary),
+                  ],
+                ),
               ],
             ),
           ),
@@ -600,9 +628,10 @@ class _BusinessCardInitial extends StatelessWidget {
 }
 
 class _CardBadge extends StatelessWidget {
-  const _CardBadge({required this.label, required this.color});
+  const _CardBadge({required this.label, required this.color, this.icon});
   final String label;
   final Color color;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -612,16 +641,50 @@ class _CardBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(99),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Resolves a raw `businesses/{id}.plan` string (plus its optional expiry) to
+/// a display label for the login business card. An expired paid plan reads as
+/// the free tier — mirroring how [PlanService] derives entitlements.
+({String label, bool paid}) _resolvePlan(
+  String rawPlan,
+  DateTime? expiresAt,
+  bool isSwahili,
+) {
+  var tier = PlanTierX.fromString(rawPlan);
+  if (tier != PlanTier.starter &&
+      expiresAt != null &&
+      expiresAt.isBefore(DateTime.now())) {
+    tier = PlanTier.starter;
+  }
+  // Matches the per-business plan badge in manage_businesses_screen.dart.
+  final label = switch (tier) {
+    PlanTier.starter => isSwahili ? 'Bure' : 'Starter',
+    PlanTier.growth => 'Growth',
+    PlanTier.business => 'Business',
+    PlanTier.enterprise => 'Enterprise',
+    PlanTier.lifetime => 'Lifetime',
+  };
+  return (label: label, paid: tier != PlanTier.starter);
 }
 
 // ── Forgot PIN recovery sheet ─────────────────────────────────────────────────
@@ -922,48 +985,6 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PinLoginOfflineBanner extends StatelessWidget {
-  final bool sw;
-  const _PinLoginOfflineBanner({required this.sw});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3CD),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.wifi_off_rounded,
-            size: 18,
-            color: Color(0xFF856404),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              sw
-                  ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
-                  : 'Signing in requires internet. Please connect and try again.',
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: const Color(0xFF856404),
-                height: 1.4,
-              ),
-            ),
-          ),
         ],
       ),
     );

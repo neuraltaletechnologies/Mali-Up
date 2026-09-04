@@ -20,6 +20,8 @@ final class BusinessSummary {
     required this.name,
     this.type = '',
     this.logoUrl,
+    this.plan = '',
+    this.planExpiresAt,
   });
 
   /// Firestore document ID in the `businesses` collection.
@@ -30,6 +32,15 @@ final class BusinessSummary {
   /// Logo URL — null/empty falls back to an initials avatar.
   final String? logoUrl;
 
+  /// Raw `plan` string from the `businesses` doc (e.g. `growth`, `business`,
+  /// or `''`/`Trial` for a starter). The PIN screen resolves it to a tier
+  /// label; an expired paid plan (see [planExpiresAt]) is shown as free.
+  final String plan;
+
+  /// `planExpiresAt` from the `businesses` doc, if set — a paid [plan] whose
+  /// expiry is in the past has effectively reverted to the free tier.
+  final DateTime? planExpiresAt;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -37,10 +48,12 @@ final class BusinessSummary {
           other.id == id &&
           other.name == name &&
           other.type == type &&
-          other.logoUrl == logoUrl);
+          other.logoUrl == logoUrl &&
+          other.plan == plan &&
+          other.planExpiresAt == planExpiresAt);
 
   @override
-  int get hashCode => Object.hash(id, name, type, logoUrl);
+  int get hashCode => Object.hash(id, name, type, logoUrl, plan, planExpiresAt);
 }
 
 /// The phone number maps to an existing user document in the `users` collection.

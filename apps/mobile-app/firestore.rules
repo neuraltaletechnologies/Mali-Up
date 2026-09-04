@@ -19,6 +19,13 @@ service cloud.firestore {
       return request.query.limit != null && request.query.limit <= 1;
     }
 
+    // Pre-auth phone lookup lists every business an owner has so the PIN
+    // screen can show a "choose a business" picker. Wider than isLimitedLookup
+    // but still bounded, so it can't be used to scan the whole collection.
+    function isOwnerBusinessLookup() {
+      return request.query.limit != null && request.query.limit <= 20;
+    }
+
     // CMS/admin write access (e.g. updating lookups).
     function isCms() {
       return request.auth != null && (
@@ -282,9 +289,10 @@ service cloud.firestore {
       // Signed-in callers may only list businesses they own (the query must
       // filter on ownerUid == request.auth.uid — Firestore rejects any query
       // that isn't provably restricted this way). Unauthenticated pre-auth
-      // phone lookup is still allowed but capped to a single result.
+      // phone lookup is still allowed but capped (isOwnerBusinessLookup) so the
+      // login screen can list an owner's businesses without a full-scan risk.
       allow list: if (isSignedIn() && resource.data.ownerUid == request.auth.uid) ||
-        (!isSignedIn() && isLimitedLookup());
+        (!isSignedIn() && isOwnerBusinessLookup());
 
       // Read: owner or any active staff member.
       allow get: if isSignedIn() && (
