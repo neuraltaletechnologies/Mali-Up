@@ -374,7 +374,11 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         context: ResolvedFinanceContext.business(bizId),
         childCollection: 'customers',
       );
-      await customersCol.doc(_customer.id).collection('notes').add({
+      // Best-effort, non-blocking: notes have no offline store and this
+      // Firestore write never completes while offline (persistence is disabled
+      // — see main.dart). Awaiting it would strand the caller's spinner (e.g.
+      // the reminder flow); Firestore flushes the queued write on reconnect.
+      customersCol.doc(_customer.id).collection('notes').add({
         'type': type.name,
         'text': text,
         'addedAt': FieldValue.serverTimestamp(),
@@ -382,7 +386,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         if (scheduledFor != null)
           'scheduledFor': Timestamp.fromDate(scheduledFor),
         if (type == _NoteType.reminder) 'reminderSent': false,
-      });
+      }).ignore();
     } catch (_) {}
   }
 
@@ -796,13 +800,18 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                   context: ResolvedFinanceContext.business(bizId),
                   childCollection: 'customers',
                 );
-                await col.doc(_customer.id).collection('payments').add({
+                // Best-effort history record. The authoritative payment data
+                // is already committed offline-first above (balance delta +
+                // debt application). This direct Firestore write never
+                // completes while offline, so fire it and let Firestore flush
+                // it on reconnect instead of stranding the sheet's spinner.
+                col.doc(_customer.id).collection('payments').add({
                   'amount': amount,
                   'method': method,
                   'note': note,
                   'paidAt': FieldValue.serverTimestamp(),
                   'recordedBy': user.uid,
-                });
+                }).ignore();
               }
             }
             await ref

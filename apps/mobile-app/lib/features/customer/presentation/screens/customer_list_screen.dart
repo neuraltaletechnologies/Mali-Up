@@ -1800,7 +1800,14 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                                 ),
                                             childCollection: 'customers',
                                           );
-                                      await col
+                                      // Best-effort history record — the
+                                      // authoritative payment data is already
+                                      // committed offline-first above. This
+                                      // direct Firestore write never completes
+                                      // while offline, so fire it and let
+                                      // Firestore flush it on reconnect rather
+                                      // than stranding the sheet's spinner.
+                                      col
                                           .doc(live.id)
                                           .collection('payments')
                                           .add({
@@ -1810,7 +1817,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                             'paidAt':
                                                 FieldValue.serverTimestamp(),
                                             'recordedBy': user.uid,
-                                          });
+                                          }).ignore();
                                     }
                                   }
                                   await ref

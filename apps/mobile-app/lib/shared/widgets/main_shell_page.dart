@@ -51,7 +51,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
   final _liveActivity = LiveActivityService();
-  final _planActivationWatcher = _PlanActivationWatcher();
+  final _planActivationWatcher = PlanActivationWatcher.instance;
   String _currentBusinessName = '';
   late final VoidCallback _versionGateListener;
   // Timestamp of the last back-press on the Home tab, used for the
@@ -1551,35 +1551,34 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     );
 
     // Live plan status — drives the sidebar plan tag and the congrats popup
-    // below when an admin activates an upgrade.
+    // below when an admin activates an upgrade from the portal (an Enterprise
+    // deal, a manual reconciliation…). An in-app ClickPesa purchase claims
+    // its upgrade up front (PlanActivationWatcher.expectPurchase) and shows
+    // its own celebration in showUpgradeSheet, so this listener records that
+    // activation silently rather than popping a second dialog.
     final planStatus = ref.watch(
       planStatusProvider.select((a) => a.valueOrNull),
     );
     ref.listen<AsyncValue<PlanStatus>>(planStatusProvider, (prev, next) {
       final status = next.valueOrNull;
       if (status == null) return;
-      // Scope the baseline to the active business. planStatusProvider is
-      // per-business, so without this a single global baseline meant that
-      // hopping between businesses on different tiers (e.g. a Business-tier
-      // one and a Starter-tier one) re-fired the congrats popup every time
-      // you landed on the higher-tier business — and on every fresh login.
+      // The baseline is per-business (planStatusProvider is per-business) and
+      // only ever moves *up*, so neither a business switch nor the transient
+      // Starter placeholder planStatusProvider emits on a cold start before
+      // the real tier loads can manufacture a fake "upgrade" — see
+      // PlanActivationWatcher.checkForUpgrade.
       final businessId =
           ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
       if (businessId.isEmpty) return;
-      _planActivationWatcher.checkAndUpdate(businessId, status.tier).then((
-        previousTier,
+      _planActivationWatcher.checkForUpgrade(businessId, status.tier).then((
+        isUpgrade,
       ) {
-        if (!context.mounted) return;
-        // A business switch re-emits planStatusProvider for the new business;
-        // that tier change is not a plan *activation*, so don't fire the
-        // congrats popup on top of the "switching…" dialog (doing so also
-        // used to strand that dialog). The per-business baseline above is
-        // still updated, so a genuine later upgrade is celebrated normally.
+        if (!context.mounted || !isUpgrade) return;
+        // A business switch that legitimately reveals a higher tier still
+        // shouldn't drop the popup on top of the "switching…" spinner (doing
+        // so used to strand that dialog). The baseline is already raised, so
+        // this just skips that one crowded moment.
         if (_switchingDialogOpen) return;
-        // No baseline yet for this business on this device — just seed it.
-        if (previousTier == null) return;
-        // Only celebrate genuine upgrades, not no-ops or expiry downgrades.
-        if (_planTierRank(status.tier) <= _planTierRank(previousTier)) return;
         PlanActivatedDialog.show(
           context,
           tier: status.tier,
@@ -1898,57 +1897,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       link: _navSlotLayerLinks[slotPosition],
       child: navItem,
     );
-  }
-}
-
-/// Orders tiers so an upgrade (rank increases) can be told apart from a
-/// no-op or an expiry-driven revert to Starter (rank decreases/unchanged).
-int _planTierRank(PlanTier tier) {
-  switch (tier) {
-    case PlanTier.starter:
-      return 0;
-    case PlanTier.growth:
-      return 1;
-    case PlanTier.business:
-      return 2;
-    case PlanTier.enterprise:
-      return 3;
-    case PlanTier.lifetime:
-      return 4;
-  }
-}
-
-/// Remembers, per device and per business, the last plan tier the user has
-/// been shown — so the congrats popup only fires once per activation, never
-/// on a fresh install where the business is already on a paid tier, and
-/// never when switching back to a business whose tier outranks the one just
-/// viewed.
-class _PlanActivationWatcher {
-  static const _prefsKeyPrefix = 'last_seen_plan_tier_';
-
-  static String _prefsKey(String businessId) => '$_prefsKeyPrefix$businessId';
-
-  final Map<String, PlanTier> _cached = {};
-  final Set<String> _loaded = {};
-
-  /// Compares [tier] against the last recorded tier for [businessId] and
-  /// persists [tier] as the new baseline. Returns the previous tier, or
-  /// null if this device has no baseline yet for that business (the caller
-  /// should not celebrate in that case).
-  Future<PlanTier?> checkAndUpdate(String businessId, PlanTier tier) async {
-    if (!_loaded.contains(businessId)) {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString(_prefsKey(businessId));
-      if (stored != null) _cached[businessId] = PlanTierX.fromString(stored);
-      _loaded.add(businessId);
-    }
-    final previous = _cached[businessId];
-    if (previous != tier) {
-      _cached[businessId] = tier;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKey(businessId), tier.name);
-    }
-    return previous;
   }
 }
 

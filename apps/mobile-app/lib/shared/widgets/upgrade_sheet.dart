@@ -16,6 +16,7 @@ import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
 import 'payment_pos_animation.dart';
+import 'plan_activated_dialog.dart';
 import 'skeleton_widgets.dart';
 import 'smart_skeleton.dart';
 
@@ -124,13 +125,23 @@ Future<PlanTier?> showUpgradeSheet(
     return result as PlanTier?;
   }
   if (!context.mounted) return null;
-  return showAppSheet<PlanTier>(
+  final paid = await showAppSheet<_PaymentSuccess>(
     context,
     builder: (_) => _ClickPesaPaymentSheet(
       tier: result.tier,
       phoneNumber: result.phoneNumber,
     ),
   );
+  if (paid == null) return null;
+  // The plan is active server-side and the sheet already claimed this
+  // upgrade (expectPurchase) so the passive watcher in MainShellPage won't
+  // also pop a congrats dialog. markSeen settles the recorded baseline and
+  // releases the claim; then this flow shows the one celebration.
+  await PlanActivationWatcher.instance.markSeen(paid.businessId, paid.tier);
+  if (context.mounted) {
+    await PlanActivatedDialog.show(context, tier: paid.tier, defs: paid.defs);
+  }
+  return paid.tier;
 }
 
 /// Carries the plan + phone number chosen in the first sheet across to the
@@ -140,6 +151,21 @@ class _PaymentHandoff {
   final String phoneNumber;
 
   const _PaymentHandoff({required this.tier, required this.phoneNumber});
+}
+
+/// Returned by [_ClickPesaPaymentSheet] once ClickPesa confirms the payment
+/// and the plan is live server-side — carries what [showUpgradeSheet] needs
+/// to celebrate the upgrade and keep the passive watcher quiet for it.
+class _PaymentSuccess {
+  final PlanTier tier;
+  final String businessId;
+  final PlanDefinitions? defs;
+
+  const _PaymentSuccess({
+    required this.tier,
+    required this.businessId,
+    this.defs,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1397,6 +1423,7 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
   bool _succeeded = false;
   bool _failed = false;
   String? _failureMessage;
+  String _businessId = '';
 
   // Flipped in dispose() so an in-flight ClickPesaService.waitForPayment
   // poll loop notices (via isCancelled) and stops calling the server the
@@ -1413,6 +1440,12 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
   @override
   void dispose() {
     _disposed = true;
+    // Left without a confirmed success — release the claim on this
+    // business's next upgrade so a later genuine activation still gets its
+    // celebration. A real success clears the claim via markSeen instead.
+    if (!_succeeded) {
+      PlanActivationWatcher.instance.forgetPurchase(_businessId);
+    }
     _paymentAnim.dispose();
     super.dispose();
   }
@@ -1435,6 +1468,12 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
       if (businessId.isEmpty) {
         throw StateError('No active business to upgrade.');
       }
+      _businessId = businessId;
+      // Claim this business's next upgrade *before* the server can activate
+      // the plan, so the passive watcher in MainShellPage records the
+      // `businesses/{id}` change silently and this flow is the only thing
+      // that celebrates it (via showUpgradeSheet, once this sheet pops).
+      PlanActivationWatcher.instance.expectPurchase(businessId);
       // Push a USSD payment prompt to the user's phone. The amount is
       // decided server-side (from the admin-configured price), not by the
       // client — see functions/src/clickpesa.ts. Activates the plan on
@@ -1464,15 +1503,28 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
       setState(() => _succeeded = true);
       // Wait for the checkmark to actually be on screen, hold a beat so
       // it registers, then close on its own — there's nothing else on
-      // this sheet to tap.
+      // this sheet to tap. showUpgradeSheet celebrates the upgrade once
+      // this pops.
       await _paymentAnim.setSuccess();
       if (_disposed || !mounted) return;
       await Future.delayed(const Duration(milliseconds: 700));
       if (_disposed || !mounted) return;
-      Navigator.pop(context, widget.tier);
+      Navigator.pop(
+        context,
+        _PaymentSuccess(
+          tier: widget.tier,
+          businessId: businessId,
+          defs: ref.read(planDefinitionsProvider).valueOrNull,
+        ),
+      );
     } on ClickPesaCancelledException {
       // The sheet was dismissed mid-poll — nothing to show, nothing to log.
+      // dispose() releases the upgrade claim.
     } catch (e) {
+      // Release the claim: either it really failed, or the client wait timed
+      // out on a payment that did go through — in which case the passive
+      // watcher should celebrate the activation when the doc change lands.
+      PlanActivationWatcher.instance.forgetPurchase(_businessId);
       if (_disposed) return;
       debugPrint('[ClickPesaPaymentSheet] payment error: $e');
       // Freezes wherever the wait loop currently is — the green checkmark
