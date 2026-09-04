@@ -69,6 +69,20 @@ Optional one-time verification:
 - Start the app once. A startup test message is sent.
 - Set it back to `"false"` afterward.
 
+## Business location — worldwide regions & districts
+
+The business-details onboarding step lets the owner pick any country, then its
+region ("Mkoa") and district ("Wilaya"). Tanzania is served from the curated
+`lookups/*` data in Firestore; every other country is looked up live from the
+free [Country-State-City API](https://countrystatecity.in) by
+`lib/core/services/geo_lookup_service.dart`.
+
+- Get a free key at <https://countrystatecity.in/> and put it in
+  `CSC_API_KEY` (in `.env.json` locally, or as a repo secret for CI — see
+  `.github/workflows/release-android.yml`).
+- With no key the picker degrades gracefully: the region/district rows become
+  free-text fields so onboarding is never blocked.
+
 ## Session Replay
 
 Session Replay is enabled in [lib/main.dart](lib/main.dart) with:

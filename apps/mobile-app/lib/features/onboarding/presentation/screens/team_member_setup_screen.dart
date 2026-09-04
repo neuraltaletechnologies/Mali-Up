@@ -831,7 +831,11 @@ class _PinSetupBody extends StatelessWidget {
         // Show offline banner on the confirm step (where Firebase is called)
         if (isConfirm && !isOnline) ...[
           const SizedBox(height: 16),
-          _TeamOfflineBanner(sw: sw),
+          OnboardingOfflineBanner(
+            message: sw
+                ? 'Hatua hii inahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
+                : 'This step requires internet. Please connect and try again.',
+          ),
         ],
 
         const SizedBox(height: 36),
@@ -879,50 +883,6 @@ class _PinSetupBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
-    );
-  }
-}
-
-// ── Offline banner ────────────────────────────────────────────────────────────
-
-class _TeamOfflineBanner extends StatelessWidget {
-  final bool sw;
-  const _TeamOfflineBanner({required this.sw});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3CD),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.wifi_off_rounded,
-            size: 18,
-            color: Color(0xFF856404),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              sw
-                  ? 'Hatua hii inahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
-                  : 'This step requires internet. Please connect and try again.',
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: const Color(0xFF856404),
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

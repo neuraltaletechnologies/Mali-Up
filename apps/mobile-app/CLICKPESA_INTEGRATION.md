@@ -117,15 +117,34 @@ which does not exist in ClickPesa's real API — every payment attempt would
 have failed outright. If you ever see 404s from ClickPesa, check the base
 path is still `/third-parties/...`.
 
-### Optional: checksum validation
+### Checksum validation
 
-ClickPesa supports an optional HMAC-SHA256 payload checksum (Settings →
-Developers → Checksum in the ClickPesa dashboard). It's off unless you turn
-it on. If you do, set `CLICKPESA_CHECKSUM_KEY` as a **plain** env var (not a
-Secret Manager secret — see `checksumFor()` in `clickpesa.ts`) via
-`functions/.env` (production) or `functions/.secret.local` (emulator); the
-code picks it up automatically and starts sending the checksum. Leaving it
-unset is safe — the field is simply omitted.
+ClickPesa supports an HMAC-SHA256 payload checksum (Settings → Developers →
+Checksum in the ClickPesa dashboard). When it's **enabled** for the
+application, every `initiate-ussd-push-request` **must** carry a `checksum`
+field or ClickPesa rejects it with `400 { "message": "checksum is required" }`
+— which `initiateClickPesaPayment` forwards to the app as
+`invalid-argument: Payment could not be started: checksum is required`.
+
+`checksumFor()` in `clickpesa.ts` computes it exactly per ClickPesa's spec
+(https://docs.clickpesa.com/home/checksum): canonicalize the payload
+(recursively sort object keys), compact-`JSON.stringify`, `HMAC-SHA256` with
+the checksum key, hex digest — with the `checksum`/`checksumMethod` fields
+excluded from the hashed payload. It needs the key wired in:
+
+1. ClickPesa dashboard → Settings → Developers → Checksum → copy the checksum
+   key. (Regenerate the API token afterwards if the dashboard tells you to.)
+2. `cp apps/mobile-app/functions/.env.example apps/mobile-app/functions/.env`
+   and set `CLICKPESA_CHECKSUM_KEY=<the key>`. It's a **plain** env var, not a
+   Secret Manager secret (see `checksumFor()` — deliberate, so an unset key
+   never blocks deployment). `.env` is gitignored and is loaded both on
+   deploy and by the emulator; use `.env.local` for an emulator-only override.
+3. `cd apps/mobile-app/functions && firebase deploy --only functions`.
+4. Verify: `firebase functions:log --only initiateClickPesaPayment` should no
+   longer show the `checksum is required` 400 after a test upgrade.
+
+If checksum validation is **off** in the dashboard, leave `CLICKPESA_CHECKSUM_KEY`
+unset — `checksumFor()` returns null and the field is simply omitted.
 
 ## Configuration
 
@@ -221,6 +240,13 @@ same as any other Cloud Function in this app.
    activated for the application, KYC incomplete, etc.) on the ClickPesa
    dashboard, not a code bug — check Settings → Developers → payment methods
    for the application.
+9. **`invalid-argument: Payment could not be started: checksum is required`**
+   — checksum validation is turned ON for the application in the ClickPesa
+   dashboard but `CLICKPESA_CHECKSUM_KEY` isn't set on the deployed function,
+   so no `checksum` field is sent. Fix: wire the key in per "Checksum
+   validation" above and redeploy, or turn checksum validation off in the
+   dashboard. (`invalid checksum` / `checksum mismatch` instead means the key
+   is set but wrong — re-copy it from the dashboard.)
 
 ## Security notes
 

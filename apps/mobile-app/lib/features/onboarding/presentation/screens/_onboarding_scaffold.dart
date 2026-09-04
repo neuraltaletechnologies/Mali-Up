@@ -380,6 +380,77 @@ class OnboardingErrorBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OnboardingOfflineBanner
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Inline "you're offline" banner shown above the CTA on onboarding screens
+/// whose action needs the network (phone lookup, sign-in, registration, team
+/// invite). Matches the app's standard neutral notification look
+/// ([AppNotification.info]) — navy card, white text — so this persistent
+/// banner and the toast fired when an offline user taps the button read as
+/// the same thing.
+class OnboardingOfflineBanner extends StatelessWidget {
+  const OnboardingOfflineBanner({
+    super.key,
+    required this.message,
+    this.title,
+  });
+
+  /// Optional bold heading shown above [message] (e.g. "Hakuna mtandao").
+  final String? title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 18,
+            color: AppColors.inverseText,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inverseText,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                Text(
+                  message,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.inverseText,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PinDotsInput  (4-circle PIN entry)
 // ─────────────────────────────────────────────────────────────────────────────
 

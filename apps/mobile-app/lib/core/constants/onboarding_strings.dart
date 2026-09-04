@@ -247,9 +247,9 @@ abstract final class OnboardingStrings {
   static const newUserTitleSw = 'Tuambie kuhusu wewe';
 
   static const newUserSubEn =
-      'This helps us personalise your Mali Up experience.';
+      'Welcome! We are creating a new account. Tailored to your setup ';
   static const newUserSubSw =
-      'Hii itatusaidia kukufanyia mipangilio inayokufaa kwenye Mali Up.';
+      'Karibu! Tunakutengenezea Akaunti Mpya. Kukupa mipangilio inayokufaa ';
 
   static const firstNameLabelEn = 'First name';
   static const firstNameLabelSw = 'Jina la kwanza';
@@ -278,16 +278,14 @@ abstract final class OnboardingStrings {
   static const newUserCtaEn = 'Continue';
   static const newUserCtaSw = 'Endelea';
 
-  // "No account found for this number" notice — shown at the top of the
-  // new-user screen so a returning user who mistyped their number realises
-  // why they landed on registration instead of PIN login.
-  static const newUserNoAccountEn =
-      'No Mali Up account uses this number yet — you are creating a new one.';
-  static const newUserNoAccountSw =
-      'Hakuna akaunti ya Mali Up inayotumia namba hii bado — unatengeneza akaunti mpya.';
+  // Label next to the phone number the person typed on the previous screen,
+  // so a mistype is easy to spot before they fill in the form. The trailing
+  // edit icon jumps back to the phone screen (help desk is in the top bar).
+  static const newUserNumberLabelEn = 'Number you entered';
+  static const newUserNumberLabelSw = 'Namba uliyoingiza';
 
-  static const newUserWrongNumberEn = 'Wrong number? Change it';
-  static const newUserWrongNumberSw = 'Namba si sahihi? Ibadilishe';
+  static const newUserChangeNumberEn = 'Change number';
+  static const newUserChangeNumberSw = 'Badilisha namba';
 
   // Errors
   static const nameRequiredEn = 'Name is required.';

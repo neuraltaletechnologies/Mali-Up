@@ -552,7 +552,12 @@ class _ConfirmPinBody extends StatelessWidget {
 
         if (!isOnline) ...[
           const SizedBox(height: 16),
-          _OnboardingOfflineBanner(sw: sw),
+          OnboardingOfflineBanner(
+            title: sw ? 'Hakuna mtandao' : 'No internet connection',
+            message: sw
+                ? 'Tafadhali unganisha mtandao na ujaribu tena.'
+                : 'Please connect to the internet and try again.',
+          ),
         ],
 
         const SizedBox(height: 36),
@@ -592,64 +597,6 @@ class _ConfirmPinBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
-    );
-  }
-}
-
-// ── Shared offline banner for onboarding screens ──────────────────────────────
-
-class _OnboardingOfflineBanner extends StatelessWidget {
-  final bool sw;
-  const _OnboardingOfflineBanner({required this.sw});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3CD),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.wifi_off_rounded,
-            size: 18,
-            color: Color(0xFF856404),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  sw ? 'Hakuna mtandao' : 'No internet connection',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF856404),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sw
-                      ? 'Tafadhali unganisha mtandao na ujaribu tena.'
-                      : 'Please connect to the internet and try again.',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: const Color(0xFF856404),
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

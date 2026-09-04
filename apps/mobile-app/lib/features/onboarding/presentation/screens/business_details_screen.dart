@@ -6,9 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/countries.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../core/services/geo_lookup_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -60,6 +62,11 @@ const List<_BizType> _kBizTypes = [
   _BizType('other', 'Other', 'Nyingine', Icons.more_horiz_rounded),
 ];
 
+/// Load state of an online region/district list (non-Tanzania countries).
+/// `empty` = the request finished with nothing usable, so the field becomes
+/// free text.
+enum _GeoStatus { idle, loading, ready, empty }
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class BusinessDetailsScreen extends ConsumerStatefulWidget {
@@ -79,11 +86,32 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
   String? _selectedTypeKey;
   bool _typeError = false;
 
+  String _country  = 'TZ';
   String _region   = '';
   String _district = '';
   bool _websiteInterest = false;
 
+  // Tanzania keeps its curated local + Firestore data (region → district map).
   Map<String, List<String>> _tzRegions = LookupService.defaultDistricts;
+
+  // Every other country is looked up live via the Country-State-City API.
+  // `empty` means "loaded but nothing came back" → the row becomes free text
+  // so onboarding is never blocked.
+  List<GeoDivision> _regions   = const [];
+  List<GeoDivision> _districts = const [];
+  _GeoStatus _regionStatus   = _GeoStatus.idle;
+  _GeoStatus _districtStatus = _GeoStatus.idle;
+  final _regionTextCtrl   = TextEditingController();
+  final _districtTextCtrl = TextEditingController();
+
+  bool get _isTz => _country == 'TZ';
+  bool get _regionFreeText => !_isTz && _regionStatus == _GeoStatus.empty;
+  bool get _districtFreeText => !_isTz && _districtStatus == _GeoStatus.empty;
+  String get _effectiveRegion =>
+      _regionFreeText ? _regionTextCtrl.text.trim() : _region;
+  String get _effectiveDistrict =>
+      _districtFreeText ? _districtTextCtrl.text.trim() : _district;
+  Country get _countryObj => countryByCode(_country) ?? kCountries.first;
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
@@ -103,13 +131,31 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     _bizNameCtrl.text  = s.businessName;
     _websiteCtrl.text  = s.websiteUrl;
     _selectedTypeKey   = s.businessType.isNotEmpty ? s.businessType : null;
+    _country           = s.businessCountry.isNotEmpty ? s.businessCountry : 'TZ';
     _region            = s.businessRegion;
     _district          = s.businessDistrict;
+    _regionTextCtrl.text   = s.businessRegion;
+    _districtTextCtrl.text  = s.businessDistrict;
     _websiteInterest   = s.websiteInterest;
 
-    LookupService.fetchDistricts().then((data) {
-      if (mounted) setState(() => _tzRegions = data);
-    });
+    if (_isTz) {
+      LookupService.fetchDistricts().then((data) {
+        if (mounted) setState(() => _tzRegions = data);
+      });
+    } else if (_region.isNotEmpty || _district.isNotEmpty) {
+      // A resumed draft already has region/district text — show it as free
+      // text straight away (no background fetch, so the typed values stick).
+      _regionStatus = _GeoStatus.empty;
+      _districtStatus = _GeoStatus.empty;
+    } else if (GeoLookupService.isConfigured) {
+      _regionStatus = _GeoStatus.loading;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadRegions(_country);
+      });
+    } else {
+      _regionStatus = _GeoStatus.empty;
+      _districtStatus = _GeoStatus.empty;
+    }
   }
 
   @override
@@ -117,7 +163,51 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     _animCtrl.dispose();
     _bizNameCtrl.dispose();
     _websiteCtrl.dispose();
+    _regionTextCtrl.dispose();
+    _districtTextCtrl.dispose();
     super.dispose();
+  }
+
+  // ─── Geo lookup (non-Tanzania) ──────────────────────────────────────────────
+
+  Future<void> _loadRegions(String code) async {
+    if (!GeoLookupService.isConfigured) {
+      if (mounted) {
+        setState(() {
+          _regionStatus = _GeoStatus.empty;
+          _districtStatus = _GeoStatus.empty;
+        });
+      }
+      return;
+    }
+    setState(() => _regionStatus = _GeoStatus.loading);
+    final regions = await GeoLookupService.fetchRegions(code);
+    if (!mounted || code != _country) return;
+    setState(() {
+      _regions = regions;
+      if (regions.isEmpty) {
+        _regionStatus = _GeoStatus.empty;
+        _districtStatus = _GeoStatus.empty;
+      } else {
+        _regionStatus = _GeoStatus.ready;
+      }
+    });
+  }
+
+  Future<void> _loadDistricts(String regionCode) async {
+    if (regionCode.isEmpty || !GeoLookupService.isConfigured) {
+      if (mounted) setState(() => _districtStatus = _GeoStatus.empty);
+      return;
+    }
+    setState(() => _districtStatus = _GeoStatus.loading);
+    final districts =
+        await GeoLookupService.fetchDistricts(_country, regionCode);
+    if (!mounted) return;
+    setState(() {
+      _districts = districts;
+      _districtStatus =
+          districts.isEmpty ? _GeoStatus.empty : _GeoStatus.ready;
+    });
   }
 
   void _submit() {
@@ -127,11 +217,13 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
 
     final notifier   = ref.read(onboardingNotifierProvider.notifier);
     final websiteUrl = _websiteCtrl.text.trim();
+    final region     = _effectiveRegion;
     notifier.setBusinessName(_bizNameCtrl.text.trim());
     notifier.setBusinessType(_selectedTypeKey!);
-    notifier.setBusinessRegion(_region);
-    notifier.setBusinessDistrict(_district);
-    if (_region.isNotEmpty) notifier.setCity(_region);
+    notifier.setBusinessCountry(_country);
+    notifier.setBusinessRegion(region);
+    notifier.setBusinessDistrict(_effectiveDistrict);
+    if (region.isNotEmpty) notifier.setCity(region);
     notifier.setWebsiteUrl(websiteUrl);
     notifier.setHasWebsite(websiteUrl.isNotEmpty);
     notifier.setWebsiteInterest(_websiteInterest);
@@ -161,39 +253,154 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     }
   }
 
-  Future<void> _pickRegion() async {
+  Future<void> _pickCountry(bool sw) async {
     HapticFeedback.selectionClick();
-    final picked = await showAppSheet<String>(
+    final picked = await showAppSheet<Country>(
       context,
-      builder: (_) => _SearchPickerSheet(
-        title: 'Select Region',
-        items: _tzRegions.keys.toList()..sort(),
-        selected: _region.isEmpty ? null : _region,
-      ),
+      builder: (_) => _CountryPickerSheet(selected: _country, isSwahili: sw),
     );
-    if (picked != null && mounted) {
-      setState(() {
-        _region = picked;
-        _district = '';
-      });
+    if (picked == null || !mounted || picked.code == _country) return;
+    setState(() {
+      _country = picked.code;
+      _region = '';
+      _district = '';
+      _regions = const [];
+      _districts = const [];
+      _regionTextCtrl.clear();
+      _districtTextCtrl.clear();
+      _regionStatus = _GeoStatus.idle;
+      _districtStatus = _GeoStatus.idle;
+    });
+    if (_isTz) {
+      final data = await LookupService.fetchDistricts();
+      if (mounted) setState(() => _tzRegions = data);
+    } else {
+      await _loadRegions(picked.code);
     }
   }
 
-  Future<void> _pickDistrict() async {
-    if (_region.isEmpty) return;
+  Future<void> _pickRegion(bool sw) async {
     HapticFeedback.selectionClick();
-    final districts = _tzRegions[_region] ?? [];
+    final items = _isTz
+        ? (_tzRegions.keys.toList()..sort())
+        : _regions.map((r) => r.name).toList();
     final picked = await showAppSheet<String>(
       context,
       builder: (_) => _SearchPickerSheet(
-        title: 'Select District',
-        items: districts,
+        title: sw ? 'Chagua mkoa' : 'Select region',
+        items: items,
+        selected: _region.isEmpty ? null : _region,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _region = picked;
+      _district = '';
+      _districtTextCtrl.clear();
+    });
+    if (_isTz) {
+      setState(() => _districtStatus = _GeoStatus.ready);
+      return;
+    }
+    final code = _regions
+        .firstWhere((r) => r.name == picked,
+            orElse: () => const GeoDivision(name: ''))
+        .code;
+    if (code == null || code.isEmpty) {
+      setState(() => _districtStatus = _GeoStatus.empty);
+    } else {
+      await _loadDistricts(code);
+    }
+  }
+
+  Future<void> _pickDistrict(bool sw) async {
+    if (_region.isEmpty) return;
+    HapticFeedback.selectionClick();
+    final items = _isTz
+        ? (_tzRegions[_region] ?? const <String>[])
+        : _districts.map((d) => d.name).toList();
+    if (items.isEmpty) return;
+    final picked = await showAppSheet<String>(
+      context,
+      builder: (_) => _SearchPickerSheet(
+        title: sw ? 'Chagua wilaya' : 'Select district',
+        items: items,
         selected: _district.isEmpty ? null : _district,
       ),
     );
     if (picked != null && mounted) {
       setState(() => _district = picked);
     }
+  }
+
+  // ─── Location row builders ─────────────────────────────────────────────────
+
+  List<Widget> _buildRegionRow(bool sw) {
+    if (_regionFreeText) {
+      return [
+        _LocationTextField(
+          icon: Icons.map_rounded,
+          label: sw ? 'Mkoa' : 'Region',
+          controller: _regionTextCtrl,
+          hint: sw ? 'Andika mkoa wako' : 'Type your region',
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 6),
+        _GeoHint(
+          text: sw
+              ? 'Hatukupata orodha ya mikoa kwa nchi hii — iandike mwenyewe.'
+              : "We couldn't load this country's regions — type it in.",
+        ),
+      ];
+    }
+    final loading = _regionStatus == _GeoStatus.loading;
+    return [
+      _LocationRow(
+        icon: Icons.map_rounded,
+        label: sw ? 'Mkoa' : 'Region',
+        value: _region.isEmpty ? null : _region,
+        placeholder: loading
+            ? (sw ? 'Inapakia mikoa…' : 'Loading regions…')
+            : (sw ? 'Chagua mkoa' : 'Select region'),
+        loading: loading,
+        disabled: loading,
+        onTap: loading ? null : () => _pickRegion(sw),
+      ),
+    ];
+  }
+
+  List<Widget> _buildDistrictRow(bool sw) {
+    final regionChosen = _effectiveRegion.isNotEmpty;
+    if (_districtFreeText) {
+      return [
+        _LocationTextField(
+          icon: Icons.location_city_rounded,
+          label: sw ? 'Wilaya' : 'District',
+          controller: _districtTextCtrl,
+          hint: regionChosen
+              ? (sw ? 'Andika wilaya yako' : 'Type your district')
+              : (sw ? 'Chagua mkoa kwanza' : 'Choose a region first'),
+          enabled: regionChosen,
+          onChanged: (_) => setState(() {}),
+        ),
+      ];
+    }
+    final loading = _districtStatus == _GeoStatus.loading;
+    return [
+      _LocationRow(
+        icon: Icons.location_city_rounded,
+        label: sw ? 'Wilaya' : 'District',
+        value: _district.isEmpty ? null : _district,
+        placeholder: !regionChosen
+            ? (sw ? 'Chagua mkoa kwanza' : 'Select region first')
+            : loading
+                ? (sw ? 'Inapakia wilaya…' : 'Loading districts…')
+                : (sw ? 'Chagua wilaya' : 'Select district'),
+        loading: loading,
+        disabled: !regionChosen || loading,
+        onTap: (!regionChosen || loading) ? null : () => _pickDistrict(sw),
+      ),
+    ];
   }
 
   Future<void> _openWhatsAppHelp(bool sw) async {
@@ -451,42 +658,22 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                               ),
                               const SizedBox(height: 12),
 
-                              // Country (fixed)
+                              // Country
                               _LocationRow(
                                 icon: Icons.public_rounded,
                                 label: sw ? 'Nchi' : 'Country',
-                                value: '🇹🇿  Tanzania',
-                                isFixed: true,
-                                onTap: null,
+                                value:
+                                    '${_countryObj.flag}  ${_countryObj.name}',
+                                onTap: () => _pickCountry(sw),
                               ),
                               const SizedBox(height: 10),
 
-                              // Region
-                              _LocationRow(
-                                icon: Icons.map_rounded,
-                                label: sw ? 'Mkoa' : 'Region',
-                                value: _region.isEmpty ? null : _region,
-                                placeholder:
-                                    sw ? 'Chagua mkoa' : 'Select region',
-                                onTap: _pickRegion,
-                              ),
+                              // Region ("mkoa")
+                              ..._buildRegionRow(sw),
                               const SizedBox(height: 10),
 
-                              // District
-                              _LocationRow(
-                                icon: Icons.location_city_rounded,
-                                label: sw ? 'Wilaya' : 'District',
-                                value: _district.isEmpty ? null : _district,
-                                placeholder: _region.isEmpty
-                                    ? (sw
-                                        ? 'Chagua mkoa kwanza'
-                                        : 'Select region first')
-                                    : (sw
-                                        ? 'Chagua wilaya'
-                                        : 'Select district'),
-                                disabled: _region.isEmpty,
-                                onTap: _region.isEmpty ? null : _pickDistrict,
-                              ),
+                              // District ("wilaya")
+                              ..._buildDistrictRow(sw),
                               const SizedBox(height: 28),
 
                               // ── Online presence ──────────────────────────
@@ -811,16 +998,16 @@ class _LocationRow extends StatelessWidget {
     required this.onTap,
     this.value,
     this.placeholder,
-    this.isFixed = false,
     this.disabled = false,
+    this.loading = false,
   });
 
   final IconData icon;
   final String label;
   final String? value;
   final String? placeholder;
-  final bool isFixed;
   final bool disabled;
+  final bool loading;
   final VoidCallback? onTap;
 
   @override
@@ -836,7 +1023,7 @@ class _LocationRow extends StatelessWidget {
           color: disabled ? AppColors.surfaceVariant : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasValue && !isFixed
+            color: hasValue
                 ? AppColors.navyPrimary.withValues(alpha: 0.30)
                 : AppColors.border,
           ),
@@ -885,7 +1072,16 @@ class _LocationRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isFixed)
+            if (loading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textMuted,
+                ),
+              )
+            else
               Icon(
                 hasValue
                     ? Icons.check_circle_rounded
@@ -902,6 +1098,96 @@ class _LocationRow extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Free-text location field (fallback when an online list can't load) ───────
+
+class _LocationTextField extends StatelessWidget {
+  const _LocationTextField({
+    required this.icon,
+    required this.label,
+    required this.controller,
+    required this.hint,
+    this.enabled = true,
+    this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final TextEditingController controller;
+  final String hint;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      textCapitalization: TextCapitalization.words,
+      onChanged: onChanged,
+      style: GoogleFonts.dmSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.navyPrimary,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 17, color: AppColors.textMuted),
+        filled: true,
+        fillColor: enabled ? AppColors.surface : AppColors.surfaceVariant,
+        labelStyle: GoogleFonts.dmSans(
+          fontSize: 12,
+          color: AppColors.textMuted,
+        ),
+        hintStyle: GoogleFonts.dmSans(
+          fontSize: 13,
+          color: AppColors.textDisabled,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.navyPrimary.withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── "We couldn't load the list" caption ─────────────────────────────────────
+
+class _GeoHint extends StatelessWidget {
+  const _GeoHint({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 12, color: AppColors.textMuted),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.dmSans(
+                  fontSize: 11, color: AppColors.textMuted),
+            ),
+          ),
+        ],
+      );
 }
 
 // ─── Business type picker bottom sheet ────────────────────────────────────────
@@ -1237,6 +1523,163 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
                         Expanded(
                           child: Text(
                             item,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_rounded,
+                              size: 17, color: AppColors.success),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Country picker bottom sheet ─────────────────────────────────────────────
+
+class _CountryPickerSheet extends StatefulWidget {
+  const _CountryPickerSheet({required this.selected, required this.isSwahili});
+
+  final String selected; // ISO-2 code
+  final bool isSwahili;
+
+  @override
+  State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
+}
+
+class _CountryPickerSheetState extends State<_CountryPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  late List<Country> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = kCountries;
+    _searchCtrl.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearch);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearch() {
+    final q = _searchCtrl.text.toLowerCase().trim();
+    setState(() {
+      _filtered = q.isEmpty
+          ? kCountries
+          : kCountries
+              .where((c) =>
+                  c.name.toLowerCase().contains(q) ||
+                  c.code.toLowerCase() == q)
+              .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxH = MediaQuery.sizeOf(context).height * 0.8;
+    final sw = widget.isSwahili;
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxH),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                sw ? 'Chagua nchi' : 'Select country',
+                style: GoogleFonts.dmSans(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, color: AppColors.navyPrimary),
+                decoration: InputDecoration(
+                  hintText: sw ? 'Tafuta nchi…' : 'Search country…',
+                  hintStyle: GoogleFonts.dmSans(
+                      fontSize: 14, color: AppColors.textDisabled),
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      size: 18, color: AppColors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+              itemCount: _filtered.length,
+              itemBuilder: (_, i) {
+                final c = _filtered[i];
+                final isSelected = c.code == widget.selected;
+                return InkWell(
+                  onTap: () => Navigator.of(context).pop(c),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 11),
+                    child: Row(
+                      children: [
+                        Text(c.flag,
+                            style: GoogleFonts.dmSans(fontSize: 22)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            c.name,
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               fontWeight: isSelected

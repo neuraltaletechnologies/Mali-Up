@@ -6,3 +6,12 @@ lib/
 # the emulator. Real deploys read from Secret Manager instead — see
 # CLICKPESA_INTEGRATION.md. Never commit actual secret values.
 .secret.local
+
+# Plain (non-secret) env vars — `.env` is loaded on deploy and by the
+# emulator, `.env.local` overrides it for the emulator only. Both hold real
+# values (e.g. CLICKPESA_CHECKSUM_KEY) and must never be committed. The
+# committed template is `.env.example`.
+.env
+.env.local
+.env.*.local
+!.env.example

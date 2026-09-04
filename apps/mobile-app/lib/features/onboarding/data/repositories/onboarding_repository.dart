@@ -60,27 +60,49 @@ class OnboardingRepository {
 
         // Every business this user owns — the PIN screen shows a picker when
         // there is more than one. Sorted by name for a stable list order.
-        final businessSnap = await _db
-            .collection('businesses')
-            .where('ownerUid', isEqualTo: userId)
-            .get();
+        // Bounded to 20: the Firestore rule only allows this pre-auth query
+        // when it is capped (see `isOwnerBusinessLookup` in firestore.rules),
+        // and no real owner has anywhere near that many businesses.
+        // A failure here must not block login — the user doc was already
+        // found, so fall back to an empty list and let them sign in; the
+        // dashboard then opens whatever `selectedBusinessId` points to.
+        List<BusinessSummary> businesses;
+        try {
+          final businessSnap = await _db
+              .collection('businesses')
+              .where('ownerUid', isEqualTo: userId)
+              .limit(20)
+              .get();
 
-        final businesses =
-            businessSnap.docs
-                .map((doc) {
-                  final data = doc.data();
-                  return BusinessSummary(
-                    id: doc.id,
-                    name: (data['businessName'] as String?) ?? '',
-                    type: (data['businessType'] as String?) ?? '',
-                    logoUrl: (data['logoUrl'] as String?)?.trim(),
-                  );
-                })
-                .toList()
-              ..sort(
-                (a, b) =>
-                    a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-              );
+          businesses =
+              businessSnap.docs
+                  .map((doc) {
+                    final data = doc.data();
+                    final expiresRaw = data['planExpiresAt'];
+                    return BusinessSummary(
+                      id: doc.id,
+                      name: (data['businessName'] as String?) ?? '',
+                      type: (data['businessType'] as String?) ?? '',
+                      logoUrl: (data['logoUrl'] as String?)?.trim(),
+                      plan: (data['plan'] as String?) ?? '',
+                      planExpiresAt:
+                          expiresRaw is Timestamp ? expiresRaw.toDate() : null,
+                    );
+                  })
+                  .toList()
+                ..sort(
+                  (a, b) =>
+                      a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+                );
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[OnboardingRepository.lookupByPhone] business list lookup '
+              'failed for user=$userId: $e\n$st',
+            );
+          }
+          businesses = const [];
+        }
 
         final primary = businesses.isNotEmpty
             ? businesses.first

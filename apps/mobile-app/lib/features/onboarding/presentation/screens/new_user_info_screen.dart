@@ -242,16 +242,20 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                   style: subtitleStyle,
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 16),
 
-                              // "No account found for this number" notice
-                              _NoAccountNotice(
-                                phone: state.phone,
-                                isSwahili: sw,
-                                onChangeNumber: () =>
-                                    context.go(AppRoutes.phone),
-                              ),
-                              const SizedBox(height: 24),
+                              // The number typed on the previous screen, with a
+                              // trailing icon back to the phone screen so a
+                              // mistype is easy to fix.
+                              if (state.phone.trim().isNotEmpty) ...[
+                                _EnteredNumberRow(
+                                  phone: state.phone.trim(),
+                                  isSwahili: sw,
+                                  onChangeNumber: () =>
+                                      context.go(AppRoutes.phone),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
 
                               // First name
                               OnboardingField(
@@ -379,10 +383,11 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
   }
 }
 
-/// Info banner explaining that the phone number typed on the previous screen
-/// matched no existing account, with a shortcut back to fix a mistyped number.
-class _NoAccountNotice extends StatelessWidget {
-  const _NoAccountNotice({
+/// One plain line under the subtitle: the number typed on the previous screen,
+/// with a trailing icon-only button back to the phone screen so a returning
+/// user who mistyped it (and actually has an account) can fix it.
+class _EnteredNumberRow extends StatelessWidget {
+  const _EnteredNumberRow({
     required this.phone,
     required this.isSwahili,
     required this.onChangeNumber,
@@ -394,79 +399,47 @@ class _NoAccountNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.infoBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.person_search_rounded,
-                  size: 18, color: AppColors.info),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      OnboardingStrings.s(isSwahili,
-                          en: OnboardingStrings.newUserNoAccountEn,
-                          sw: OnboardingStrings.newUserNoAccountSw),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        height: 1.45,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.navyPrimary,
-                      ),
-                    ),
-                    if (phone.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        phone,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ],
-                  ],
+    return Row(
+      children: [
+        const Icon(Icons.phone_iphone_rounded,
+            size: 15, color: AppColors.textMuted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${OnboardingStrings.s(isSwahili, en: OnboardingStrings.newUserNumberLabelEn, sw: OnboardingStrings.newUserNumberLabelSw)}  ',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onChangeNumber,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: AppColors.info,
-              ),
-              icon: const Icon(Icons.edit_rounded, size: 15),
-              label: Text(
-                OnboardingStrings.s(isSwahili,
-                    en: OnboardingStrings.newUserWrongNumberEn,
-                    sw: OnboardingStrings.newUserWrongNumberSw),
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                TextSpan(
+                  text: phone,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: onChangeNumber,
+          icon: const Icon(Icons.edit_rounded, size: 18),
+          color: AppColors.info,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          tooltip: OnboardingStrings.s(isSwahili,
+              en: OnboardingStrings.newUserChangeNumberEn,
+              sw: OnboardingStrings.newUserChangeNumberSw),
+        ),
+      ],
     );
   }
 }
