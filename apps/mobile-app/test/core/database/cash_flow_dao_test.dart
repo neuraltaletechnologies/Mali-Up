@@ -97,7 +97,7 @@ void main() {
       await dao.upsertAccount(account());
       await dao.upsertAccount(account(name: 'Till', balance: 50000));
 
-      final result = await dao.getAccountById('acc-1');
+      final result = await dao.getAccountById('biz-1', 'acc-1');
       expect(result!.name, 'Till');
       expect(result.balance, 50000);
     });
@@ -112,26 +112,52 @@ void main() {
       expect(rows.map((r) => r.id), ['acc-1']);
     });
 
+    test('built-in channel ids are isolated per business', () async {
+      // pm_mpesa activated under two businesses on the same device must be
+      // two independent rows — not one shadowing the other.
+      await dao.upsertAccount(account(id: 'pm_mpesa', balance: 1000));
+      await dao.upsertAccount(
+          account(id: 'pm_mpesa', businessId: 'biz-2', balance: 9999));
+
+      final a = await dao.getAccountById('biz-1', 'pm_mpesa');
+      final b = await dao.getAccountById('biz-2', 'pm_mpesa');
+      expect(a!.balance, 1000);
+      expect(b!.balance, 9999);
+      expect(await dao.watchAccounts('biz-1').first, hasLength(1));
+      expect(await dao.watchAccounts('biz-2').first, hasLength(1));
+    });
+
     test('adjustAccountBalance applies deltas without touching syncStatus',
         () async {
       await dao.upsertAccount(account());
 
-      await dao.adjustAccountBalance('acc-1', 5000);
-      await dao.adjustAccountBalance('acc-1', -20000);
+      await dao.adjustAccountBalance('biz-1', 'acc-1', 5000);
+      await dao.adjustAccountBalance('biz-1', 'acc-1', -20000);
 
-      final result = await dao.getAccountById('acc-1');
+      final result = await dao.getAccountById('biz-1', 'acc-1');
       expect(result!.balance, 85000);
       expect(result.syncStatus, 'synced');
+    });
+
+    test('adjustAccountBalance only touches the given business', () async {
+      await dao.upsertAccount(account(id: 'pm_cash', balance: 1000));
+      await dao.upsertAccount(
+          account(id: 'pm_cash', businessId: 'biz-2', balance: 1000));
+
+      await dao.adjustAccountBalance('biz-1', 'pm_cash', 500);
+
+      expect((await dao.getAccountById('biz-1', 'pm_cash'))!.balance, 1500);
+      expect((await dao.getAccountById('biz-2', 'pm_cash'))!.balance, 1000);
     });
 
     test('softDeleteAccount hides the row and marks it pending_delete',
         () async {
       await dao.upsertAccount(account());
-      await dao.softDeleteAccount('acc-1');
+      await dao.softDeleteAccount('biz-1', 'acc-1');
 
       final rows = await dao.watchAccounts('biz-1').first;
       expect(rows, isEmpty);
-      final raw = await dao.getAccountById('acc-1');
+      final raw = await dao.getAccountById('biz-1', 'acc-1');
       expect(raw!.syncStatus, 'pending_delete');
       expect(raw.isDeleted, 1);
     });
@@ -139,11 +165,12 @@ void main() {
     test('applyRemoteAccountDeletion hides the row but leaves it synced',
         () async {
       await dao.upsertAccount(account());
-      await dao.applyRemoteAccountDeletion('acc-1', serverUpdatedAt: 123456);
+      await dao.applyRemoteAccountDeletion('biz-1', 'acc-1',
+          serverUpdatedAt: 123456);
 
       final rows = await dao.watchAccounts('biz-1').first;
       expect(rows, isEmpty);
-      final raw = await dao.getAccountById('acc-1');
+      final raw = await dao.getAccountById('biz-1', 'acc-1');
       expect(raw!.syncStatus, 'synced');
       expect(raw.isDeleted, 1);
       expect(raw.serverUpdatedAt, 123456);
@@ -200,10 +227,25 @@ void main() {
 
     test('updateAccountLastReconciled stamps the account', () async {
       await dao.upsertAccount(account());
-      await dao.updateAccountLastReconciled('acc-1', '2026-07-01');
+      await dao.updateAccountLastReconciled('biz-1', 'acc-1', '2026-07-01');
 
-      final raw = await dao.getAccountById('acc-1');
+      final raw = await dao.getAccountById('biz-1', 'acc-1');
       expect(raw!.lastReconciled, '2026-07-01');
+    });
+
+    test('reconciliation ids are isolated per business', () async {
+      // '<accountId>_<date>' collides across businesses for built-in channels.
+      await dao.upsertReconciliation(
+          recon(id: 'pm_cash_2026-07-01', accountId: 'pm_cash'));
+      await dao.upsertReconciliation(recon(
+          id: 'pm_cash_2026-07-01',
+          accountId: 'pm_cash',
+          businessId: 'biz-2',
+          closingBalance: 222));
+
+      expect(await dao.watchReconciliations('biz-1').first, hasLength(1));
+      final b2 = await dao.watchReconciliations('biz-2').first;
+      expect(b2.single.closingBalance, 222);
     });
   });
 }

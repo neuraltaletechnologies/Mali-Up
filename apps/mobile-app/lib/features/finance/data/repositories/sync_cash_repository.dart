@@ -114,10 +114,14 @@ class SyncCashRepository {
     assert(account.id.isNotEmpty, 'method accounts have deterministic ids');
     final now = DateTime.now().millisecondsSinceEpoch;
 
+    // Scoped to this business (LocalCashRepository filters by businessId), so
+    // the same channel activated under a *different* business does not make
+    // this one look already-activated.
     final existing = await _local.getRawAccountById(account.id);
     if (existing != null && existing.isDeleted == 0) {
-      // Already activated (possibly pulled from another device) — keep the
-      // existing balance, it only moves through transactions.
+      // Already activated for this business (possibly pulled from another
+      // device) — keep the existing balance, it only moves through
+      // transactions.
       return;
     }
 

@@ -22,6 +22,11 @@ class CashAccountsTable extends Table {
   IntColumn get localVersion => integer().withDefault(const Constant(1))();
   IntColumn get isDeleted => integer().withDefault(const Constant(0))();
 
+  // (businessId, id) — the built-in payment channels use fixed ids
+  // (pm_cash, pm_mpesa, pm_bank, pm_card) that are only unique *within* a
+  // business, and this one device holds rows for every business the user has
+  // opened. Keying on id alone let one business's `pm_mpesa` shadow another's,
+  // so activating a channel in the second business silently no-op'd.
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {businessId, id};
 }

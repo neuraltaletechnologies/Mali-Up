@@ -28,8 +28,11 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
 
   // ─── Cash account queries ──────────────────────────────────────────────────
 
-  Future<CashAccountsTableData?> getAccountById(String id) {
-    return (select(cashAccountsTable)..where((t) => t.id.equals(id)))
+  /// Scoped by (businessId, id): the built-in channels reuse the same ids
+  /// (pm_cash, …) across businesses, so an id alone is not a unique row.
+  Future<CashAccountsTableData?> getAccountById(String businessId, String id) {
+    return (select(cashAccountsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -39,9 +42,11 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
     await into(cashAccountsTable).insertOnConflictUpdate(entry);
   }
 
-  Future<void> softDeleteAccount(String id) async {
+  Future<void> softDeleteAccount(String businessId, String id) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
+    await (update(cashAccountsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
+        .write(
       CashAccountsTableCompanion(
         isDeleted: const Value(1),
         syncStatus: const Value('pending_delete'),
@@ -52,9 +57,11 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
 
   /// Applies a deletion that already happened on the server (a pulled
   /// tombstone) — unlike [softDeleteAccount] there is nothing left to push.
-  Future<void> applyRemoteAccountDeletion(String id,
+  Future<void> applyRemoteAccountDeletion(String businessId, String id,
       {required int serverUpdatedAt}) async {
-    await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
+    await (update(cashAccountsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
+        .write(
       CashAccountsTableCompanion(
         isDeleted: const Value(1),
         syncStatus: const Value('synced'),
@@ -64,9 +71,11 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<void> markAccountSynced(String id,
+  Future<void> markAccountSynced(String businessId, String id,
       {required int serverUpdatedAt}) async {
-    await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
+    await (update(cashAccountsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
+        .write(
       CashAccountsTableCompanion(
         syncStatus: const Value('synced'),
         serverUpdatedAt: Value(serverUpdatedAt),
@@ -78,16 +87,20 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
   /// Adjusts the cached balance without touching syncStatus — balance deltas
   /// are pushed to Firestore via `cash_transaction` queue ops (server-side
   /// FieldValue.increment), not via account upserts.
-  Future<void> adjustAccountBalance(String id, double delta) async {
+  Future<void> adjustAccountBalance(
+      String businessId, String id, double delta) async {
     await customStatement(
       'UPDATE cash_accounts SET balance = balance + ?, updated_at = ? '
-      'WHERE id = ?',
-      [delta, DateTime.now().millisecondsSinceEpoch, id],
+      'WHERE business_id = ? AND id = ?',
+      [delta, DateTime.now().millisecondsSinceEpoch, businessId, id],
     );
   }
 
-  Future<void> updateAccountLastReconciled(String id, String date) async {
-    await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
+  Future<void> updateAccountLastReconciled(
+      String businessId, String id, String date) async {
+    await (update(cashAccountsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
+        .write(
       CashAccountsTableCompanion(
         lastReconciled: Value(date),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
@@ -148,8 +161,10 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
 
   // ─── Reconciliation queries ────────────────────────────────────────────────
 
-  Future<DailyReconciliationsTableData?> getReconciliationById(String id) {
-    return (select(dailyReconciliationsTable)..where((t) => t.id.equals(id)))
+  Future<DailyReconciliationsTableData?> getReconciliationById(
+      String businessId, String id) {
+    return (select(dailyReconciliationsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -160,9 +175,10 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
     await into(dailyReconciliationsTable).insertOnConflictUpdate(entry);
   }
 
-  Future<void> markReconciliationSynced(String id,
+  Future<void> markReconciliationSynced(String businessId, String id,
       {required int serverUpdatedAt}) async {
-    await (update(dailyReconciliationsTable)..where((t) => t.id.equals(id)))
+    await (update(dailyReconciliationsTable)
+          ..where((t) => t.businessId.equals(businessId) & t.id.equals(id)))
         .write(
       DailyReconciliationsTableCompanion(
         syncStatus: const Value('synced'),
