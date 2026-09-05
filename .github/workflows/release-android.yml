@@ -29,6 +29,9 @@ concurrency:
   group: release-android
   cancel-in-progress: false
 
+permissions:
+  contents: write   # the version-bump step below pushes a commit to main
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -183,6 +186,44 @@ jobs:
           # channel. `tracks` (plural) replaces the deprecated `track` scalar.
           tracks: beta
           status: completed
+
+      # Every release should ship a higher version than the last -- keeps
+      # pubspec.yaml as the always-current "what's live on Play Store"
+      # record instead of relying on someone remembering to bump it by hand.
+      # Patch-only: bump minor/major yourself in a PR when a release
+      # deserves it and CI keeps patch-bumping from whatever you set.
+      # continue-on-error so a push failure here (e.g. a branch-protection
+      # rule on main) never masks that the Play Store upload above already
+      # succeeded -- check this step's log if the version stops climbing.
+      - name: Bump patch version for the next release
+        continue-on-error: true
+        run: |
+          cd apps/mobile-app
+          current=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:\s*//')
+          name=${current%%+*}
+          build=${current#*+}
+          IFS='.' read -r major minor patch <<< "$name"
+          next_name="$major.$minor.$((patch + 1))"
+          if [ "$build" = "$current" ]; then
+            next="$next_name"
+          else
+            next="$next_name+$((build + 1))"
+          fi
+          sed -i -E "s/^version:.*/version: $next/" pubspec.yaml
+          echo "Bumped version: $current -> $next"
+          cd "$GITHUB_WORKSPACE"
+          git config user.name 'Mali Up Release Bot'
+          git config user.email 'release-bot@users.noreply.github.com'
+          git add apps/mobile-app/pubspec.yaml
+          git commit -m "chore(release): bump mobile app to $next_name [skip ci]"
+          # main may have moved (e.g. a web-only merge) since this run's
+          # checkout; rebase the bump commit on top before pushing.
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && break
+            echo "Push rejected, retrying (attempt $attempt)..."
+            git fetch origin main
+            git rebase origin/main
+          done
 
       - name: Remove decoded keystore
         if: always()
