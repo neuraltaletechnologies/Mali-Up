@@ -7,9 +7,13 @@ import { DataTable } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
-import { fetchUsers, createUser } from '@/lib/admin-api'
+import {
+  fetchUsers, createUser, fetchGeoRegions, fetchGeoDistricts, type GeoDivision,
+} from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
+import { LOCATION_COUNTRIES, TZ_REGIONS, TZ_REGION_NAMES, flagForCountryCode } from '@/lib/locations'
+import { BUSINESS_TYPES } from '@/lib/business-types'
 import { AlertCircle, Plus, X, Loader2 } from 'lucide-react'
 import type { AdminUser, UserStatus } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -76,22 +80,29 @@ const columns: ColumnDef<AdminUser, unknown>[] = [
 ]
 
 interface CreateForm {
-  name: string
+  firstName: string
+  lastName: string
   phone: string
   email: string
   businessName: string
   businessCategory: string
-  placeOfBusiness: string
+  // Mirrors the mobile app's onboarding business-location step exactly —
+  // country / region ("mkoa") / district ("wilaya"), picked from a list.
+  businessCountry: string
+  businessRegion: string
+  businessDistrict: string
 }
 
 const EMPTY_FORM: CreateForm = {
-  name: '', phone: '', email: '', businessName: '', businessCategory: '', placeOfBusiness: '',
+  firstName: '', lastName: '', phone: '', email: '',
+  businessName: '', businessCategory: '',
+  businessCountry: 'TZ', businessRegion: '', businessDistrict: '',
 }
 
 function Field({
-  label, value, onChange, placeholder, type = 'text',
+  label, value, onChange, placeholder, type = 'text', disabled = false,
 }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean
 }) {
   return (
     <label className="flex flex-col gap-1">
@@ -99,10 +110,44 @@ function Field({
       <input
         type={type}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+        className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
       />
+    </label>
+  )
+}
+
+/** A "choose from the list" field — same intent as the mobile app's
+ *  bottom-sheet pickers (country / region / district), just rendered as a
+ *  native select to match the rest of this admin UI's form controls. */
+function Select({
+  label, value, onChange, options, disabled = false, placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  disabled?: boolean
+  placeholder?: string
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] text-slate-400">{label}</span>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((o) => (
+          <option key={o.value} value={o.value} className="bg-[var(--navy)] text-white">
+            {o.label}
+          </option>
+        ))}
+      </select>
     </label>
   )
 }
@@ -120,29 +165,113 @@ function CreateDrawer({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  // Non-Tanzania region/district come live from the same Country-State-City
+  // API the mobile app calls (see lib/admin-api.ts fetchGeoRegions/
+  // fetchGeoDistricts) — Tanzania keeps its own curated TZ_REGIONS list
+  // below, exactly like the app's onboarding flow.
+  const [regions, setRegions] = useState<GeoDivision[]>([])
+  const [districts, setDistricts] = useState<GeoDivision[]>([])
+  const [regionStatus, setRegionStatus] = useState<'idle' | 'loading' | 'ready' | 'empty'>('idle')
+  const [districtStatus, setDistrictStatus] = useState<'idle' | 'loading' | 'ready' | 'empty'>('idle')
+
   function set(field: keyof CreateForm, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
     setErr(null)
   }
 
+  async function loadRegions(code: string) {
+    setRegionStatus('loading')
+    setDistricts([])
+    setDistrictStatus('idle')
+    try {
+      const list = await fetchGeoRegions(code)
+      setRegions(list)
+      setRegionStatus(list.length ? 'ready' : 'empty')
+    } catch {
+      setRegions([])
+      setRegionStatus('empty')
+    }
+  }
+
+  async function loadDistricts(code: string, regionCode: string) {
+    setDistrictStatus('loading')
+    try {
+      const list = await fetchGeoDistricts(code, regionCode)
+      setDistricts(list)
+      setDistrictStatus(list.length ? 'ready' : 'empty')
+    } catch {
+      setDistricts([])
+      setDistrictStatus('empty')
+    }
+  }
+
+  // Country changes clear region + district; region changes clear district —
+  // same cascade as the mobile app's business-location picker.
+  function setCountry(code: string) {
+    setForm((f) => ({ ...f, businessCountry: code, businessRegion: '', businessDistrict: '' }))
+    setErr(null)
+    setRegions([])
+    setDistricts([])
+    setRegionStatus('idle')
+    setDistrictStatus('idle')
+    if (code !== 'TZ') void loadRegions(code)
+  }
+
+  function setRegion(region: string) {
+    setForm((f) => ({ ...f, businessRegion: region, businessDistrict: '' }))
+    setErr(null)
+    if (isTz) return
+    setDistricts([])
+    const code = regions.find((r) => r.name === region)?.code
+    if (code) {
+      void loadDistricts(form.businessCountry, code)
+    } else {
+      setDistrictStatus('empty')
+    }
+  }
+
+  const isTz = form.businessCountry === 'TZ'
+  const tzDistrictOptions = isTz ? (TZ_REGIONS[form.businessRegion] ?? []) : []
+  // `empty` = the live lookup finished with nothing usable (or no API key is
+  // configured), so the field becomes free text — the app does the same.
+  const regionFreeText = !isTz && regionStatus === 'empty'
+  const districtFreeText = !isTz && districtStatus === 'empty'
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.phone.trim()) {
-      setErr('Name and phone are required.')
+    const firstName = form.firstName.trim()
+    const lastName = form.lastName.trim()
+    if (!firstName || !lastName) {
+      setErr('First name and last name are required.')
+      return
+    }
+    if (/\d/.test(firstName) || /\d/.test(lastName)) {
+      setErr('Name must not contain numbers.')
+      return
+    }
+    if (!form.phone.trim()) {
+      setErr('Phone is required.')
       return
     }
     setSaving(true)
     setErr(null)
     try {
       const res = await createUser({
-        name:             form.name.trim(),
-        phone:            form.phone.trim(),
-        email:            form.email.trim() || undefined,
-        businessName:     form.businessName.trim() || undefined,
-        businessCategory: form.businessCategory.trim() || undefined,
-        placeOfBusiness:  form.placeOfBusiness.trim() || undefined,
+        firstName,
+        lastName,
+        phone:             form.phone.trim(),
+        email:             form.email.trim() || undefined,
+        businessName:      form.businessName.trim() || undefined,
+        businessCategory:  form.businessCategory.trim() || undefined,
+        businessCountry:   form.businessName.trim() ? form.businessCountry : undefined,
+        businessRegion:    form.businessName.trim() ? form.businessRegion.trim() || undefined : undefined,
+        businessDistrict:  form.businessName.trim() ? form.businessDistrict.trim() || undefined : undefined,
       })
       setForm(EMPTY_FORM)
+      setRegions([])
+      setDistricts([])
+      setRegionStatus('idle')
+      setDistrictStatus('idle')
       onCreated(res.uid)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Failed to create user')
@@ -169,7 +298,10 @@ function CreateDrawer({
           <div>
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">User Account</p>
             <div className="flex flex-col gap-3">
-              <Field label="Full Name *" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Amina Juma" />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="First Name *" value={form.firstName} onChange={(v) => set('firstName', v)} placeholder="e.g. Amina" />
+                <Field label="Last Name *" value={form.lastName} onChange={(v) => set('lastName', v)} placeholder="e.g. Juma" />
+              </div>
               <Field label="Phone (TZ) *" value={form.phone} onChange={(v) => set('phone', v)} placeholder="712345678" type="tel" />
               <Field label="Email (optional)" value={form.email} onChange={(v) => set('email', v)} placeholder="amina@example.com" type="email" />
             </div>
@@ -182,8 +314,89 @@ function CreateDrawer({
             <p className="text-[11px] text-slate-500 mb-3">Leave blank to create a user-only account.</p>
             <div className="flex flex-col gap-3">
               <Field label="Business Name" value={form.businessName} onChange={(v) => set('businessName', v)} placeholder="e.g. Amina Duka" />
-              <Field label="Business Category" value={form.businessCategory} onChange={(v) => set('businessCategory', v)} placeholder="e.g. retail, pharmacy…" />
-              <Field label="Location / City" value={form.placeOfBusiness} onChange={(v) => set('placeOfBusiness', v)} placeholder="e.g. Dar es Salaam" />
+              <Select
+                label="Business Category"
+                value={form.businessCategory}
+                onChange={(v) => set('businessCategory', v)}
+                placeholder="Select business type…"
+                options={BUSINESS_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+              />
+
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mt-2">Business Location</p>
+
+              <Select
+                label="Country"
+                value={form.businessCountry}
+                onChange={setCountry}
+                options={LOCATION_COUNTRIES.map((c) => ({
+                  value: c.code,
+                  label: `${flagForCountryCode(c.code)}  ${c.name}`,
+                }))}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                {isTz ? (
+                  <Select
+                    label="Region (Mkoa)"
+                    value={form.businessRegion}
+                    onChange={setRegion}
+                    placeholder="Select region…"
+                    options={TZ_REGION_NAMES.map((r) => ({ value: r, label: r }))}
+                  />
+                ) : regionFreeText ? (
+                  <Field
+                    label="Region (Mkoa)"
+                    value={form.businessRegion}
+                    onChange={setRegion}
+                    placeholder="Type region"
+                  />
+                ) : (
+                  <Select
+                    label="Region (Mkoa)"
+                    value={form.businessRegion}
+                    onChange={setRegion}
+                    placeholder={regionStatus === 'loading' ? 'Loading regions…' : 'Select region…'}
+                    disabled={regionStatus === 'loading'}
+                    options={regions.map((r) => ({ value: r.name, label: r.name }))}
+                  />
+                )}
+
+                {isTz ? (
+                  <Select
+                    label="District (Wilaya)"
+                    value={form.businessDistrict}
+                    onChange={(v) => set('businessDistrict', v)}
+                    placeholder={form.businessRegion ? 'Select district…' : 'Choose a region first'}
+                    disabled={!form.businessRegion}
+                    options={tzDistrictOptions.map((d) => ({ value: d, label: d }))}
+                  />
+                ) : districtFreeText ? (
+                  <Field
+                    label="District (Wilaya)"
+                    value={form.businessDistrict}
+                    onChange={(v) => set('businessDistrict', v)}
+                    placeholder={form.businessRegion ? 'Type district' : 'Choose a region first'}
+                    disabled={!form.businessRegion}
+                  />
+                ) : (
+                  <Select
+                    label="District (Wilaya)"
+                    value={form.businessDistrict}
+                    onChange={(v) => set('businessDistrict', v)}
+                    placeholder={
+                      !form.businessRegion ? 'Choose a region first'
+                        : districtStatus === 'loading' ? 'Loading districts…' : 'Select district…'
+                    }
+                    disabled={!form.businessRegion || districtStatus === 'loading'}
+                    options={districts.map((d) => ({ value: d.name, label: d.name }))}
+                  />
+                )}
+              </div>
+              {(regionFreeText || districtFreeText) && (
+                <p className="text-[11px] text-slate-500">
+                  We couldn&apos;t load this country&apos;s regions — type them in instead.
+                </p>
+              )}
             </div>
           </div>
 

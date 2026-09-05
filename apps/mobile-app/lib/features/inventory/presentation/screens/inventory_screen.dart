@@ -3242,6 +3242,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   // See firestore.rules.
   String _assignedToUserId = '';
 
+  // Billing cadence for service-type items only: 'once' | 'weekly' |
+  // 'monthly'. Recurring services let the Sales screen pre-fill how many
+  // unpaid periods a customer owes — see RecurringBillingCalculator.
+  String _billingCycle = 'once';
+
   // Expiry date state
   DateTime? _expiryDate;
 
@@ -3916,6 +3921,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
         assignedToUserId: _type == ProductType.service ? _assignedToUserId : '',
+        billingCycle: _type == ProductType.service ? _billingCycle : 'once',
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -4117,6 +4123,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _batchCtrl.text = src.batchNumber;
     _brandCtrl.text = src.brand;
     _warrantyCtrl.text = src.warrantyPeriod;
+    _billingCycle = src.billingCycle;
     _expiryDate = src.expiryDate.isNotEmpty
         ? DateTime.tryParse(src.expiryDate)
         : null;
@@ -4182,6 +4189,45 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
 
     _nameFocus.unfocus();
+  }
+
+  Widget _billingCyclePill({
+    required String value,
+    required IconData icon,
+    required String label,
+  }) {
+    final sel = _billingCycle == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _billingCycle = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: sel ? AppColors.navyPrimary : AppColors.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: sel ? AppColors.navyPrimary : AppColors.border,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 15, color: sel ? Colors.white : AppColors.textMuted),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: sel ? Colors.white : AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _scanSku() async {
@@ -5070,6 +5116,46 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           selectedUid: _assignedToUserId,
                           onTap: _openAssigneePicker,
                         ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      if (_type == ProductType.service) ...[
+                        _FormLabel(_tr('Billing', 'Malipo')),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _billingCyclePill(
+                              value: 'once',
+                              icon: Icons.bolt_rounded,
+                              label: _tr('One-time', 'Mara moja'),
+                            ),
+                            const SizedBox(width: 8),
+                            _billingCyclePill(
+                              value: 'weekly',
+                              icon: Icons.calendar_view_week_rounded,
+                              label: _tr('Weekly', 'Kila wiki'),
+                            ),
+                            const SizedBox(width: 8),
+                            _billingCyclePill(
+                              value: 'monthly',
+                              icon: Icons.calendar_month_rounded,
+                              label: _tr('Monthly', 'Kila mwezi'),
+                            ),
+                          ],
+                        ),
+                        if (_billingCycle != 'once') ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _tr(
+                              'Recurring — Sales will suggest how many unpaid periods a customer owes.',
+                              'Ya kujirudia — Mauzo yataonyesha vipindi ambavyo mteja hajalipa.',
+                            ),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                       ],
 

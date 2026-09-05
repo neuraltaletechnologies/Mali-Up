@@ -89,6 +89,11 @@ class InventoryItem {
   final double unitPrice;     // Selling price
   final double costPrice;     // Buying / cost price (auto-calculated for 'manufactured')
   final String productType;   // 'stock' | 'perishable' | 'service' | 'manufactured'
+  // Service billing cadence: 'once' | 'weekly' | 'monthly'. Only meaningful
+  // when productType == 'service' — a recurring service (e.g. a monthly
+  // water bill) lets the Sales screen pre-fill how many unpaid periods a
+  // customer owes; see RecurringBillingCalculator.
+  final String billingCycle;
   final String unit; // 'pcs', 'kg', 'liters', etc.
   final String supplier;
   final String lastRestocked;
@@ -129,6 +134,7 @@ class InventoryItem {
     required this.unitPrice,
     this.costPrice = 0,
     this.productType = 'stock',
+    this.billingCycle = 'once',
     required this.unit,
     this.supplier = '',
     this.lastRestocked = '',
@@ -170,6 +176,7 @@ class InventoryItem {
           (data['buyingPrice'] as num?)?.toDouble() ??
           0.0,
       productType: data['productType'] as String? ?? 'stock',
+      billingCycle: data['billingCycle'] as String? ?? 'once',
       unit: data['unit'] ?? 'pcs',
       supplier: data['supplier'] ?? '',
       lastRestocked: data['lastRestocked'] ?? '',
@@ -229,6 +236,7 @@ class InventoryItem {
       'costPrice': costPrice,
       'buyingPrice': costPrice,
       'productType': productType,
+      'billingCycle': billingCycle,
       'unit': unit,
       'supplier': supplier,
       'lastRestocked': lastRestocked,
@@ -261,6 +269,7 @@ class InventoryItem {
     double? unitPrice,
     double? costPrice,
     String? productType,
+    String? billingCycle,
     String? unit,
     String? supplier,
     String? lastRestocked,
@@ -291,6 +300,7 @@ class InventoryItem {
       unitPrice: unitPrice ?? this.unitPrice,
       costPrice: costPrice ?? this.costPrice,
       productType: productType ?? this.productType,
+      billingCycle: billingCycle ?? this.billingCycle,
       unit: unit ?? this.unit,
       supplier: supplier ?? this.supplier,
       lastRestocked: lastRestocked ?? this.lastRestocked,
@@ -316,6 +326,7 @@ class InventoryItem {
   bool get isOutOfStock => currentStock <= 0;
   bool get isService => productType == 'service';
   bool get isManufactured => productType == 'manufactured';
+  bool get isRecurring => billingCycle != 'once';
 
   double get stockValue    => currentStock * unitPrice;
   double get costValue     => currentStock * costPrice;

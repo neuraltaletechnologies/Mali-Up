@@ -30,6 +30,7 @@ import '../../../invoice/domain/models/invoice.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/sales_providers.dart';
+import '../../domain/recurring_billing_calculator.dart';
 import '../../services/invoice_number_generator.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -46,6 +47,10 @@ class _LineItem {
   double discount; // per-line flat discount
   String unit;
 
+  /// Transient UI-only advisory shown when [qty] was auto-filled from unpaid
+  /// recurring-service periods — never persisted to the saved invoice.
+  String? recurringNote;
+
   _LineItem({
     this.productId = '',
     this.productName = '',
@@ -53,6 +58,7 @@ class _LineItem {
     this.qty = 1,
     this.discount = 0,
     this.unit = '',
+    this.recurringNote,
   });
 
   double get lineTotal => (unitPrice * qty) - discount;
@@ -64,6 +70,8 @@ class _LineItem {
     int? qty,
     double? discount,
     String? unit,
+    String? recurringNote,
+    bool clearRecurringNote = false,
   }) => _LineItem(
     productId: productId ?? this.productId,
     productName: productName ?? this.productName,
@@ -71,6 +79,8 @@ class _LineItem {
     qty: qty ?? this.qty,
     discount: discount ?? this.discount,
     unit: unit ?? this.unit,
+    recurringNote:
+        clearRecurringNote ? null : (recurringNote ?? this.recurringNote),
   );
 }
 
@@ -738,6 +748,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   const SizedBox(height: 16),
                   _ItemsSection(
                     items: _items,
+                    customerId: _customer?.id ?? '',
                     onAdd: () => setState(() => _items.add(_LineItem())),
                     onRemove: (i) => setState(() => _items.removeAt(i)),
                     onUpdate: (i, item) => setState(() => _items[i] = item),
@@ -1093,12 +1104,14 @@ class _DateChip extends StatelessWidget {
 
 class _ItemsSection extends ConsumerWidget {
   final List<_LineItem> items;
+  final String customerId;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
   final void Function(int, _LineItem) onUpdate;
 
   const _ItemsSection({
     required this.items,
+    required this.customerId,
     required this.onAdd,
     required this.onRemove,
     required this.onUpdate,
@@ -1149,6 +1162,7 @@ class _ItemsSection extends ConsumerWidget {
               index: i,
               item: items[i],
               inventory: inventory,
+              customerId: customerId,
               canRemove: items.length > 1,
               onRemove: () => onRemove(i),
               onUpdate: (updated) => onUpdate(i, updated),
@@ -1160,10 +1174,11 @@ class _ItemsSection extends ConsumerWidget {
   }
 }
 
-class _LineItemCard extends StatefulWidget {
+class _LineItemCard extends ConsumerStatefulWidget {
   final int index;
   final _LineItem item;
   final List<Map<String, dynamic>> inventory;
+  final String customerId;
   final bool canRemove;
   final VoidCallback onRemove;
   final ValueChanged<_LineItem> onUpdate;
@@ -1172,16 +1187,17 @@ class _LineItemCard extends StatefulWidget {
     required this.index,
     required this.item,
     required this.inventory,
+    required this.customerId,
     required this.canRemove,
     required this.onRemove,
     required this.onUpdate,
   });
 
   @override
-  State<_LineItemCard> createState() => _LineItemCardState();
+  ConsumerState<_LineItemCard> createState() => _LineItemCardState();
 }
 
-class _LineItemCardState extends State<_LineItemCard> {
+class _LineItemCardState extends ConsumerState<_LineItemCard> {
   late TextEditingController _nameCtrl;
   late TextEditingController _priceCtrl;
   late TextEditingController _qtyCtrl;
@@ -1246,20 +1262,75 @@ class _LineItemCardState extends State<_LineItemCard> {
       productId: inv['id']?.toString() ?? '',
       productName: inv['name']?.toString() ?? '',
       unitPrice: price,
+      qty: 1,
       unit: inv['unit']?.toString() ?? '',
+      clearRecurringNote: true,
     );
     _nameCtrl.text = updated.productName;
     _priceCtrl.text = price > 0 ? price.toStringAsFixed(0) : '';
+    _qtyCtrl.text = '1';
     setState(() => _showSuggestions = false);
     widget.onUpdate(updated);
+
+    final cycle = (inv['billingCycle'] as String?) ?? 'once';
+    final isService = (inv['productType'] as String?) == 'service';
+    if (isService && cycle != 'once' && widget.customerId.isNotEmpty) {
+      _prefillRecurringPeriods(
+        productId: updated.productId,
+        cycle: cycle,
+      );
+    }
+  }
+
+  /// For a recurring service with a customer already picked, looks up that
+  /// customer's last invoice for this service and pre-fills qty with how
+  /// many billing periods are still due — see RecurringBillingCalculator.
+  /// Best-effort: leaves qty at its default (1) on any lookup failure.
+  Future<void> _prefillRecurringPeriods({
+    required String productId,
+    required String cycle,
+  }) async {
+    final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+    if (bizId.isEmpty) return;
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final last = await db.invoiceDao.getLastServiceBilling(
+        bizId,
+        widget.customerId,
+        productId,
+      );
+      // The line may have changed to a different product, or qty already
+      // hand-adjusted, while the lookup was in flight — don't clobber either.
+      if (!mounted || widget.item.productId != productId || widget.item.qty != 1) {
+        return;
+      }
+      final periods = RecurringBillingCalculator.periodsDue(
+        cycle: cycle,
+        lastBilledDate: last != null ? DateTime.tryParse(last.date) : null,
+        lastBilledQty: last?.quantity ?? 1,
+      );
+      if (periods <= 1) return;
+      final note = _tr(
+        'Includes $periods unpaid periods — adjust if needed',
+        'Inajumuisha vipindi $periods visivyolipwa — badilisha ikihitajika',
+      );
+      final updated = widget.item.copyWith(qty: periods, recurringNote: note);
+      _qtyCtrl.text = '$periods';
+      widget.onUpdate(updated);
+    } catch (_) {
+      // Best-effort pre-fill only — a failed lookup just leaves qty at 1.
+    }
   }
 
   void _emit() {
+    final newQty = int.tryParse(_qtyCtrl.text) ?? 1;
     final updated = widget.item.copyWith(
       productName: _nameCtrl.text,
       unitPrice: double.tryParse(_priceCtrl.text) ?? 0,
-      qty: int.tryParse(_qtyCtrl.text) ?? 1,
+      qty: newQty,
       discount: double.tryParse(_lineDiscCtrl.text) ?? 0,
+      // A qty the cashier changed by hand invalidates the auto-fill advisory.
+      clearRecurringNote: newQty != widget.item.qty,
     );
     widget.onUpdate(updated);
   }
@@ -1393,6 +1464,32 @@ class _LineItemCardState extends State<_LineItemCard> {
               ],
             ),
           ),
+          if (widget.item.recurringNote != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.event_repeat_rounded,
+                    size: 13,
+                    color: AppColors.tealAccent,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      widget.item.recurringNote!,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tealAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           // Line total
           Padding(
@@ -1462,6 +1559,16 @@ class _SuggestionList extends StatelessWidget {
             final productType = (inv['productType'] as String?) ?? '';
             final isService = productType == 'service';
             final category = (inv['category'] as String?) ?? '';
+            final billingCycle = (inv['billingCycle'] as String?) ?? 'once';
+            final cycleLabel = billingCycle == 'weekly'
+                ? _tr('Weekly', 'Kila wiki')
+                : billingCycle == 'monthly'
+                ? _tr('Monthly', 'Kila mwezi')
+                : null;
+            final subtitle = [
+              category,
+              ?cycleLabel,
+            ].where((s) => s.isNotEmpty).join(' · ');
             final stockColor = isService
                 ? AppColors.tealAccent
                 : isOut
@@ -1509,10 +1616,10 @@ class _SuggestionList extends StatelessWidget {
                                   color: AppColors.navyPrimary,
                                 ),
                               ),
-                              if (category.isNotEmpty) ...[
+                              if (subtitle.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  category,
+                                  subtitle,
                                   style: GoogleFonts.dmSans(
                                     fontSize: 11,
                                     color: AppColors.textMuted,

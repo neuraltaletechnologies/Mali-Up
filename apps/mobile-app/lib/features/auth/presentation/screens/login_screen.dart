@@ -576,11 +576,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => context.go(AppRouter.registerPath),
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
+                      color: AppColors.navyPrimary,
                       size: 18,
                     ),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.all(10),
                     ),
                   ),
@@ -588,19 +588,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _openWhatsAppHelpDesk,
                     icon: const Icon(
                       Icons.headset_mic_outlined,
-                      color: Colors.white,
+                      color: AppColors.navyPrimary,
                       size: 15,
                     ),
                     label: Text(
                       _tr('Help', 'Msaada'),
                       style: GoogleFonts.dmSans(
-                        color: Colors.white,
+                        color: AppColors.navyPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,

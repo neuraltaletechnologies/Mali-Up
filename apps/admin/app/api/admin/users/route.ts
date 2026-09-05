@@ -65,22 +65,31 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
-      name: string
+      firstName: string
+      lastName: string
       phone: string          // Tanzanian format without country code, e.g. "712345678"
       email?: string
       password?: string      // optional; a temp one is generated if omitted
       businessName?: string
       businessCategory?: string
-      placeOfBusiness?: string
+      // Mirrors the mobile app's onboarding business-location step
+      // (country / region "mkoa" / district "wilaya") — see
+      // apps/mobile-app/lib/features/onboarding/presentation/screens/business_details_screen.dart
+      businessCountry?: string
+      businessRegion?: string
+      businessDistrict?: string
     }
 
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 })
+    const firstName = body.firstName?.trim() || ''
+    const lastName = body.lastName?.trim() || ''
+    if (!firstName || !lastName) {
+      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 })
     }
     if (!body.phone?.trim()) {
       return NextResponse.json({ error: 'phone is required' }, { status: 400 })
     }
 
+    const fullName = `${firstName} ${lastName}`.trim()
     const normalizedPhone = body.phone.replace(/\D/g, '')
     const e164 = `+255${normalizedPhone.replace(/^0/, '').replace(/^255/, '')}`
 
@@ -91,7 +100,7 @@ export async function POST(request: Request) {
     const userRecord = await adminAuth.createUser({
       phoneNumber: e164,
       email: body.email || undefined,
-      displayName: body.name.trim(),
+      displayName: fullName,
       password,
     })
 
@@ -101,15 +110,20 @@ export async function POST(request: Request) {
     // Create business document if businessName provided
     let businessId: string | null = null
     if (body.businessName?.trim()) {
+      const businessRegion = body.businessRegion?.trim() || ''
       const bizRef = adminFirestore.collection('businesses').doc()
       businessId = bizRef.id
       await bizRef.set({
         businessName:     body.businessName.trim(),
         businessCategory: body.businessCategory?.trim() || 'retail',
         businessType:     body.businessCategory?.trim() || 'retail',
-        placeOfBusiness:  body.placeOfBusiness?.trim() || '',
-        city:             body.placeOfBusiness?.trim() || '',
-        ownerName:        body.name.trim(),
+        // The app writes the chosen region into `city` too (its business
+        // doc has no separate "city" concept) — mirrored here for parity.
+        city:             businessRegion,
+        region:           businessRegion,
+        district:         body.businessDistrict?.trim() || '',
+        country:          body.businessCountry?.trim() || 'TZ',
+        ownerName:        fullName,
         ownerUid:         uid,
         ownerPhone:       normalizedPhone,
         plan:             'Trial',
@@ -124,8 +138,10 @@ export async function POST(request: Request) {
     await adminFirestore.collection('users').doc(uid).set({
       uid,
       phone:             normalizedPhone,
-      displayName:       body.name.trim(),
-      name:              body.name.trim(),
+      displayName:       fullName,
+      name:              fullName,
+      firstName,
+      lastName,
       email:             body.email?.toLowerCase() || null,
       isActive:          true,
       profileComplete:   true,
@@ -145,7 +161,7 @@ export async function POST(request: Request) {
       action: 'create_user',
       resourceType: 'user',
       resourceId: uid,
-      resourceName: body.name.trim(),
+      resourceName: fullName,
       isDestructive: false,
       after: { uid, phone: e164, businessId },
     })

@@ -31,6 +31,7 @@ Map<String, dynamic> _itemToMap(InventoryItem item) => {
       'costPrice': item.costPrice,
       'buyingPrice': item.costPrice,
       'productType': item.productType,
+      'billingCycle': item.billingCycle,
       'unit': item.unit,
       'supplier': item.supplier,
       'lastRestocked': item.lastRestocked,

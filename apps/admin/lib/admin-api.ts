@@ -409,12 +409,15 @@ export async function fetchUserActivity(uid: string): Promise<{ entries: Activit
 // ─── Create User + Business ───────────────────────────────────────────────────
 
 export async function createUser(data: {
-  name: string
+  firstName: string
+  lastName: string
   phone: string
   email?: string
   businessName?: string
   businessCategory?: string
-  placeOfBusiness?: string
+  businessCountry?: string
+  businessRegion?: string
+  businessDistrict?: string
 }): Promise<{ uid: string; businessId: string | null }> {
   return apiFetch('/api/admin/users', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -427,6 +430,30 @@ export async function createBusiness(data: {
   district?: string
 }): Promise<{ uid: string; businessId: string }> {
   return apiFetch('/api/admin/businesses', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// ─── Geo lookup (business-location picker) ────────────────────────────────────
+// Same live Country-State-City API the mobile app calls for every country
+// except Tanzania (apps/mobile-app/lib/core/services/geo_lookup_service.dart),
+// proxied through our own API so the key stays server-side.
+
+export interface GeoDivision {
+  name: string
+  code?: string
+}
+
+export async function fetchGeoRegions(countryCode: string): Promise<GeoDivision[]> {
+  const res = await apiFetch<{ regions: GeoDivision[] }>(
+    `/api/admin/geo/regions?country=${encodeURIComponent(countryCode)}`,
+  )
+  return res.regions
+}
+
+export async function fetchGeoDistricts(countryCode: string, regionCode: string): Promise<GeoDivision[]> {
+  const res = await apiFetch<{ districts: GeoDivision[] }>(
+    `/api/admin/geo/districts?country=${encodeURIComponent(countryCode)}&region=${encodeURIComponent(regionCode)}`,
+  )
+  return res.districts
 }
 
 // ─── Business Catalog Attach ──────────────────────────────────────────────────
