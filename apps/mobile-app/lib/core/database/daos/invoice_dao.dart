@@ -89,6 +89,22 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Looks up an invoice by its human-facing number (e.g. `debt.invoiceRef`)
+  /// rather than its Drift/Firestore document id — used to pull the original
+  /// line items back up for a debt reminder. Null when there's no match
+  /// (invoice not yet synced to this device, or soft-deleted).
+  Future<InvoicesTableData?> getByInvoiceNumber(
+    String businessId,
+    String invoiceNumber,
+  ) {
+    return (select(invoicesTable)
+          ..where((t) =>
+              t.businessId.equals(businessId) &
+              t.invoiceNumber.equals(invoiceNumber) &
+              t.isDeleted.equals(0)))
+        .getSingleOrNull();
+  }
+
   Future<List<InvoicesTableData>> getByCustomer(
     String businessId,
     String customerId,

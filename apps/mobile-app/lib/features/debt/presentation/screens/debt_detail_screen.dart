@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -16,6 +17,10 @@ import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
 import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
+import '../../../invoice/data/mappers/invoice_mapper.dart';
+import '../../../sales/data/sales_providers.dart' show normalizeWhatsAppPhone;
+import '../../../sales/domain/debt_reminder_text.dart';
+import '../../../sales/services/receipt_pdf_service.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
@@ -150,9 +155,42 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     if (result == true) _refreshDebt();
   }
 
-  // ── SMS Reminder ─────────────────────────────────────────────────────────
+  // ── Reminders ────────────────────────────────────────────────────────────
 
-  Future<void> _sendSmsReminder() async {
+  /// The sale that created this receivable, as an Invoice.toFirestore()-shaped
+  /// map (for its line items) — empty when the debt has no linked invoice
+  /// (e.g. a manually added debt) or the invoice hasn't synced to this
+  /// device yet. Read-only lookup against Drift, same pattern as the
+  /// recurring-service arrears lookup in InvoiceDao.
+  Future<Map<String, dynamic>> _loadLinkedInvoice() async {
+    if (_debt.invoiceRef.isEmpty) return const {};
+    try {
+      final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+      if (bizId.isEmpty) return const {};
+      final db = ref.read(appDatabaseProvider);
+      final row = await db.invoiceDao.getByInvoiceNumber(
+        bizId,
+        _debt.invoiceRef,
+      );
+      if (row == null) return const {};
+      final items = await db.invoiceDao.getItemsForInvoice(row.id);
+      return InvoiceMapper.fromRow(row, items).toFirestore();
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  /// Persists reminder metadata through the offline-first write path — a
+  /// resave that just records the debt was touched, matching what the old
+  /// SMS reminder did.
+  Future<void> _markReminderSent() async {
+    try {
+      final repo = ref.read(debtRepositoryProvider);
+      await repo.save(_debt.copyWith(note: _debt.note));
+    } catch (_) {}
+  }
+
+  Future<void> _sendWhatsAppReminder() async {
     if (_debt.partyPhone.isEmpty) {
       AppNotification.warning(
         context,
@@ -160,36 +198,81 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       );
       return;
     }
+    final phone = normalizeWhatsAppPhone(_debt.partyPhone);
+    if (phone.isEmpty) {
+      AppNotification.error(
+        context,
+        _tr('Invalid phone number.', 'Namba ya simu si sahihi.'),
+      );
+      return;
+    }
 
-    final daysOver = _debt.daysOverdue;
-    final message = daysOver > 0
-        ? Uri.encodeComponent(
-            '${_tr("Dear", "Mpendwa")} ${_debt.partyName}, '
-            '${_tr("your account has", "akaunti yako ina")} ${_fmtAmt(_debt.remainingAmount)} '
-            '${_tr("overdue by", "iliyochelewa kwa")} $daysOver ${_tr("days", "siku")}. '
-            '${_tr("Please settle promptly.", "Tafadhali lipa haraka.")}',
-          )
-        : Uri.encodeComponent(
-            '${_tr("Dear", "Mpendwa")} ${_debt.partyName}, '
-            '${_tr("a balance of", "salio la")} ${_fmtAmt(_debt.remainingAmount)} '
-            '${_tr("is due on", "linastahiwa tarehe")} ${_fmtDate(_debt.dueDate)}. '
-            '${_tr("Please arrange payment. Thank you.", "Tafadhali fanya malipo. Asante.")}',
-          );
-
-    final uri = Uri.parse('sms:${_debt.partyPhone}?body=$message');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-      // Persist reminder metadata through the offline-first write path.
-      try {
-        final repo = ref.read(debtRepositoryProvider);
-        final updated = _debt.copyWith(note: _debt.note);
-        await repo.save(updated);
-      } catch (_) {}
-    } else {
+    final invoice = await _loadLinkedInvoice();
+    final message = DebtReminderText.build(
+      debt: _debt,
+      invoice: invoice,
+      isSwahili: LocalizationService.isSwahili,
+    );
+    final uri = Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(message)}',
+    );
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) throw Exception('No WhatsApp handler');
+      await _markReminderSent();
+    } catch (_) {
       if (mounted) {
         AppNotification.error(
           context,
-          _tr('Could not open SMS app.', 'Imeshindwa kufungua programu ya SMS.'),
+          _tr('Could not open WhatsApp.', 'Imeshindwa kufungua WhatsApp.'),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendPdfReminder() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final bizId = ref.read(currentBusinessIdProvider).valueOrNull;
+      final invoice = await _loadLinkedInvoice();
+      final sale = {
+        ...invoice,
+        // The debt is the authoritative money figure — a payment recorded
+        // straight on this page never updates the invoice's own amountPaid,
+        // so the invoice's figures alone could show a stale balance.
+        'invoiceNumber': invoice['invoiceNumber'] ?? _debt.invoiceRef,
+        'customerName': _debt.partyName,
+        'customerPhone': _debt.partyPhone,
+        'totalAmount': _debt.totalOwedWithInterest,
+        'amount': _debt.totalOwedWithInterest,
+        'amountPaid': _debt.paidAmount,
+        'dueDate': _debt.dueDate,
+        'notes': _debt.note,
+      };
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: uid,
+        businessId: bizId,
+        createdByUid: _debt.createdBy,
+      );
+      await ReceiptPdfService.open(
+        sale: sale,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
+      );
+      await _markReminderSent();
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not create the reminder PDF. Please try again.',
+            'Imeshindwa kutengeneza PDF ya ukumbusho. Jaribu tena.',
+          ),
         );
       }
     }
@@ -485,7 +568,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     debt: _debt,
                     busy: _busy,
                     onRecordPayment: _recordPayment,
-                    onSendSms: _sendSmsReminder,
+                    onSendWhatsApp: _sendWhatsAppReminder,
+                    onSendPdf: _sendPdfReminder,
                     onWriteOff: _showWriteOffDialog,
                     onEdit: _edit,
                     onDelete: _delete,
@@ -1073,7 +1157,8 @@ class _ActionsCard extends StatelessWidget {
   final Debt debt;
   final bool busy;
   final VoidCallback onRecordPayment;
-  final VoidCallback onSendSms;
+  final VoidCallback onSendWhatsApp;
+  final VoidCallback onSendPdf;
   final VoidCallback onWriteOff;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1082,7 +1167,8 @@ class _ActionsCard extends StatelessWidget {
     required this.debt,
     required this.busy,
     required this.onRecordPayment,
-    required this.onSendSms,
+    required this.onSendWhatsApp,
+    required this.onSendPdf,
     required this.onWriteOff,
     required this.onEdit,
     required this.onDelete,
@@ -1091,6 +1177,9 @@ class _ActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showWriteOff = !debt.isWrittenOff && !debt.isFullyPaid;
+    // Reminding a supplier that the shop owes them (a payable) doesn't fit
+    // this customer-addressed reminder template — receivables only.
+    final showReminders = debt.type == 'receivable';
 
     return Container(
       decoration: BoxDecoration(
@@ -1109,12 +1198,16 @@ class _ActionsCard extends StatelessWidget {
             ),
             const _Divider(),
           ],
-          _ActionRow(
-            icon: Icons.sms_outlined,
-            label: _tr('Send SMS Reminder', 'Tuma Ukumbusho wa SMS'),
-            color: AppColors.tealAccent,
-            onTap: busy ? null : onSendSms,
-          ),
+          if (showReminders) ...[
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: _ReminderShareRow(
+                onWhatsApp: busy ? null : onSendWhatsApp,
+                onPdf: busy ? null : onSendPdf,
+              ),
+            ),
+            const _Divider(),
+          ],
           if (showWriteOff) ...[
             const _Divider(),
             _ActionRow(
@@ -1196,6 +1289,86 @@ class _ActionRow extends StatelessWidget {
               Icons.chevron_right_rounded,
               size: 18,
               color: AppColors.textDisabled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Two half-width buttons — WhatsApp reminder and PDF reminder, both showing
+/// the full itemized bill — matching the share-button style already used on
+/// the Invoice detail screen (see _ShareRow there).
+class _ReminderShareRow extends StatelessWidget {
+  final VoidCallback? onWhatsApp;
+  final VoidCallback? onPdf;
+
+  const _ReminderShareRow({required this.onWhatsApp, required this.onPdf});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ReminderShareBtn(
+            label: _tr('WhatsApp Reminder', 'Ukumbusho wa WhatsApp'),
+            icon: Icons.chat_outlined,
+            color: AppColors.success,
+            onTap: onWhatsApp,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ReminderShareBtn(
+            label: _tr('PDF Reminder', 'Ukumbusho wa PDF'),
+            icon: Icons.picture_as_pdf_outlined,
+            color: AppColors.tealAccent,
+            onTap: onPdf,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReminderShareBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const _ReminderShareBtn({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),

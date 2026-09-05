@@ -220,6 +220,54 @@ void main() {
     });
   });
 
+  group('getByInvoiceNumber', () {
+    test('finds the invoice by its human-facing number', () async {
+      await dao.upsert(
+        invoice(customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-AAA')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-2', customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-BBB')),
+      );
+
+      final result =
+          await dao.getByInvoiceNumber('biz-1', 'INV-202609-BBB');
+      expect(result, isNotNull);
+      expect(result!.id, 'inv-2');
+    });
+
+    test('returns null for an unknown number, other business, or soft-delete',
+        () async {
+      await dao.upsert(
+        invoice(customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-AAA')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-2', businessId: 'biz-2')
+            .copyWith(invoiceNumber: const Value('INV-202609-CCC')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-3')
+            .copyWith(invoiceNumber: const Value('INV-202609-DDD')),
+      );
+      await dao.softDelete('inv-3');
+
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-does-not-exist'),
+        isNull,
+      );
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-202609-CCC'),
+        isNull,
+      );
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-202609-DDD'),
+        isNull,
+      );
+    });
+  });
+
   group('getLastServiceBilling', () {
     Future<void> addLine(
       String invoiceId,
