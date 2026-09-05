@@ -1,0 +1,1 @@
+Fixed an issue where some new users couldn't complete account registration ("account created but couldn't save your data"). Sign-up now works reliably.

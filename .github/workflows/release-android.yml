@@ -186,6 +186,14 @@ jobs:
           # channel. `tracks` (plural) replaces the deprecated `track` scalar.
           tracks: beta
           status: completed
+          # Release notes for this build, pulled straight from the repo --
+          # no more pasting text into Play Console by hand. Files must be
+          # named `whatsnew-<BCP-47 locale>`; Play's listing-language code
+          # for Swahili is the bare `sw` (no region), English needs a region
+          # (`en-US`). Update these two files as part of whatever PR earns a
+          # release -- whatever they say is what ships with the next build,
+          # tied to whatever version that build carries.
+          whatsNewDirectory: apps/mobile-app/distribution/whatsnew
 
       # Every release should ship a higher version than the last -- keeps
       # pubspec.yaml as the always-current "what's live on Play Store"
