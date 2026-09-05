@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { PageHeader } from '@/components/ui/page-header'
@@ -20,11 +20,13 @@ import {
 import type { QuickSetupPayload, QuickSetupCounts } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
+import { downloadQSTemplate, parseQSFile } from '@/lib/quick-setup-import'
 import {
   ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
   Users, Receipt, ShoppingBag, UserCheck, Pencil, X, Loader2,
   PackagePlus, CheckSquare, Square, Trash2, Star, Plus,
   Package, HandCoins, Wallet, UserPlus, ClipboardList, CheckCircle2,
+  Download, Upload,
 } from 'lucide-react'
 import type { Business, StaffMember, CatalogCategory, CatalogProduct, PlanTier, PlanDefinition } from '@/types'
 import { Toggle } from '@/components/ui/toggle'
@@ -302,6 +304,11 @@ function QSSection({
     fields.filter((f) => f.required).every((f) => r[f.key]?.trim()),
   ).length
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
+  const [importErr, setImportErr] = useState<string | null>(null)
+
   function update(idx: number, key: string, value: string) {
     const next = [...rows]
     next[idx] = { ...next[idx], [key]: value }
@@ -314,6 +321,24 @@ function QSSection({
     setRows(rows.length <= 1 ? [emptyQSRow(fields)] : rows.filter((_, i) => i !== idx))
   }
 
+  async function handleFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // reset so choosing the same file again still fires onChange
+    if (!file) return
+    setImportBusy(true); setImportErr(null); setImportMsg(null)
+    try {
+      const { rows: parsed, error } = await parseQSFile(file, fields)
+      if (error) { setImportErr(error); return }
+      const isBlank = rows.length === 1 && Object.values(rows[0]).every((v) => !v?.trim())
+      setRows(isBlank ? parsed : [...rows, ...parsed])
+      setImportMsg(`Imported ${parsed.length} row${parsed.length === 1 ? '' : 's'} from ${file.name}.`)
+    } catch {
+      setImportErr('Could not read that file — make sure it is a valid .xlsx, .xls or .csv file.')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
   return (
     <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
       <div className="flex items-center gap-2 mb-1">
@@ -324,8 +349,47 @@ function QSSection({
             {filledCount} ready
           </span>
         )}
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => downloadQSTemplate(title, fields)}
+            title="Download an Excel template for this section"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--ink-faint)] hover:text-[var(--ink)] transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importBusy}
+            title="Import rows from an Excel or CSV file"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-50"
+          >
+            {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            {importBusy ? 'Importing…' : 'Import'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChosen}
+            className="hidden"
+          />
+        </div>
       </div>
-      <p className="text-[12px] text-[var(--ink-muted)] mb-4">{description}</p>
+      <p className="text-[12px] text-[var(--ink-muted)] mb-3">{description}</p>
+
+      {importErr && (
+        <div className="flex items-center gap-2 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-2.5 mb-3 text-[12px] text-[var(--status-bad)]">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {importErr}
+        </div>
+      )}
+      {importMsg && !importErr && (
+        <div className="flex items-center gap-2 rounded-md border border-[var(--status-good)] bg-[var(--status-good-bg)] p-2.5 mb-3 text-[12px] text-[var(--status-good)]">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> {importMsg}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 mb-3">
         {rows.map((row, idx) => (
@@ -446,7 +510,10 @@ function QuickSetupPanel({
         <p className="text-[12px] text-[var(--ink-muted)]">
           Bulk-enter {businessName}&apos;s starting data in one go — as the owner dictates it. Fill in
           whichever sections apply, leave the rest blank, and save. Everything appears on the
-          owner&apos;s device the next time it syncs.
+          owner&apos;s device the next time it syncs. Each section below also has a{' '}
+          <strong className="text-[var(--ink)] font-medium">Template</strong> download and an{' '}
+          <strong className="text-[var(--ink)] font-medium">Import</strong> button, so you can fill the
+          data in Excel and load it in one go instead of typing every row here.
         </p>
       </div>
 

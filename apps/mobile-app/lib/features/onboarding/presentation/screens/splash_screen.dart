@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
-import '../../../../core/services/phone_auth_service.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../config/routing.dart';
 
@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _checkAuthAndRoute() async {
     // currentUser is synchronously available after Firebase.initializeApp().
-    final user = PhoneAuthService.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
       // User is already logged in. Start fetching their personalised landing

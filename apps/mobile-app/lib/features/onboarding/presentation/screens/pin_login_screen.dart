@@ -165,11 +165,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                     onPressed: _handleSystemBack,
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
+                      color: AppColors.navyPrimary,
                       size: 18,
                     ),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.all(10),
                     ),
                   ),
@@ -177,19 +177,19 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                     onPressed: () => _openWhatsAppHelp(sw),
                     icon: const Icon(
                       Icons.headset_mic_outlined,
-                      color: Colors.white,
+                      color: AppColors.navyPrimary,
                       size: 15,
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
                       style: GoogleFonts.dmSans(
-                        color: Colors.white,
+                        color: AppColors.navyPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,

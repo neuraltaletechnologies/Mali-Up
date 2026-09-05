@@ -506,7 +506,11 @@ class OnboardingRepository {
       'websiteInterest': state.websiteInterest,
       'plan': 'Trial',
       'isActive': true,
-      'subscriptionStatus': 'trial',
+      // 'subscriptionStatus' is entitlement state and, per
+      // isValidBusinessCreate in firestore.rules, must never be set by the
+      // client — even at creation — only via the admin portal / ClickPesa
+      // Cloud Functions (Admin SDK, bypasses rules). Writing it here made
+      // every new-owner registration fail with permission-denied.
       'staffCount': 0,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

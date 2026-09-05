@@ -658,22 +658,22 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   /// `FutureBuilder`, so the list renders instantly even with 1000+ contacts.
   Future<List<Contact>?> _showContactPickerSheet(
       List<Contact> contacts) async {
-    final searchController = TextEditingController();
-
-    final result = await showAppSheet<List<Contact>>(
+    // The sheet owns its own search controller (created/disposed inside
+    // _ContactPickerSheetState) rather than one handed down from here.
+    // showModalBottomSheet's future resolves on Navigator.pop(), but the
+    // sheet's widget subtree stays mounted through its closing slide-down
+    // animation — disposing a shared controller right after the await, as
+    // this used to do, killed it while that still-mounted TextField could
+    // be rebuilt (e.g. by the IME hiding), causing a "used after disposed"
+    // crash.
+    return showAppSheet<List<Contact>>(
       context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetCtx) => _ContactPickerSheet(
-        allContacts: contacts,
-        searchController: searchController,
-      ),
+      builder: (sheetCtx) => _ContactPickerSheet(allContacts: contacts),
     );
-
-    searchController.dispose();
-    return result;
   }
 
   Future<Customer> _saveCustomer({
@@ -761,11 +761,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 /// so the list renders with 0 visible delay even for 1000+ contacts.
 class _ContactPickerSheet extends StatefulWidget {
   final List<Contact> allContacts;
-  final TextEditingController searchController;
 
   const _ContactPickerSheet({
     required this.allContacts,
-    required this.searchController,
   });
 
   @override
@@ -773,6 +771,12 @@ class _ContactPickerSheet extends StatefulWidget {
 }
 
 class _ContactPickerSheetState extends State<_ContactPickerSheet> {
+  // Owned by this widget rather than passed in from the parent, so it's
+  // only disposed when this widget itself is unmounted — i.e. after the
+  // bottom sheet's closing animation finishes, not the instant the caller's
+  // await on showAppSheet() resolves (which happens while the sheet is
+  // still animating off-screen and this TextField is still live).
+  final _searchController = TextEditingController();
   final _selectedIds = <String>{};
   List<Contact> _filtered = [];
   String _query = '';
@@ -784,17 +788,17 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
   void initState() {
     super.initState();
     _filtered = widget.allContacts;
-    widget.searchController.addListener(_onSearch);
+    _searchController.addListener(_onSearch);
   }
 
   @override
   void dispose() {
-    widget.searchController.removeListener(_onSearch);
+    _searchController.dispose();
     super.dispose();
   }
 
   void _onSearch() {
-    final q = widget.searchController.text.trim().toLowerCase();
+    final q = _searchController.text.trim().toLowerCase();
     if (q == _query) return;
     setState(() {
       _query = q;
@@ -893,7 +897,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: TextField(
-              controller: widget.searchController,
+              controller: _searchController,
               decoration: InputDecoration(
                 hintText: _tr('Search contacts', 'Tafuta mawasiliano'),
                 prefixIcon:

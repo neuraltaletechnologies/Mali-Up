@@ -46,6 +46,7 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
+import '../../domain/recurring_billing_calculator.dart';
 import '../../services/receipt_pdf_service.dart';
 import '../../services/invoice_number_generator.dart';
 import 'invoice_detail_screen.dart';
@@ -1516,6 +1517,11 @@ class _ItemEntry {
   List<Map<String, dynamic>> suggs = [];
   bool showSuggs = false;
 
+  /// Set when [selectedItem] is a recurring service and the qty above was
+  /// auto-filled with more than one unpaid period — shown as a small
+  /// advisory under the qty stepper. Null otherwise.
+  String? recurringNote;
+
   _ItemEntry({String name = '', String price = ''})
     : nameCtrl = TextEditingController(text: name),
       priceCtrl = TextEditingController(text: price),
@@ -1560,6 +1566,9 @@ class _ItemEntry {
   }
 
   bool get _isService => (selectedItem?['productType'] as String?) == 'service';
+
+  String get billingCycle => (selectedItem?['billingCycle'] as String?) ?? 'once';
+  bool get isRecurringService => _isService && billingCycle != 'once';
 
   int get maxStock {
     if (selectedItem == null) return 9999;
@@ -1774,7 +1783,53 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       entry.suggs = [];
       entry.showSuggs = false;
       entry.qty = 1;
+      entry.recurringNote = null;
     });
+    if (entry.isRecurringService) _prefillRecurringPeriods(entry);
+  }
+
+  /// For a recurring service with a customer already picked, looks up that
+  /// customer's last invoice for this service and pre-fills qty with how
+  /// many billing periods are still due — see RecurringBillingCalculator.
+  /// Best-effort: leaves qty at its default (1) on any lookup failure, and
+  /// never overrides a qty the cashier has already changed by hand.
+  Future<void> _prefillRecurringPeriods(_ItemEntry entry) async {
+    final customerId = _selectedCustomer?.id ?? '';
+    final productId = entry.selectedItem?['id']?.toString() ?? '';
+    final cycle = entry.billingCycle;
+    if (customerId.isEmpty || productId.isEmpty || cycle == 'once') return;
+    final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+    if (bizId.isEmpty) return;
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final last = await db.invoiceDao.getLastServiceBilling(
+        bizId,
+        customerId,
+        productId,
+      );
+      // The row may have been deselected, or qty already hand-adjusted,
+      // while the lookup was in flight — don't clobber either.
+      if (!mounted ||
+          entry.selectedItem?['id']?.toString() != productId ||
+          entry.qty != 1) {
+        return;
+      }
+      final periods = RecurringBillingCalculator.periodsDue(
+        cycle: cycle,
+        lastBilledDate: last != null ? DateTime.tryParse(last.date) : null,
+        lastBilledQty: last?.quantity ?? 1,
+      );
+      if (periods <= 1) return;
+      setState(() {
+        entry.qty = periods;
+        entry.recurringNote = _tr(
+          'Includes $periods unpaid periods — adjust if needed',
+          'Inajumuisha vipindi $periods visivyolipwa — badilisha ikihitajika',
+        );
+      });
+    } catch (_) {
+      // Best-effort pre-fill only — a failed lookup just leaves qty at 1.
+    }
   }
 
   void _onCustomerChanged() {
@@ -1816,6 +1871,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _showCustomerSuggs = false;
       if (_errorField == _ErrorField.customer) _errorMsg = null;
     });
+    // A recurring service may already be on the ticket if the customer was
+    // picked second — now that we know who they are, fill in their arrears.
+    for (final entry in _items) {
+      if (entry.isRecurringService && entry.qty == 1) {
+        _prefillRecurringPeriods(entry);
+      }
+    }
   }
 
   /// Opens the continuous POS scanner. Each successful scan auto-adds an
@@ -3220,7 +3282,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   onChanged: (v) {
                     final parsed = int.tryParse(v) ?? 1;
                     final clamped = parsed.clamp(1, entry.maxStock);
-                    setState(() => entry._qty = clamped);
+                    setState(() {
+                      entry._qty = clamped;
+                      entry.recurringNote = null;
+                    });
                     if (clamped != parsed) {
                       entry.qtyCtrl.text = '$clamped';
                       entry.qtyCtrl.selection = TextSelection.collapsed(
@@ -3235,7 +3300,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       ).copyWith(
                         prefixIcon: GestureDetector(
                           onTap: entry.qty > 1
-                              ? () => setState(() => entry.qty--)
+                              ? () => setState(() {
+                                  entry.qty--;
+                                  entry.recurringNote = null;
+                                })
                               : null,
                           child: Icon(
                             Icons.remove_rounded,
@@ -3249,7 +3317,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                           onTap:
                               (entry.selectedItem == null ||
                                   entry.qty < entry.maxStock)
-                              ? () => setState(() => entry.qty++)
+                              ? () => setState(() {
+                                  entry.qty++;
+                                  entry.recurringNote = null;
+                                })
                               : null,
                           child: Icon(
                             Icons.add_rounded,
@@ -3276,6 +3347,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               ),
             ],
           ),
+          if (entry.recurringNote != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.event_repeat_rounded,
+                  size: 13,
+                  color: AppColors.tealAccent,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    entry.recurringNote!,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 6),
           Row(
             children: [
@@ -3420,6 +3514,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               item['currentStock'] ?? item['stock'] ?? 0,
             );
             final isService = (item['productType'] as String?) == 'service';
+            final billingCycle = (item['billingCycle'] as String?) ?? 'once';
+            final cycleLabel = billingCycle == 'weekly'
+                ? _tr('Weekly', 'Kila wiki')
+                : billingCycle == 'monthly'
+                ? _tr('Monthly', 'Kila mwezi')
+                : null;
+            final subtitle = [
+              category,
+              ?cycleLabel,
+            ].where((s) => s.isNotEmpty).join(' · ');
             final oos = !isService && stock <= 0;
             final isLow =
                 !isService &&
@@ -3469,9 +3573,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                                       : AppColors.navyPrimary,
                                 ),
                               ),
-                              if (category.isNotEmpty)
+                              if (subtitle.isNotEmpty)
                                 Text(
-                                  category,
+                                  subtitle,
                                   style: GoogleFonts.dmSans(
                                     fontSize: 11,
                                     color: AppColors.textMuted,

@@ -6,6 +6,15 @@ import '../tables/invoice_items_table.dart';
 
 part 'invoice_dao.g.dart';
 
+/// The most recent invoice line for a recurring service sold to one
+/// customer — enough to compute how many billing periods have elapsed since.
+/// See RecurringBillingCalculator.
+class LastServiceBilling {
+  final String date;
+  final double quantity;
+  const LastServiceBilling({required this.date, required this.quantity});
+}
+
 @DriftAccessor(tables: [InvoicesTable, InvoiceItemsTable])
 class InvoiceDao extends DatabaseAccessor<AppDatabase>
     with _$InvoiceDaoMixin {
@@ -80,6 +89,22 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Looks up an invoice by its human-facing number (e.g. `debt.invoiceRef`)
+  /// rather than its Drift/Firestore document id — used to pull the original
+  /// line items back up for a debt reminder. Null when there's no match
+  /// (invoice not yet synced to this device, or soft-deleted).
+  Future<InvoicesTableData?> getByInvoiceNumber(
+    String businessId,
+    String invoiceNumber,
+  ) {
+    return (select(invoicesTable)
+          ..where((t) =>
+              t.businessId.equals(businessId) &
+              t.invoiceNumber.equals(invoiceNumber) &
+              t.isDeleted.equals(0)))
+        .getSingleOrNull();
+  }
+
   Future<List<InvoicesTableData>> getByCustomer(
     String businessId,
     String customerId,
@@ -124,6 +149,38 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase>
       result[month] = (result[month] ?? 0) + row.total;
     }
     return result;
+  }
+
+  /// The latest invoice line billing [productId] to [customerId] — used to
+  /// pre-fill how many periods a recurring service still owes. Read-only:
+  /// arrears are derived from already-synced invoice history rather than
+  /// tracked in a separate mutable record, so this self-corrects if an
+  /// invoice is later edited or deleted.
+  Future<LastServiceBilling?> getLastServiceBilling(
+    String businessId,
+    String customerId,
+    String productId,
+  ) async {
+    final q = select(invoicesTable).join([
+      innerJoin(
+        invoiceItemsTable,
+        invoiceItemsTable.invoiceId.equalsExp(invoicesTable.id),
+      ),
+    ])
+      ..where(
+        invoicesTable.businessId.equals(businessId) &
+            invoicesTable.customerId.equals(customerId) &
+            invoicesTable.isDeleted.equals(0) &
+            invoiceItemsTable.productId.equals(productId),
+      )
+      ..orderBy([OrderingTerm.desc(invoicesTable.date)])
+      ..limit(1);
+    final row = await q.getSingleOrNull();
+    if (row == null) return null;
+    return LastServiceBilling(
+      date: row.readTable(invoicesTable).date,
+      quantity: row.readTable(invoiceItemsTable).quantity,
+    );
   }
 
   // ─── Mutations ─────────────────────────────────────────────────────────────

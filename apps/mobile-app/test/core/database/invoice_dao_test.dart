@@ -219,4 +219,114 @@ void main() {
       expect(result.every((i) => i.customerId == 'cust-A'), isTrue);
     });
   });
+
+  group('getByInvoiceNumber', () {
+    test('finds the invoice by its human-facing number', () async {
+      await dao.upsert(
+        invoice(customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-AAA')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-2', customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-BBB')),
+      );
+
+      final result =
+          await dao.getByInvoiceNumber('biz-1', 'INV-202609-BBB');
+      expect(result, isNotNull);
+      expect(result!.id, 'inv-2');
+    });
+
+    test('returns null for an unknown number, other business, or soft-delete',
+        () async {
+      await dao.upsert(
+        invoice(customerId: 'cust-A')
+            .copyWith(invoiceNumber: const Value('INV-202609-AAA')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-2', businessId: 'biz-2')
+            .copyWith(invoiceNumber: const Value('INV-202609-CCC')),
+      );
+      await dao.upsert(
+        invoice(id: 'inv-3')
+            .copyWith(invoiceNumber: const Value('INV-202609-DDD')),
+      );
+      await dao.softDelete('inv-3');
+
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-does-not-exist'),
+        isNull,
+      );
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-202609-CCC'),
+        isNull,
+      );
+      expect(
+        await dao.getByInvoiceNumber('biz-1', 'INV-202609-DDD'),
+        isNull,
+      );
+    });
+  });
+
+  group('getLastServiceBilling', () {
+    Future<void> addLine(
+      String invoiceId,
+      String productId, {
+      double quantity = 1,
+    }) => dao.upsertItem(
+      InvoiceItemsTableCompanion.insert(
+        id: '$invoiceId-$productId',
+        invoiceId: invoiceId,
+        name: 'Water',
+        quantity: quantity,
+        unitPrice: 5000,
+        total: 5000 * quantity,
+        productId: Value(productId),
+      ),
+    );
+
+    test('returns null when the customer was never billed for this service',
+        () async {
+      await dao.upsert(invoice(customerId: 'cust-A'));
+      await addLine('inv-1', 'prod-water');
+
+      final result =
+          await dao.getLastServiceBilling('biz-1', 'cust-A', 'prod-electric');
+      expect(result, isNull);
+    });
+
+    test('picks the most recent invoice line for that customer + product',
+        () async {
+      await dao.upsert(
+        invoice(customerId: 'cust-A').copyWith(date: const Value('2026-04-01')),
+      );
+      await addLine('inv-1', 'prod-water');
+      await dao.upsert(
+        invoice(id: 'inv-2', customerId: 'cust-A')
+            .copyWith(date: const Value('2026-06-01')),
+      );
+      await addLine('inv-2', 'prod-water', quantity: 2);
+
+      final result =
+          await dao.getLastServiceBilling('biz-1', 'cust-A', 'prod-water');
+      expect(result, isNotNull);
+      expect(result!.date, '2026-06-01');
+      expect(result.quantity, 2);
+    });
+
+    test('ignores other customers, other products and soft-deleted invoices',
+        () async {
+      await dao.upsert(invoice(customerId: 'cust-B'));
+      await addLine('inv-1', 'prod-water');
+      await dao.upsert(invoice(id: 'inv-2', customerId: 'cust-A'));
+      await addLine('inv-2', 'prod-electric');
+      await dao.upsert(invoice(id: 'inv-3', customerId: 'cust-A'));
+      await addLine('inv-3', 'prod-water');
+      await dao.softDelete('inv-3');
+
+      final result =
+          await dao.getLastServiceBilling('biz-1', 'cust-A', 'prod-water');
+      expect(result, isNull);
+    });
+  });
 }
