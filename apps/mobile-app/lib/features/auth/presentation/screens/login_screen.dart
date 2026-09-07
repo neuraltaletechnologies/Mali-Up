@@ -17,6 +17,7 @@ import '../../../../core/utils/phone_number_utils.dart';
 import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -48,7 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _normalizedPhone;
   List<String> _authEmailsForSignIn = const [];
-  String? _recoveryEmail;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
@@ -70,11 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return digits.substring(1);
     }
     return digits;
-  }
-
-  bool _isValidEmail(String value) {
-    final normalized = value.trim();
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(normalized);
   }
 
   @override
@@ -185,10 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final profile = userDoc.data();
-      final recoveryEmail =
-          ((profile['recoveryEmail'] ?? profile['email']) as String?)
-              ?.trim()
-              .toLowerCase();
       final authEmails = <String>{
         PhoneNumberUtils.authEmail(_normalizedPhone ?? digitsOnly),
         for (final field in ['authEmail', 'email', 'recoveryEmail'])
@@ -199,7 +190,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _showPinEntry = true;
         _isLoading = false;
-        _recoveryEmail = recoveryEmail;
         _authEmailsForSignIn = authEmails;
       });
       _setFeedback(
@@ -357,105 +347,99 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleForgotPIN() async {
-    final emailController = TextEditingController(text: _recoveryEmail ?? '');
+    final phone =
+        _normalizedPhone ?? PhoneNumberUtils.canonical(_phoneController.text);
+    if (phone.length < 8) {
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Enter your phone number first.',
+          'Weka namba yako ya simu kwanza.',
+        ),
+      );
+      return;
+    }
 
-    await showDialog<void>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(_tr('Recover PIN', 'Rejesha PIN')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _tr(
-                'Enter your recovery email to receive a PIN reset email.',
-                'Weka barua pepe ya urejeshaji ili upokee barua pepe ya kurejesha PIN.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.done,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: _tr('you@example.com', 'wewe@example.com'),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
+        content: Text(
+          _tr(
+            'We\'ll email a link to reset your PIN to the address registered on '
+                'your account. Open it on this phone.',
+            'Tutakutumia kiungo cha kuweka upya PIN kwenye barua pepe '
+                'iliyosajiliwa kwenye akaunti yako. Kifungue kwenye simu hii.',
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(_tr('Cancel', 'Ghairi')),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final enteredEmail = emailController.text.trim().toLowerCase();
-              if (!_isValidEmail(enteredEmail)) {
-                await _NotificationHelper.showError(
-                  dialogContext,
-                  _tr(
-                    'Please enter a valid email address.',
-                    'Tafadhali weka barua pepe sahihi.',
-                  ),
-                );
-                return;
-              }
-
-              try {
-                await _auth.sendPasswordResetEmail(email: enteredEmail);
-                if (!mounted || !dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                if (mounted) {
-                  AppNotification.success(
-                    context,
-                    _tr(
-                      'Recovery email sent. Check your inbox.',
-                      'Barua pepe ya urejeshaji imetumwa. Angalia kikasha chako.',
-                    ),
-                  );
-                }
-              } on FirebaseAuthException catch (e) {
-                final message = switch (e.code) {
-                  'user-not-found' => _tr(
-                    'No account found for that email.',
-                    'Hakuna akaunti iliyo na barua pepe hiyo.',
-                  ),
-                  'invalid-email' => _tr(
-                    'Invalid email address.',
-                    'Barua pepe si sahihi.',
-                  ),
-                  _ => _tr(
-                    'Could not send recovery email right now.',
-                    'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
-                  ),
-                };
-                if (dialogContext.mounted) {
-                  await _NotificationHelper.showError(dialogContext, message);
-                }
-              } catch (_) {
-                if (dialogContext.mounted) {
-                  await _NotificationHelper.showError(
-                    dialogContext,
-                    _tr(
-                      'Could not send recovery email right now.',
-                      'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(_tr('Send Email', 'Tuma Barua Pepe')),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(_tr('Send link', 'Tuma kiungo')),
           ),
         ],
       ),
     );
+    if (confirmed != true || !mounted) return;
 
-    emailController.dispose();
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('requestPinReset');
+      final res = await callable.call<Map<String, dynamic>>({
+        'phone': phone,
+        'language': _language == AppLanguage.swahili ? 'sw' : 'en',
+      });
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(res.data as Map);
+      if (data['status'] == 'sent') {
+        AppNotification.success(
+          context,
+          _tr(
+            'Recovery link sent to ${data['maskedEmail']}. Open it within 30 '
+                'minutes.',
+            'Kiungo kimetumwa kwa ${data['maskedEmail']}. Kifungue ndani ya '
+                'dakika 30.',
+          ),
+        );
+      } else {
+        await _NotificationHelper.showError(
+          context,
+          _tr(
+            'No email is registered for this account. Contact Mali Up support '
+                'on WhatsApp.',
+            'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. Wasiliana na '
+                'msaada wa Mali Up kupitia WhatsApp.',
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      await _NotificationHelper.showError(
+        context,
+        e.code == 'resource-exhausted'
+            ? _tr(
+                'Too many requests. Please wait a few minutes.',
+                'Umeomba mara nyingi sana. Subiri dakika chache.',
+              )
+            : _tr(
+                'Could not send the recovery link right now.',
+                'Imeshindikana kutuma kiungo cha urejeshaji kwa sasa.',
+              ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Could not send the recovery link right now.',
+          'Imeshindikana kutuma kiungo cha urejeshaji kwa sasa.',
+        ),
+      );
+    }
   }
 
   @override

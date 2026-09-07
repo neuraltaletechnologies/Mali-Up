@@ -55,13 +55,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Lets external flows (e.g. ClickPesa's payment return redirect)
-                 bring the app back to the foreground via maliup://<path>. -->
+            <!-- Lets external flows (e.g. ClickPesa's payment return redirect,
+                 and the PIN-recovery web page's "open app" button) bring the
+                 app back to the foreground via maliup://<path>. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="maliup"/>
+            </intent-filter>
+            <!-- PIN-recovery magic link. autoVerify makes Android open the app
+                 directly (no chooser) once /.well-known/assetlinks.json on
+                 maliup.neuraltale.com lists this app's signing-cert SHA-256.
+                 Handled by GoRouter → AppRoutes.resetPin (see routing.dart). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="maliup.neuraltale.com"
+                      android:pathPrefix="/reset-pin"/>
             </intent-filter>
         </activity>
         <!-- Renders admin-broadcast pushes (see PushNotificationService)
@@ -71,6 +84,12 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="mali_up_alerts" />
+        <!-- Route incoming VIEW intents (the maliup:// scheme and the
+             https App Link above) through Flutter so GoRouter can handle them.
+             Explicit so behaviour doesn't drift with the Flutter default. -->
+        <meta-data
+            android:name="flutter_deeplinking_enabled"
+            android:value="true" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

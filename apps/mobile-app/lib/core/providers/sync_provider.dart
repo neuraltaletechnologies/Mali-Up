@@ -30,9 +30,13 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   // Firebase Auth UID rather than the full tenant — see
   // SyncService.scopeReadsToUid and firestore.rules.
   final member = ref.watch(currentMemberProvider).valueOrNull;
-  final scopeReadsToUid = member?.dataScope == DataScope.own
-      ? FirebaseAuth.instance.currentUser?.uid
-      : null;
+  final isOwnScoped = member?.dataScope == DataScope.own;
+  final scopeReadsToUid =
+      isOwnScoped ? FirebaseAuth.instance.currentUser?.uid : null;
+  // Inventory items are assigned by staff record id (see firestore.rules
+  // isOwnAssignedRecord), so scope the inventory pull to that, not the UID.
+  final scopeInventoryToMemberId =
+      isOwnScoped && (member?.id.isNotEmpty ?? false) ? member!.id : null;
 
   final service = SyncService(
     db: db,
@@ -40,6 +44,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     businessId: bizId,
     offlinePolicy: offlinePolicy,
     scopeReadsToUid: scopeReadsToUid,
+    scopeInventoryToMemberId: scopeInventoryToMemberId,
   );
 
   // Keep alive until the provider is disposed (widget tree torn down or

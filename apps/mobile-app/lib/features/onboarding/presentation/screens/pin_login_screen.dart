@@ -10,6 +10,7 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../domain/models/pin_reset_result.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -32,6 +33,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     with SingleTickerProviderStateMixin {
   final _pinCtrl = TextEditingController();
   bool _hasError = false;
+  bool _resetToastShown = false;
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
@@ -119,6 +121,22 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     final name = state.firstName.isNotEmpty ? state.firstName : '';
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
+    // One-off confirmation after a successful PIN recovery (PinResetScreen
+    // routes here with OnboardingState.pinJustReset set).
+    if (state.pinJustReset && !_resetToastShown) {
+      _resetToastShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        AppNotification.success(
+          context,
+          sw
+              ? 'PIN yako imewekwa upya. Ingia na PIN yako mpya.'
+              : 'Your PIN has been reset. Sign in with your new PIN.',
+        );
+        ref.read(onboardingNotifierProvider.notifier).clearPinJustReset();
+      });
+    }
+
     final headingStyle = GoogleFonts.dmSans(
       fontSize: 26,
       color: AppColors.textPrimary,
@@ -166,11 +184,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: AppColors.navyPrimary,
-                      size: 18,
+                      size: 16,
                     ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.85),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                     ),
                   ),
                   TextButton.icon(
@@ -178,21 +196,21 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                     icon: const Icon(
                       Icons.headset_mic_outlined,
                       color: AppColors.navyPrimary,
-                      size: 15,
+                      size: 13,
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
                       style: GoogleFonts.dmSans(
                         color: AppColors.navyPrimary,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: 10,
+                        vertical: 6,
                       ),
                     ),
                   ),
@@ -699,40 +717,29 @@ class _ForgotPinSheet extends ConsumerStatefulWidget {
 
 class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   bool _isSending = false;
-  bool _sent = false;
-  bool _noEmail = false;
-  String? _sentTo;
+  PinResetRequestResult? _result;
 
   Future<void> _sendRecovery() async {
-    setState(() {
-      _isSending = true;
-      _noEmail = false;
-    });
-    final email = await ref
+    setState(() => _isSending = true);
+    final result = await ref
         .read(onboardingNotifierProvider.notifier)
-        .sendPinRecovery();
+        .requestPinReset();
     if (!mounted) return;
-    if (email != null) {
-      setState(() {
-        _isSending = false;
-        _sent = true;
-        _sentTo = email;
-      });
-    } else {
-      setState(() {
-        _isSending = false;
-        _noEmail = true;
-      });
-    }
+    setState(() {
+      _isSending = false;
+      _result = result;
+    });
   }
 
-  String _maskEmail(String email) {
-    if (!email.contains('@')) return email;
-    final parts = email.split('@');
-    final user = parts[0];
-    final domain = parts[1];
-    if (user.length <= 2) return '${'*' * user.length}@$domain';
-    return '${user[0]}${'*' * (user.length - 2)}${user[user.length - 1]}@$domain';
+  Future<void> _openWhatsAppHelp() async {
+    final sw = widget.sw;
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kurejesha PIN yangu.'
+          : 'Hello Mali Up Help Desk, I need help recovering my PIN.',
+    );
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -756,22 +763,6 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           const SheetHandle(),
           const SizedBox(height: 12),
 
-          // Icon
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.lock_reset_rounded,
-              color: AppColors.navyPrimary,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 20),
-
           Text(
             sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
             style: GoogleFonts.dmSans(
@@ -783,210 +774,274 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           ),
           const SizedBox(height: 10),
 
-          if (!_sent && !_noEmail) ...[
-            Text(
-              sw
-                  ? 'Tutakutumia maelekezo ya kurejesha PIN yako '
-                        'kwenye barua pepe uliyosajili.'
-                  : 'We\'ll send recovery instructions to your registered email '
-                        'so you can reset your PIN.',
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                color: AppColors.textMuted,
-                height: 1.55,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.infoBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.tealAccent.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: AppColors.tealAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      sw
-                          ? 'Baada ya kupokea barua pepe, fuata kiungo '
-                                'kuweka nenosiri jipya na PIN yako mpya.'
-                          : 'After receiving the email, follow the link '
-                                'to set a new password and restore your access.',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        color: AppColors.tealAccent,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isSending ? null : _sendRecovery,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.navyPrimary.withValues(
-                    alpha: 0.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        sw ? 'Tuma Maelekezo' : 'Send Recovery Link',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-              ),
-            ),
-          ] else if (_noEmail) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.email_outlined,
-                    color: Color(0xFF856404),
-                    size: 40,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    sw ? 'Barua pepe haijapatikana' : 'No email on file',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF856404),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    sw
-                        ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. '
-                              'Tafadhali wasiliana na msaada wa Mali Up kupitia WhatsApp.'
-                        : 'No email address is registered for this account. '
-                              'Please contact Mali Up support via WhatsApp for help.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      color: const Color(0xFF856404),
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  sw ? 'Funga' : 'Close',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ] else ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.successBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.success,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    sw ? 'Imetumwa! ✓' : 'Sent! ✓',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    sw
-                        ? 'Maelekezo yametumwa kwenda ${_maskEmail(_sentTo!)}. '
-                              'Angalia barua pepe yako na ufuate hatua zilizotolewa.'
-                        : 'Recovery instructions sent to ${_maskEmail(_sentTo!)}. '
-                              'Check your email and follow the steps provided.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      color: AppColors.success,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  sw ? 'Sawa, nimepokea' : 'Got it, close',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ..._buildBody(sw),
         ],
       ),
     );
   }
+
+  List<Widget> _buildBody(bool sw) {
+    switch (_result?.status) {
+      case null:
+        return _intro(sw);
+      case PinResetRequestStatus.sent:
+        return _sentCard(sw);
+      case PinResetRequestStatus.noEmail:
+        return _noEmailCard(sw);
+      case PinResetRequestStatus.rateLimited:
+        return _messageCard(
+          sw,
+          title: sw ? 'Subiri kidogo' : 'Please wait',
+          body: sw
+              ? 'Umeomba kurejesha PIN mara nyingi sana. Subiri dakika chache '
+                    'kisha ujaribu tena.'
+              : 'You have requested a PIN reset too many times. Wait a few '
+                    'minutes and try again.',
+          bg: const Color(0xFFFFF3CD),
+          border: const Color(0xFFFFD60A),
+          fg: const Color(0xFF856404),
+        );
+      case PinResetRequestStatus.failed:
+        return _failedCard(sw);
+    }
+  }
+
+  List<Widget> _intro(bool sw) => [
+    Text(
+      sw
+          ? 'Tutakutumia kiungo cha kuweka upya PIN yako kwenye barua pepe '
+                'uliyosajili. Fungua kiungo hicho kwenye simu hii.'
+          : 'We\'ll email a link to reset your PIN to your registered address. '
+                'Open that link on this phone.',
+      style: GoogleFonts.dmSans(
+        fontSize: 14,
+        color: AppColors.textMuted,
+        height: 1.55,
+      ),
+    ),
+    const SizedBox(height: 28),
+    SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: _isSending ? null : _sendRecovery,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.navyPrimary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.navyPrimary.withValues(alpha: 0.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: _isSending
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                sw ? 'Nitumie Kiungo' : 'Send Recovery Link',
+                style: GoogleFonts.dmSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+      ),
+    ),
+  ];
+
+  List<Widget> _sentCard(bool sw) => [
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.successBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            sw ? 'Kiungo kimetumwa ✓' : 'Link sent ✓',
+            style: GoogleFonts.dmSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.success,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            sw
+                ? 'Tumetuma kiungo kwenda ${_result!.maskedEmail}. Fungua barua '
+                      'pepe yako kwenye simu hii na ubofye kiungo ndani ya '
+                      'dakika 30 ili kuweka PIN mpya.'
+                : 'We sent a link to ${_result!.maskedEmail}. Open your email on '
+                      'this phone and tap the link within 30 minutes to set a '
+                      'new PIN.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: AppColors.success,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 20),
+    _closeButton(sw ? 'Sawa, nimepokea' : 'Got it, close'),
+  ];
+
+  List<Widget> _noEmailCard(bool sw) => [
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFFD60A).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            sw ? 'Barua pepe haijapatikana' : 'No email on file',
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF856404),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            sw
+                ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. Tafadhali '
+                      'wasiliana na msaada wa Mali Up kupitia WhatsApp.'
+                : 'No email address is registered for this account. Please '
+                      'contact Mali Up support via WhatsApp for help.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: const Color(0xFF856404),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 20),
+    SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: _openWhatsAppHelp,
+        icon: const Icon(Icons.headset_mic_outlined, size: 18),
+        label: Text(
+          sw ? 'Wasiliana na Msaada' : 'Contact Support',
+          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.navyPrimary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    ),
+    const SizedBox(height: 4),
+    _closeButton(sw ? 'Funga' : 'Close'),
+  ];
+
+  List<Widget> _failedCard(bool sw) => [
+    ..._messageCard(
+      sw,
+      title: sw ? 'Imeshindikana' : 'Something went wrong',
+      body: sw
+          ? 'Hatukuweza kutuma kiungo sasa. Angalia mtandao wako na ujaribu tena.'
+          : 'We couldn\'t send the link right now. Check your connection and try '
+                'again.',
+      bg: AppColors.infoBg,
+      border: AppColors.tealAccent,
+      fg: AppColors.tealAccent,
+    ),
+    const SizedBox(height: 16),
+    SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: () => setState(() => _result = null),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.navyPrimary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Text(
+          sw ? 'Jaribu tena' : 'Try again',
+          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+  ];
+
+  List<Widget> _messageCard(
+    bool sw, {
+    required String title,
+    required String body,
+    required Color bg,
+    required Color border,
+    required Color fg,
+  }) => [
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: fg,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(fontSize: 13, color: fg, height: 1.5),
+          ),
+        ],
+      ),
+    ),
+  ];
+
+  Widget _closeButton(String label) => SizedBox(
+    width: double.infinity,
+    child: TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.navyPrimary,
+        ),
+      ),
+    ),
+  );
 }

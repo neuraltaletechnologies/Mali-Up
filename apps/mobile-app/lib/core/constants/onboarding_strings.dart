@@ -243,13 +243,13 @@ abstract final class OnboardingStrings {
   // SCREEN 4B — NEW USER PERSONAL INFO
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static const newUserTitleEn = 'Tell us about yourself';
-  static const newUserTitleSw = 'Tuambie kuhusu wewe';
+  static const newUserTitleEn = 'Creating your new Account ';
+  static const newUserTitleSw = 'Tunakutengeneza Account ';
 
   static const newUserSubEn =
-      'Welcome! We are creating a new account. Tailored to your setup ';
+      'Welcome! Tell us about yourself. Tailored to your setup ';
   static const newUserSubSw =
-      'Karibu! Tunakutengenezea Akaunti Mpya. Kukupa mipangilio inayokufaa ';
+      'Karibu! Tuambie kuhusu wewe. Kukupa mipangilio inayokufaa ';
 
   static const firstNameLabelEn = 'First name';
   static const firstNameLabelSw = 'Jina la kwanza';

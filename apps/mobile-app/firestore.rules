@@ -71,6 +71,26 @@ service cloud.firestore {
         resource.data[ownerField] == request.auth.uid;
     }
 
+    // The caller's own staff *record id* (businesses/{bizId}/staff/{staffId} —
+    // the auto-generated doc created when the owner sends the invite), read off
+    // the UID-keyed pointer doc that isStaffWithAny already relies on.
+    function ownStaffRecordId(bizId) {
+      return get(/databases/$(database)/documents/businesses/$(bizId)/staff/$(request.auth.uid)).data.memberId;
+    }
+
+    // Like isOwnRecord, but `ownerField` may hold EITHER the caller's Auth UID
+    // OR their staff record id. Service inventory items are assigned to a team
+    // member when the owner adds the item — which can be before that member has
+    // accepted the invite and been given an Auth UID — so the assignment is
+    // stored as the staff record id. Older assignments stored the Auth UID;
+    // both are honoured here.
+    function isOwnAssignedRecord(bizId, narrowPermission, ownerField) {
+      return isSignedIn() &&
+        isStaffWithAny(bizId, [narrowPermission]) &&
+        (resource.data[ownerField] == request.auth.uid ||
+         resource.data[ownerField] == ownStaffRecordId(bizId));
+    }
+
     // Auth email is derived from phone as '<digits>@mali.up'.
     function authEmailMatchesPhone(phone) {
       let digits = phone.replace('[^0-9]', '');
@@ -404,10 +424,12 @@ service cloud.firestore {
       match /inventory_items/{itemId} {
         // Full visibility via viewInventory; createSale-only staff (e.g. a
         // DataScope.own member) fall back to reading only the item(s)
-        // assigned to them (assignedToUserId) — needed so a sale can look
-        // up their own assigned product/service record.
+        // assigned to them (assignedToUserId — their Auth UID or, for an
+        // assignment made before they accepted the invite, their staff
+        // record id) — needed so a sale can look up their own assigned
+        // product/service record.
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewInventory'])
-          || isOwnRecord(bizId, 'createSale', 'assignedToUserId');
+          || isOwnAssignedRecord(bizId, 'createSale', 'assignedToUserId');
 
         // Full product creation (from the add-product form).
         allow create: if isOwnerOrStaffWithAny(bizId, ['addStock']) &&
@@ -700,6 +722,27 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /clickpesa_webhook_rate_limits/{keyHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // PIN RECOVERY  (functions/src/pin_recovery.ts)
+    // One-time reset tokens (doc id = SHA-256 of the token) plus the recovery
+    // rate-limit counters. Written only by the requestPinReset /
+    // validatePinResetToken / confirmPinReset callables via the Admin SDK,
+    // which bypasses these rules. Explicit deny so a client can never read a
+    // token record, enumerate the collection, or reset a counter.
+    // =========================================================================
+    match /pin_reset_tokens/{tokenHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_rate_limits_phone/{keyHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_rate_limits_ip/{keyHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_validate_rate_limits_ip/{keyHash} {
       allow read, write: if false;
     }
 

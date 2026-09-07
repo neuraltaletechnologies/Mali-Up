@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
 
 /// Account Details — lets the signed-in user view and edit their personal
@@ -200,7 +201,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.navyPrimary))
+          ? const SkeletonForm()
           : Form(
               key: _formKey,
               child: ListView(

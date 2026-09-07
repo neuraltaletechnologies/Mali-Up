@@ -114,20 +114,20 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     super.dispose();
   }
 
-  static const _updateBannerDismissedKey = 'update_banner_dismissed_build';
+  static const _updateBannerDismissedKey = 'update_banner_dismissed_version';
 
   Future<void> _maybeShowUpdateBanner() async {
     final status = VersionGateService.statusNotifier.value;
-    final build = status.recommendedBuildNumber;
-    if (status.tier != VersionGateTier.softNag || build == null) return;
+    final version = status.recommendedVersion;
+    if (status.tier != VersionGateTier.softNag || version == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getInt(_updateBannerDismissedKey) == build) return;
+    if (prefs.getString(_updateBannerDismissedKey) == version) return;
     if (!mounted) return;
-    _showUpdateBanner(status, build);
+    _showUpdateBanner(status, version);
   }
 
-  void _showUpdateBanner(VersionGateStatus status, int build) {
+  void _showUpdateBanner(VersionGateStatus status, String version) {
     final message = _isSwahili ? status.messageSw : status.messageEn;
     ScaffoldMessenger.of(context)
       ..clearMaterialBanners()
@@ -153,7 +153,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           ),
           actions: [
             TextButton(
-              onPressed: () => _dismissUpdateBanner(build),
+              onPressed: () => _dismissUpdateBanner(version),
               child: Text(_tr('Later', 'Baadaye')),
             ),
             TextButton(
@@ -165,10 +165,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       );
   }
 
-  Future<void> _dismissUpdateBanner(int build) async {
+  Future<void> _dismissUpdateBanner(String version) async {
     if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_updateBannerDismissedKey, build);
+    await prefs.setString(_updateBannerDismissedKey, version);
   }
 
   Future<void> _openUpdateUrl(VersionGateStatus status) async {
@@ -1524,6 +1524,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // connectivity change event. Sync-specific issues surface separately
     // via SyncStatusBanner.
     final isOnline = ref.watch(isOnlineProvider);
+    // The header badge also stays up while the post-reconnect sync drains
+    // the queue, so it doesn't blink away the instant connectivity returns
+    // and leave the user unsure their offline work was pushed.
+    final isSyncing = ref.watch(syncStateProvider) == SyncState.syncing;
     // Reassure the user the moment connectivity flips either way — the
     // header pill's red/green dot is easy to miss, so a real message says
     // it plainly: nothing is lost offline, and reconnecting kicks off a
@@ -1696,6 +1700,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                   canSwitch: canSwitch,
                                   businesses: businesses,
                                   isOnline: isOnline,
+                                  isSyncing: isSyncing,
                                   onChanged: _switchFinanceContext,
                                   onManageBusinesses: () async {
                                     await context.push(
@@ -2017,6 +2022,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
   final bool isOnline;
+  final bool isSyncing;
   final List<Map<String, dynamic>> businesses;
   final ValueChanged<String> onChanged;
   final VoidCallback onManageBusinesses;
@@ -2025,6 +2031,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
     required this.selectedContext,
     required this.canSwitch,
     required this.isOnline,
+    required this.isSyncing,
     required this.businesses,
     required this.onChanged,
     required this.onManageBusinesses,
@@ -2260,32 +2267,108 @@ class _FinanceContextSwitcher extends StatelessWidget {
             ),
           ),
         ),
-        // Online is the default, unremarkable state — nothing to show.
-        // Offline is the one worth flagging, so only it gets a badge.
-        if (!isOnline)
+        // Online + fully synced is the default, unremarkable state — nothing
+        // to show. Offline gets a badge, and it lingers through the
+        // post-reconnect sync so it doesn't vanish before the queued work
+        // has actually been pushed.
+        if (!isOnline || isSyncing)
           Positioned(
             top: -3,
             right: -3,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Text(
-                tr('Offline', 'Offline'),
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  height: 1.2,
-                ),
-              ),
-            ),
+            child: _ConnectionBadge(isOnline: isOnline, isSyncing: isSyncing),
           ),
       ],
+    );
+  }
+}
+
+/// Small status badge pinned to the header business pill.
+///
+/// - Offline           → red "Offline"
+/// - Online, syncing   → teal spinner + "Syncing…" (covers the window where
+///   connectivity is back but the offline queue is still draining)
+/// - Online, idle      → hidden
+class _ConnectionBadge extends StatefulWidget {
+  final bool isOnline;
+  final bool isSyncing;
+
+  const _ConnectionBadge({required this.isOnline, required this.isSyncing});
+
+  @override
+  State<_ConnectionBadge> createState() => _ConnectionBadgeState();
+}
+
+class _ConnectionBadgeState extends State<_ConnectionBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin;
+
+  bool get _showSpinner => widget.isOnline && widget.isSyncing;
+  bool get _visible => !widget.isOnline || widget.isSyncing;
+
+  @override
+  void initState() {
+    super.initState();
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (_showSpinner) _spin.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_ConnectionBadge old) {
+    super.didUpdateWidget(old);
+    if (_showSpinner && !_spin.isAnimating) {
+      _spin.repeat();
+    } else if (!_showSpinner && _spin.isAnimating) {
+      _spin.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+
+    final offline = !widget.isOnline;
+    final label = offline
+        ? 'Offline'
+        : (LocalizationService.isSwahili ? 'Inasawazisha…' : 'Syncing…');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: offline ? AppColors.error : AppColors.info,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_showSpinner) ...[
+            RotationTransition(
+              turns: _spin,
+              child: const Icon(Icons.sync, size: 8, color: Colors.white),
+            ),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

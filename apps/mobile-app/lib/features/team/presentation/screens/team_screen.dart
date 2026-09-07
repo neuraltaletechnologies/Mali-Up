@@ -30,7 +30,6 @@ import '../../data/mappers/team_member_mapper.dart';
 import '../../data/team_providers.dart';
 import '../../domain/models/custom_role.dart';
 import '../../domain/models/team_member.dart';
-import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -146,15 +145,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
             )
           : null,
       body: membersAsync.smartWhen(
-        skeleton: () => const Column(
-          children: [
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-          ],
-        ),
+        skeleton: () => const TeamPageSkeleton(),
         onError: (_, _) => Center(
           child: Text(_tr('Failed to load team', 'Imeshindikana kupakia timu')),
         ),
@@ -516,65 +507,65 @@ class _TeamFilterSheetState extends State<_TeamFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    // showAppSheet renders with a transparent barrier background, so the sheet
+    // must paint its own surface — without this Material the content floats
+    // over whatever is behind it. Matches _DebtFilterSheet.
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SheetHandle(),
+              const SizedBox(height: 4),
+              _SheetSectionLabel(_tr('Status', 'Hali')),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _TeamFilter.values
+                    .map(
+                      (f) => _SortChip(
+                        label: f.label,
+                        selected: _pick == f,
+                        onTap: () => setState(() => _pick = f),
+                      ),
+                    )
+                    .toList(),
               ),
-            ),
-            const SizedBox(height: 16),
-            _SheetSectionLabel(_tr('Status', 'Hali')),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _TeamFilter.values
-                  .map(
-                    (f) => _SortChip(
-                      label: f.label,
-                      selected: _pick == f,
-                      onTap: () => setState(() => _pick = f),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onApply(_pick);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.onApply(_pick);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: Text(
-                  _tr('Apply', 'Tumia'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                  child: Text(
+                    _tr('Apply', 'Tumia'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1485,8 +1476,13 @@ class _MemberSheet extends ConsumerStatefulWidget {
 class _MemberSheetState extends ConsumerState<_MemberSheet> {
   late TeamMember _member;
   bool _editingRole = false;
+  bool _editingDetails = false;
   bool _showPerms = false;
   bool _isSaving = false;
+
+  // Only editable while the invite is unaccepted — see the build method.
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
 
   TeamRole _pendingRole = TeamRole.cashier;
   Set<AppPermission> _pendingPerms = {};
@@ -1511,6 +1507,134 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     _pendingRole = _member.role;
     _pendingPerms = Set.of(_member.customPermissions);
     _pendingDataScope = _member.dataScope;
+    _nameCtrl = TextEditingController(text: _member.name);
+    _phoneCtrl = TextEditingController(text: _member.phone);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveDetails() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      AppNotification.info(
+        context,
+        _tr('Name is required.', 'Jina linahitajika.'),
+      );
+      return;
+    }
+    final rawPhone = _phoneCtrl.text.trim();
+    final phoneError = OnboardingValidator.validatePhone(rawPhone);
+    if (phoneError != null) {
+      AppNotification.info(context, phoneError);
+      return;
+    }
+    final normalizedPhone = OnboardingValidator.normalisePhone(rawPhone);
+    final storedPhone = normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
+
+    if (name == _member.name && storedPhone == _member.phone) {
+      setState(() => _editingDetails = false);
+      return;
+    }
+
+    // Writes the staff doc + the pending-invite lookup doc, both of which must
+    // reach the server — same online-only rule as inviting.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+
+    setState(() => _isSaving = true);
+    final overlay = Overlay.of(context, rootOverlay: true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception();
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+
+      await repo.updateTeamMember(
+        uid: user.uid,
+        context: ctx,
+        memberId: _member.id,
+        data: {'name': name, 'phone': storedPhone},
+      );
+
+      // Keep the pending-invite lookup doc in step so the member is still
+      // found by their (new) phone number at first login.
+      try {
+        final inviteSnap = await FirebaseFirestore.instance
+            .collection('pendingInvites')
+            .where('memberId', isEqualTo: _member.id)
+            .where('ownerUid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+        for (final doc in inviteSnap.docs) {
+          await doc.reference.update({
+            'fullName': name,
+            if (normalizedPhone.isNotEmpty) 'phoneNumber': normalizedPhone,
+          });
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[editDetails] pendingInvite update: $e');
+      }
+
+      // Mirror to Drift so the list reflects the change immediately, matching
+      // what the invite flow does.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final existing = await db.teamDao.getById(_member.id);
+        await db.teamDao.upsert(
+          TeamMemberMapper.toCompanion(
+            _member.copyWith(name: name, phone: storedPhone),
+            businessId: ctx.businessId ?? '',
+            syncStatus: 'synced',
+            createdAtMs:
+                existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      } catch (_) {
+        // Best-effort — the next sync pull will reconcile Drift.
+      }
+
+      unawaited(
+        AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: ctx.businessId ?? '',
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberDetailsChanged,
+          targetMemberId: _member.id,
+          targetName: name,
+          previousValue: {'name': _member.name, 'phone': _member.phone},
+          newValue: {'name': name, 'phone': storedPhone},
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _member = _member.copyWith(name: name, phone: storedPhone);
+        _isSaving = false;
+        _editingDetails = false;
+      });
+      AppNotification.showVia(
+        overlay,
+        _tr('Details updated.', 'Maelezo yamesasishwa.'),
+        type: AppNotificationType.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppNotification.showVia(
+        overlay,
+        _tr(
+          'Could not update details. Please try again.',
+          'Imeshindikana kusasisha maelezo. Jaribu tena.',
+        ),
+        type: AppNotificationType.error,
+      );
+    }
   }
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
@@ -1868,6 +1992,79 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ── Edit details ─────────────────────────────────────
+                    // Only while the invite is unaccepted: an active member's
+                    // phone is tied to their login, and they manage their own
+                    // name/phone from their profile once they've joined.
+                    if (ps.isOwner && _member.status == 'pending') ...[
+                      _ActionCard(
+                        icon: Icons.edit_outlined,
+                        color: AppColors.tealAccent,
+                        title: _tr('Edit Details', 'Hariri Maelezo'),
+                        subtitle: _tr(
+                          'Name and phone number',
+                          'Jina na namba ya simu',
+                        ),
+                        trailing: Icon(
+                          _editingDetails
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onTap: () => setState(
+                          () => _editingDetails = !_editingDetails,
+                        ),
+                      ),
+                      if (_editingDetails) ...[
+                        const SizedBox(height: 10),
+                        OnboardingField(
+                          controller: _nameCtrl,
+                          label: _tr('Full Name', 'Jina Kamili'),
+                          hint: _tr('Enter full name', 'Ingiza jina kamili'),
+                          prefix: const Icon(
+                            Icons.person_outline_rounded,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OnboardingField(
+                          controller: _phoneCtrl,
+                          label: _tr('Phone Number', 'Namba ya Simu'),
+                          hint: '+255 700 000 000',
+                          keyboardType: TextInputType.phone,
+                          prefix: const Icon(
+                            Icons.phone_outlined,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _isSaving ? null : _saveDetails,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.navyPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              _tr('Save Details', 'Hifadhi Maelezo'),
+                              style: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                    ],
+
                     // ── Change role (owner only) ─────────────────────────
                     if (ps.isOwner) ...[
                       _ActionCard(

@@ -48,6 +48,7 @@ class PlanLimits {
   final int maxCustomers;    // -1 = unlimited
   final int maxProducts;        // -1 = unlimited; counts manually-created inventory items (excludes customer returns)
   final int maxServiceProducts; // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
+  final int maxSalesPerDay;     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -71,6 +72,7 @@ class PlanLimits {
     this.maxCustomers = -1,
     this.maxProducts = -1,
     this.maxServiceProducts = -1,
+    this.maxSalesPerDay = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -107,6 +109,7 @@ class PlanLimits {
       maxCustomers:        asInt('maxCustomers',        fallback.maxCustomers),
       maxProducts:         asInt('maxProducts',         fallback.maxProducts),
       maxServiceProducts:  asInt('maxServiceProducts',  fallback.maxServiceProducts),
+      maxSalesPerDay:      asInt('maxSalesPerDay',      fallback.maxSalesPerDay),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -132,6 +135,7 @@ class PlanLimits {
         'maxCustomers': maxCustomers,
         'maxProducts': maxProducts,
         'maxServiceProducts': maxServiceProducts,
+        'maxSalesPerDay': maxSalesPerDay,
         'pricePerCycle': pricePerCycle,
         'cycleMonths': cycleMonths,
         'fullReports': fullReports,
@@ -161,8 +165,10 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     monthlyInvoices: 50,
     maxUsers: 1,
     maxBusinesses: 1,
+    maxCustomers: 20,
     maxProducts: 15,
     maxServiceProducts: 3,
+    maxSalesPerDay: 10,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,
@@ -367,6 +373,16 @@ class PlanStatus {
     final limit = limits.monthlyInvoices;
     if (limit == -1) return 999999;
     return (limit - invoicesUsedThisMonth).clamp(0, limit);
+  }
+
+  /// Whether the free-plan daily sales cap still allows another sale, given
+  /// the [recordedToday] sales already logged on this device today. Separate
+  /// from [canCreateInvoice] (the monthly cap) — the Add Sale entry point
+  /// checks both, and whichever is hit first blocks the sale.
+  bool allowsSaleToday(int recordedToday) {
+    final limit = limits.maxSalesPerDay;
+    if (limit == -1) return true;
+    return recordedToday < limit;
   }
 
   double get usagePercent {

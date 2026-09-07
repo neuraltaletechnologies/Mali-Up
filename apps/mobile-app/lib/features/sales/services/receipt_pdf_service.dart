@@ -12,10 +12,12 @@ import '../../../core/utils/online_guard.dart';
 
 /// Builds and hands out customer-facing sale receipts as real PDF files.
 ///
-/// The caller continues to own channel selection. [open] generates the PDF
-/// and lets the user pick a viewer via the OS "Open with" chooser, printing
-/// uses [print], while SMS can keep using the compact text receipt already
-/// built by the sales screens.
+/// The caller continues to own channel selection. [share] hands the PDF to the
+/// OS share sheet (WhatsApp, email, Drive…) — the customer-facing "Share"
+/// path. [open] generates the PDF and lets the user pick a viewer via the OS
+/// "Open with" chooser (quick on-device preview), printing uses [print], while
+/// SMS can keep using the compact text receipt already built by the sales
+/// screens.
 abstract final class ReceiptPdfService {
   static const _navy = PdfColor.fromInt(0xFF0D1B3E);
   static const _teal = PdfColor.fromInt(0xFF1A6E8A);
@@ -564,6 +566,39 @@ abstract final class ReceiptPdfService {
       businessLogoUrl: businessLogoUrl,
     );
     await PdfExportService.openPdf(bytes, filename(invoiceNumber));
+  }
+
+  /// Hands the receipt PDF to the OS share sheet (WhatsApp, email, Drive…)
+  /// instead of opening it in a viewer. Returns `false` if the user dismissed
+  /// the share sheet without picking a target.
+  static Future<bool> share({
+    required Map<String, dynamic> sale,
+    required String businessName,
+    required String printedBy,
+    required bool isSwahili,
+    String businessPhone = '',
+    String businessEmail = '',
+    String businessAddress = '',
+    String businessLogoUrl = '',
+    String? subject,
+  }) async {
+    final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
+        .toString();
+    final bytes = await build(
+      sale: sale,
+      businessName: businessName,
+      printedBy: printedBy,
+      isSwahili: isSwahili,
+      businessPhone: businessPhone,
+      businessEmail: businessEmail,
+      businessAddress: businessAddress,
+      businessLogoUrl: businessLogoUrl,
+    );
+    return Printing.sharePdf(
+      bytes: bytes,
+      filename: filename(invoiceNumber),
+      subject: subject,
+    );
   }
 
   static Future<bool> print({

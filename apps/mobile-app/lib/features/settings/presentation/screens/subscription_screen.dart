@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_request_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -28,9 +29,17 @@ String _blurbFor(PlanTier tier, PlanLimits limits) {
           ? ''
           : _t(' · ${limits.maxProducts} products',
               ' · Bidhaa ${limits.maxProducts}');
+      final salesBlurb = limits.maxSalesPerDay == -1
+          ? ''
+          : _t(' · ${limits.maxSalesPerDay} sales/day',
+              ' · Mauzo ${limits.maxSalesPerDay}/siku');
+      final customerBlurb = limits.maxCustomers == -1
+          ? ''
+          : _t(' · ${limits.maxCustomers} customers',
+              ' · Wateja ${limits.maxCustomers}');
       return _t(
-        '${limits.monthlyInvoices} invoices/mo$productBlurb · No team members',
-        'Ankara ${limits.monthlyInvoices}/mwezi$productBlurb · Hakuna wanachama wa timu',
+        '${limits.monthlyInvoices} invoices/mo$salesBlurb$customerBlurb$productBlurb · No team members',
+        'Ankara ${limits.monthlyInvoices}/mwezi$salesBlurb$customerBlurb$productBlurb · Hakuna wanachama wa timu',
       );
     case PlanTier.growth:
       return _t(
@@ -141,6 +150,14 @@ class SubscriptionScreen extends ConsumerWidget {
                 status: status,
                 onUpgradeTap: () => _openUpgrade(context, ref, status),
               ),
+
+              // ── Usage against free-plan limits ─────────────────
+              // Free plan only — paid tiers are effectively unlimited on
+              // every metered dimension, so a usage panel there is just noise.
+              if (status.isStarter) ...[
+                const SizedBox(height: 16),
+                _UsagePanel(status: status),
+              ],
               const SizedBox(height: 32),
 
               // ── Plans ────────────────────────────────────────────
@@ -266,10 +283,6 @@ class _CurrentPlanBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final limit = status.limits.monthlyInvoices;
-    final atLimit = !status.canCreateInvoice;
-    final nearLimit = status.usagePercent >= 0.8;
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -344,47 +357,6 @@ class _CurrentPlanBlock extends StatelessWidget {
 
           if (status.isStarter) ...[
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _t('Invoices this month', 'Ankara mwezi huu'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  '${status.invoicesUsedThisMonth} / $limit',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: atLimit
-                        ? AppColors.error
-                        : nearLimit
-                        ? AppColors.warning
-                        : AppColors.navyPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: status.usagePercent,
-                minHeight: 5,
-                backgroundColor: AppColors.surfaceVariant,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  atLimit
-                      ? AppColors.error
-                      : nearLimit
-                      ? AppColors.warning
-                      : AppColors.navyPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             GestureDetector(
               onTap: onUpgradeTap,
               child: Row(
@@ -443,6 +415,131 @@ class _CurrentPlanBlock extends StatelessWidget {
 
   static String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Usage panel — a bar per metered free-plan limit. Only rendered for Starter
+// (see the call site); the counts come from planUsageProvider, which reads the
+// offline-first Drift streams so this matches exactly what the "add" gates in
+// Sales, Customers and Inventory enforce.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _UsagePanel extends ConsumerWidget {
+  final PlanStatus status;
+  const _UsagePanel({required this.status});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usage = ref.watch(planUsageProvider);
+    final limits = status.limits;
+
+    final rows = <Widget>[];
+    void add(String en, String sw, int used, int limit) {
+      if (limit < 0) return; // unlimited on this plan — nothing to meter
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 14));
+      rows.add(_UsageRow(label: _t(en, sw), used: used, limit: limit));
+    }
+
+    add('Sales today', 'Mauzo leo', usage.salesToday, limits.maxSalesPerDay);
+    add('Invoices this month', 'Ankara mwezi huu',
+        status.invoicesUsedThisMonth, limits.monthlyInvoices);
+    add('Customers', 'Wateja', usage.customers, limits.maxCustomers);
+    add('Products', 'Bidhaa', usage.products, limits.maxProducts);
+    add('Services', 'Huduma', usage.serviceProducts, limits.maxServiceProducts);
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t('YOUR USAGE', 'MATUMIZI YAKO'),
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _t(
+              'Free-plan limits reset as shown — daily or monthly. Upgrade to lift them.',
+              'Vikomo vya mpango wa bure vinaanza upya kama inavyoonyeshwa — kila siku au mwezi. Boresha kuviondoa.',
+            ),
+            style: GoogleFonts.dmSans(
+              fontSize: 11.5,
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...rows,
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageRow extends StatelessWidget {
+  final String label;
+  final int used;
+  final int limit;
+
+  const _UsageRow({required this.label, required this.used, required this.limit});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = limit <= 0 ? 0.0 : (used / limit).clamp(0.0, 1.0);
+    final color = pct >= 1.0
+        ? AppColors.error
+        : pct >= 0.8
+            ? AppColors.warning
+            : AppColors.tealAccent;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              '$used / $limit',
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: pct >= 0.8 ? color : AppColors.navyPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 5,
+            backgroundColor: AppColors.surfaceVariant,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

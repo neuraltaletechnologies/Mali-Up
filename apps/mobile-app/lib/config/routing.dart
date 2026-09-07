@@ -12,6 +12,7 @@ import '../features/onboarding/presentation/screens/phone_entry_screen.dart';
 import '../features/onboarding/presentation/screens/pin_login_screen.dart';
 import '../features/onboarding/presentation/screens/team_member_setup_screen.dart';
 import '../features/onboarding/presentation/screens/new_user_info_screen.dart';
+import '../features/onboarding/presentation/screens/pin_reset_screen.dart';
 import '../features/onboarding/presentation/screens/business_details_screen.dart';
 import '../features/onboarding/presentation/screens/security_setup_screen.dart';
 import '../features/onboarding/presentation/screens/onboarding_success_screen.dart';
@@ -96,6 +97,7 @@ abstract final class AppRoutes {
   static const business = '/business'; // Screen 5 — business details
   static const security = '/security'; // Screen 6 — PIN setup (new owners)
   static const success = '/success'; // Screen 7 — success
+  static const resetPin = '/reset-pin'; // PIN recovery magic-link target
 
   // ── Main app shell ────────────────────────────────────────────────────────
   static const dashboard = '/';
@@ -202,6 +204,11 @@ class _RouterNotifier extends ChangeNotifier {
     if (path == AppRoutes.accessDenied) {
       return ob.isComplete ? null : AppRoutes.welcome;
     }
+
+    // PIN recovery deep link — always reachable, in any auth state. A
+    // signed-in user who opens a stale link just gets the "invalid link"
+    // screen; a signed-out user gets the reset form.
+    if (path == AppRoutes.resetPin) return null;
 
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
@@ -433,6 +440,15 @@ List<RouteBase> _buildRoutes() {
           LoginScreen(initialPhone: extra?['phone'] as String?),
         );
       },
+    ),
+
+    // ── PIN recovery (magic-link target, any auth state) ─────────────────────
+    GoRoute(
+      path: AppRoutes.resetPin,
+      pageBuilder: (context, state) => _authPage(
+        state,
+        PinResetScreen(token: state.uri.queryParameters['token']),
+      ),
     ),
 
     // ── Main app shell ────────────────────────────────────────────────────────

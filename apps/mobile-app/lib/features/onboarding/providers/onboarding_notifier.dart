@@ -8,6 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../data/services/onboarding_service.dart';
 import '../domain/models/onboarding_state.dart';
+import '../domain/models/pin_reset_result.dart';
 import '../domain/models/user_lookup_result.dart';
 import '../../../core/services/device_integrity_service.dart';
 import '../../../core/services/localization_service.dart';
@@ -377,17 +378,51 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Sends PIN recovery instructions. Returns the real email on file (if any).
-  Future<String?> sendPinRecovery() async {
+  /// Step 1 — asks the backend to email a recovery magic link for [state.phone].
+  Future<PinResetRequestResult> requestPinReset() async {
     state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final email = await _service.sendPinRecovery(phone: state.phone);
+    final result = await _service.requestPinReset(
+      phone: state.phone,
+      language: _sw ? 'sw' : 'en',
+    );
+    state = state.copyWith(isLoading: false);
+    return result;
+  }
+
+  /// Step 2 — validates a token opened from the magic link.
+  Future<PinResetTokenInfo> validatePinResetToken(String token) {
+    return _service.validatePinResetToken(token);
+  }
+
+  /// Step 3 — sets the new PIN. On success, seeds phone + runs the returning-user
+  /// lookup so the PIN login screen renders correctly, and sets [pinJustReset]
+  /// so it shows a confirmation toast.
+  Future<PinResetConfirmResult> confirmPinReset({
+    required String token,
+    required String phone,
+    required String newPin,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    final result = await _service.confirmPinReset(
+      token: token,
+      phone: phone,
+      newPin: newPin,
+    );
+    if (result == PinResetConfirmResult.ok) {
+      state = state.copyWith(phone: phone, isLoading: false, pinJustReset: true);
+      // Populates isReturningUser / currentStep / name / businesses so the
+      // router lets /pin-login through and the greeting card is filled in.
+      await lookupPhone();
+    } else {
       state = state.copyWith(isLoading: false);
-      return email;
-    } catch (_) {
-      state = state.copyWith(isLoading: false);
-      return null;
     }
+    return result;
+  }
+
+  /// Clears the one-shot [OnboardingState.pinJustReset] flag once the PIN login
+  /// screen has shown its confirmation.
+  void clearPinJustReset() {
+    if (state.pinJustReset) state = state.copyWith(pinJustReset: false);
   }
 
   /// Saves the team member's first-time PIN, creates their account, and

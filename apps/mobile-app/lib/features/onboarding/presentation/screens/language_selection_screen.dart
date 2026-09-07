@@ -149,21 +149,21 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                       icon: const Icon(
                         Icons.headset_mic_outlined,
                         color: AppColors.navyPrimary,
-                        size: 15,
+                        size: 13,
                       ),
                       label: Text(
                         _tr('Help', 'Msaada'),
                         style: GoogleFonts.dmSans(
                           color: AppColors.navyPrimary,
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: 0.85),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                          horizontal: 10,
+                          vertical: 6,
                         ),
                       ),
                     ),

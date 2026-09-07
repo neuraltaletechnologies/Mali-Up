@@ -3967,14 +3967,8 @@ class _ActivityTab extends ConsumerWidget {
     if (invoicesAsync.isLoading) {
       return const CustomScrollView(
         slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.navyPrimary,
-                strokeWidth: 2,
-              ),
-            ),
+          SliverToBoxAdapter(
+            child: FlatRowsSkeleton(itemCount: 6, shrinkWrap: true),
           ),
         ],
       );

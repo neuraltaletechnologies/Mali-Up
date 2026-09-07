@@ -640,6 +640,42 @@ class SkeletonBiometricContent extends StatelessWidget {
   }
 }
 
+// ── SkeletonForm — section labels + input-field placeholders ─────────────────
+// Mirrors a settings / detail form while it loads (e.g. Account Details):
+// each entry in [sections] is the number of 52-px field placeholders under a
+// short section-label shimmer.
+
+class SkeletonForm extends StatelessWidget {
+  final List<int> sections;
+  final EdgeInsetsGeometry padding;
+
+  const SkeletonForm({
+    super.key,
+    this.sections = const [2, 3],
+    this.padding = const EdgeInsets.fromLTRB(20, 8, 20, 40),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var s = 0; s < sections.length; s++) {
+      if (s > 0) children.add(const SizedBox(height: 26));
+      children.add(const SkeletonText(width: 120, height: 11));
+      children.add(const SizedBox(height: 12));
+      for (var f = 0; f < sections[s]; f++) {
+        if (f > 0) children.add(const SizedBox(height: 14));
+        children.add(
+          const SkeletonBox(
+            height: 52,
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+          ),
+        );
+      }
+    }
+    return ListView(padding: padding, children: children);
+  }
+}
+
 // ── SkeletonList — generic vertical list of cards ────────────────────────────
 // Generic vertical skeleton list for any loading list view.
 

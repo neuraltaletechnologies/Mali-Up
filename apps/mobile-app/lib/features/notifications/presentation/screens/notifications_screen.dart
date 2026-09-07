@@ -148,7 +148,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
           Expanded(
             child: itemsAsync.isLoading && allItems.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const NotificationsPageSkeleton()
                 : allItems.isEmpty
                     ? _Empty(query: _query)
                     : (unread.isEmpty && read.isEmpty && _query.isNotEmpty)

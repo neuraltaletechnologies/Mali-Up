@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/audit_log_service.dart';
 
 /// Streams the most recent audit-log entries for the active business.
@@ -70,8 +71,8 @@ class AuditLogScreen extends ConsumerWidget {
           ),
 
           if (auditLogsAsync.isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
+            const SliverToBoxAdapter(
+              child: FlatRowsSkeleton(itemCount: 8, shrinkWrap: true),
             )
           else if ((auditLogsAsync.valueOrNull ?? const []).isEmpty)
             SliverFillRemaining(
@@ -315,6 +316,8 @@ class _AuditLogItem extends StatelessWidget {
       case AuditLogService.roleChanged:
       case AuditLogService.permissionsChanged:
         return Icons.admin_panel_settings_rounded;
+      case AuditLogService.memberDetailsChanged:
+        return Icons.edit_rounded;
       case AuditLogService.customerCreated:
         return Icons.person_add_alt_1_rounded;
       case AuditLogService.customerUpdated:
@@ -371,6 +374,7 @@ class _AuditLogItem extends StatelessWidget {
       case AuditLogService.customerUpdated:
       case AuditLogService.invoiceEdited:
       case AuditLogService.quotationConverted:
+      case AuditLogService.memberDetailsChanged:
         return AppColors.tealAccent;
       default:
         return AppColors.textMuted;
@@ -391,6 +395,8 @@ class _AuditLogItem extends StatelessWidget {
         return tr('Role Changed', 'Jukumu Limebadilishwa');
       case AuditLogService.permissionsChanged:
         return tr('Permissions Changed', 'Ruhusa Zimebadilishwa');
+      case AuditLogService.memberDetailsChanged:
+        return tr('Member Details Updated', 'Maelezo ya Mwanachama Yamesasishwa');
       case AuditLogService.customerCreated:
         return tr('Customer Added', 'Mteja Aliongezwa');
       case AuditLogService.customerUpdated:

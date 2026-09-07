@@ -1002,12 +1002,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
           ),
           const Divider(height: 1, color: AppColors.border),
           paymentsAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.navyPrimary),
-              ),
-            ),
+            loading: () => const FlatRowsSkeleton(itemCount: 3, shrinkWrap: true),
             error: (_, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(

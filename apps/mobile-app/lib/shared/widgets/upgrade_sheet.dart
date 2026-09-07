@@ -40,6 +40,7 @@ enum PlanFeatureKey {
   customerLimit,
   productLimit,
   serviceProductLimit,
+  dailySalesLimit,
 }
 
 extension PlanFeatureKeyX on PlanFeatureKey {
@@ -57,6 +58,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.customerLimit => Icons.people_alt_rounded,
     PlanFeatureKey.productLimit => Icons.inventory_2_rounded,
     PlanFeatureKey.serviceProductLimit => Icons.design_services_rounded,
+    PlanFeatureKey.dailySalesLimit => Icons.point_of_sale_rounded,
   };
 
   String get labelSw => switch (this) {
@@ -73,6 +75,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.customerLimit => 'Kikomo cha Wateja',
     PlanFeatureKey.productLimit => 'Kikomo cha Bidhaa',
     PlanFeatureKey.serviceProductLimit => 'Kikomo cha Huduma',
+    PlanFeatureKey.dailySalesLimit => 'Kikomo cha Mauzo kwa Siku',
   };
 
   String get labelEn => switch (this) {
@@ -89,6 +92,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.customerLimit => 'Customer Limit',
     PlanFeatureKey.productLimit => 'Product Limit',
     PlanFeatureKey.serviceProductLimit => 'Service Limit',
+    PlanFeatureKey.dailySalesLimit => 'Daily Sales Limit',
   };
 }
 

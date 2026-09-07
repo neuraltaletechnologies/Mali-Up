@@ -28,6 +28,7 @@ admin.initializeApp();
 export {initiateClickPesaPayment, verifyClickPesaPayment, clickpesaWebhook} from "./clickpesa";
 export {sendAdminBroadcast} from "./notifications";
 export {requestOtpAllowance} from "./otp_rate_limit";
+export {requestPinReset, validatePinResetToken, confirmPinReset} from "./pin_recovery";
 
 // Must match `applicationId` in android/app/build.gradle.kts.
 const PACKAGE_NAME = "com.neuraltale.maliup";

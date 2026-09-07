@@ -3239,8 +3239,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Assigned team member (service-type items only, e.g. a haircut or a
   // vehicle) — scopes Firestore reads for team members with DataScope.own.
-  // See firestore.rules.
-  String _assignedToUserId = '';
+  // Holds the member's staff *record id* (stable, and exists from the moment
+  // they're invited), so a service can be assigned to someone who hasn't
+  // accepted their invite yet. See firestore.rules (isOwnAssignedRecord).
+  String _assignedToMemberId = '';
 
   // Billing cadence for service-type items only: 'once' | 'weekly' |
   // 'monthly'. Recurring services let the Sales screen pre-fill how many
@@ -3358,7 +3360,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryId = (item['categoryId'] ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
-      _assignedToUserId = (item['assignedToUserId'] ?? '').toString();
+      _assignedToMemberId = (item['assignedToUserId'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3920,7 +3922,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedToUserId: _type == ProductType.service ? _assignedToUserId : '',
+        assignedToUserId: _type == ProductType.service ? _assignedToMemberId : '',
         billingCycle: _type == ProductType.service ? _billingCycle : 'once',
       );
 
@@ -4370,17 +4372,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Assigns a service-type item (e.g. a haircut or a vehicle) to a team
   // member — used to scope Firestore reads for team members with
-  // DataScope.own, so they see only their own assigned item(s). See
-  // firestore.rules.
+  // DataScope.own, so they see only their own assigned item(s). Members who
+  // haven't accepted their invite yet can be assigned too. See firestore.rules.
   Future<void> _openAssigneePicker() async {
     // '' (empty string) means the user explicitly chose "Unassigned";
     // null means the sheet was dismissed without a choice.
     final result = await showAppSheet<String?>(
       context,
-      builder: (_) => _AssigneePickerSheet(selectedUid: _assignedToUserId),
+      builder: (_) => _AssigneePickerSheet(selectedMemberId: _assignedToMemberId),
     );
     if (result != null) {
-      setState(() => _assignedToUserId = result);
+      setState(() => _assignedToMemberId = result);
     }
   }
 
@@ -5113,7 +5115,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                         const SizedBox(height: 6),
                         _AssignedToField(
-                          selectedUid: _assignedToUserId,
+                          selectedMemberId: _assignedToMemberId,
                           onTap: _openAssigneePicker,
                         ),
                         const SizedBox(height: 14),
@@ -7160,19 +7162,21 @@ class _AddRowButton extends StatelessWidget {
 // Shows the currently assigned team member's name (resolved from the local
 // team list) or "Unassigned" — tapping opens _AssigneePickerSheet.
 class _AssignedToField extends ConsumerWidget {
-  final String selectedUid;
+  final String selectedMemberId;
   final VoidCallback onTap;
 
-  const _AssignedToField({required this.selectedUid, required this.onTap});
+  const _AssignedToField({required this.selectedMemberId, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.watch(teamMembersProvider);
     String label = _tr('Unassigned', 'Hajapangiwa');
-    if (selectedUid.isNotEmpty) {
+    if (selectedMemberId.isNotEmpty) {
       final members = membersAsync.valueOrNull ?? const <TeamMember>[];
+      // Match on the staff record id; also accept a legacy Auth-UID value.
       final match = members
-          .where((m) => (m.userId ?? '') == selectedUid)
+          .where((m) =>
+              m.id == selectedMemberId || (m.userId ?? '') == selectedMemberId)
           .cast<TeamMember?>()
           .firstOrNull;
       label = match?.name ?? _tr('Unknown member', 'Mwanachama hajulikani');
@@ -7191,7 +7195,7 @@ class _AssignedToField extends ConsumerWidget {
             Icon(
               Icons.person_outline_rounded,
               size: 16,
-              color: selectedUid.isNotEmpty
+              color: selectedMemberId.isNotEmpty
                   ? AppColors.tealAccent
                   : AppColors.textDisabled,
             ),
@@ -7201,10 +7205,10 @@ class _AssignedToField extends ConsumerWidget {
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
-                  fontWeight: selectedUid.isNotEmpty
+                  fontWeight: selectedMemberId.isNotEmpty
                       ? FontWeight.w600
                       : FontWeight.w400,
-                  color: selectedUid.isNotEmpty
+                  color: selectedMemberId.isNotEmpty
                       ? AppColors.navyPrimary
                       : AppColors.textDisabled,
                 ),
@@ -7223,19 +7227,24 @@ class _AssignedToField extends ConsumerWidget {
 }
 
 class _AssigneePickerSheet extends ConsumerWidget {
-  final String selectedUid;
+  final String selectedMemberId;
 
-  const _AssigneePickerSheet({required this.selectedUid});
+  const _AssigneePickerSheet({required this.selectedMemberId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.watch(teamMembersProvider);
-    // Only accepted members have a Firebase Auth UID (userId) to assign —
-    // a still-pending invite can't be matched by isOwnRecord() in
-    // firestore.rules yet.
+    // Assignment is stored as the staff record id, so a member who hasn't
+    // accepted their invite yet (status 'pending', no Auth UID) can still be
+    // assigned — firestore.rules resolves it once they join. Suspended
+    // members are left out; they shouldn't be picking up new work.
     final assignable = (membersAsync.valueOrNull ?? const <TeamMember>[])
-        .where((m) => m.status == 'active' && (m.userId ?? '').isNotEmpty)
-        .toList();
+        .where((m) => m.status == 'active' || m.status == 'pending')
+        .toList()
+      ..sort((a, b) {
+        if (a.status == b.status) return a.name.compareTo(b.name);
+        return a.status == 'active' ? -1 : 1;
+      });
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -7272,7 +7281,7 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       color: AppColors.textMuted,
                     ),
                     title: Text(_tr('Unassigned', 'Hajapangiwa')),
-                    trailing: selectedUid.isEmpty
+                    trailing: selectedMemberId.isEmpty
                         ? const Icon(
                             Icons.check_circle_rounded,
                             color: AppColors.tealAccent,
@@ -7288,8 +7297,8 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       ),
                       child: Text(
                         _tr(
-                          'No active team members yet. Invite one from Team settings first.',
-                          'Bado hakuna wanachama wa timu amilifu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
+                          'No team members yet. Invite one from Team settings first.',
+                          'Bado hakuna wanachama wa timu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
                         ),
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
@@ -7298,8 +7307,12 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       ),
                     )
                   else
-                    ...assignable.map(
-                      (m) => ListTile(
+                    ...assignable.map((m) {
+                      final isPending = m.status == 'pending';
+                      final isSelected = selectedMemberId.isNotEmpty &&
+                          (selectedMemberId == m.id ||
+                              selectedMemberId == (m.userId ?? ''));
+                      return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: AppColors.tealAccent.withValues(
                             alpha: 0.12,
@@ -7314,16 +7327,20 @@ class _AssigneePickerSheet extends ConsumerWidget {
                           ),
                         ),
                         title: Text(m.name),
-                        subtitle: Text(m.role.label),
-                        trailing: selectedUid == m.userId
+                        subtitle: Text(
+                          isPending
+                              ? '${m.role.label} · ${_tr('invited — not joined yet', 'amealikwa — hajajiunga bado')}'
+                              : m.role.label,
+                        ),
+                        trailing: isSelected
                             ? const Icon(
                                 Icons.check_circle_rounded,
                                 color: AppColors.tealAccent,
                               )
                             : null,
-                        onTap: () => Navigator.pop(context, m.userId ?? ''),
-                      ),
-                    ),
+                        onTap: () => Navigator.pop(context, m.id),
+                      );
+                    }),
                 ],
               ),
             ),

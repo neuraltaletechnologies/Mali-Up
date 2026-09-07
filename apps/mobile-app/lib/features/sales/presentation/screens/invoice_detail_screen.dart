@@ -469,6 +469,38 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
+  Future<void> _sharePdf() async {
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: scope.userUid,
+        businessId: scope.businessId,
+        createdByUid: (_inv['createdBy'] ?? '').toString(),
+      );
+      final shared = await ReceiptPdfService.share(
+        sale: _inv,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
+        subject:
+            '${_isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Invoice', 'Ankara')} $_invoiceNumber',
+      );
+      if (shared) _offerMarkSent();
+    } catch (_) {
+      _showSnack(
+        _tr(
+          'Could not create the receipt PDF. Please try again.',
+          'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+        ),
+      );
+    }
+  }
+
   Future<void> _shareSms() async {
     final plain = _buildShareText().replaceAll(RegExp(r'\*|_'), '');
     final phone = (_inv['customerPhone'] ?? '').toString().trim();
@@ -575,7 +607,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               creditNoteNumber: (_inv['creditNoteNumber'] ?? '').toString(),
             ),
             const SizedBox(height: 16),
-            _ShareRow(onSms: _shareSms, onPdf: _openPdf),
+            _ShareRow(
+              onSms: _shareSms,
+              onShare: _sharePdf,
+              onOpen: _openPdf,
+            ),
             const SizedBox(height: 16),
             _LineItemsCard(items: _lineItems),
             const SizedBox(height: 16),
@@ -982,9 +1018,14 @@ class _SummaryMeta extends StatelessWidget {
 
 class _ShareRow extends StatelessWidget {
   final VoidCallback onSms;
-  final VoidCallback onPdf;
+  final VoidCallback onShare;
+  final VoidCallback onOpen;
 
-  const _ShareRow({required this.onSms, required this.onPdf});
+  const _ShareRow({
+    required this.onSms,
+    required this.onShare,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -992,7 +1033,16 @@ class _ShareRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ShareBtn(
-            label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
+            label: _tr('Share PDF', 'Shiriki PDF'),
+            icon: Icons.ios_share_rounded,
+            color: AppColors.tealAccent,
+            onTap: onShare,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ShareBtn(
+            label: _tr('SMS', 'SMS'),
             icon: Icons.sms_outlined,
             color: AppColors.warning,
             onTap: onSms,
@@ -1003,8 +1053,8 @@ class _ShareRow extends StatelessWidget {
           child: _ShareBtn(
             label: _tr('Open PDF', 'Fungua PDF'),
             icon: Icons.picture_as_pdf_outlined,
-            color: AppColors.tealAccent,
-            onTap: onPdf,
+            color: AppColors.textMuted,
+            onTap: onOpen,
           ),
         ),
       ],
@@ -1042,6 +1092,9 @@ class _ShareBtn extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

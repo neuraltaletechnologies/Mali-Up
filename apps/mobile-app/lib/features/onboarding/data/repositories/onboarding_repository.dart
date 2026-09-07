@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/onboarding_state.dart';
+import '../../domain/models/pin_reset_result.dart';
 import '../../domain/models/user_lookup_result.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
 import '../../../team/domain/models/team_member.dart';
@@ -23,12 +25,18 @@ final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) {
 /// - No business logic lives here — only data reads/writes.
 /// - The notifier never imports this class directly; it goes through [OnboardingService].
 class OnboardingRepository {
-  OnboardingRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _auth = auth ?? FirebaseAuth.instance;
+  OnboardingRepository({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+    FirebaseFunctions? functions,
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final FirebaseFunctions _functions;
 
   // ─── LOOKUP ───────────────────────────────────────────────────────────────
 
@@ -408,39 +416,104 @@ class OnboardingRepository {
   }
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
+  //
+  // Firebase's own password reset can't be used here: every account's Auth
+  // email is the derived `<phone>@mali.up` (a domain that can't receive mail)
+  // and the password is a deterministic HMAC of phone + PIN
+  // (buildAuthPasswordFromPin). Recovery therefore runs through three custom
+  // Cloud Functions (functions/src/pin_recovery.ts) that email a magic link to
+  // the user's real address and, on confirmation, set the Auth password to
+  // exactly `buildAuthPasswordFromPin(phone, newPin)`.
 
-  /// Sends a Firebase password reset email to the user's real Auth email when
-  /// the account was migrated away from its derived phone email.
-  ///
-  /// Returns the display email (shown to the user in the UI) on success,
-  /// or null if recovery cannot proceed.
-  Future<String?> sendPinRecovery({required String phone}) async {
+  /// Step 1 — asks the backend to email a recovery link. Never throws.
+  Future<PinResetRequestResult> requestPinReset({
+    required String phone,
+    required String language,
+  }) async {
     try {
-      final derivedEmail = _emailFromPhone(phone);
-      final emails = await _fetchUserAuthEmails(phone);
-      final candidates = <String>{
-        ...emails.where((email) => !email.endsWith('@mali.up')),
-        derivedEmail,
-        ...emails,
-      };
-
-      FirebaseAuthException? lastError;
-      for (final email in candidates) {
-        try {
-          await _auth.sendPasswordResetEmail(email: email);
-          return email;
-        } on FirebaseAuthException catch (e) {
-          lastError = e;
-          if (e.code != 'user-not-found' && e.code != 'invalid-credential') {
-            rethrow;
-          }
-        }
+      final callable = _functions.httpsCallable('requestPinReset');
+      final res = await callable.call<Map<String, dynamic>>({
+        'phone': PhoneNumberUtils.canonical(phone),
+        'language': language,
+      });
+      final data = Map<String, dynamic>.from(res.data as Map);
+      if (data['status'] == 'sent') {
+        return PinResetRequestResult(
+          PinResetRequestStatus.sent,
+          maskedEmail: data['maskedEmail'] as String?,
+        );
       }
-      if (lastError != null) throw lastError;
-      return null;
+      return const PinResetRequestResult(PinResetRequestStatus.noEmail);
+    } on FirebaseFunctionsException catch (e) {
+      if (kDebugMode) debugPrint('[requestPinReset] ${e.code} ${e.message}');
+      return PinResetRequestResult(
+        e.code == 'resource-exhausted'
+            ? PinResetRequestStatus.rateLimited
+            : PinResetRequestStatus.failed,
+      );
     } catch (e) {
-      if (kDebugMode) debugPrint('[sendPinRecovery] $e');
-      return null;
+      if (kDebugMode) debugPrint('[requestPinReset] $e');
+      return const PinResetRequestResult(PinResetRequestStatus.failed);
+    }
+  }
+
+  /// Step 2 — checks a token from the magic link. Returns the canonical phone
+  /// so the caller can derive the new password locally. Never throws.
+  Future<PinResetTokenInfo> validatePinResetToken(String token) async {
+    try {
+      final callable = _functions.httpsCallable('validatePinResetToken');
+      final res = await callable.call<Map<String, dynamic>>({'token': token});
+      final data = Map<String, dynamic>.from(res.data as Map);
+      if (data['valid'] == true) {
+        return PinResetTokenInfo.valid(
+          phone: (data['phone'] as String?) ?? '',
+          maskedEmail: (data['maskedEmail'] as String?) ?? '',
+        );
+      }
+      return PinResetTokenInfo.invalid(
+        switch (data['reason']) {
+          'used' => PinResetTokenProblem.used,
+          'expired' => PinResetTokenProblem.expired,
+          _ => PinResetTokenProblem.invalid,
+        },
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (kDebugMode) {
+        debugPrint('[validatePinResetToken] ${e.code} ${e.message}');
+      }
+      return const PinResetTokenInfo.invalid(PinResetTokenProblem.error);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[validatePinResetToken] $e');
+      return const PinResetTokenInfo.invalid(PinResetTokenProblem.error);
+    }
+  }
+
+  /// Step 3 — burns the token and sets the new PIN-derived Auth password.
+  /// [phone] must be the canonical value returned by [validatePinResetToken].
+  /// Never throws.
+  Future<PinResetConfirmResult> confirmPinReset({
+    required String token,
+    required String phone,
+    required String newPin,
+  }) async {
+    try {
+      final newPassword = buildAuthPasswordFromPin(phone: phone, pin: newPin);
+      final callable = _functions.httpsCallable('confirmPinReset');
+      await callable.call<Map<String, dynamic>>({
+        'token': token,
+        'newPassword': newPassword,
+      });
+      return PinResetConfirmResult.ok;
+    } on FirebaseFunctionsException catch (e) {
+      if (kDebugMode) debugPrint('[confirmPinReset] ${e.code} ${e.message}');
+      return switch (e.code) {
+        'failed-precondition' => PinResetConfirmResult.linkNoLongerValid,
+        'resource-exhausted' => PinResetConfirmResult.tooManyAttempts,
+        _ => PinResetConfirmResult.failed,
+      };
+    } catch (e) {
+      if (kDebugMode) debugPrint('[confirmPinReset] $e');
+      return PinResetConfirmResult.failed;
     }
   }
 

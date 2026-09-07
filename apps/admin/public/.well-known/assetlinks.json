@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.neuraltale.maliup",
+      "sha256_cert_fingerprints": "44:A3:DB:2E:91:25:6E:CF:CE:F7:57:35:FD:15:07:A5:FA:14:45:68:F5:77:CB:80:41:6C:C5:DE:06:8A:CE:51"
+    }
+  }
+]

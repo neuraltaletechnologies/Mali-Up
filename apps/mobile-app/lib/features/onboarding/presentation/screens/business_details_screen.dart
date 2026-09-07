@@ -480,11 +480,11 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: AppColors.navyPrimary,
-                      size: 18,
+                      size: 16,
                     ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.85),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                     ),
                   ),
                   TextButton.icon(
@@ -492,21 +492,21 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                     icon: const Icon(
                       Icons.headset_mic_outlined,
                       color: AppColors.navyPrimary,
-                      size: 15,
+                      size: 13,
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
                       style: GoogleFonts.dmSans(
                         color: AppColors.navyPrimary,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.85),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: 10,
+                        vertical: 6,
                       ),
                     ),
                   ),

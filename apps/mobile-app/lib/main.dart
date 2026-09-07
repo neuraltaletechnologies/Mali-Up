@@ -283,6 +283,11 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
     if (state == AppLifecycleState.paused) {
       SecurityService.lockApp();
     } else if (state == AppLifecycleState.resumed) {
+      // Re-check the version gate on every foreground, not just cold start —
+      // an admin can mandate an update while a user keeps the app
+      // backgrounded for days, and this swaps in UpdateRequiredScreen
+      // (see build()) without waiting for them to fully relaunch.
+      unawaited(VersionGateService.initialize());
       // SyncService otherwise only runs on cold start or a connectivity
       // blip — without this, changes made on another device (e.g. a
       // customer or product added elsewhere) don't appear here until one

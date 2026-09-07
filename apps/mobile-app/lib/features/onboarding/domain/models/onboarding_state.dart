@@ -77,6 +77,10 @@ class OnboardingState {
     this.isLoading = false,
     this.errorMessage,
 
+    // Transient — set right after a successful PIN recovery so PinLoginScreen
+    // can show a one-off "your PIN was reset, sign in" confirmation.
+    this.pinJustReset = false,
+
     // Flow completion
     this.isComplete = false,
   });
@@ -141,6 +145,10 @@ class OnboardingState {
   final bool isLoading;
   final String? errorMessage;
 
+  /// One-shot flag set by [OnboardingNotifier.confirmPinReset]; cleared by
+  /// [PinLoginScreen] after it shows the confirmation toast.
+  final bool pinJustReset;
+
   // ── Flow state ────────────────────────────────────────────────────────────
   final bool isComplete;
 
@@ -193,6 +201,7 @@ class OnboardingState {
     // Use clearError: true to set errorMessage to null.
     String? errorMessage,
     bool clearError = false,
+    bool? pinJustReset,
     bool? isComplete,
   }) {
     return OnboardingState(
@@ -226,6 +235,7 @@ class OnboardingState {
       confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      pinJustReset: pinJustReset ?? this.pinJustReset,
       isComplete: isComplete ?? this.isComplete,
     );
   }
@@ -264,6 +274,7 @@ class OnboardingState {
         other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
         other.errorMessage == errorMessage &&
+        other.pinJustReset == pinJustReset &&
         other.isComplete == isComplete;
   }
 
@@ -277,6 +288,6 @@ class OnboardingState {
         Object.hashAll(ownedBusinesses),
         businessCountry, businessRegion, businessDistrict, email,
         websiteUrl, hasWebsite, websiteInterest,
-        pin, confirmPin, isLoading, errorMessage, isComplete,
+        pin, confirmPin, isLoading, errorMessage, pinJustReset, isComplete,
       ]);
 }

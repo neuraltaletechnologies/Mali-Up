@@ -10,6 +10,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
@@ -274,6 +275,23 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         triggerReason: _tr(
           'You\'ve reached the ${plan.limits.monthlyInvoices}-invoice monthly limit.',
           'Umefika kikomo cha ankara ${plan.limits.monthlyInvoices} kwa mwezi.',
+        ),
+      );
+      return;
+    }
+    // Free-plan daily sales cap — separate from the monthly one above, and
+    // counted from the offline-first Drift list so it stays correct with no
+    // connection.
+    final salesToday = ref.read(planUsageProvider).salesToday;
+    if (!plan.allowsSaleToday(salesToday)) {
+      if (!ctx.mounted) return;
+      await showUpgradeSheet(
+        ctx,
+        currentStatus: plan,
+        featureKey: PlanFeatureKey.dailySalesLimit,
+        triggerReason: _tr(
+          'You\'ve reached the ${plan.limits.maxSalesPerDay}-sale daily limit on the free plan. It resets tomorrow — upgrade for unlimited sales.',
+          'Umefika kikomo cha mauzo ${plan.limits.maxSalesPerDay} kwa siku kwenye mpango wa bure. Kinaanza upya kesho — boresha kupata mauzo yasiyo na kikomo.',
         ),
       );
       return;
@@ -636,6 +654,34 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       }
     }
 
+    Future<void> sharePdf(BuildContext sheetContext) async {
+      // Close the action sheet first so the OS share sheet isn't stacked on it.
+      Navigator.of(sheetContext).pop();
+      try {
+        await ReceiptPdfService.share(
+          sale: sale,
+          businessName: businessName,
+          printedBy: printedBy,
+          isSwahili: LocalizationService.isSwahili,
+          businessPhone: meta['businessPhone'] ?? '',
+          businessEmail: meta['businessEmail'] ?? '',
+          businessAddress: meta['businessAddress'] ?? '',
+          businessLogoUrl: meta['businessLogoUrl'] ?? '',
+          subject: _tr('Receipt', 'Risiti') +
+              ' ${sale['invoiceNumber'] ?? sale['id'] ?? ''}'.trimRight(),
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not create the receipt PDF. Please try again.',
+            'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+          ),
+        );
+      }
+    }
+
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
@@ -671,6 +717,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               const Divider(height: 20, color: AppColors.border),
               _ReceiptAction(
+                icon: Icons.ios_share_rounded,
+                iconColor: AppColors.tealAccent,
+                label: _tr('Share PDF (WhatsApp, Email…)', 'Shiriki PDF (WhatsApp, Barua pepe…)'),
+                onTap: () => sharePdf(ctx),
+              ),
+              _ReceiptAction(
                 icon: Icons.sms_outlined,
                 iconColor: AppColors.warning,
                 label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
@@ -684,8 +736,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               _ReceiptAction(
                 icon: Icons.picture_as_pdf_outlined,
-                iconColor: AppColors.tealAccent,
-                label: _tr('Open PDF', 'Fungua PDF'),
+                iconColor: AppColors.textMuted,
+                label: _tr('Open / print PDF', 'Fungua / chapisha PDF'),
                 onTap: openPdf,
               ),
             ],

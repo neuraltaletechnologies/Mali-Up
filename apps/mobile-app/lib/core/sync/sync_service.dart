@@ -60,6 +60,14 @@ class SyncService extends ChangeNotifier {
   /// everything the account has permission to see, as before.
   final String? scopeReadsToUid;
 
+  /// Non-null for the same `DataScope.own` members as [scopeReadsToUid], but
+  /// carries their staff *record id* rather than their Auth UID. Inventory
+  /// items are assigned by staff record id (so a member can be assigned a
+  /// service before they accept their invite — see firestore.rules
+  /// `isOwnAssignedRecord`), so the inventory pull filters on this. Older
+  /// assignments used the Auth UID, so [_pullInventory] pulls both shapes.
+  final String? scopeInventoryToMemberId;
+
   late final SyncQueueDao _queue;
   late final SettingsDao _settings;
   late final ConflictResolver _conflicts;
@@ -114,6 +122,7 @@ class SyncService extends ChangeNotifier {
     required this.businessId,
     this.offlinePolicy,
     this.scopeReadsToUid,
+    this.scopeInventoryToMemberId,
   }) {
     _queue = db.syncQueueDao;
     _settings = db.settingsDao;
@@ -732,10 +741,33 @@ class SyncService extends ChangeNotifier {
     // pending delta (same guard as customers/cash accounts).
     if (await _queue.hasPendingForType('inventory_item')) return null;
 
-    final updates = await _remoteInventory.fetchUpdatedSince(
-      sinceMs,
-      scopeToUid: scopeReadsToUid,
-    );
+    final memberId = scopeInventoryToMemberId;
+    final List<({String id, Map<String, dynamic> data})> updates;
+    if (memberId != null && memberId.isNotEmpty) {
+      // A DataScope.own member's own items are those assigned to them. New
+      // assignments carry their staff record id; assignments made while they
+      // were already active may carry their Auth UID — pull both and de-dupe.
+      final byMember = await _remoteInventory.fetchUpdatedSince(
+        sinceMs,
+        scopeToUid: memberId,
+      );
+      final byUid = (scopeReadsToUid != null && scopeReadsToUid != memberId)
+          ? await _remoteInventory.fetchUpdatedSince(
+              sinceMs,
+              scopeToUid: scopeReadsToUid,
+            )
+          : const <({String id, Map<String, dynamic> data})>[];
+      final seen = <String>{};
+      updates = [
+        for (final u in [...byMember, ...byUid])
+          if (seen.add(u.id)) u,
+      ];
+    } else {
+      updates = await _remoteInventory.fetchUpdatedSince(
+        sinceMs,
+        scopeToUid: scopeReadsToUid,
+      );
+    }
     _pulledThisCycle += updates.length;
     var maxTs = 0;
     for (final update in updates) {
