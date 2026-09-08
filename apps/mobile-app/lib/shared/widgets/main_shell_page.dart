@@ -1555,33 +1555,38 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     );
 
     // Live plan status — drives the sidebar plan tag and the congrats popup
-    // below when an admin activates an upgrade from the portal (an Enterprise
+    // below when an admin activates a plan from the portal (an Enterprise
     // deal, a manual reconciliation…). An in-app ClickPesa purchase claims
-    // its upgrade up front (PlanActivationWatcher.expectPurchase) and shows
-    // its own celebration in showUpgradeSheet, so this listener records that
-    // activation silently rather than popping a second dialog.
+    // its activation up front (PlanActivationWatcher.expectPurchase) and
+    // shows its own celebration in showUpgradeSheet, so this listener
+    // records that activation silently rather than popping a second dialog.
     final planStatus = ref.watch(
       planStatusProvider.select((a) => a.valueOrNull),
     );
     ref.listen<AsyncValue<PlanStatus>>(planStatusProvider, (prev, next) {
+      // Only settled data. planStatusProvider is autoDispose and is rebuilt
+      // whenever the active business changes (sign-in, sign-out, a switch);
+      // while the new one loads, Riverpod reports AsyncLoading that *retains
+      // the previous business's value*. Acting on that paired the old
+      // business's plan with the new business's id, which is what fired this
+      // popup on every account switch and re-login.
+      if (next.isLoading || next.hasError) return;
       final status = next.valueOrNull;
       if (status == null) return;
-      // The baseline is per-business (planStatusProvider is per-business) and
-      // only ever moves *up*, so neither a business switch nor the transient
-      // Starter placeholder planStatusProvider emits on a cold start before
-      // the real tier loads can manufacture a fake "upgrade" — see
-      // PlanActivationWatcher.checkForUpgrade.
       final businessId =
           ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
-      if (businessId.isEmpty) return;
-      _planActivationWatcher.checkForUpgrade(businessId, status.tier).then((
-        isUpgrade,
-      ) {
-        if (!context.mounted || !isUpgrade) return;
-        // A business switch that legitimately reveals a higher tier still
-        // shouldn't drop the popup on top of the "switching…" spinner (doing
-        // so used to strand that dialog). The baseline is already raised, so
-        // this just skips that one crowded moment.
+      if (businessId.isEmpty || status.businessId != businessId) return;
+      // Keyed on the server's activation stamp, so this is true only for an
+      // activation that actually happened since this device last looked —
+      // never for the Starter placeholder, a cache re-emit, or a business
+      // whose plan was already paid up. See PlanActivationWatcher.
+      _planActivationWatcher
+          .checkForActivation(businessId, status.tier, status.activatedAt)
+          .then((shouldCelebrate) {
+        if (!context.mounted || !shouldCelebrate) return;
+        // Don't drop the popup on top of the "switching…" spinner (doing so
+        // used to strand that dialog). The activation is already recorded,
+        // so this just skips that one crowded moment.
         if (_switchingDialogOpen) return;
         PlanActivatedDialog.show(
           context,

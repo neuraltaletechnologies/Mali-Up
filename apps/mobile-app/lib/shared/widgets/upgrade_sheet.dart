@@ -138,10 +138,13 @@ Future<PlanTier?> showUpgradeSheet(
   );
   if (paid == null) return null;
   // The plan is active server-side and the sheet already claimed this
-  // upgrade (expectPurchase) so the passive watcher in MainShellPage won't
-  // also pop a congrats dialog. markSeen settles the recorded baseline and
-  // releases the claim; then this flow shows the one celebration.
-  await PlanActivationWatcher.instance.markSeen(paid.businessId, paid.tier);
+  // activation (expectPurchase) so the passive watcher in MainShellPage
+  // won't also pop a congrats dialog. Persist that claim before celebrating:
+  // the `businesses/{id}` snapshot carrying the new planStartedAt may not
+  // arrive before the app is closed, and the claim has to still be standing
+  // when it does — otherwise the watcher would treat it as an unseen
+  // activation on the next launch and repeat this dialog.
+  await PlanActivationWatcher.instance.claimPurchase(paid.businessId);
   if (context.mounted) {
     await PlanActivatedDialog.show(context, tier: paid.tier, defs: paid.defs);
   }
@@ -1445,10 +1448,11 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
   void dispose() {
     _disposed = true;
     // Left without a confirmed success — release the claim on this
-    // business's next upgrade so a later genuine activation still gets its
-    // celebration. A real success clears the claim via markSeen instead.
+    // business's next activation so a later genuine one still gets its
+    // celebration. A real success hands the claim over to showUpgradeSheet
+    // (claimPurchase) instead.
     if (!_succeeded) {
-      PlanActivationWatcher.instance.forgetPurchase(_businessId);
+      unawaited(PlanActivationWatcher.instance.forgetPurchase(_businessId));
     }
     _paymentAnim.dispose();
     super.dispose();
@@ -1528,7 +1532,7 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
       // Release the claim: either it really failed, or the client wait timed
       // out on a payment that did go through — in which case the passive
       // watcher should celebrate the activation when the doc change lands.
-      PlanActivationWatcher.instance.forgetPurchase(_businessId);
+      await PlanActivationWatcher.instance.forgetPurchase(_businessId);
       if (_disposed) return;
       debugPrint('[ClickPesaPaymentSheet] payment error: $e');
       // Freezes wherever the wait loop currently is — the green checkmark
