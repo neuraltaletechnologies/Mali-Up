@@ -22,6 +22,8 @@ import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../../team/data/creator_providers.dart';
+import '../../../team/presentation/widgets/issued_by.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
@@ -583,6 +585,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final issuedBy = issuedByLabel(ref, (_inv['createdBy'] ?? '').toString());
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: _buildAppBar(),
@@ -625,6 +628,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             if (_inv['paymentMethod'] != null) ...[
               const SizedBox(height: 16),
               _PaymentInfoCard(invoice: _inv),
+            ],
+            if (issuedBy != null) ...[
+              const SizedBox(height: 16),
+              IssuedByCard(value: issuedBy),
             ],
             if ((_inv['notes'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 16),

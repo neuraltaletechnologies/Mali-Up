@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../team/data/creator_providers.dart';
 import '../../domain/models/expense.dart';
 import 'add_expense_screen.dart';
 
@@ -160,6 +161,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     final title = _expense.note.trim().isNotEmpty
         ? _expense.note.trim()
         : cat.label;
+    final issuedBy = issuedByLabel(ref, _expense.createdBy);
     final size = MediaQuery.sizeOf(context);
 
     return ConstrainedBox(
@@ -288,7 +290,11 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
                         _tr('Expense details', 'Maelezo ya gharama'),
                       ),
                       const SizedBox(height: 8),
-                      _DetailsCard(expense: _expense, cat: cat),
+                      _DetailsCard(
+                        expense: _expense,
+                        cat: cat,
+                        issuedBy: issuedBy,
+                      ),
                       if (hasReceipt) ...[
                         const SizedBox(height: 16),
                         _SheetSectionLabel(_tr('Receipt', 'Risiti')),
@@ -548,7 +554,14 @@ class _DetailsCard extends StatelessWidget {
   final Expense expense;
   final _Cat cat;
 
-  const _DetailsCard({required this.expense, required this.cat});
+  /// Resolved "Issued by" label — null hides the row (solo business).
+  final String? issuedBy;
+
+  const _DetailsCard({
+    required this.expense,
+    required this.cat,
+    this.issuedBy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -598,6 +611,14 @@ class _DetailsCard extends StatelessWidget {
                   ? _tr('Every week', 'Kila wiki')
                   : _tr('Every month', 'Kila mwezi'),
               valueColor: AppColors.tealAccent,
+            ),
+          ],
+          if (issuedBy != null) ...[
+            const Divider(height: 1, color: AppColors.border),
+            _DetailRow(
+              icon: Icons.badge_outlined,
+              label: _tr('Issued by', 'Imetolewa na'),
+              value: issuedBy!,
             ),
           ],
         ],

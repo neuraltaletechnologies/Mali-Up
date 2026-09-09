@@ -2364,7 +2364,7 @@ class _ConnectionBadgeState extends State<_ConnectionBadge>
     final offline = !widget.isOnline;
     final label = offline
         ? 'Offline'
-        : (LocalizationService.isSwahili ? 'Inasawazisha…' : 'Syncing…');
+        : (LocalizationService.isSwahili ? 'Syncing' : 'Syncing');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
