@@ -423,7 +423,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           // black screen / crash. Just open the return sheet.
           showAppSheet<void>(
             ctx,
-            maxHeightFactor: 0.92,
             builder: (_) => SalesReturnScreen(originalInvoice: invoice),
           );
         },

@@ -28,7 +28,7 @@ flutter test test/core/database/invoice_dao_test.dart   # single test file
 dart run build_runner build --delete-conflicting-outputs # regen Drift/Freezed *.g.dart
 ```
 
-Sentry is enabled only when `SENTRY_DSN` is provided: copy `sentry.example.json` → `sentry.local.json`, then `flutter run --dart-define-from-file=sentry.local.json` (or `run_with_sentry.bat`).
+The app ships no third-party crash reporter (`sentry_flutter` was removed for app size). Caught non-fatal errors flow through `lib/core/services/error_reporter.dart` (`ErrorReporter`), which only logs in debug — that's the single hook to wire `firebase_crashlytics` into if it's wanted back.
 
 ### Web app (run from `apps/web-app/`)
 
@@ -107,4 +107,4 @@ Firebase-only: phone lookup reads Firestore directly; users sign in with a PIN-d
 
 - Lints: `flutter_lints` plus `prefer_single_quotes`, `prefer_final_locals`, `prefer_const_constructors` (see `analysis_options.yaml`). Generated `*.g.dart` / `*.freezed.dart` are excluded from analysis.
 - UI follows the "Premium Fintech White" system — colors in `lib/core/theme/app_colors.dart` (`navyPrimary #0D1B3E`, `tealAccent #1A6E8A`, `yellowBrand #FFC107`).
-- Product metrics go through `lib/core/services/sentry_metrics_service.dart` (`count`/`gauge`/`distribution`).
+- Product metrics go through `lib/core/services/sentry_metrics_service.dart` (`SentryMetricsService` — name kept, no longer Sentry-backed; every method is a debug-only no-op until a sink like `firebase_analytics` is wired into `_record`).

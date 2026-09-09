@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/services/error_reporter.dart';
 import '../../customer/data/customer_providers.dart';
 import '../../invoice/data/mappers/invoice_mapper.dart';
 import '../../invoice/domain/models/invoice.dart';
@@ -50,7 +50,7 @@ Future<void> mirrorInvoiceToDrift(WidgetRef ref, Invoice invoice) async {
       InvoiceMapper.toItemCompanions(invoice.items, invoice.id),
     );
   } catch (e, st) {
-    unawaited(Sentry.captureException(e, stackTrace: st));
+    ErrorReporter.captureException(e, stackTrace: st);
   }
 }
 
@@ -101,6 +101,6 @@ Future<void> mirrorInvoiceFieldsToDrift(
       ),
     );
   } catch (e, st) {
-    unawaited(Sentry.captureException(e, stackTrace: st));
+    ErrorReporter.captureException(e, stackTrace: st);
   }
 }

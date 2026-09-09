@@ -9,8 +9,29 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_motion.dart';
 import '../../core/services/sentry_metrics_service.dart';
 import '../../core/services/localization_service.dart';
+import 'app_notification.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+/// The ML Kit barcode model ships unbundled (downloaded by Google Play Services
+/// on demand — see `dev.steenbakker.mobile_scanner.useUnbundled` in
+/// android/gradle.properties). Until it has downloaded, or on a device with no
+/// Play Services, live detection throws. Both scanner screens route
+/// [MobileScanner.onDetectError] here: show the standard navy toast once (it
+/// lives in the root overlay, so it survives the screen being popped). The
+/// caller then pops and its manual code-entry path takes over.
+void _notifyScannerUnavailable(BuildContext context) {
+  AppNotification.info(
+    context,
+    _t(
+      'Barcode scanning needs internet the first time. Connect once, or type '
+          'the code in.',
+      'Skani ya barcode inahitaji intaneti mara ya kwanza. Unganisha mara moja, '
+          'au andika nambari.',
+    ),
+    duration: const Duration(seconds: 5),
+  );
+}
 
 /// Single-scan mode: returns the raw barcode string via Navigator.pop, or null.
 class BarcodeScannerScreen extends StatefulWidget {
@@ -36,7 +57,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
   bool _scanned = false;
+  bool _scannerErrorHandled = false;
   late final AnimationController _flashAnim;
+
+  void _onScannerError(Object error, StackTrace stackTrace) {
+    if (_scannerErrorHandled || _scanned || !mounted) return;
+    _scannerErrorHandled = true;
+    _notifyScannerUnavailable(context);
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
 
   @override
   void initState() {
@@ -88,7 +117,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       ),
       body: Stack(
         children: [
-          MobileScanner(controller: _ctrl, onDetect: _onDetect),
+          MobileScanner(
+            controller: _ctrl,
+            onDetect: _onDetect,
+            onDetectError: _onScannerError,
+          ),
           const _ScanOverlay(),
           Positioned(
             bottom: 40,
@@ -183,7 +216,17 @@ class _PosScannerScreenState extends State<PosScannerScreen>
   final List<PosCartEntry> _cart = [];
   final Map<String, DateTime> _lastScanTime = {};
   bool _processing = false;
+  bool _scannerErrorHandled = false;
   Timer? _labelClearTimer;
+
+  void _onScannerError(Object error, StackTrace stackTrace) {
+    if (_scannerErrorHandled || !mounted) return;
+    _scannerErrorHandled = true;
+    _notifyScannerUnavailable(context);
+    // Hand back whatever was scanned before the model gave out; the caller
+    // then falls through to manual entry.
+    Navigator.of(context).pop(_cart);
+  }
 
   late final AnimationController _successAnim;
   late final Animation<double> _successScale;
@@ -282,7 +325,11 @@ class _PosScannerScreenState extends State<PosScannerScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          MobileScanner(controller: _ctrl, onDetect: _onDetect),
+          MobileScanner(
+            controller: _ctrl,
+            onDetect: _onDetect,
+            onDetectError: _onScannerError,
+          ),
           const _ScanOverlay(),
 
           // ── Top bar ──────────────────────────────────────────────────────

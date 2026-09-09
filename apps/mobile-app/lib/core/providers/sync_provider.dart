@@ -38,6 +38,16 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final scopeInventoryToMemberId =
       isOwnScoped && (member?.id.isNotEmpty ?? false) ? member!.id : null;
 
+  // A restricted member (e.g. a cashier without viewCashFlow / manageExpenses)
+  // can't read every collection the pull phase fans out to — Firestore rejects
+  // the read and one rejection fails the whole cycle. Limit the pull to what
+  // their permissions actually cover. `member == null` is an owner (full
+  // access) or the brief window before the staff record loads — the provider
+  // rebuilds once it does, and SyncService's per-pull guard covers the gap.
+  final pullScope = member == null
+      ? const SyncPullScope.full()
+      : _pullScopeForMember(member);
+
   final service = SyncService(
     db: db,
     uid: uid,
@@ -45,6 +55,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     offlinePolicy: offlinePolicy,
     scopeReadsToUid: scopeReadsToUid,
     scopeInventoryToMemberId: scopeInventoryToMemberId,
+    pullScope: pullScope,
   );
 
   // Keep alive until the provider is disposed (widget tree torn down or
@@ -59,6 +70,34 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 
   return service;
 });
+
+/// Maps a team member's effective permissions onto the collections the sync
+/// pull may touch. Each flag mirrors what firestore.rules actually grants a
+/// read for (see the `businesses/{bizId}/…` rules); a `false` flag skips that
+/// pull entirely rather than letting Firestore reject it and fail the cycle.
+SyncPullScope _pullScopeForMember(TeamMember member) {
+  final perms = member.effectivePermissions;
+  bool has(AppPermission p) => perms.contains(p);
+  return SyncPullScope(
+    sales: has(AppPermission.viewSales) || has(AppPermission.createSale),
+    customers: has(AppPermission.viewCustomers) ||
+        has(AppPermission.manageCustomers) ||
+        has(AppPermission.createSale),
+    expenses: has(AppPermission.viewFinancialReports) ||
+        has(AppPermission.manageExpenses),
+    inventory:
+        has(AppPermission.viewInventory) || has(AppPermission.createSale),
+    debts: has(AppPermission.viewDebt) ||
+        has(AppPermission.manageDebt) ||
+        has(AppPermission.createSale),
+    // The staff list is owner-only in firestore.rules.
+    team: false,
+    cashAccounts: has(AppPermission.viewCashFlow) ||
+        has(AppPermission.createSale) ||
+        has(AppPermission.issueRefund),
+    cashFlow: has(AppPermission.viewCashFlow),
+  );
+}
 
 /// [OfflinePolicyNotifier] — initialized once per session.
 final offlinePolicyProvider = ChangeNotifierProvider<OfflinePolicyNotifier>((ref) {

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../services/error_reporter.dart';
 import '../services/sentry_metrics_service.dart';
 
 import '../../features/customer/data/repositories/local_customer_repository.dart';
@@ -37,6 +38,47 @@ import 'sync_utils.dart';
 
 enum SyncState { idle, syncing, offline, error }
 
+/// Which Firestore collections the current session's role is allowed to pull.
+///
+/// Firestore security rules reject a read the caller isn't granted, and the
+/// pull phase fans out with `Future.wait` — so one rejected pull would fail
+/// the whole sync cycle (`SyncState.error`, "sync problem" alert) even though
+/// the member's own writes pushed fine. A restricted team member (e.g. a
+/// cashier with `createSale` but no `viewCashFlow` / `manageExpenses`, or a
+/// `DataScope.own` member) only gets the pulls their permissions cover;
+/// [SyncPullScope.full] (owners, or a member whose record is still loading) is
+/// the previous behaviour. The per-pull `permission-denied` guard in
+/// [SyncService._pullRemoteChanges] is the belt-and-braces backstop.
+class SyncPullScope {
+  const SyncPullScope({
+    this.sales = true,
+    this.customers = true,
+    this.expenses = true,
+    this.inventory = true,
+    this.debts = true,
+    this.team = true,
+    this.cashAccounts = true,
+    this.cashFlow = true,
+  });
+
+  const SyncPullScope.full() : this();
+
+  final bool sales;
+  final bool customers;
+  final bool expenses;
+  final bool inventory;
+  final bool debts;
+
+  /// Staff list — owner-only in firestore.rules, so never pulled for a member.
+  final bool team;
+
+  /// cash_accounts (needed to pick a payment till on a sale).
+  final bool cashAccounts;
+
+  /// cash_transactions + daily_reconciliations (the ledger — `viewCashFlow`).
+  final bool cashFlow;
+}
+
 /// The sync engine. Drains the [SyncQueueTable] by pushing each pending
 /// operation to Firestore. One instance lives for the lifetime of the session.
 ///
@@ -67,6 +109,11 @@ class SyncService extends ChangeNotifier {
   /// `isOwnAssignedRecord`), so the inventory pull filters on this. Older
   /// assignments used the Auth UID, so [_pullInventory] pulls both shapes.
   final String? scopeInventoryToMemberId;
+
+  /// Which collections this session's role may pull — see [SyncPullScope].
+  /// Defaults to full access (owners, and the brief window before a team
+  /// member's record loads).
+  final SyncPullScope pullScope;
 
   late final SyncQueueDao _queue;
   late final SettingsDao _settings;
@@ -123,6 +170,7 @@ class SyncService extends ChangeNotifier {
     this.offlinePolicy,
     this.scopeReadsToUid,
     this.scopeInventoryToMemberId,
+    this.pullScope = const SyncPullScope.full(),
   }) {
     _queue = db.syncQueueDao;
     _settings = db.settingsDao;
@@ -247,7 +295,7 @@ class SyncService extends ChangeNotifier {
     } catch (e, st) {
       _lastError = e.toString();
       _setState(SyncState.error);
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.syncCycleCompleted(success: false, queueSize: 0);
     } finally {
       _isSyncing = false;
@@ -319,13 +367,7 @@ class SyncService extends ChangeNotifier {
       final attempts = entry.attempts + 1;
       if (attempts >= _maxRetries) {
         await _queue.markFailed(entry.id, e.toString());
-        unawaited(
-          Sentry.captureException(
-            e,
-            stackTrace: st,
-            withScope: (scope) => scope.setTag('entity_type', entry.entityType),
-          ),
-        );
+        ErrorReporter.captureException(e, stackTrace: st);
       } else {
         final backoff = _backoffDuration(attempts);
         await _queue.scheduleRetry(entry.id, attempts, backoff);
@@ -622,15 +664,22 @@ class SyncService extends ChangeNotifier {
     _pulledThisCycle = 0;
 
     final results = await Future.wait([
-      _pullInvoices(sinceMs),
-      _pullCustomers(sinceMs),
-      _pullExpenses(sinceMs),
-      _pullInventory(sinceMs),
-      _pullDebts(sinceMs),
-      _pullTeamMembers(sinceMs),
-      _pullCashAccounts(sinceMs),
-      _pullCashTransactions(sinceMs),
-      _pullReconciliations(sinceMs),
+      if (pullScope.sales) _guardedPull('invoices', () => _pullInvoices(sinceMs)),
+      if (pullScope.customers)
+        _guardedPull('customers', () => _pullCustomers(sinceMs)),
+      if (pullScope.expenses)
+        _guardedPull('expenses', () => _pullExpenses(sinceMs)),
+      if (pullScope.inventory)
+        _guardedPull('inventory', () => _pullInventory(sinceMs)),
+      if (pullScope.debts) _guardedPull('debts', () => _pullDebts(sinceMs)),
+      if (pullScope.team)
+        _guardedPull('team', () => _pullTeamMembers(sinceMs)),
+      if (pullScope.cashAccounts)
+        _guardedPull('cashAccounts', () => _pullCashAccounts(sinceMs)),
+      if (pullScope.cashFlow)
+        _guardedPull('cashTransactions', () => _pullCashTransactions(sinceMs)),
+      if (pullScope.cashFlow)
+        _guardedPull('reconciliations', () => _pullReconciliations(sinceMs)),
     ]);
 
     // Hold the watermark whenever a pull skipped (pending local deltas) so
@@ -642,6 +691,30 @@ class SyncService extends ChangeNotifier {
     }
     if (maxTs > sinceMs) {
       await _settings.updateLastSyncAt(maxTs);
+    }
+  }
+
+  /// Runs one pull, swallowing a Firestore `permission-denied` so a single
+  /// collection this session's role can't read doesn't fail the whole cycle.
+  /// [pullScope] should already keep us from calling those pulls; this is the
+  /// backstop for custom roles and rules/permission drift. Returns 0 (rather
+  /// than null) on a denial — the collection is unreadable for this session,
+  /// so there is nothing to retry and the watermark need not be held.
+  Future<int?> _guardedPull(
+    String label,
+    Future<int?> Function() pull,
+  ) async {
+    try {
+      return await pull();
+    } on FirebaseException catch (e, st) {
+      if (e.code == 'permission-denied') {
+        if (kDebugMode) {
+          debugPrint('[Sync] pull "$label" denied — skipping this cycle');
+        }
+        ErrorReporter.captureException(e, stackTrace: st);
+        return 0;
+      }
+      rethrow;
     }
   }
 

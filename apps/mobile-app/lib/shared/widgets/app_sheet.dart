@@ -5,8 +5,13 @@ import 'package:flutter/material.dart';
 /// The shell's bottom nav bar collapses to zero height while this is > 0.
 final sheetOpenNotifier = ValueNotifier<int>(0);
 
-/// Shows a bottom sheet capped at 80 % of the screen height.
-/// Use this everywhere instead of [showModalBottomSheet] directly.
+/// The single app-wide cap for every slide-up sheet: 80 % of the screen
+/// height. Kept as one constant (rather than a per-call parameter) so every
+/// sheet stops at the same line regardless of who opens it.
+const double kAppSheetMaxHeightFactor = 0.8;
+
+/// Shows a bottom sheet capped at [kAppSheetMaxHeightFactor] of the screen
+/// height. Use this everywhere instead of [showModalBottomSheet] directly.
 Future<T?> showAppSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -14,7 +19,6 @@ Future<T?> showAppSheet<T>(
   Color backgroundColor = Colors.transparent,
   bool showDragHandle = false,
   ShapeBorder? shape,
-  double maxHeightFactor = 0.8,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -31,7 +35,8 @@ Future<T?> showAppSheet<T>(
     showDragHandle: showDragHandle,
     shape: shape,
     constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * maxHeightFactor,
+      maxHeight:
+          MediaQuery.sizeOf(context).height * kAppSheetMaxHeightFactor,
     ),
     builder: builder,
   );

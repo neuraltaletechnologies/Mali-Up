@@ -306,9 +306,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     // ── Data ────────────────────────────────────────────────────────────────
     final permissions = ref.watch(permissionServiceProvider);
+
+    // A "own records only" team member (DataScope.own) keeps the same dashboard
+    // layout as everyone else, but every figure is recomputed from just their
+    // own contribution — the sales they rang up, the expenses they recorded,
+    // the customers they added. Expenses arrive already scoped
+    // (expenseListProvider); sales and customers are narrowed here.
+    final ownScope = permissions.isOwnRecordsOnly;
+    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     final customers = ref.watch(customerListProvider);
     final customerCount = customers.maybeWhen(
-      data: (items) => items.length,
+      data: (items) => ownScope
+          ? items.where((c) => c.isVisibleTo(myUid)).length
+          : items.length,
       orElse: () => 0,
     );
     final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
@@ -335,7 +346,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
     final salesAsyncValue = ref.watch(salesInvoiceListProvider);
     final salesItems = salesAsyncValue.maybeWhen(
-      data: (items) => items,
+      data: (items) => ownScope
+          ? items
+                .where((inv) => (inv['createdBy'] ?? '').toString() == myUid)
+                .toList()
+          : items,
       orElse: () => const <Map<String, dynamic>>[],
     );
     // Every shilling collected against a sale/invoice (amountPaid — set at sale

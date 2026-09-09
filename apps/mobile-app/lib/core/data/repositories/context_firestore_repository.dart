@@ -161,20 +161,37 @@ class ContextFirestoreRepository {
         .add(paymentData);
   }
 
+  /// Live expense stream for the active business.
+  ///
+  /// When [createdByUid] is set (a `DataScope.own` team member — see
+  /// team_member.dart), the query is filtered to `createdBy == createdByUid`.
+  /// firestore.rules only grant these members read access to the expenses they
+  /// created (`isOwnRecord`), so an unfiltered collection query would be
+  /// rejected outright. The `orderBy('date')` is dropped in that case to avoid
+  /// needing a composite index — the (small) result set is sorted client-side.
   Stream<List<Expense>> watchExpenses({
     required String uid,
     required ResolvedFinanceContext context,
+    String? createdByUid,
   }) {
-    final query = _scopeCollection(
+    final base = _scopeCollection(
       uid: uid,
       context: context,
       childCollection: 'expenses',
-    ).orderBy('date', descending: true);
+    );
+    final scoped = createdByUid != null && createdByUid.isNotEmpty;
+    final Query<Map<String, dynamic>> query = scoped
+        ? base.where('createdBy', isEqualTo: createdByUid)
+        : base.orderBy('date', descending: true);
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
+      final list = snapshot.docs
           .map((doc) => Expense.fromFirestore(doc.data(), doc.id))
           .toList();
+      if (scoped) {
+        list.sort((a, b) => b.date.compareTo(a.date));
+      }
+      return list;
     });
   }
 

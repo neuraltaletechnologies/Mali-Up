@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../../../core/services/error_reporter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -33,6 +34,39 @@ import '../../domain/models/team_member.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+/// Removes [memberId] from [businessId] via the `removeTeamMember` Cloud
+/// Function: deletes the member's staff records + pending invite and, unless
+/// they run their own business, their Mali Up login (Firebase Auth account,
+/// profile and PIN) — while leaving every sale, invoice and expense they
+/// created inside the business untouched. Throws on failure.
+Future<void> _callRemoveTeamMember({
+  required String businessId,
+  required String memberId,
+}) async {
+  final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+      .httpsCallable(
+        'removeTeamMember',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 90)),
+      );
+  await callable.call<Map<String, dynamic>>({
+    'businessId': businessId,
+    'memberId': memberId,
+  });
+}
+
+String _removeMemberErrorText(Object error) {
+  if (error is FirebaseFunctionsException && error.code == 'permission-denied') {
+    return _tr(
+      'Only the business owner can remove a team member.',
+      'Ni mmiliki wa biashara pekee anayeweza kuondoa mwanachama.',
+    );
+  }
+  return _tr(
+    'Could not remove member. Please try again.',
+    'Imeshindikana kuondoa mwanachama. Jaribu tena.',
+  );
+}
 
 // ── Role colours ──────────────────────────────────────────────────────────────
 
@@ -294,40 +328,35 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
+    // Removal erases the member's login server-side — it must reach the server.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!context.mounted) return;
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx2 = await repo.resolveContextForUser(user.uid);
-      await repo.deleteTeamMember(
-        uid: user.uid,
-        context: ctx2,
-        memberId: member.id,
-      );
-
-      // No memberAccess collection to clean up — permissions now live on the staff doc.
-
-      // Mark the pending invite as cancelled so the phone lookup no longer
-      // returns this person as a team member.
-      try {
-        final inviteSnap = await FirebaseFirestore.instance
-            .collection('pendingInvites')
-            .where('memberId', isEqualTo: member.id)
-            .where('ownerUid', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-        for (final doc in inviteSnap.docs) {
-          unawaited(doc.reference.update({'status': 'cancelled'}));
+      final bizId = ctx2.businessId ?? '';
+      if (bizId.isEmpty) {
+        if (context.mounted) {
+          AppNotification.error(context, _removeMemberErrorText(Exception()));
         }
-      } catch (e) {
-        if (kDebugMode) debugPrint('[removeMember] pendingInvite cleanup: $e');
+        return;
       }
+
+      await _callRemoveTeamMember(businessId: bizId, memberId: member.id);
+
+      // The staff doc is gone server-side; the incremental team pull only sees
+      // upserts, never deletes — hide the row locally right away.
+      try {
+        await ref.read(appDatabaseProvider).teamDao.softDelete(member.id);
+      } catch (_) {}
 
       unawaited(
         AuditLogService().log(
           ownerUid: user.uid,
-          businessId: ctx2.businessId ?? '',
+          businessId: bizId,
           performedByUid: user.uid,
           performedByName: user.displayName ?? 'Owner',
           action: AuditLogService.memberRemoved,
@@ -341,15 +370,9 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
           _tr('${member.name} removed.', '${member.name} ameondolewa.'),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (context.mounted) {
-        AppNotification.error(
-          context,
-          _tr(
-            'Could not remove member. Please try again.',
-            'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-          ),
-        );
+        AppNotification.error(context, _removeMemberErrorText(e));
       }
     }
   }
@@ -960,10 +983,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       _selectedCustomRole = sel.customRole;
       if (sel.customRole != null) {
         _customPerms = Set.of(sel.customRole!.permissions);
+        // A saved role dictates its own data scope.
         _ownRecordsOnly = sel.customRole!.dataScope == DataScope.own;
       } else if (sel.role != TeamRole.custom) {
         _customPerms = Set.of(defaultPermissionsFor(sel.role));
-        _ownRecordsOnly = false;
+        // _ownRecordsOnly is left as the owner set it — it applies to any role.
       }
       // Generic (one-off) custom: keep whatever permissions were toggled.
     });
@@ -1022,11 +1046,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
       final permNames = permsToStore.map((p) => p.name).toList();
 
+      // "Own records only" is offered for every role now, not just custom —
+      // a cashier or stock clerk can be scoped to their own contribution too.
       final effectiveScope = savedRole != null
           ? savedRole.dataScope
-          : ((_selectedRole == TeamRole.custom && _ownRecordsOnly)
-              ? DataScope.own
-              : DataScope.all);
+          : (_ownRecordsOnly ? DataScope.own : DataScope.all);
 
       // OnlineGuard only checks that a network interface is up (e.g.
       // connectivity_plus), not that Firestore is actually reachable — a
@@ -1152,7 +1176,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       // recurring cause (e.g. a Firestore rule not yet deployed for the
       // staff/pendingInvites collections) is visible instead of only ever
       // showing up as "try again" support tickets.
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _isSaving = false);
       final message = e is TimeoutException
@@ -1391,6 +1415,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             const SizedBox(height: 16),
                           ] else ...[
                             _PermissionSummary(role: _selectedRole),
+                            const SizedBox(height: 16),
+                            _OwnRecordsOnlyToggle(
+                              value: _ownRecordsOnly,
+                              onChanged: (v) =>
+                                  setState(() => _ownRecordsOnly = v),
+                            ),
                             const SizedBox(height: 16),
                           ],
 
@@ -1783,10 +1813,11 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       _pendingCustomRole = sel.customRole;
       if (sel.customRole != null) {
         _pendingPerms = Set.of(sel.customRole!.permissions);
+        // A saved role dictates its own data scope.
         _pendingDataScope = sel.customRole!.dataScope;
       } else if (sel.role != TeamRole.custom) {
         _pendingPerms = Set.of(defaultPermissionsFor(sel.role));
-        _pendingDataScope = DataScope.all;
+        // _pendingDataScope is left as-is — "own records only" applies to any role.
       }
     });
   }
@@ -1807,12 +1838,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
             ? _pendingPerms
             : defaultPermissionsFor(_pendingRole));
     final permNames = effectivePerms.map((p) => p.name).toList();
-    // Non-custom roles always carry their view-all permission alongside
-    // create/manage (see _roleDefaults), so 'own' scoping only makes sense for
-    // custom roles — reset otherwise.
-    final scope = cr != null
-        ? cr.dataScope
-        : (_pendingRole == TeamRole.custom ? _pendingDataScope : DataScope.all);
+    // "Own records only" (DataScope.own) can be applied to any role — the sync
+    // layer + dashboard scope such a member to their own contribution
+    // regardless of the view-all permissions the role also grants.
+    final scope = cr != null ? cr.dataScope : _pendingDataScope;
 
     final data = <String, dynamic>{
       'role': _pendingRole.name,
@@ -1858,6 +1887,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // Removal erases the member's login server-side — it must reach the server.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
 
     final navigator = Navigator.of(context);
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -1866,16 +1898,21 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       if (user == null) throw Exception();
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
-      await repo.deleteTeamMember(
-        uid: user.uid,
-        context: ctx,
-        memberId: _member.id,
-        workerUid: _member.userId,
-      );
+      final bizId = ctx.businessId ?? '';
+      if (bizId.isEmpty) throw Exception('no business context');
+
+      await _callRemoveTeamMember(businessId: bizId, memberId: _member.id);
+
+      // The staff doc is gone server-side; the incremental team pull only sees
+      // upserts, never deletes — hide the row locally right away.
+      try {
+        await ref.read(appDatabaseProvider).teamDao.softDelete(_member.id);
+      } catch (_) {}
+
       unawaited(
         AuditLogService().log(
           ownerUid: user.uid,
-          businessId: ctx.businessId ?? '',
+          businessId: bizId,
           performedByUid: user.uid,
           performedByName: user.displayName ?? 'Owner',
           action: AuditLogService.memberRemoved,
@@ -1889,13 +1926,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
         _tr('${_member.name} removed.', '${_member.name} ameondolewa.'),
         type: AppNotificationType.success,
       );
-    } catch (_) {
+    } catch (e) {
       AppNotification.showVia(
         overlay,
-        _tr(
-          'Could not remove member. Please try again.',
-          'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-        ),
+        _removeMemberErrorText(e),
         type: AppNotificationType.error,
       );
     }
@@ -2114,6 +2148,15 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           _PermissionSummary(
                             role: TeamRole.custom,
                             overridePerms: _pendingCustomRole!.permissions,
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          _OwnRecordsOnlyToggle(
+                            value: _pendingDataScope == DataScope.own,
+                            onChanged: (v) => setState(
+                              () => _pendingDataScope =
+                                  v ? DataScope.own : DataScope.all,
+                            ),
                           ),
                         ],
                         const SizedBox(height: 8),
@@ -2716,7 +2759,7 @@ class _CustomRoleEditorSheetState
         type: AppNotificationType.success,
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _isSaving = false);
       AppNotification.showVia(

@@ -140,7 +140,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Future<void> _manageCategories() async {
     await showAppSheet<void>(
       context,
-      maxHeightFactor: 0.88,
       builder: (_) => const ManageExpenseCategoriesSheet(),
     );
     if (!mounted) return;

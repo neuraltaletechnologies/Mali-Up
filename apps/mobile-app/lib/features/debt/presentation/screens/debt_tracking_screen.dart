@@ -178,7 +178,6 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
       context,
       backgroundColor: AppColors.surface,
       showDragHandle: true,
-      maxHeightFactor: 0.92,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

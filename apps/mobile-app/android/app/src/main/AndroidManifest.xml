@@ -95,6 +95,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- mobile_scanner runs with the UNBUNDLED ML Kit barcode model
+             (dev.steenbakker.mobile_scanner.useUnbundled in gradle.properties).
+             This tells Google Play Services to download the barcode model
+             right after install, so the first scan doesn't have to wait for
+             it. Devices without Play Services get manual code entry instead
+             (BarcodeScannerScreen handles the "model unavailable" error). -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

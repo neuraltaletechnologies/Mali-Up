@@ -359,7 +359,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     if (!mounted) return;
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => SalesReturnScreen(originalInvoice: _inv),
     );
     if (result?['saved'] == true && mounted) {

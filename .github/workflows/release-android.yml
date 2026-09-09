@@ -174,7 +174,20 @@ jobs:
         # every FIREBASE_* value in firebase_options.dart builds as an empty
         # string, which is what every Open Testing release has shipped with
         # until now.
-        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json
+        #
+        # --split-debug-info pulls the Dart debug symbols out of libapp.so
+        # (smaller download). The app ships no crash reporter, but the symbol
+        # files are uploaded as a build artifact below so a stack trace from a
+        # Play Console ANR / a future Crashlytics wiring can still be decoded.
+        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json --split-debug-info=build/symbols
+
+      - name: Archive Dart debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-symbols-${{ github.sha }}
+          path: apps/mobile-app/build/symbols/
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Publish to Play Store (Open Testing)
         uses: r0adkll/upload-google-play@v1

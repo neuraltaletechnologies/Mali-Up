@@ -8,7 +8,6 @@ Mali Up Mobile is a Swahili-first Flutter app for Tanzanian SMEs.
 - Firebase Auth for identity
 - Cloud Firestore for onboarding, business, customer, and app state
 - Firebase Storage for media
-- Sentry for crash reporting
 
 ## Authentication Model
 
@@ -44,30 +43,15 @@ flutter pub get
 flutter run
 ```
 
-## Sentry (Full Setup)
+## Crash & error reporting
 
-The app initializes Sentry only when `SENTRY_DSN` is provided via
-`--dart-define` / `--dart-define-from-file`.
-
-1. Copy `sentry.example.json` to `sentry.local.json`.
-2. Put your real DSN in `SENTRY_DSN`.
-3. Run with Sentry enabled:
-
-```bash
-flutter run --dart-define-from-file=sentry.local.json
-```
-
-Windows helper:
-
-```bash
-run_with_sentry.bat
-```
-
-Optional one-time verification:
-
-- Set `"SENTRY_TEST_EVENT": "true"` in `sentry.local.json`.
-- Start the app once. A startup test message is sent.
-- Set it back to `"false"` afterward.
+The app ships **no** third-party crash reporter. `sentry_flutter` was removed
+to cut ~1.5 MB of native code from every install — release builds never carried
+a `SENTRY_DSN`, so it was inert in production anyway. Caught, non-fatal errors
+go through `lib/core/services/error_reporter.dart` (`ErrorReporter`), which
+only logs in debug. Wire `firebase_crashlytics` into that one file if crash
+reporting is wanted back — it is cheap on top of the Firebase SDK already
+bundled.
 
 ## Business location — worldwide regions & districts
 
@@ -83,30 +67,13 @@ free [Country-State-City API](https://countrystatecity.in) by
 - With no key the picker degrades gracefully: the region/district rows become
   free-text fields so onboarding is never blocked.
 
-## Session Replay
-
-Session Replay is enabled in [lib/main.dart](lib/main.dart) with:
-
-- `options.replay.sessionSampleRate = 1.0`
-- `options.replay.onErrorSampleRate = 1.0`
-- `options.privacy.maskAllText = true`
-- `options.privacy.maskAllImages = true`
-
-Use `1.0` while testing so every session is captured. Lower `sessionSampleRate` before production if needed.
-
 ## Application Metrics
 
-The app now emits a few basic metrics through `Sentry.metrics`:
-
-- `app_launch` when the app starts with Sentry enabled.
-- `barcode_scan` for barcode scanner success and miss events.
-- `scan_to_cart_time_ms` for the time from accepted barcode to cart add.
-- `sales_created` and `sales_created_amount` when an invoice is saved.
-- `invoice_printed` when the receipt/share sheet is opened.
-- `customer_added` when a customer is persisted through the repository.
-
-Metrics can be extended from `lib/core/services/sentry_metrics_service.dart`.
-Use `count`, `gauge`, and `distribution` there when you want to track anything
-that should help you debug product behavior.
+`lib/core/services/sentry_metrics_service.dart` (`SentryMetricsService` — name
+kept for now, no longer Sentry-backed) exposes typed counters —
+`salesCreated`, `barcodeScan`, `customerAdded`, `invoicePrinted`, … — called
+throughout the app. Every method is currently a **no-op** that only logs in
+debug. Point `_record` at `firebase_analytics` (or another sink) to collect
+product metrics again.
 
 Part of the [Mali Up](../../README.md) suite.

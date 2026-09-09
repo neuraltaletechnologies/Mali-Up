@@ -136,7 +136,6 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   void _openEdit() async {
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: _expense),
     );
     if (result != null && mounted) Navigator.of(context).pop(result);

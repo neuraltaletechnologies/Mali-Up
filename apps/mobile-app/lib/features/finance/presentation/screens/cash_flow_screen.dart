@@ -185,7 +185,6 @@ class _CashFlowFab extends StatelessWidget {
     return FloatingActionButton.extended(
       onPressed: () => showAppSheet<void>(
         context,
-        maxHeightFactor: 0.9,
         builder: (_) => const AddTransactionDialog(),
       ),
       backgroundColor: AppColors.yellowBrand,
@@ -218,7 +217,6 @@ class _OverviewTab extends ConsumerWidget {
           InkWell(
             onTap: () => showAppSheet<void>(
               context,
-              maxHeightFactor: 0.82,
               builder: (_) => const _AccountsSheet(),
             ),
             child: Padding(

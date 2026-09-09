@@ -203,6 +203,17 @@ service cloud.firestore {
         (data.balance is string || data.balance is number);
     }
 
+    // A cash movement written by a createSale/issueRefund staff member as part
+    // of a sale (deposit) or refund (withdrawal) they made. `createdBy` must be
+    // the caller, and only the two sale-shaped movement types are allowed —
+    // transfers between accounts stay owner-only.
+    function isValidSaleCashTransaction(data) {
+      return data.keys().hasAll(['type', 'amount', 'createdBy']) &&
+        data.createdBy == request.auth.uid &&
+        data.type in ['deposit', 'withdrawal'] &&
+        data.amount is number && data.amount >= 0;
+    }
+
     function isValidBudget(data) {
       return data.keys().hasAll(['category', 'amount', 'month', 'year']) &&
         data.category is string && data.category.size() > 0 &&
@@ -495,9 +506,21 @@ service cloud.firestore {
 
       // ── Cash accounts & budgets ────────────────────────────────────────────
       match /cash_accounts/{accountId} {
-        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        // createSale/issueRefund staff need the account list (ids, names,
+        // types) to pick which till a sale's payment lands in — the payment
+        // chips read this. Balances ride along (rules can't project fields).
+        allow read: if isOwnerOrStaffWithAny(bizId,
+          ['viewCashFlow', 'createSale', 'issueRefund']);
         allow create: if isSignedIn() && isBusinessOwner(bizId) && isValidCashAccount(request.resource.data);
         allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
+        // Sale (deposit) / refund (withdrawal) posts a balance change via
+        // FieldValue.increment — see
+        // RemoteCashRepository.saveTransactionAndGetTimestamp, whose
+        // deterministic-id idempotency guard stops double application on
+        // retry. Mirrors the inventory_items stock-deduction carve-out above.
+        allow update: if isOwnerOrStaffWithAny(bizId, ['createSale', 'issueRefund']) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['balance', 'updatedAt']);
       }
 
       // RemoteCashRepository syncs these as siblings of cash_accounts (same
@@ -505,8 +528,20 @@ service cloud.firestore {
       // fall through to the isBusinessOwner-only fallback below and deny
       // every staff member who can otherwise see the cash accounts screen.
       match /cash_transactions/{transactionId} {
-        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
-        allow create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+        // The full ledger (list) needs viewCashFlow. createSale/issueRefund
+        // staff may fetch a single transaction by id — the sync idempotency
+        // check on a sale's own cash movement does exactly this — but cannot
+        // enumerate the collection.
+        allow get: if isOwnerOrStaffWithAny(bizId,
+          ['viewCashFlow', 'createSale', 'issueRefund']);
+        allow list: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create: if isSignedIn() && isBusinessOwner(bizId);
+        // Sale (deposit) / refund (withdrawal) cash movement recorded by the
+        // staff member who made it (createdBy == them). The matching
+        // cash_accounts balance change is gated in that block above.
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'issueRefund']) &&
+          isValidSaleCashTransaction(request.resource.data);
+        allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
       }
 
       match /daily_reconciliations/{reconciliationId} {

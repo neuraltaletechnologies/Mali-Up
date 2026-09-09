@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../../core/services/error_reporter.dart';
 import '../../../core/services/localization_service.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/cash_transaction.dart';
@@ -78,7 +78,7 @@ Future<void> depositSaleIntoMethodAccount(
           createdBy: createdBy,
         ));
   } catch (e, st) {
-    unawaited(Sentry.captureException(e, stackTrace: st));
+    ErrorReporter.captureException(e, stackTrace: st);
   }
 }
 
@@ -114,6 +114,6 @@ Future<void> moveMoneyForAccount(
           createdBy: createdBy,
         ));
   } catch (e, st) {
-    unawaited(Sentry.captureException(e, stackTrace: st));
+    ErrorReporter.captureException(e, stackTrace: st);
   }
 }

@@ -38,3 +38,7 @@ Thumbs.db
 # Secrets — never commit service account keys
 **/serviceAccountKey.json
 *serviceAccountKey*.json
+service-account.json
+
+# Barcode backfill API-response cache (scripts/backfill-barcodes.ts)
+scripts/barcode-cache.json

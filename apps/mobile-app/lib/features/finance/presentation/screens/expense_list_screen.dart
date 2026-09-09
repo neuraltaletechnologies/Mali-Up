@@ -72,7 +72,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: edit),
     );
     if (!mounted) return;
@@ -94,7 +93,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Future<void> _openDetail(Expense expense) async {
     await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => ExpenseDetailScreen(expense: expense),
     );
   }
@@ -102,7 +100,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Future<void> _openCategoryManager() async {
     await showAppSheet<void>(
       context,
-      maxHeightFactor: 0.88,
       builder: (_) => const ManageExpenseCategoriesSheet(),
     );
     if (!mounted || _filterCategoryKey == null) return;

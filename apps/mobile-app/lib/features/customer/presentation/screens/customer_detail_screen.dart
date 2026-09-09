@@ -1790,7 +1790,6 @@ class _SupplierPayablesCard extends ConsumerWidget {
       context,
       backgroundColor: AppColors.surface,
       showDragHandle: true,
-      maxHeightFactor: 0.92,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

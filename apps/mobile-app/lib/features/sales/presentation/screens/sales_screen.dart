@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/error_reporter.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -252,7 +252,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       );
       unawaited(ref.read(syncServiceProvider).syncNow());
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (context.mounted) {
         AppNotification.error(
           context,
@@ -299,7 +299,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     if (!ctx.mounted) return;
     final saleReceipt = await showAppSheet<Map<String, dynamic>>(
       ctx,
-      maxHeightFactor: 0.92,
       builder: (_) => const _NewSaleSheet(),
     );
     if (saleReceipt == null || !ctx.mounted) return;
@@ -2411,7 +2410,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         }
       } catch (e, st) {
         debugPrint('[Sale] Drift stock mirror failed: $e');
-        unawaited(Sentry.captureException(e, stackTrace: st));
+        ErrorReporter.captureException(e, stackTrace: st);
       }
 
       // Update the Drift customer balance immediately so the credit-limit check
@@ -2426,7 +2425,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           );
         } catch (e, st) {
           debugPrint('[Sale] Drift customer balance mirror failed: $e');
-          unawaited(Sentry.captureException(e, stackTrace: st));
+          ErrorReporter.captureException(e, stackTrace: st);
         }
       }
 
@@ -2480,7 +2479,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       );
     } catch (e, st) {
       debugPrint('[Sale] Save failed: $e\n$st');
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -4268,7 +4267,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         'unit': _selectedUnit,
       });
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -4742,7 +4741,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
         _tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _updating = false);
       _showSnack(_tr('Update failed. Try again.', 'Imeshindwa. Jaribu tena.'));
