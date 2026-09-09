@@ -5977,7 +5977,7 @@ class _ReceiptAmountRow extends StatelessWidget {
             label,
             style: GoogleFonts.jetBrainsMono(
               fontSize: prominent ? 13 : 10.5,
-              fontWeight: prominent ? FontWeight.w800 : FontWeight.w500,
+              fontWeight: prominent ? FontWeight.w800 : FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),

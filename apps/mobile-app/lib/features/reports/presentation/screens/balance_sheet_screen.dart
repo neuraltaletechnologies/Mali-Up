@@ -79,7 +79,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                   style: GoogleFonts.dmSans(
                     color: Colors.white60,
                     fontSize: 20,
-                    fontWeight: FontWeight.w300,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 _EquationTerm(
@@ -91,7 +91,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                   style: GoogleFonts.dmSans(
                     color: Colors.white60,
                     fontSize: 20,
-                    fontWeight: FontWeight.w300,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 _EquationTerm(
