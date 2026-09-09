@@ -302,7 +302,6 @@ class _OnboardingSuccessScreenState
                               style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
-                                fontStyle: FontStyle.italic,
                                 height: 1.5,
                               ),
                             ),

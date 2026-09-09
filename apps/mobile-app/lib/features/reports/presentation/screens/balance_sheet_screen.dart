@@ -390,7 +390,6 @@ class _BSGroup extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: AppColors.textMuted,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
               Text(
@@ -398,7 +397,6 @@ class _BSGroup extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: AppColors.textMuted,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],

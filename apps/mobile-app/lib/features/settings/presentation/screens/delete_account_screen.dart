@@ -13,6 +13,7 @@ import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
+import '../../../rbac/data/role_cache_service.dart';
 
 /// Delete Account Screen - PDPA Right to Deletion
 /// Users can permanently delete their account and associated data.
@@ -285,6 +286,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       // before returning to onboarding.
       await database.clearAccountData();
       await SecurityService.disableAppLock();
+      await RoleCacheService.clear();
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       await FirebaseAuth.instance.signOut();

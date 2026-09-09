@@ -23,6 +23,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../../rbac/data/role_cache_service.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
 
@@ -127,6 +128,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed != true) return;
 
+    await RoleCacheService.clear();
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     ref.read(onboardingNotifierProvider.notifier).resetToPhoneEntry();

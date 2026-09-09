@@ -1327,33 +1327,38 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               color: netText == '••••' ? null : netColor,
                             ),
                             const Spacer(),
-                            // Brand mark — network-logo position
-                            Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'MALI',
-                                    style: GoogleFonts.dmSans(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
+                            // Brand mark — network-logo position. Faux-italic
+                            // via skew: DM Sans ships no italic face in the
+                            // bundled asset set (runtime fetch is off), and
+                            // google_fonts throws rather than falling back.
+                            Transform(
+                              transform: Matrix4.skewX(-0.18),
+                              alignment: Alignment.center,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'MALI',
+                                      style: GoogleFonts.dmSans(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
                                       ),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      fontStyle: FontStyle.italic,
-                                      letterSpacing: 0.5,
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text: ' UP',
-                                    style: GoogleFonts.dmSans(
-                                      color: AppColors.yellowBrand,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      fontStyle: FontStyle.italic,
-                                      letterSpacing: 0.5,
+                                    TextSpan(
+                                      text: ' UP',
+                                      style: GoogleFonts.dmSans(
+                                        color: AppColors.yellowBrand,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ],
