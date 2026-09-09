@@ -69,6 +69,28 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
 
+  // ── Auto-sync when a data screen is opened ──────────────────────────────
+  // The offline-first pull otherwise only runs on cold start, reconnect and
+  // app-resume, so records added elsewhere (e.g. the admin Quick Setup panel
+  // or another device) didn't appear until the app was relaunched. Landing
+  // on one of these sections kicks off a pull; SyncService dedupes overlapping
+  // cycles and the Drift-backed screen streams fill in when it lands.
+  static const _syncOnOpenPaths = <String>[
+    AppRouter.dashboardPath,
+    AppRouter.salesPath,
+    AppRouter.inventoryPath,
+    AppRouter.crmPath,
+    AppRouter.debtPath,
+    AppRouter.expensesPath,
+    AppRouter.cashFlowPath,
+    AppRouter.reportsPath,
+    AppRouter.teamPath,
+  ];
+  // The section a pull was last kicked off for, and when — so tab-hopping
+  // fires at most one pull per section change, throttled to 15s.
+  String? _lastAutoSyncSection;
+  DateTime? _lastAutoSyncAt;
+
   @override
   void initState() {
     super.initState();
@@ -205,6 +227,43 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     setState(() {
       _currentUser = FirebaseAuth.instance.currentUser;
       _profileFuture = _fetchUserProfile(_currentUser);
+    });
+  }
+
+  /// Kicks off a sync pull the first time the user lands on a given data
+  /// section (Dashboard, Sales, Inventory, …), so anything imported from the
+  /// admin Quick Setup panel or added on another device shows up without a
+  /// relaunch. Runs at most once per section change, throttled to 15s, and
+  /// only while online. The pull is fire-and-forget — SyncService's own
+  /// `_isSyncing` guard drops it if a cycle is already running.
+  void _maybeSyncOnScreenOpen(String location, {required bool online}) {
+    final path = Uri.parse(location).path;
+    String? section;
+    for (final p in _syncOnOpenPaths) {
+      final matches = p == '/'
+          ? path == '/'
+          : (path == p || path.startsWith('$p/'));
+      if (matches) {
+        section = p;
+        break;
+      }
+    }
+    if (section == null || section == _lastAutoSyncSection) return;
+    _lastAutoSyncSection = section;
+    if (!online) return;
+    final now = DateTime.now();
+    if (_lastAutoSyncAt != null &&
+        now.difference(_lastAutoSyncAt!) < const Duration(seconds: 15)) {
+      return;
+    }
+    _lastAutoSyncAt = now;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final sync = ref.read(syncServiceProvider);
+      // No business resolved yet (first frame after login) — SyncService.start()
+      // runs its own initial pull once uid + businessId land.
+      if (sync.businessId.isEmpty) return;
+      unawaited(sync.syncNow());
     });
   }
 
@@ -1542,6 +1601,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // connectivity change event. Sync-specific issues surface separately
     // via SyncStatusBanner.
     final isOnline = ref.watch(isOnlineProvider);
+    // Pull fresh server data whenever the user opens a new data section.
+    _maybeSyncOnScreenOpen(location, online: isOnline);
     // The header badge stays up while the post-reconnect catch-up sync
     // drains the offline queue, so it doesn't blink away the instant
     // connectivity returns and leave the user unsure their offline work was

@@ -17,7 +17,12 @@ class LocalInventoryRepository {
 
   Stream<List<InventoryItem>> watchLowStock() =>
       _dao.watchLowStock(businessId).map(
-            (rows) => rows.map(InventoryMapper.fromRow).toList(),
+            (rows) => rows
+                .map(InventoryMapper.fromRow)
+                // Services have no stock to run low — exclude them so they
+                // never reach the low-stock badge, count or notification.
+                .where((i) => !i.isService)
+                .toList(),
           );
 
   Future<InventoryItem?> getById(String id) async {

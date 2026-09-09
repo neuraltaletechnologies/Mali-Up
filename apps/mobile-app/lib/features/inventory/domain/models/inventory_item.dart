@@ -322,8 +322,13 @@ class InventoryItem {
 
   // ── Stock computed properties ────────────────────────────────────────────────
 
-  bool get isLowStock => currentStock > 0 && currentStock <= reorderPoint;
-  bool get isOutOfStock => currentStock <= 0;
+  // Services carry no stock (they're created with currentStock 0), so they must
+  // never read as "low" or "out" — otherwise every service trips the low-stock
+  // notification aggregator and shows a false "Out of stock" alert. Matches the
+  // guard the dashboard's low-stock list already applies.
+  bool get isLowStock =>
+      !isService && currentStock > 0 && currentStock <= reorderPoint;
+  bool get isOutOfStock => !isService && currentStock <= 0;
   bool get isService => productType == 'service';
   bool get isManufactured => productType == 'manufactured';
   bool get isRecurring => billingCycle != 'once';
@@ -371,12 +376,14 @@ class InventoryItem {
   // ── Legacy string helpers (kept for backward compat) ────────────────────────
 
   String get stockStatus {
+    if (isService) return 'Service';
     if (isOutOfStock) return 'Out of Stock';
     if (isLowStock) return 'Low Stock';
     return 'In Stock';
   }
 
   String get stockStatusColor {
+    if (isService) return 'green';
     if (isOutOfStock) return 'red';
     if (isLowStock) return 'orange';
     return 'green';
