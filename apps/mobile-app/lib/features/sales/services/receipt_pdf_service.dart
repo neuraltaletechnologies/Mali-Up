@@ -146,6 +146,32 @@ abstract final class ReceiptPdfService {
     } catch (_) {
       // The business document fallback below can still supply the receipt name.
     }
+    // Team-member sales carry the member's Firebase UID in `createdBy`, but a
+    // member has no readable `users/{uid}` doc for anyone but themselves — the
+    // owner opening the receipt hits permission-denied above and the name stays
+    // "User". Their real name lives on the staff record, which the owner (and
+    // the member themselves) can read.
+    if (printedBy == 'User' && businessId != null && businessId.isNotEmpty) {
+      try {
+        final staffSnap = await firestore
+            .collection('businesses')
+            .doc(businessId)
+            .collection('staff')
+            .where('workerUid', isEqualTo: creatorUid)
+            .limit(3)
+            .get()
+            .timeout(const Duration(seconds: 3));
+        for (final doc in staffSnap.docs) {
+          final name = (doc.data()['name'] ?? '').toString().trim();
+          if (name.isNotEmpty) {
+            printedBy = name;
+            break;
+          }
+        }
+      } catch (_) {
+        // Offline or rules mismatch — the generic "User" label still ships.
+      }
+    }
     if (businessId != null && businessId.isNotEmpty) {
       try {
         final businessDoc = await firestore

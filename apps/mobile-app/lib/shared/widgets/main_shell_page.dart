@@ -57,6 +57,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // Timestamp of the last back-press on the Home tab, used for the
   // double-back-to-exit confirmation.
   DateTime? _lastBackPressAt;
+  // True only while the catch-up sync that runs when connectivity returns
+  // (SyncState.offline → syncing) is still draining the offline queue.
+  // Drives the header pill's "Syncing…" badge — the routine background sync
+  // that fires after every write while online is deliberately not shown
+  // here, so the pill stops flickering on every invoice/customer/stock
+  // edit. Flipped in the syncStateProvider listener in build().
+  bool _showReconnectSync = false;
   // slotPosition (0..2) -> catalog key of the screen assigned to that nav
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
@@ -1511,11 +1518,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       final route = next.valueOrNull;
       if (route != null && route.isNotEmpty) context.go(route);
     });
-    // Drive the Dynamic Island Live Activity whenever the sync state changes.
+    // Drive the Dynamic Island Live Activity whenever the sync state
+    // changes, and gate the header pill's "Syncing…" badge to the
+    // post-reconnect catch-up cycle only.
     ref.listen<SyncState>(syncStateProvider, (prev, next) {
       if (prev == next) return;
       final bizName = _currentBusinessName;
       _liveActivity.onSyncStateChanged(next, businessName: bizName);
+      // Only the sync kicked off when connectivity returns (offline →
+      // syncing) lights up the pill. The routine sync after every write
+      // (idle → syncing) stays silent — surfacing it there made the pill
+      // flicker constantly while the user was online the whole time.
+      if (next == SyncState.syncing && prev == SyncState.offline) {
+        setState(() => _showReconnectSync = true);
+      } else if (next != SyncState.syncing && _showReconnectSync) {
+        setState(() => _showReconnectSync = false);
+      }
     });
     // The header pill reflects actual device connectivity, not the last
     // Firestore sync outcome — a transient sync error (SyncState.error)
@@ -1524,14 +1542,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // connectivity change event. Sync-specific issues surface separately
     // via SyncStatusBanner.
     final isOnline = ref.watch(isOnlineProvider);
-    // The header badge also stays up while the post-reconnect sync drains
-    // the queue, so it doesn't blink away the instant connectivity returns
-    // and leave the user unsure their offline work was pushed.
-    final isSyncing = ref.watch(syncStateProvider) == SyncState.syncing;
-    // Reassure the user the moment connectivity flips either way — the
-    // header pill's red/green dot is easy to miss, so a real message says
-    // it plainly: nothing is lost offline, and reconnecting kicks off a
-    // real sync rather than leaving them guessing.
+    // The header badge stays up while the post-reconnect catch-up sync
+    // drains the offline queue, so it doesn't blink away the instant
+    // connectivity returns and leave the user unsure their offline work was
+    // pushed. _showReconnectSync is flipped by the syncStateProvider
+    // listener above on an offline→syncing transition and cleared once that
+    // cycle finishes; a routine after-a-write sync never sets it.
+    final isSyncing = _showReconnectSync;
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
@@ -2027,6 +2044,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
   final bool isOnline;
+  /// True only for the catch-up sync that runs when connectivity returns —
+  /// not the routine background sync after every write. Keeps the pill's
+  /// "Syncing…" badge from flickering on every edit.
   final bool isSyncing;
   final List<Map<String, dynamic>> businesses;
   final ValueChanged<String> onChanged;
@@ -2272,10 +2292,11 @@ class _FinanceContextSwitcher extends StatelessWidget {
             ),
           ),
         ),
-        // Online + fully synced is the default, unremarkable state — nothing
-        // to show. Offline gets a badge, and it lingers through the
-        // post-reconnect sync so it doesn't vanish before the queued work
-        // has actually been pushed.
+        // Online is the default, unremarkable state — nothing to show, not
+        // even for the routine background sync after a write. Offline gets a
+        // badge, and it lingers through the catch-up sync that runs on
+        // reconnect (isSyncing, set only for that cycle) so it doesn't
+        // vanish before the queued work has actually been pushed.
         if (!isOnline || isSyncing)
           Positioned(
             top: -3,

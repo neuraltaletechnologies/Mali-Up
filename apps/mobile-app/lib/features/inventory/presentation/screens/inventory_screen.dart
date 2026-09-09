@@ -1731,6 +1731,48 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   bool _recording = false;
   bool _productionDone = false;
   double _lastBatchYield = 0;
+  bool _reassigning = false;
+
+  // Opens the assignee picker for a service item and persists the new
+  // assignment straight away — no trip through the edit form. Mirrors how
+  // _ProductFormSheet stores the pick (the staff record id).
+  Future<void> _handleReassign() async {
+    if (_reassigning) return;
+    final id = (widget.item['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    final current = (widget.item['assignedToUserId'] ?? '').toString();
+
+    final result = await showAppSheet<String?>(
+      context,
+      builder: (_) => _AssigneePickerSheet(selectedMemberId: current),
+    );
+    // null → dismissed without choosing; '' → explicitly unassigned.
+    if (result == null || result == current || !mounted) return;
+
+    setState(() => _reassigning = true);
+    try {
+      final repo = ref.read(inventoryRepositoryProvider);
+      final existing = await repo.getById(id);
+      if (existing == null) return;
+      await repo.save(
+        existing.copyWith(
+          assignedToUserId: result,
+          updatedAt: DateTime.now().toIso8601String(),
+        ),
+      );
+      if (!mounted) return;
+      setState(() => widget.item['assignedToUserId'] = result);
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr('Failed to update. Try again.', 'Imeshindikana. Jaribu tena.'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _reassigning = false);
+    }
+  }
 
   Future<void> _handleRecordProduction() async {
     if (_recording) return;
@@ -1911,6 +1953,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
       onRestock: () => setState(() => _restockMode = true),
       onRecordProduction: _recording ? null : _handleRecordProduction,
       recordingProduction: _recording,
+      onReassign: _reassigning ? null : _handleReassign,
+      reassigning: _reassigning,
     );
   }
 }
@@ -1921,12 +1965,16 @@ class _DetailView extends StatelessWidget {
   final VoidCallback? onRestock;
   final VoidCallback? onRecordProduction;
   final bool recordingProduction;
+  final VoidCallback? onReassign;
+  final bool reassigning;
   const _DetailView({
     required this.item,
     required this.onEdit,
     this.onRestock,
     this.onRecordProduction,
     this.recordingProduction = false,
+    this.onReassign,
+    this.reassigning = false,
   });
 
   @override
@@ -2080,6 +2128,16 @@ class _DetailView extends StatelessWidget {
                     profit: profitV,
                     margin: marginV,
                   ),
+
+                  // ── Assigned to (service items only) ─────────────────
+                  if (type == ProductType.service &&
+                      (item['assignedToUserId'] ?? '').toString().isNotEmpty)
+                    _AssignedToSection(
+                      assignedToUserId:
+                          (item['assignedToUserId'] ?? '').toString(),
+                      onTap: onReassign,
+                      busy: reassigning,
+                    ),
 
                   // ── Stock ────────────────────────────────────────────
                   if (type != ProductType.service) ...[
@@ -3012,6 +3070,121 @@ class _KeyValue extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: valueColor ?? AppColors.navyPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Detail-sheet section naming the team member a service is assigned to,
+// resolved from the local team list (same matching as _AssignedToField:
+// staff record id, or a legacy Auth-UID value). Only shown for service
+// items that actually have an assignee. Tapping opens the assignee picker
+// so the owner can reassign without going through the edit form.
+class _AssignedToSection extends ConsumerWidget {
+  final String assignedToUserId;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  const _AssignedToSection({
+    required this.assignedToUserId,
+    this.onTap,
+    this.busy = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(teamMembersProvider);
+    final members = membersAsync.valueOrNull ?? const <TeamMember>[];
+    final match = members
+        .where((m) =>
+            m.id == assignedToUserId || (m.userId ?? '') == assignedToUserId)
+        .cast<TeamMember?>()
+        .firstOrNull;
+
+    final String name;
+    if (match != null) {
+      name = match.name;
+    } else if (membersAsync.isLoading) {
+      name = _tr('Loading…', 'Inapakia…');
+    } else {
+      name = _tr('Unknown member', 'Mwanachama hajulikani');
+    }
+    final role = match?.roleLabel(sw: LocalizationService.isSwahili) ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        _Divider(),
+        const SizedBox(height: 20),
+        _DetailSectionLabel(_tr('Assigned to', 'Amepangiwa')),
+        const SizedBox(height: 14),
+        InkWell(
+          onTap: busy ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor:
+                      AppColors.tealAccent.withValues(alpha: 0.12),
+                  child: Text(
+                    match?.initials ?? '?',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                      if (role.isNotEmpty)
+                        Text(
+                          role,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (busy)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.textMuted,
+                    ),
+                  )
+                else if (onTap != null)
+                  Text(
+                    _tr('Change', 'Badilisha'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
