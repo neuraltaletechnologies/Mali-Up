@@ -5,8 +5,8 @@ import 'app_colors.dart';
 import 'app_motion.dart';
 
 /// Mali Up — Premium Fintech White Theme
-/// Typography: DM Sans (body/UI), DM Serif Display (hero amounts via AmountDisplay widget),
-/// JetBrains Mono (monetary values via AmountDisplay widget).
+/// Typography: DM Sans (body/UI), JetBrains Mono (monetary values, totals,
+/// codes).
 class AppTheme {
   // ── Status bar (screens without an AppBar wrap in AnnotatedRegion) ──
   // Screens WITH an AppBar/SliverAppBar adapt automatically: the AppBarTheme

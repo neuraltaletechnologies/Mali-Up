@@ -1888,8 +1888,10 @@ class _TotalsCard extends StatelessWidget {
               ),
               Text(
                 'TZS ${_fmtNum(grandTotal)}',
-                style: GoogleFonts.dmSerifDisplay(
+                style: GoogleFonts.jetBrainsMono(
                   fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                   color: Colors.white,
                 ),
               ),

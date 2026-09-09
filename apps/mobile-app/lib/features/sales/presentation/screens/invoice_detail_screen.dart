@@ -1331,8 +1331,10 @@ class _SummaryCard extends StatelessWidget {
               ),
               Text(
                 'TZS ${_fmtNum((total - returnedAmount).clamp(0.0, total))}',
-                style: GoogleFonts.dmSerifDisplay(
+                style: GoogleFonts.jetBrainsMono(
                   fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                   color: AppColors.navyPrimary,
                 ),
               ),

@@ -42,8 +42,8 @@ const String _onboardingCompletedKey = 'mali_onboarding_complete';
 Future<void> _startApp() async {
   // Fonts are bundled under assets/google_fonts/ — never fetch them over the
   // network. Without this, google_fonts tries to download DM Sans / JetBrains
-  // Mono / DM Serif Display from fonts.gstatic.com on first use and throws an
-  // unhandled exception on offline / DNS-restricted networks.
+  // Mono from fonts.gstatic.com on first use and throws an unhandled exception
+  // on offline / DNS-restricted networks.
   GoogleFonts.config.allowRuntimeFetching = false;
 
   // SharedPreferences and Firebase init are independent — kick both off now.

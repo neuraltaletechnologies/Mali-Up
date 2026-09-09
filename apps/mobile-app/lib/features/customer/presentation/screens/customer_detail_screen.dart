@@ -1221,8 +1221,10 @@ class _BalanceCardState extends State<_BalanceCard> {
                           : widget.balance < 0
                           ? '+TZS ${_fmtNum(widget.balance.abs())}'
                           : _tr('All clear', 'Hakuna deni'),
-                      style: GoogleFonts.dmSerifDisplay(
+                      style: GoogleFonts.jetBrainsMono(
                         fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                         color: widget.balance > 0
                             ? AppColors.error
                             : AppColors.success,
