@@ -10,6 +10,8 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../../team/data/creator_providers.dart';
+import '../../../team/presentation/widgets/issued_by.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../data/cash_flow_providers.dart';
@@ -37,6 +39,11 @@ class AccountDetailScreen extends ConsumerWidget {
         .where((a) => a.id == account.id);
     final liveAccount = liveMatches.isEmpty ? account : liveMatches.first;
     final transactions = ref.watch(accountTransactionsProvider(account.id));
+    // Resolve creator labels up-front — issuedByLabel watches providers, so it
+    // must run during build, not lazily inside itemBuilder.
+    final issuedByFor = <String, String?>{
+      for (final t in transactions) t.id: issuedByLabel(ref, t.createdBy),
+    };
     final reconciliations = ref.watch(
       accountReconciliationsProvider(account.id),
     );
@@ -96,8 +103,11 @@ class AccountDetailScreen extends ConsumerWidget {
                     ),
                     itemCount: transactions.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) =>
-                        _TxnTile(txn: transactions[i], accountId: account.id),
+                    itemBuilder: (context, i) => _TxnTile(
+                      txn: transactions[i],
+                      accountId: account.id,
+                      issuedBy: issuedByFor[transactions[i].id],
+                    ),
                   ),
           ),
         ],
@@ -197,7 +207,15 @@ class _AccountHeader extends StatelessWidget {
 class _TxnTile extends StatelessWidget {
   final CashTransaction txn;
   final String accountId;
-  const _TxnTile({required this.txn, required this.accountId});
+
+  /// Resolved "issued by" label — null hides it (solo business).
+  final String? issuedBy;
+
+  const _TxnTile({
+    required this.txn,
+    required this.accountId,
+    this.issuedBy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +298,10 @@ class _TxnTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ],
+                    if (issuedBy != null) ...[
+                      const SizedBox(width: 6),
+                      Flexible(child: IssuedByInline(value: issuedBy!)),
                     ],
                   ],
                 ),

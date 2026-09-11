@@ -21,6 +21,8 @@ import '../../../invoice/data/mappers/invoice_mapper.dart';
 import '../../../sales/data/sales_providers.dart' show normalizeWhatsAppPhone;
 import '../../../sales/domain/debt_reminder_text.dart';
 import '../../../sales/services/receipt_pdf_service.dart';
+import '../../../team/data/creator_providers.dart';
+import '../../../team/presentation/widgets/issued_by.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
@@ -560,7 +562,10 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                 children: [
                   _HeroAmountCard(debt: _debt),
                   const SizedBox(height: 14),
-                  _DetailInfoCard(debt: _debt),
+                  _DetailInfoCard(
+                    debt: _debt,
+                    issuedBy: issuedByLabel(ref, _debt.createdBy),
+                  ),
                   const SizedBox(height: 14),
                   _PaymentHistoryCard(debt: _debt),
                   const SizedBox(height: 14),
@@ -832,7 +837,11 @@ class _AmountPill extends StatelessWidget {
 
 class _DetailInfoCard extends StatelessWidget {
   final Debt debt;
-  const _DetailInfoCard({required this.debt});
+
+  /// Resolved "Issued by" label — null hides the row (solo business).
+  final String? issuedBy;
+
+  const _DetailInfoCard({required this.debt, this.issuedBy});
 
   @override
   Widget build(BuildContext context) {
@@ -886,6 +895,13 @@ class _DetailInfoCard extends StatelessWidget {
               icon: Icons.notes_outlined,
               label: _tr('Note', 'Maelezo'),
               value: debt.note,
+              isLast: issuedBy == null,
+            ),
+          if (issuedBy != null)
+            _InfoRow(
+              icon: Icons.badge_outlined,
+              label: _tr('Issued by', 'Imetolewa na'),
+              value: issuedBy!,
               isLast: true,
             ),
         ],
@@ -1002,12 +1018,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
           ),
           const Divider(height: 1, color: AppColors.border),
           paymentsAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.navyPrimary),
-              ),
-            ),
+            loading: () => const FlatRowsSkeleton(itemCount: 3, shrinkWrap: true),
             error: (_, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
@@ -1038,6 +1049,8 @@ class _PaymentHistoryCard extends ConsumerWidget {
                           (e) => _PaymentTile(
                             payment: e.value,
                             isLast: e.key == payments.length - 1,
+                            recordedBy:
+                                issuedByLabel(ref, e.value.recordedBy),
                           ),
                         )
                         .toList(),
@@ -1053,7 +1066,14 @@ class _PaymentTile extends StatelessWidget {
   final DebtPayment payment;
   final bool isLast;
 
-  const _PaymentTile({required this.payment, required this.isLast});
+  /// Resolved "recorded by" label — null hides it (solo business).
+  final String? recordedBy;
+
+  const _PaymentTile({
+    required this.payment,
+    required this.isLast,
+    this.recordedBy,
+  });
 
   static const _methodIcons = {
     'cash': Icons.payments_outlined,
@@ -1113,6 +1133,11 @@ class _PaymentTile extends StatelessWidget {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                    if (recordedBy != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: IssuedByInline(value: recordedBy!),
                       ),
                   ],
                 ),

@@ -316,75 +316,6 @@ class GhostButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AmountDisplay — hero financial figures with DM Serif Display or JetBrains Mono
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum AmountDisplayStyle { hero, mono }
-
-class AmountDisplay extends StatelessWidget {
-  final String amount;
-  final String? currency;
-  final Color? color;
-  final double fontSize;
-  final AmountDisplayStyle style;
-
-  const AmountDisplay({
-    super.key,
-    required this.amount,
-    this.currency = 'TZS',
-    this.color,
-    this.fontSize = 28,
-    this.style = AmountDisplayStyle.mono,
-  });
-
-  const AmountDisplay.hero({
-    super.key,
-    required this.amount,
-    this.currency = 'TZS',
-    this.color,
-    this.fontSize = 32,
-  }) : style = AmountDisplayStyle.hero;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = color ?? AppColors.navyPrimary;
-    final TextStyle amountStyle = style == AmountDisplayStyle.hero
-        ? GoogleFonts.dmSerifDisplay(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w400,
-            color: textColor,
-            height: 1.1,
-          )
-        : GoogleFonts.jetBrainsMono(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-            letterSpacing: -0.5,
-          );
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        if (currency != null) ...[
-          Text(
-            '$currency ',
-            style: GoogleFonts.dmSans(
-              fontSize: fontSize * 0.45,
-              fontWeight: FontWeight.w600,
-              color: textColor.withValues(alpha: 0.6),
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-        Text(amount, style: amountStyle),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // StatusChip — paid / sent / overdue / draft / pending
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -716,10 +647,19 @@ class SkeletonScreen extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page-specific skeleton screens — each mirrors its page's real content shape
+// so there is no layout shift when the real data fades in. The dark-header
+// skeleton reproduces DarkHeaderShell's geometry exactly (navy card, rounded
+// bottom, 40px action circles, and a white stats pill straddling the bottom
+// edge by HeaderStatsPill.pillHalf).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Light shimmer fill for placeholders sitting on the navy header.
+const Color _onNavyShimmer = Color(0x29FFFFFF);
+
 class _DarkPageHeaderSkeleton extends StatelessWidget {
-  const _DarkPageHeaderSkeleton();
+  final int statCount;
+
+  const _DarkPageHeaderSkeleton({this.statCount = 3});
 
   @override
   Widget build(BuildContext context) {
@@ -728,77 +668,167 @@ class _DarkPageHeaderSkeleton extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Container(
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, 38),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            HeaderStatsPill.pillHalf + 16,
+          ),
           decoration: const BoxDecoration(
             color: AppColors.navyPrimary,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
           ),
           child: const Row(
             children: [
-              ShimmerBox(width: 135, height: 30),
+              ShimmerBox(
+                width: 135,
+                height: 28,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                baseColor: _onNavyShimmer,
+              ),
               Spacer(),
               ShimmerBox(
                 width: 40,
                 height: 40,
                 borderRadius: BorderRadius.all(Radius.circular(20)),
+                baseColor: _onNavyShimmer,
               ),
               SizedBox(width: 10),
               ShimmerBox(
                 width: 40,
                 height: 40,
                 borderRadius: BorderRadius.all(Radius.circular(20)),
+                baseColor: _onNavyShimmer,
               ),
             ],
           ),
         ),
-        const Positioned(
-          left: 24,
-          right: 24,
-          bottom: -22,
-          child: ShimmerBox(
-            height: 44,
-            borderRadius: BorderRadius.all(Radius.circular(24)),
-          ),
+        Positioned(
+          bottom: -HeaderStatsPill.pillHalf,
+          left: 0,
+          right: 0,
+          child: Center(child: _StatsPillSkeleton(statCount: statCount)),
         ),
       ],
     );
   }
 }
 
+/// Mirrors HeaderStatsPill (centered layout): a white capsule with N stat
+/// columns split by hairline dividers.
+class _StatsPillSkeleton extends StatelessWidget {
+  final int statCount;
+
+  const _StatsPillSkeleton({this.statCount = 3});
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < statCount; i++) {
+      if (i > 0) {
+        children.add(
+          Container(
+            width: 1,
+            height: 28,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            color: AppColors.border,
+          ),
+        );
+      }
+      children.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ShimmerBox(
+                width: 46,
+                height: 13,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+              SizedBox(height: 5),
+              ShimmerBox(
+                width: 30,
+                height: 9,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+/// One full-width white list row — matches the flat list cards used by the
+/// Sales, Inventory, Customers, Expenses, Team and Notifications screens.
 class _FlatPageRowSkeleton extends StatelessWidget {
-  const _FlatPageRowSkeleton();
+  final bool hasLeading;
+
+  const _FlatPageRowSkeleton({this.hasLeading = true});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: const Column(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      child: Column(
         children: [
           Row(
             children: [
-              ShimmerBox(
-                width: 38,
-                height: 38,
-                borderRadius: BorderRadius.all(Radius.circular(19)),
-              ),
-              SizedBox(width: 10),
-              Expanded(
+              if (hasLeading) ...[
+                const ShimmerBox(
+                  width: 38,
+                  height: 38,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                const SizedBox(width: 10),
+              ],
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ShimmerBox(width: 150, height: 12),
+                    ShimmerBox(
+                      width: 150,
+                      height: 12,
+                      borderRadius: BorderRadius.all(Radius.circular(999)),
+                    ),
                     SizedBox(height: 7),
-                    ShimmerBox(width: 100, height: 10),
+                    ShimmerBox(
+                      width: 100,
+                      height: 10,
+                      borderRadius: BorderRadius.all(Radius.circular(999)),
+                    ),
                   ],
                 ),
               ),
-              ShimmerBox(width: 70, height: 12),
+              const SizedBox(width: 10),
+              const ShimmerBox(
+                width: 66,
+                height: 12,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
             ],
           ),
           Padding(
-            padding: EdgeInsets.only(top: 10, left: 48),
-            child: Divider(height: 1, color: AppColors.border),
+            padding: EdgeInsets.only(top: 11, left: hasLeading ? 48 : 0),
+            child: const Divider(height: 1, color: AppColors.border),
           ),
         ],
       ),
@@ -806,23 +836,35 @@ class _FlatPageRowSkeleton extends StatelessWidget {
   }
 }
 
-class _FlatPageListSkeleton extends StatelessWidget {
+/// A vertical run of full-width white list-row shimmers with hairline
+/// dividers — matches the flat list style used across the app. Use it as a
+/// page body skeleton or inside a card for an inline sub-list (payments,
+/// audit entries, activity).
+class FlatRowsSkeleton extends StatelessWidget {
   final int itemCount;
+  final bool hasLeading;
+  final bool shrinkWrap;
 
-  const _FlatPageListSkeleton({this.itemCount = 7});
+  const FlatRowsSkeleton({
+    super.key,
+    this.itemCount = 7,
+    this.hasLeading = true,
+    this.shrinkWrap = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
+      shrinkWrap: shrinkWrap,
       itemCount: itemCount,
-      itemBuilder: (_, _) => const _FlatPageRowSkeleton(),
+      itemBuilder: (_, _) => _FlatPageRowSkeleton(hasLeading: hasLeading),
     );
   }
 }
 
-/// Sales / Invoice list page skeleton
+/// Sales / Invoice list page skeleton — invoice cards have no leading icon.
 class SalesPageSkeleton extends StatelessWidget {
   const SalesPageSkeleton({super.key});
 
@@ -831,14 +873,14 @@ class SalesPageSkeleton extends StatelessWidget {
     return const Column(
       children: [
         _DarkPageHeaderSkeleton(),
-        SizedBox(height: 30),
-        Expanded(child: _FlatPageListSkeleton()),
+        SizedBox(height: HeaderStatsPill.pillHalf + 8),
+        Expanded(child: FlatRowsSkeleton(hasLeading: false)),
       ],
     );
   }
 }
 
-/// Inventory / Stock page skeleton
+/// Inventory / Stock page skeleton — the stock pill carries four stats.
 class InventoryPageSkeleton extends StatelessWidget {
   const InventoryPageSkeleton({super.key});
 
@@ -846,31 +888,58 @@ class InventoryPageSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        _DarkPageHeaderSkeleton(),
-        SizedBox(height: 30),
-        Expanded(child: _FlatPageListSkeleton()),
+        _DarkPageHeaderSkeleton(statCount: 4),
+        SizedBox(height: HeaderStatsPill.pillHalf + 8),
+        Expanded(child: FlatRowsSkeleton()),
       ],
     );
   }
 }
 
-/// Customer list page skeleton
+/// Team members list page skeleton
+class TeamPageSkeleton extends StatelessWidget {
+  const TeamPageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        _DarkPageHeaderSkeleton(),
+        SizedBox(height: HeaderStatsPill.pillHalf + 8),
+        Expanded(child: FlatRowsSkeleton(itemCount: 6)),
+      ],
+    );
+  }
+}
+
+/// Customer list page skeleton — body only; the screen keeps its real header.
 class CustomerPageSkeleton extends StatelessWidget {
   const CustomerPageSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const _FlatPageListSkeleton();
+    return const FlatRowsSkeleton();
   }
 }
 
-/// Expense list page skeleton
+/// Expense list page skeleton — body only; the screen keeps its real header.
 class ExpensePageSkeleton extends StatelessWidget {
   const ExpensePageSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const _FlatPageListSkeleton(itemCount: 6);
+    return const FlatRowsSkeleton(itemCount: 6);
+  }
+}
+
+/// Notifications list page skeleton — body only; the screen keeps its real
+/// header. Matches the notification rows (leading status dot + two lines).
+class NotificationsPageSkeleton extends StatelessWidget {
+  const NotificationsPageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const FlatRowsSkeleton();
   }
 }
 

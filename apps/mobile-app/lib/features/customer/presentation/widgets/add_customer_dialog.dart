@@ -438,79 +438,30 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   }
 
   Future<void> _addFromContacts() async {
-    final consent = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(_tr(
-          'Import customers from contacts?',
-          'Ingiza wateja kutoka mawasiliano?',
-        )),
-        content: Text(_tr(
-          'Mali Up will read contact names and phone numbers so you can choose customers to import. '
-          'Only the contacts you select are saved to Mali Up and synced with your business account; '
-          'unselected contacts are not uploaded.',
-          'Mali Up itasoma majina na nambari za simu ili uchague wateja wa kuingiza. '
-          'Mawasiliano utakayochagua pekee ndiyo yatahifadhiwa Mali Up na kusawazishwa na akaunti ya biashara; '
-          'ambayo hujachagua hayatapakiwa.',
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(_tr('Not now', 'Sio sasa')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(_tr('Continue', 'Endelea')),
-          ),
-        ],
-      ),
-    );
-    if (consent != true || !mounted) return;
-
     setState(() => _isImportingContact = true);
 
     try {
-      // ── Permission check ────────────────────────────────────────────────
+      // The OS shows its own contacts-permission prompt — no in-app dialog
+      // before it. If access isn't granted we can't read contacts, so show a
+      // short toast that links straight to Settings: once the permission has
+      // been permanently denied the OS never prompts again, so this is the
+      // only way back in.
       final status = await Permission.contacts.request();
-      if (status.isDenied) {
-        _showSnackBar(
-          _tr(
-            'Contacts permission is required to import customers.',
-            'Ruhusa ya mawasiliano inahitajika kuingiza wateja.',
-          ),
-        );
-        return;
-      }
-
-      if (status.isPermanentlyDenied) {
-        if (!mounted) return;
-        final open = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            title: Text(_tr(
-              'Contacts permission required',
-              'Ruhusa ya mawasiliano inahitajika',
-            )),
-            content: Text(_tr(
-              'Please enable contacts permission in app settings.',
-              'Tafadhali weka ruhusa ya mawasiliano katika mipangilio.',
-            )),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(_tr('Cancel', 'Ghairi')),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(_tr('Open Settings', 'Fungua Mipangilio')),
-              ),
-            ],
-          ),
-        );
-        if (open == true) openAppSettings();
+      if (!status.isGranted && !status.isLimited) {
+        if (mounted) {
+          AppNotification.info(
+            context,
+            _tr(
+              'Contacts access is off. Turn it on in Settings to import customers.',
+              'Ruhusa ya mawasiliano imezimwa. Iwashe kwenye Mipangilio ili kuingiza wateja.',
+            ),
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: _tr('Open Settings', 'Fungua Mipangilio'),
+              onPressed: openAppSettings,
+            ),
+          );
+        }
         return;
       }
 

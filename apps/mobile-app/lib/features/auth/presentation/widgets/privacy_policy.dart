@@ -101,7 +101,6 @@ class PrivacyPolicyPage extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
             ),

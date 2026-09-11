@@ -7,7 +7,10 @@
     "seed": "node seed-master-catalog.js",
     "seed:catalog": "ts-node seed-master-catalog.ts",
     "seed:catalog:force": "ts-node seed-master-catalog.ts --force",
-    "seed:dry-run": "ts-node seed-master-catalog.ts --dry-run"
+    "seed:dry-run": "ts-node seed-master-catalog.ts --dry-run",
+    "backfill:barcodes": "ts-node backfill-barcodes.ts",
+    "backfill:barcodes:dry": "ts-node backfill-barcodes.ts --dry-run",
+    "backfill:barcodes:count": "ts-node backfill-barcodes.ts --count-only"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0"

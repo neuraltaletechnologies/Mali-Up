@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../../../core/services/error_reporter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -15,6 +16,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
@@ -30,10 +32,42 @@ import '../../data/mappers/team_member_mapper.dart';
 import '../../data/team_providers.dart';
 import '../../domain/models/custom_role.dart';
 import '../../domain/models/team_member.dart';
-import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+/// Removes [memberId] from [businessId] via the `removeTeamMember` Cloud
+/// Function: deletes the member's staff records + pending invite and, unless
+/// they run their own business, their Mali Up login (Firebase Auth account,
+/// profile and PIN) — while leaving every sale, invoice and expense they
+/// created inside the business untouched. Throws on failure.
+Future<void> _callRemoveTeamMember({
+  required String businessId,
+  required String memberId,
+}) async {
+  final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+      .httpsCallable(
+        'removeTeamMember',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 90)),
+      );
+  await callable.call<Map<String, dynamic>>({
+    'businessId': businessId,
+    'memberId': memberId,
+  });
+}
+
+String _removeMemberErrorText(Object error) {
+  if (error is FirebaseFunctionsException && error.code == 'permission-denied') {
+    return _tr(
+      'Only the business owner can remove a team member.',
+      'Ni mmiliki wa biashara pekee anayeweza kuondoa mwanachama.',
+    );
+  }
+  return _tr(
+    'Could not remove member. Please try again.',
+    'Imeshindikana kuondoa mwanachama. Jaribu tena.',
+  );
+}
 
 // ── Role colours ──────────────────────────────────────────────────────────────
 
@@ -94,6 +128,29 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
 
   int get _activeFilters => _filter != _TeamFilter.all ? 1 : 0;
 
+  // First-run page tour — just the FAB: "this is how you invite staff".
+  final _tourFabKey = GlobalKey(debugLabel: 'team_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_team_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add Your Team', 'Ongeza Timu Yako'),
+          description: _tr(
+            'Tap here to invite a cashier or staff member, and control what they can see.',
+            'Bonyeza hapa kualika mfanyakazi na kudhibiti wanachoweza kuona.',
+          ),
+          onTap: () => _tryInvite(context),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -129,32 +186,27 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     return Scaffold(
       floatingActionButton: ps.isOwner
           ? NavAwareFab(
-              child: FloatingActionButton.extended(
-                onPressed: () => _tryInvite(context),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.person_add_rounded, size: 20),
-                label: Text(
-                  _tr('Add Member', 'Ongeza Mwanachama'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+              child: KeyedSubtree(
+                key: _tourFabKey,
+                child: FloatingActionButton.extended(
+                  onPressed: () => _tryInvite(context),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: const Icon(Icons.person_add_rounded, size: 20),
+                  label: Text(
+                    _tr('Add Member', 'Ongeza Mwanachama'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
             )
           : null,
       body: membersAsync.smartWhen(
-        skeleton: () => const Column(
-          children: [
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-          ],
-        ),
+        skeleton: () => const TeamPageSkeleton(),
         onError: (_, _) => Center(
           child: Text(_tr('Failed to load team', 'Imeshindikana kupakia timu')),
         ),
@@ -303,40 +355,35 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
+    // Removal erases the member's login server-side — it must reach the server.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!context.mounted) return;
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx2 = await repo.resolveContextForUser(user.uid);
-      await repo.deleteTeamMember(
-        uid: user.uid,
-        context: ctx2,
-        memberId: member.id,
-      );
-
-      // No memberAccess collection to clean up — permissions now live on the staff doc.
-
-      // Mark the pending invite as cancelled so the phone lookup no longer
-      // returns this person as a team member.
-      try {
-        final inviteSnap = await FirebaseFirestore.instance
-            .collection('pendingInvites')
-            .where('memberId', isEqualTo: member.id)
-            .where('ownerUid', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-        for (final doc in inviteSnap.docs) {
-          unawaited(doc.reference.update({'status': 'cancelled'}));
+      final bizId = ctx2.businessId ?? '';
+      if (bizId.isEmpty) {
+        if (context.mounted) {
+          AppNotification.error(context, _removeMemberErrorText(Exception()));
         }
-      } catch (e) {
-        if (kDebugMode) debugPrint('[removeMember] pendingInvite cleanup: $e');
+        return;
       }
+
+      await _callRemoveTeamMember(businessId: bizId, memberId: member.id);
+
+      // The staff doc is gone server-side; the incremental team pull only sees
+      // upserts, never deletes — hide the row locally right away.
+      try {
+        await ref.read(appDatabaseProvider).teamDao.softDelete(member.id);
+      } catch (_) {}
 
       unawaited(
         AuditLogService().log(
           ownerUid: user.uid,
-          businessId: ctx2.businessId ?? '',
+          businessId: bizId,
           performedByUid: user.uid,
           performedByName: user.displayName ?? 'Owner',
           action: AuditLogService.memberRemoved,
@@ -350,15 +397,9 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
           _tr('${member.name} removed.', '${member.name} ameondolewa.'),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (context.mounted) {
-        AppNotification.error(
-          context,
-          _tr(
-            'Could not remove member. Please try again.',
-            'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-          ),
-        );
+        AppNotification.error(context, _removeMemberErrorText(e));
       }
     }
   }
@@ -516,65 +557,65 @@ class _TeamFilterSheetState extends State<_TeamFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    // showAppSheet renders with a transparent barrier background, so the sheet
+    // must paint its own surface — without this Material the content floats
+    // over whatever is behind it. Matches _DebtFilterSheet.
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SheetHandle(),
+              const SizedBox(height: 4),
+              _SheetSectionLabel(_tr('Status', 'Hali')),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _TeamFilter.values
+                    .map(
+                      (f) => _SortChip(
+                        label: f.label,
+                        selected: _pick == f,
+                        onTap: () => setState(() => _pick = f),
+                      ),
+                    )
+                    .toList(),
               ),
-            ),
-            const SizedBox(height: 16),
-            _SheetSectionLabel(_tr('Status', 'Hali')),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _TeamFilter.values
-                  .map(
-                    (f) => _SortChip(
-                      label: f.label,
-                      selected: _pick == f,
-                      onTap: () => setState(() => _pick = f),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onApply(_pick);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.onApply(_pick);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: Text(
-                  _tr('Apply', 'Tumia'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                  child: Text(
+                    _tr('Apply', 'Tumia'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -969,10 +1010,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       _selectedCustomRole = sel.customRole;
       if (sel.customRole != null) {
         _customPerms = Set.of(sel.customRole!.permissions);
+        // A saved role dictates its own data scope.
         _ownRecordsOnly = sel.customRole!.dataScope == DataScope.own;
       } else if (sel.role != TeamRole.custom) {
         _customPerms = Set.of(defaultPermissionsFor(sel.role));
-        _ownRecordsOnly = false;
+        // _ownRecordsOnly is left as the owner set it — it applies to any role.
       }
       // Generic (one-off) custom: keep whatever permissions were toggled.
     });
@@ -1031,11 +1073,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
       final permNames = permsToStore.map((p) => p.name).toList();
 
+      // "Own records only" is offered for every role now, not just custom —
+      // a cashier or stock clerk can be scoped to their own contribution too.
       final effectiveScope = savedRole != null
           ? savedRole.dataScope
-          : ((_selectedRole == TeamRole.custom && _ownRecordsOnly)
-              ? DataScope.own
-              : DataScope.all);
+          : (_ownRecordsOnly ? DataScope.own : DataScope.all);
 
       // OnlineGuard only checks that a network interface is up (e.g.
       // connectivity_plus), not that Firestore is actually reachable — a
@@ -1161,7 +1203,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       // recurring cause (e.g. a Firestore rule not yet deployed for the
       // staff/pendingInvites collections) is visible instead of only ever
       // showing up as "try again" support tickets.
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _isSaving = false);
       final message = e is TimeoutException
@@ -1401,6 +1443,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           ] else ...[
                             _PermissionSummary(role: _selectedRole),
                             const SizedBox(height: 16),
+                            _OwnRecordsOnlyToggle(
+                              value: _ownRecordsOnly,
+                              onChanged: (v) =>
+                                  setState(() => _ownRecordsOnly = v),
+                            ),
+                            const SizedBox(height: 16),
                           ],
 
                           // ── Notes ─────────────────────────────────────
@@ -1485,8 +1533,13 @@ class _MemberSheet extends ConsumerStatefulWidget {
 class _MemberSheetState extends ConsumerState<_MemberSheet> {
   late TeamMember _member;
   bool _editingRole = false;
+  bool _editingDetails = false;
   bool _showPerms = false;
   bool _isSaving = false;
+
+  // Only editable while the invite is unaccepted — see the build method.
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
 
   TeamRole _pendingRole = TeamRole.cashier;
   Set<AppPermission> _pendingPerms = {};
@@ -1511,6 +1564,134 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     _pendingRole = _member.role;
     _pendingPerms = Set.of(_member.customPermissions);
     _pendingDataScope = _member.dataScope;
+    _nameCtrl = TextEditingController(text: _member.name);
+    _phoneCtrl = TextEditingController(text: _member.phone);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveDetails() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      AppNotification.info(
+        context,
+        _tr('Name is required.', 'Jina linahitajika.'),
+      );
+      return;
+    }
+    final rawPhone = _phoneCtrl.text.trim();
+    final phoneError = OnboardingValidator.validatePhone(rawPhone);
+    if (phoneError != null) {
+      AppNotification.info(context, phoneError);
+      return;
+    }
+    final normalizedPhone = OnboardingValidator.normalisePhone(rawPhone);
+    final storedPhone = normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
+
+    if (name == _member.name && storedPhone == _member.phone) {
+      setState(() => _editingDetails = false);
+      return;
+    }
+
+    // Writes the staff doc + the pending-invite lookup doc, both of which must
+    // reach the server — same online-only rule as inviting.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+
+    setState(() => _isSaving = true);
+    final overlay = Overlay.of(context, rootOverlay: true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception();
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+
+      await repo.updateTeamMember(
+        uid: user.uid,
+        context: ctx,
+        memberId: _member.id,
+        data: {'name': name, 'phone': storedPhone},
+      );
+
+      // Keep the pending-invite lookup doc in step so the member is still
+      // found by their (new) phone number at first login.
+      try {
+        final inviteSnap = await FirebaseFirestore.instance
+            .collection('pendingInvites')
+            .where('memberId', isEqualTo: _member.id)
+            .where('ownerUid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+        for (final doc in inviteSnap.docs) {
+          await doc.reference.update({
+            'fullName': name,
+            if (normalizedPhone.isNotEmpty) 'phoneNumber': normalizedPhone,
+          });
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[editDetails] pendingInvite update: $e');
+      }
+
+      // Mirror to Drift so the list reflects the change immediately, matching
+      // what the invite flow does.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final existing = await db.teamDao.getById(_member.id);
+        await db.teamDao.upsert(
+          TeamMemberMapper.toCompanion(
+            _member.copyWith(name: name, phone: storedPhone),
+            businessId: ctx.businessId ?? '',
+            syncStatus: 'synced',
+            createdAtMs:
+                existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      } catch (_) {
+        // Best-effort — the next sync pull will reconcile Drift.
+      }
+
+      unawaited(
+        AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: ctx.businessId ?? '',
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberDetailsChanged,
+          targetMemberId: _member.id,
+          targetName: name,
+          previousValue: {'name': _member.name, 'phone': _member.phone},
+          newValue: {'name': name, 'phone': storedPhone},
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _member = _member.copyWith(name: name, phone: storedPhone);
+        _isSaving = false;
+        _editingDetails = false;
+      });
+      AppNotification.showVia(
+        overlay,
+        _tr('Details updated.', 'Maelezo yamesasishwa.'),
+        type: AppNotificationType.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppNotification.showVia(
+        overlay,
+        _tr(
+          'Could not update details. Please try again.',
+          'Imeshindikana kusasisha maelezo. Jaribu tena.',
+        ),
+        type: AppNotificationType.error,
+      );
+    }
   }
 
   Future<void> _updateMember(Map<String, dynamic> data) async {
@@ -1659,10 +1840,11 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       _pendingCustomRole = sel.customRole;
       if (sel.customRole != null) {
         _pendingPerms = Set.of(sel.customRole!.permissions);
+        // A saved role dictates its own data scope.
         _pendingDataScope = sel.customRole!.dataScope;
       } else if (sel.role != TeamRole.custom) {
         _pendingPerms = Set.of(defaultPermissionsFor(sel.role));
-        _pendingDataScope = DataScope.all;
+        // _pendingDataScope is left as-is — "own records only" applies to any role.
       }
     });
   }
@@ -1683,12 +1865,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
             ? _pendingPerms
             : defaultPermissionsFor(_pendingRole));
     final permNames = effectivePerms.map((p) => p.name).toList();
-    // Non-custom roles always carry their view-all permission alongside
-    // create/manage (see _roleDefaults), so 'own' scoping only makes sense for
-    // custom roles — reset otherwise.
-    final scope = cr != null
-        ? cr.dataScope
-        : (_pendingRole == TeamRole.custom ? _pendingDataScope : DataScope.all);
+    // "Own records only" (DataScope.own) can be applied to any role — the sync
+    // layer + dashboard scope such a member to their own contribution
+    // regardless of the view-all permissions the role also grants.
+    final scope = cr != null ? cr.dataScope : _pendingDataScope;
 
     final data = <String, dynamic>{
       'role': _pendingRole.name,
@@ -1734,6 +1914,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // Removal erases the member's login server-side — it must reach the server.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
 
     final navigator = Navigator.of(context);
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -1742,16 +1925,21 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       if (user == null) throw Exception();
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
-      await repo.deleteTeamMember(
-        uid: user.uid,
-        context: ctx,
-        memberId: _member.id,
-        workerUid: _member.userId,
-      );
+      final bizId = ctx.businessId ?? '';
+      if (bizId.isEmpty) throw Exception('no business context');
+
+      await _callRemoveTeamMember(businessId: bizId, memberId: _member.id);
+
+      // The staff doc is gone server-side; the incremental team pull only sees
+      // upserts, never deletes — hide the row locally right away.
+      try {
+        await ref.read(appDatabaseProvider).teamDao.softDelete(_member.id);
+      } catch (_) {}
+
       unawaited(
         AuditLogService().log(
           ownerUid: user.uid,
-          businessId: ctx.businessId ?? '',
+          businessId: bizId,
           performedByUid: user.uid,
           performedByName: user.displayName ?? 'Owner',
           action: AuditLogService.memberRemoved,
@@ -1765,13 +1953,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
         _tr('${_member.name} removed.', '${_member.name} ameondolewa.'),
         type: AppNotificationType.success,
       );
-    } catch (_) {
+    } catch (e) {
       AppNotification.showVia(
         overlay,
-        _tr(
-          'Could not remove member. Please try again.',
-          'Imeshindikana kuondoa mwanachama. Jaribu tena.',
-        ),
+        _removeMemberErrorText(e),
         type: AppNotificationType.error,
       );
     }
@@ -1868,6 +2053,79 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ── Edit details ─────────────────────────────────────
+                    // Only while the invite is unaccepted: an active member's
+                    // phone is tied to their login, and they manage their own
+                    // name/phone from their profile once they've joined.
+                    if (ps.isOwner && _member.status == 'pending') ...[
+                      _ActionCard(
+                        icon: Icons.edit_outlined,
+                        color: AppColors.tealAccent,
+                        title: _tr('Edit Details', 'Hariri Maelezo'),
+                        subtitle: _tr(
+                          'Name and phone number',
+                          'Jina na namba ya simu',
+                        ),
+                        trailing: Icon(
+                          _editingDetails
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onTap: () => setState(
+                          () => _editingDetails = !_editingDetails,
+                        ),
+                      ),
+                      if (_editingDetails) ...[
+                        const SizedBox(height: 10),
+                        OnboardingField(
+                          controller: _nameCtrl,
+                          label: _tr('Full Name', 'Jina Kamili'),
+                          hint: _tr('Enter full name', 'Ingiza jina kamili'),
+                          prefix: const Icon(
+                            Icons.person_outline_rounded,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OnboardingField(
+                          controller: _phoneCtrl,
+                          label: _tr('Phone Number', 'Namba ya Simu'),
+                          hint: '+255 700 000 000',
+                          keyboardType: TextInputType.phone,
+                          prefix: const Icon(
+                            Icons.phone_outlined,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _isSaving ? null : _saveDetails,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.navyPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              _tr('Save Details', 'Hifadhi Maelezo'),
+                              style: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                    ],
+
                     // ── Change role (owner only) ─────────────────────────
                     if (ps.isOwner) ...[
                       _ActionCard(
@@ -1917,6 +2175,15 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           _PermissionSummary(
                             role: TeamRole.custom,
                             overridePerms: _pendingCustomRole!.permissions,
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          _OwnRecordsOnlyToggle(
+                            value: _pendingDataScope == DataScope.own,
+                            onChanged: (v) => setState(
+                              () => _pendingDataScope =
+                                  v ? DataScope.own : DataScope.all,
+                            ),
                           ),
                         ],
                         const SizedBox(height: 8),
@@ -2519,7 +2786,7 @@ class _CustomRoleEditorSheetState
         type: AppNotificationType.success,
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _isSaving = false);
       AppNotification.showVia(

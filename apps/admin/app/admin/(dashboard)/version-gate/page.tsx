@@ -23,6 +23,13 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 const inputClass =
   'w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-1.5 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]'
 
+// Accepts "1", "1.2", or "1.2.3" — the mobile app pads missing parts with 0.
+const VERSION_RE = /^\d+(\.\d+){0,2}$/
+
+function isVersion(v: string) {
+  return VERSION_RE.test(v.trim())
+}
+
 export default function VersionGatePage() {
   const { data: remoteConfig, loading, revalidating, error } = useAdminFetch(
     useCallback(() => fetchVersionGate(), []),
@@ -42,12 +49,29 @@ export default function VersionGatePage() {
     setDirty(true)
   }
 
+  const invalidVersion =
+    !!config &&
+    (!isVersion(config.minSupportedVersion) || !isVersion(config.recommendedVersion))
+
   async function handleSave() {
     if (!config) return
+    if (invalidVersion) {
+      setSaveError('Versions must look like 1.2.0')
+      return
+    }
     setSaving(true)
     setSaveError('')
     try {
-      await saveVersionGate(config)
+      // Send only the known fields so stray keys from a pre-migration doc
+      // (the old *BuildNumber ints) don't get written back.
+      await saveVersionGate({
+        minSupportedVersion: config.minSupportedVersion.trim(),
+        recommendedVersion: config.recommendedVersion.trim(),
+        updateUrlAndroid: config.updateUrlAndroid,
+        updateUrlIOS: config.updateUrlIOS,
+        messageEn: config.messageEn,
+        messageSw: config.messageSw,
+      })
       setDirty(false)
     } catch (e) {
       setSaveError((e as Error).message ?? 'Failed to save')
@@ -69,29 +93,31 @@ export default function VersionGatePage() {
       {config && (<>
         <PageHeader
           title="Version Gate"
-          description="Block or nudge users on old app builds to update. Build numbers are the +N in the app's version (e.g. 1.1.0+2 → 2)."
+          description="Block or nudge users on old app versions to update. Enter the app version name as shown on the store and in pubspec.yaml (e.g. 1.2.0) — not the build number."
         />
 
         <div className="rounded-lg border border-[var(--line)] overflow-hidden mb-24">
           <div className="px-5 py-4 border-b border-[var(--line)]">
-            <span className="text-[14px] font-semibold text-[var(--ink)]">Build thresholds</span>
+            <span className="text-[14px] font-semibold text-[var(--ink)]">Version thresholds</span>
           </div>
           <div className="bg-[var(--surface)] px-5 py-5 divide-y divide-[var(--line)]">
-            <Field label="Minimum supported build" hint="Below this, users are hard-blocked until they update.">
+            <Field label="Minimum supported version" hint="Below this, users are hard-blocked with an unbypassable screen until they update. Leave at 0.0.0 to block no one.">
               <input
-                type="number"
-                min={1}
-                value={config.minSupportedBuildNumber}
-                onChange={(e) => update('minSupportedBuildNumber', Number(e.target.value))}
+                inputMode="decimal"
+                placeholder="1.2.0"
+                value={config.minSupportedVersion}
+                onChange={(e) => update('minSupportedVersion', e.target.value)}
+                aria-invalid={config.minSupportedVersion.length > 0 && !isVersion(config.minSupportedVersion)}
                 className={inputClass}
               />
             </Field>
-            <Field label="Recommended build" hint="Below this (but at/above minimum), users see a dismissible update banner.">
+            <Field label="Recommended version" hint="Below this (but at/above the minimum), users see a dismissible update banner. Leave at 0.0.0 for no banner.">
               <input
-                type="number"
-                min={1}
-                value={config.recommendedBuildNumber}
-                onChange={(e) => update('recommendedBuildNumber', Number(e.target.value))}
+                inputMode="decimal"
+                placeholder="1.2.0"
+                value={config.recommendedVersion}
+                onChange={(e) => update('recommendedVersion', e.target.value)}
+                aria-invalid={config.recommendedVersion.length > 0 && !isVersion(config.recommendedVersion)}
                 className={inputClass}
               />
             </Field>
@@ -153,6 +179,9 @@ export default function VersionGatePage() {
           <div className="fixed bottom-0 left-[240px] right-0 z-20 border-t border-[var(--line)] bg-[var(--surface)] px-8 py-3 flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
               <span className="text-[13px] text-[var(--ink-muted)]">You have unsaved changes</span>
+              {invalidVersion && !saveError && (
+                <span className="text-[12px] text-[var(--status-bad)]">Versions must look like 1.2.0</span>
+              )}
               {saveError && <span className="text-[12px] text-[var(--status-bad)]">{saveError}</span>}
             </div>
             <div className="flex gap-2">
@@ -165,7 +194,7 @@ export default function VersionGatePage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || invalidVersion}
                 className="inline-flex items-center gap-1.5 rounded-md bg-[var(--navy)] px-4 py-1.5 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" />

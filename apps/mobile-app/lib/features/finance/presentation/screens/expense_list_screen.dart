@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/finance_providers.dart';
@@ -40,6 +41,29 @@ class ExpenseListScreen extends ConsumerStatefulWidget {
 
 class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   String? _filterCategoryKey;
+
+  // First-run page tour — just the FAB: "this is how you log an expense".
+  final _tourFabKey = GlobalKey(debugLabel: 'expenses_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_expenses_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Log an Expense', 'Rekodi Matumizi'),
+          description: _tr(
+            'Tap here to record what you spend — it keeps your profit accurate.',
+            'Bonyeza hapa kurekodi unachotumia — huweka faida yako sahihi.',
+          ),
+          onTap: _openAdd,
+        ),
+      ],
+    );
+  }
 
   void _prevMonth() {
     final cur = ref.read(selectedMonthProvider);
@@ -72,7 +96,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => AddExpenseScreen(expenseToEdit: edit),
     );
     if (!mounted) return;
@@ -94,7 +117,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Future<void> _openDetail(Expense expense) async {
     await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => ExpenseDetailScreen(expense: expense),
     );
   }
@@ -102,7 +124,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Future<void> _openCategoryManager() async {
     await showAppSheet<void>(
       context,
-      maxHeightFactor: 0.88,
       builder: (_) => const ManageExpenseCategoriesSheet(),
     );
     if (!mounted || _filterCategoryKey == null) return;
@@ -145,15 +166,18 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       floatingActionButton: NavAwareFab(
-        child: FloatingActionButton.extended(
-          onPressed: _openAdd,
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.receipt_long_rounded, size: 20),
-          label: Text(
-            _tr('Add Expense', 'Ongeza Matumizi'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        child: KeyedSubtree(
+          key: _tourFabKey,
+          child: FloatingActionButton.extended(
+            onPressed: _openAdd,
+            backgroundColor: AppColors.yellowBrand,
+            foregroundColor: AppColors.navyPrimary,
+            elevation: 3,
+            icon: const Icon(Icons.receipt_long_rounded, size: 20),
+            label: Text(
+              _tr('Add Expense', 'Ongeza Matumizi'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ),

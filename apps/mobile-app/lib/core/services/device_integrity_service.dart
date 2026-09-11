@@ -4,10 +4,10 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/services.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../features/rbac/data/audit_log_service.dart';
+import 'error_reporter.dart';
 import 'sentry_metrics_service.dart';
 
 /// Requests a Play Integrity token for the current device, verifies it via
@@ -65,7 +65,7 @@ class DeviceIntegrityService {
         appLicensingVerdict: data['appLicensingVerdict'] as String?,
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
     }
   }
 

@@ -8,6 +8,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/rbac_providers.dart';
+import '../../data/role_cache_service.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -34,6 +35,7 @@ class _AccessDeniedScreenState extends ConsumerState<AccessDeniedScreen> {
   }
 
   Future<void> _signOut() async {
+    await RoleCacheService.clear();
     await FirebaseAuth.instance.signOut();
     if (mounted) context.go(AppRoutes.welcome);
   }

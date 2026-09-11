@@ -378,6 +378,7 @@ export interface PlanDefinition {
   maxCustomers: number   // -1 = unlimited
   maxProducts: number        // -1 = unlimited; total manually-created inventory items (excludes customer returns)
   maxServiceProducts: number // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
+  maxSalesPerDay: number     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean
@@ -478,8 +479,11 @@ export interface PlatformConfig {
 // from PlatformConfig/platform_config/main since that doc must stay public
 // read (checked by the mobile app before sign-in) while main stays private.
 export interface VersionGateConfig {
-  minSupportedBuildNumber: number
-  recommendedBuildNumber: number
+  // Version *names* ("1.2.0"), compared by the mobile app against its own
+  // pubspec version name — not the Android versionCode, which CI stamps with
+  // epoch-minutes and which carries no human-meaningful ordering.
+  minSupportedVersion: string
+  recommendedVersion: string
   updateUrlAndroid: string
   updateUrlIOS: string
   messageEn: string

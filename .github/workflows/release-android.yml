@@ -174,7 +174,29 @@ jobs:
         # every FIREBASE_* value in firebase_options.dart builds as an empty
         # string, which is what every Open Testing release has shipped with
         # until now.
-        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json
+        #
+        # --split-debug-info pulls the Dart debug symbols out of libapp.so and
+        # --obfuscate renames Dart identifiers -- together they shrink the AOT
+        # snapshot and make libapp.so unreadable without the symbol files. The
+        # app ships no crash reporter, but the symbols are uploaded as a build
+        # artifact below (keyed by commit SHA) so a Play Console ANR trace or a
+        # future Crashlytics wiring can still be symbolicated.
+        # Obfuscation-safe here: no dart:mirrors, enum persistence uses
+        # `.name` (preserved) not `.toString()`, and Firestore access is
+        # Map-based (no reflective toObject).
+        run: flutter build appbundle --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json --obfuscate --split-debug-info=build/symbols
+
+      - name: Archive Dart debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-symbols-${{ github.sha }}
+          path: apps/mobile-app/build/symbols/
+          # warn, not error: a missing symbols dir shouldn't block a release
+          # that already built and uploaded to Play -- but with --obfuscate it
+          # means that version's crash traces can't be decoded, so check the
+          # log if this ever warns.
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Publish to Play Store (Open Testing)
         uses: r0adkll/upload-google-play@v1

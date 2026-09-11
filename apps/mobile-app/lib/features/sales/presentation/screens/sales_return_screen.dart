@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -16,11 +20,66 @@ import '../../../debt/data/customer_debt_sync_service.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 import '../../../finance/data/payment_account_service.dart';
+import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
 
 enum _ResolutionType { refundCash, exchangeProduct }
+
+/// Preset return reasons. The three damage reasons ([damagedInTransit],
+/// [damagedInStorage], [defective]) mark goods that can't go back into
+/// sellable stock — picking one auto-clears "Return to inventory" and makes
+/// the proof photo mandatory.
+enum _ReturnReason {
+  damagedInTransit,
+  damagedInStorage,
+  defective,
+  wrongItem,
+  changedMind,
+  other,
+}
+
+extension _ReturnReasonX on _ReturnReason {
+  bool get isDamage =>
+      this == _ReturnReason.damagedInTransit ||
+      this == _ReturnReason.damagedInStorage ||
+      this == _ReturnReason.defective;
+
+  String get label {
+    switch (this) {
+      case _ReturnReason.damagedInTransit:
+        return _tr('Damaged in transit', 'Iliharibika njiani');
+      case _ReturnReason.damagedInStorage:
+        return _tr('Damaged — poor storage', 'Iliharibika kwa kuhifadhi vibaya');
+      case _ReturnReason.defective:
+        return _tr('Defective / faulty', 'Ina hitilafu');
+      case _ReturnReason.wrongItem:
+        return _tr('Wrong item delivered', 'Bidhaa isiyo sahihi ilipelekwa');
+      case _ReturnReason.changedMind:
+        return _tr('Customer changed mind', 'Mteja alibadili mawazo');
+      case _ReturnReason.other:
+        return _tr('Other', 'Nyingine');
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _ReturnReason.damagedInTransit:
+        return Icons.local_shipping_outlined;
+      case _ReturnReason.damagedInStorage:
+        return Icons.inventory_2_outlined;
+      case _ReturnReason.defective:
+        return Icons.build_outlined;
+      case _ReturnReason.wrongItem:
+        return Icons.swap_horiz_rounded;
+      case _ReturnReason.changedMind:
+        return Icons.person_outline_rounded;
+      case _ReturnReason.other:
+        return Icons.more_horiz_rounded;
+    }
+  }
+}
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -40,7 +99,8 @@ class SalesReturnScreen extends ConsumerStatefulWidget {
 class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
     with SingleTickerProviderStateMixin {
   late List<_ReturnLine> _lines;
-  String _reason = '';
+  _ReturnReason? _reasonType;
+  String _reasonNote = '';
   bool _restockAll = true;
   bool _saving = false;
   String? _errorMsg;
@@ -48,6 +108,8 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   // Exchange: product picked from inventory search
   String _exchangeProductId   = '';
   String _exchangeProductName = '';
+  // Proof-of-return photo (required when a damage reason is picked).
+  File? _proofFile;
 
   final _reasonCtrl   = TextEditingController();
   final _exchangeCtrl = TextEditingController();
@@ -95,6 +157,106 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
 
   bool get _hasSelection => _lines.any((l) => l.selected && l.returnQty > 0);
 
+  /// The reason string persisted on the credit note: preset label, with the
+  /// optional free-text note appended when the seller added one.
+  String get _composedReason {
+    final base = _reasonType?.label ?? '';
+    final note = _reasonNote.trim();
+    if (base.isEmpty) return note;
+    if (note.isEmpty) return base;
+    return '$base — $note';
+  }
+
+  /// Product ids of the currently synced inventory that are services —
+  /// services are never returned to stock.
+  Set<String> _serviceIds() {
+    final items = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+    return {for (final i in items) if (i.isService) i.id};
+  }
+
+  /// Damage reasons destroy the goods — they can't re-enter sellable stock,
+  /// so clear the restock toggle the moment one is picked (the seller can
+  /// still switch it back on manually).
+  void _onReasonPicked(_ReturnReason reason) {
+    setState(() {
+      _reasonType = reason;
+      if (reason.isDamage) _restockAll = false;
+    });
+  }
+
+  // ── Proof photo ───────────────────────────────────────────────────────────────
+
+  Future<void> _pickProof(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
+      if (file == null) return;
+      setState(() => _proofFile = File(file.path));
+    } catch (_) {
+      _showSnack(_tr(
+        'Could not open ${source == ImageSource.camera ? 'the camera' : 'your photos'}. Check app permissions and try again.',
+        'Imeshindwa kufungua ${source == ImageSource.camera ? 'kamera' : 'picha zako'}. Angalia ruhusa za programu kisha ujaribu tena.',
+      ));
+    }
+  }
+
+  Future<void> _showProofOptions() async {
+    final source = await showAppSheet<ImageSource>(
+      context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded,
+                  color: AppColors.navyPrimary),
+              title: Text(_tr('Take photo', 'Piga picha'),
+                  style: GoogleFonts.dmSans()),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded,
+                  color: AppColors.navyPrimary),
+              title: Text(_tr('Choose from gallery', 'Chagua kutoka maktaba'),
+                  style: GoogleFonts.dmSans()),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+            if (_proofFile != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.error),
+                title: Text(_tr('Remove photo', 'Ondoa picha'),
+                    style: GoogleFonts.dmSans(color: AppColors.error)),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  setState(() => _proofFile = null);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+    if (source != null && mounted) await _pickProof(source);
+  }
+
+  /// Uploads the proof photo and returns its download URL, or null when there
+  /// is no photo. Throws on a genuine upload failure so [_save] can abort.
+  Future<String?> _uploadProof(String uid, String creditNoteNumber) async {
+    if (_proofFile == null) return null;
+    final storageRef = FirebaseStorage.instance.ref(
+      'returns/$uid/$creditNoteNumber-${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    await storageRef.putFile(_proofFile!);
+    return storageRef.getDownloadURL();
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────────
 
   Future<void> _save() async {
@@ -102,6 +264,18 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       _showSnack(_tr(
           'Select at least one item to return',
           'Chagua bidhaaa angalau moja ya kurudisha'));
+      return;
+    }
+    if (_reasonType == null) {
+      _showSnack(_tr(
+          'Choose a reason for the return',
+          'Chagua sababu ya kurudisha'));
+      return;
+    }
+    if (_reasonType!.isDamage && _proofFile == null) {
+      _showSnack(_tr(
+          'Attach a proof photo for a damaged-goods return',
+          'Ambatanisha picha ya ushahidi kwa marejesho ya bidhaa iliyoharibika'));
       return;
     }
     if (_resolution == _ResolutionType.exchangeProduct && _exchangeProductId.isEmpty) {
@@ -127,14 +301,17 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
 
       final selectedLines = _lines.where((l) => l.selected && l.returnQty > 0);
 
-      // Restock only lines still linked to a product that exists locally —
-      // free-text sale lines carry a generated row id, and a merge-set on
-      // that id would create a phantom inventory document.
+      // Restock only lines still linked to a product that exists locally and
+      // isn't a service — free-text sale lines carry a generated row id (a
+      // merge-set on that id would create a phantom inventory document), and
+      // a service has no stock to credit back.
       final db = ref.read(appDatabaseProvider);
+      final serviceIds = _serviceIds();
       final restockableIds = <String>{};
       if (_restockAll) {
         for (final line in selectedLines) {
           if (line.productId.isEmpty) continue;
+          if (serviceIds.contains(line.productId)) continue;
           if (await db.inventoryDao.getById(line.productId) != null) {
             restockableIds.add(line.productId);
           }
@@ -148,6 +325,19 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       final creditNoteNumber =
           'CN-${now.year}${now.month.toString().padLeft(2, '0')}-$rand';
 
+      // Upload the proof photo before committing anything — a failure here
+      // must abort the whole return (mandatory for damaged-goods returns).
+      String? proofPhotoUrl;
+      try {
+        proofPhotoUrl = await _uploadProof(scope.userUid, creditNoteNumber);
+      } catch (_) {
+        _showSnack(_tr(
+            'Proof photo upload failed. Check your connection and try again.',
+            'Kupakia picha ya ushahidi kumeshindikana. Angalia mtandao kisha ujaribu tena.'));
+        setState(() => _saving = false);
+        return;
+      }
+
       final returnItemsData = selectedLines
           .map((l) => {
                 'productId': l.productId,
@@ -155,7 +345,8 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                 'unitPrice': l.unitPrice,
                 'returnQty': l.returnQty,
                 'lineTotal': l.returnTotal,
-                'restock': _restockAll,
+                'restock': restockableIds.contains(l.productId),
+                'isService': serviceIds.contains(l.productId),
               })
           .toList();
 
@@ -180,8 +371,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         'customerName': widget.originalInvoice['customerName'] ?? '',
         'returnItems': returnItemsData,
         'creditAmount': _creditAmount,
-        'reason': _reason,
-        'restockItems': _restockAll,
+        'reason': _composedReason,
+        'reasonCategory': _reasonType!.name,
+        'restockItems': restockableIds.isNotEmpty,
+        'proofPhotoUrl': ?proofPhotoUrl,
         'resolutionType': _resolution.name,
         if (_resolution == _ResolutionType.exchangeProduct) ...{
           'exchangeProductId': _exchangeProductId,
@@ -347,7 +540,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         invoiceId: invoiceId,
         invoiceNumber: invoiceNumber,
         amount: _creditAmount,
-        details: _reason,
+        details: _composedReason,
       ));
       unawaited(ref.read(syncServiceProvider).syncNow());
 
@@ -378,6 +571,23 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                 widget.originalInvoice['id'] ??
                 '')
             .toString();
+
+    // Cross-reference invoice lines against inventory to flag services —
+    // invoice line items don't carry the product type themselves.
+    final inventory =
+        ref.watch(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+    final serviceIds = {
+      for (final i in inventory)
+        if (i.isService) i.id
+    };
+    final selectedLines =
+        _lines.where((l) => l.selected && l.returnQty > 0).toList();
+    final selectedStockLines = selectedLines
+        .where((l) => l.productId.isNotEmpty && !serviceIds.contains(l.productId));
+    final anySelectedService =
+        selectedLines.any((l) => serviceIds.contains(l.productId));
+    final restockApplies = selectedStockLines.isNotEmpty;
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -445,6 +655,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                         padding: const EdgeInsets.only(bottom: 6),
                         child: _ReturnItemCard(
                           line: e.value,
+                          isService: serviceIds.contains(e.value.productId),
                           onToggle: (v) =>
                               setState(() => _lines[e.key].selected = v),
                           onQtyChange: (v) =>
@@ -453,10 +664,18 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                       );
                     }),
                   const SizedBox(height: 6),
-                  _RestockToggle(
-                    value: _restockAll,
-                    onChanged: (v) => setState(() => _restockAll = v),
-                  ),
+                  if (restockApplies)
+                    _RestockToggle(
+                      value: _restockAll,
+                      subtitle: anySelectedService
+                          ? _tr(
+                              'Services on this return are never added to stock',
+                              'Huduma kwenye marejesho haya haziwekwi kwenye stoo')
+                          : null,
+                      onChanged: (v) => setState(() => _restockAll = v),
+                    )
+                  else if (anySelectedService)
+                    const _ServiceNoRestockNote(),
                   const SizedBox(height: 14),
                   _ResolutionPicker(
                     value: _resolution,
@@ -476,9 +695,17 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                     ),
                   ],
                   const SizedBox(height: 14),
-                  _ReasonField(
-                    controller: _reasonCtrl,
-                    onChanged: (v) => _reason = v,
+                  _ReasonSection(
+                    selected: _reasonType,
+                    onSelected: _onReasonPicked,
+                    noteController: _reasonCtrl,
+                    onNoteChanged: (v) => _reasonNote = v,
+                  ),
+                  const SizedBox(height: 14),
+                  _ProofPhotoSection(
+                    file: _proofFile,
+                    isRequired: _reasonType?.isDamage ?? false,
+                    onTap: _saving ? null : _showProofOptions,
                   ),
                   if (_errorMsg != null) ...[
                     const SizedBox(height: 8),
@@ -577,11 +804,13 @@ class _EmptyItems extends StatelessWidget {
 
 class _ReturnItemCard extends StatelessWidget {
   final _ReturnLine line;
+  final bool isService;
   final ValueChanged<bool> onToggle;
   final ValueChanged<int> onQtyChange;
 
   const _ReturnItemCard({
     required this.line,
+    required this.isService,
     required this.onToggle,
     required this.onQtyChange,
   });
@@ -655,6 +884,26 @@ class _ReturnItemCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (isService)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(38, 0, 10, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        size: 13, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _tr('Service — not returned to stock',
+                            'Huduma — hairudishwi kwenye stoo'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (line.selected) ...[
               const Divider(height: 1, color: AppColors.border),
               Padding(
@@ -764,10 +1013,11 @@ class _Btn extends StatelessWidget {
 
 class _RestockToggle extends StatelessWidget {
   final bool value;
+  final String? subtitle;
   final ValueChanged<bool> onChanged;
 
   const _RestockToggle(
-      {required this.value, required this.onChanged});
+      {required this.value, this.subtitle, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -784,10 +1034,23 @@ class _RestockToggle extends StatelessWidget {
               size: 18, color: AppColors.tealAccent),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _tr('Return to inventory', 'Rudisha kwenye stoo'),
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Return to inventory', 'Rudisha kwenye stoo'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ],
+              ],
             ),
           ),
           Switch.adaptive(
@@ -802,12 +1065,51 @@ class _RestockToggle extends StatelessWidget {
   }
 }
 
-class _ReasonField extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+/// Shown in place of the restock toggle when every selected line is a service
+/// (or a free-text sale line) — there is nothing that can go back to stock.
+class _ServiceNoRestockNote extends StatelessWidget {
+  const _ServiceNoRestockNote();
 
-  const _ReasonField(
-      {required this.controller, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 16, color: AppColors.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _tr('Services can\'t be returned to stock',
+                  'Huduma haziwezi kurudishwa kwenye stoo'),
+              style: GoogleFonts.dmSans(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReasonSection extends StatelessWidget {
+  final _ReturnReason? selected;
+  final ValueChanged<_ReturnReason> onSelected;
+  final TextEditingController noteController;
+  final ValueChanged<String> onNoteChanged;
+
+  const _ReasonSection({
+    required this.selected,
+    required this.onSelected,
+    required this.noteController,
+    required this.onNoteChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -815,7 +1117,7 @@ class _ReasonField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _tr('Reason for Return', 'Sababu ya Kurudisha'),
+          _tr('Reason for Return *', 'Sababu ya Kurudisha *'),
           style: GoogleFonts.dmSans(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -823,6 +1125,53 @@ class _ReasonField extends StatelessWidget {
               letterSpacing: 0.5),
         ),
         const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _ReturnReason.values.map((r) {
+            final isSelected = r == selected;
+            return GestureDetector(
+              onTap: () => onSelected(r),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.navyPrimary : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.navyPrimary
+                        : AppColors.border,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(r.icon,
+                        size: 15,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textMuted),
+                    const SizedBox(width: 6),
+                    Text(
+                      r.label,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.navyPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -830,13 +1179,13 @@ class _ReasonField extends StatelessWidget {
             border: Border.all(color: AppColors.border),
           ),
           child: TextField(
-            controller: controller,
-            onChanged: onChanged,
+            controller: noteController,
+            onChanged: onNoteChanged,
             maxLines: 2,
             decoration: InputDecoration(
               hintText: _tr(
-                  'e.g. Damaged goods, wrong item delivered, customer changed mind…',
-                  'mfano: Bidhaaa ziliharibiwa, bidhaaa mbaya kuletewa, mteja alibadilisha mawazo…'),
+                  'Add a note (optional) — batch number, where it was damaged…',
+                  'Ongeza maelezo (si lazima) — namba ya kundi, mahali ilipoharibika…'),
               hintStyle: GoogleFonts.dmSans(
                   fontSize: 13, color: AppColors.textMuted),
               border: InputBorder.none,
@@ -845,6 +1194,141 @@ class _ReasonField extends StatelessWidget {
             style: GoogleFonts.dmSans(fontSize: 14),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _ProofPhotoSection extends StatelessWidget {
+  final File? file;
+  final bool isRequired;
+  final VoidCallback? onTap;
+
+  const _ProofPhotoSection({
+    required this.file,
+    required this.isRequired,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              isRequired
+                  ? _tr('Proof Photo *', 'Picha ya Ushahidi *')
+                  : _tr('Proof Photo', 'Picha ya Ushahidi'),
+              style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.5),
+            ),
+            if (isRequired) ...[
+              const SizedBox(width: 6),
+              Text(
+                _tr('required for damaged goods',
+                    'lazima kwa bidhaa iliyoharibika'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 11, color: AppColors.warning),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (file != null)
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.tealAccent),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.file(file!, fit: BoxFit.cover),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.navyPrimary.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.edit_rounded,
+                              size: 11, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            _tr('Change', 'Badilisha'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isRequired ? AppColors.warning : AppColors.border,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.tealAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add_a_photo_rounded,
+                        size: 18, color: AppColors.tealAccent),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _tr('Attach proof photo', 'Ambatanisha picha ya ushahidi'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tealAccent),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _tr('Take a photo or choose from gallery',
+                        'Piga picha au chagua kutoka maktaba'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

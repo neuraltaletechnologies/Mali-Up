@@ -369,7 +369,6 @@ class ErrorHandlingService {
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],

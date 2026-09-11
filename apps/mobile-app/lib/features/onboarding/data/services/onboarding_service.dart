@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/onboarding_state.dart';
+import '../../domain/models/pin_reset_result.dart';
 import '../../domain/models/user_lookup_result.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../repositories/onboarding_repository.dart';
@@ -160,9 +161,31 @@ class OnboardingService {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Triggers a PIN recovery flow. Returns the real email on file (if any).
-  Future<String?> sendPinRecovery({required String phone}) {
-    return _repository.sendPinRecovery(phone: phone);
+  /// Step 1 — emails a recovery magic link to the address on file.
+  Future<PinResetRequestResult> requestPinReset({
+    required String phone,
+    required String language,
+  }) {
+    return _repository.requestPinReset(phone: phone, language: language);
+  }
+
+  /// Step 2 — validates a token from the magic link.
+  Future<PinResetTokenInfo> validatePinResetToken(String token) {
+    return _repository.validatePinResetToken(token);
+  }
+
+  /// Step 3 — sets the new PIN-derived password. [phone] must be the canonical
+  /// value from [validatePinResetToken].
+  Future<PinResetConfirmResult> confirmPinReset({
+    required String token,
+    required String phone,
+    required String newPin,
+  }) {
+    return _repository.confirmPinReset(
+      token: token,
+      phone: phone,
+      newPin: newPin,
+    );
   }
 
   // ─── SCREEN 6 — NEW OWNER ACCOUNT CREATION ───────────────────────────────

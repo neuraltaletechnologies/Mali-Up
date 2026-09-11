@@ -8,11 +8,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/main_shell_page.dart';
 import 'audit_log_screen.dart';
 import 'data_export_screen.dart';
 import 'delete_account_screen.dart';
 import 'legal_compliance_screen.dart';
 
+import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import '../../../../core/services/plan_request_service.dart';
@@ -22,6 +24,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../../rbac/data/role_cache_service.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
 
@@ -126,6 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed != true) return;
 
+    await RoleCacheService.clear();
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     ref.read(onboardingNotifierProvider.notifier).resetToPhoneEntry();
@@ -337,6 +341,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   activeTrackColor: AppColors.secondary,
                 ),
               ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.explore_outlined,
+                iconBg: AppColors.primary.withValues(alpha: 0.15),
+                iconColor: AppColors.primaryDark,
+                title: _tr('Take the Tour Again', 'Onyesha Tena Mwongozo'),
+                subtitle: _tr(
+                  'Replay the quick nav walkthrough',
+                  'Rudia mwongozo mfupi wa uelekezi',
+                ),
+                // Navigates to Home itself if needed — every tour target
+                // lives on the nav bar there.
+                onTap: MainShellPage.replayOnboardingTour,
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ],
           ),
           // Data export and the cross-team audit trail are business-wide
@@ -513,6 +536,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(planStatusProvider);
+    final planUsage = ref.watch(planUsageProvider);
     final user = FirebaseAuth.instance.currentUser;
 
     // Name + phone are the source of truth in Firestore `users/{uid}`, not on
@@ -665,9 +689,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                             planName: 'Starter',
                             statusLabel: tr('Loading…', 'Inapakia…'),
                             isStarter: true,
-                            pct: 0,
-                            invoicesUsed: 0,
-                            invoiceLimit: 10,
+                            usageItems: const [],
                             expiresAt: null,
                             tr: tr,
                           ),
@@ -675,9 +697,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                             planName: 'Starter',
                             statusLabel: tr('Free plan', 'Mpango wa bure'),
                             isStarter: true,
-                            pct: 0,
-                            invoicesUsed: 0,
-                            invoiceLimit: 10,
+                            usageItems: const [],
                             expiresAt: null,
                             tr: tr,
                           ),
@@ -687,11 +707,9 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                                 ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
                                 : tr('Active subscription', 'Usajili unaofanya kazi'),
                             isStarter: s.isStarter,
-                            pct: s.isStarter
-                                ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
-                                : 1.0,
-                            invoicesUsed: s.invoicesUsedThisMonth,
-                            invoiceLimit: s.limits.monthlyInvoices,
+                            usageItems: s.isStarter
+                                ? _starterUsageItems(s, planUsage, tr)
+                                : const [],
                             expiresAt: s.expiresAt,
                             tr: tr,
                           ),
@@ -927,13 +945,34 @@ class _BrandCircle extends StatelessWidget {
   }
 }
 
+/// One metered free-plan limit, shown as a plain number ("used / limit") on
+/// the Settings plan card — no bar. The full bars live on the My Plan screen.
+typedef _UsageItem = ({String label, int used, int limit});
+
+List<_UsageItem> _starterUsageItems(
+  PlanStatus s,
+  PlanUsage usage,
+  String Function(String, String) tr,
+) {
+  final l = s.limits;
+  final items = <_UsageItem>[];
+  void add(String en, String sw, int used, int limit) {
+    if (limit < 0) return; // unlimited on this plan
+    items.add((label: tr(en, sw), used: used, limit: limit));
+  }
+
+  add('Sales today', 'Mauzo leo', usage.salesToday, l.maxSalesPerDay);
+  add('This month', 'Mwezi huu', s.invoicesUsedThisMonth, l.monthlyInvoices);
+  add('Customers', 'Wateja', usage.customers, l.maxCustomers);
+  add('Products', 'Bidhaa', usage.products, l.maxProducts);
+  return items;
+}
+
 class _PlanCardBody extends StatelessWidget {
   final String planName;
   final String statusLabel;
   final bool isStarter;
-  final double pct;
-  final int invoicesUsed;
-  final int invoiceLimit;
+  final List<_UsageItem> usageItems;
   final DateTime? expiresAt;
   final String Function(String, String) tr;
 
@@ -941,9 +980,7 @@ class _PlanCardBody extends StatelessWidget {
     required this.planName,
     required this.statusLabel,
     required this.isStarter,
-    required this.pct,
-    required this.invoicesUsed,
-    required this.invoiceLimit,
+    required this.usageItems,
     required this.expiresAt,
     required this.tr,
   });
@@ -1003,38 +1040,13 @@ class _PlanCardBody extends StatelessWidget {
                   ],
                 ],
               ),
-              if (isStarter) ...[
-                const SizedBox(height: 6),
-                Row(
+              if (isStarter && usageItems.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 6,
                   children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: pct,
-                          minHeight: 3,
-                          backgroundColor: Colors.white.withValues(alpha: 0.12),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            pct >= 1.0
-                                ? AppColors.error
-                                : pct >= 0.8
-                                    ? AppColors.warning
-                                    : AppColors.tealAccent,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$invoicesUsed/$invoiceLimit',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: pct >= 0.8
-                            ? AppColors.warning
-                            : Colors.white.withValues(alpha: 0.55),
-                      ),
-                    ),
+                    for (final item in usageItems) _UsageChip(item: item),
                   ],
                 ),
               ] else if (expiresAt != null) ...[
@@ -1064,4 +1076,40 @@ class _PlanCardBody extends StatelessWidget {
 
   static String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+/// A single "label 3/10" figure on the Settings plan card. Number only — the
+/// bar for this same limit is on the My Plan screen.
+class _UsageChip extends StatelessWidget {
+  final _UsageItem item;
+  const _UsageChip({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = item.limit <= 0 ? 0.0 : item.used / item.limit;
+    final valueColor = pct >= 1.0
+        ? AppColors.error
+        : pct >= 0.8
+            ? AppColors.yellowBrand
+            : Colors.white;
+
+    return RichText(
+      text: TextSpan(
+        style: GoogleFonts.dmSans(fontSize: 10.5),
+        children: [
+          TextSpan(
+            text: '${item.label}  ',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+          ),
+          TextSpan(
+            text: '${item.used}/${item.limit}',
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -101,7 +101,10 @@ export async function POST(
           sku: row.sku?.trim() || '',
           currentStock: isService ? 0 : (row.stock ?? 0),
           stock: isService ? 0 : (row.stock ?? 0),
-          reorderPoint: 5,
+          // Services never run low on stock — a non-zero reorder point makes
+          // the mobile app flag them as "Out of stock" (mirrors the mobile
+          // Add-Service flow, which also uses 0 here).
+          reorderPoint: isService ? 0 : 5,
           unitPrice: row.sellingPrice ?? 0,
           sellingPrice: row.sellingPrice ?? 0,
           costPrice: row.costPrice ?? 0,

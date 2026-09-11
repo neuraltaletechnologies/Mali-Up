@@ -22,6 +22,8 @@ import '../../../finance/presentation/widgets/activate_account_sheet.dart';
 import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../../team/data/creator_providers.dart';
+import '../../../team/presentation/widgets/issued_by.dart';
 import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
@@ -113,8 +115,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   String get _customerName =>
       _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-  DateTime? get _invoiceDate =>
-      readTimestamp(_inv['invoiceDate'] ?? _inv['createdAt']);
+  DateTime? get _invoiceDate => readSaleDate(_inv);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
 
   List<Map<String, dynamic>> get _lineItems {
@@ -359,7 +360,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     if (!mounted) return;
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
-      maxHeightFactor: 0.92,
       builder: (_) => SalesReturnScreen(originalInvoice: _inv),
     );
     if (result?['saved'] == true && mounted) {
@@ -469,6 +469,38 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
+  Future<void> _sharePdf() async {
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: scope.userUid,
+        businessId: scope.businessId,
+        createdByUid: (_inv['createdBy'] ?? '').toString(),
+      );
+      final shared = await ReceiptPdfService.share(
+        sale: _inv,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
+        subject:
+            '${_isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Invoice', 'Ankara')} $_invoiceNumber',
+      );
+      if (shared) _offerMarkSent();
+    } catch (_) {
+      _showSnack(
+        _tr(
+          'Could not create the receipt PDF. Please try again.',
+          'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+        ),
+      );
+    }
+  }
+
   Future<void> _shareSms() async {
     final plain = _buildShareText().replaceAll(RegExp(r'\*|_'), '');
     final phone = (_inv['customerPhone'] ?? '').toString().trim();
@@ -552,6 +584,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final issuedBy = issuedByLabel(ref, (_inv['createdBy'] ?? '').toString());
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: _buildAppBar(),
@@ -575,7 +608,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               creditNoteNumber: (_inv['creditNoteNumber'] ?? '').toString(),
             ),
             const SizedBox(height: 16),
-            _ShareRow(onSms: _shareSms, onPdf: _openPdf),
+            _ShareRow(
+              onSms: _shareSms,
+              onShare: _sharePdf,
+              onOpen: _openPdf,
+            ),
             const SizedBox(height: 16),
             _LineItemsCard(items: _lineItems),
             const SizedBox(height: 16),
@@ -590,6 +627,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             if (_inv['paymentMethod'] != null) ...[
               const SizedBox(height: 16),
               _PaymentInfoCard(invoice: _inv),
+            ],
+            if (issuedBy != null) ...[
+              const SizedBox(height: 16),
+              IssuedByCard(value: issuedBy),
             ],
             if ((_inv['notes'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -982,9 +1023,14 @@ class _SummaryMeta extends StatelessWidget {
 
 class _ShareRow extends StatelessWidget {
   final VoidCallback onSms;
-  final VoidCallback onPdf;
+  final VoidCallback onShare;
+  final VoidCallback onOpen;
 
-  const _ShareRow({required this.onSms, required this.onPdf});
+  const _ShareRow({
+    required this.onSms,
+    required this.onShare,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -992,7 +1038,16 @@ class _ShareRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ShareBtn(
-            label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
+            label: _tr('Share PDF', 'Shiriki PDF'),
+            icon: Icons.ios_share_rounded,
+            color: AppColors.tealAccent,
+            onTap: onShare,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ShareBtn(
+            label: _tr('SMS', 'SMS'),
             icon: Icons.sms_outlined,
             color: AppColors.warning,
             onTap: onSms,
@@ -1003,8 +1058,8 @@ class _ShareRow extends StatelessWidget {
           child: _ShareBtn(
             label: _tr('Open PDF', 'Fungua PDF'),
             icon: Icons.picture_as_pdf_outlined,
-            color: AppColors.tealAccent,
-            onTap: onPdf,
+            color: AppColors.textMuted,
+            onTap: onOpen,
           ),
         ),
       ],
@@ -1042,6 +1097,9 @@ class _ShareBtn extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -1279,8 +1337,10 @@ class _SummaryCard extends StatelessWidget {
               ),
               Text(
                 'TZS ${_fmtNum((total - returnedAmount).clamp(0.0, total))}',
-                style: GoogleFonts.dmSerifDisplay(
+                style: GoogleFonts.jetBrainsMono(
                   fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                   color: AppColors.navyPrimary,
                 ),
               ),

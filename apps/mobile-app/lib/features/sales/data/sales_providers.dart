@@ -139,6 +139,24 @@ DateTime? readTimestamp(Object? value) {
   return null;
 }
 
+/// Reads the date a sale actually happened on — the user-editable invoice
+/// date picked in CreateInvoiceScreen — never the record's `createdAt`
+/// audit timestamp. The two commonly differ: entering a sale for an earlier
+/// day, or editing an invoice afterwards, leaves `createdAt` stamped at the
+/// moment the record was first written while the invoice date itself is
+/// whatever the user chose.
+///
+/// The underlying value is mirrored under different keys depending on which
+/// mapper produced the map (`date` from sales_providers._invoiceToMap,
+/// `invoiceDate` from customer_providers._invoiceModelToMap and the raw
+/// Firestore document), so both are checked before falling back to
+/// `createdAt` for legacy documents that never recorded either.
+DateTime? readSaleDate(Map<String, dynamic> item) {
+  return readTimestamp(item['date']) ??
+      readTimestamp(item['invoiceDate']) ??
+      readTimestamp(item['createdAt']);
+}
+
 /// Normalizes a stored phone number into the digits-only international format
 /// wa.me links require ('+', spaces, dashes and the local leading 0 all make
 /// WhatsApp reject the link as an invalid number). Returns '' when the number

@@ -1352,6 +1352,71 @@ class _ManageBusinessesScreenState
     }
   }
 
+  // ─── Switch active business ───────────────────────────────────────────────────
+
+  /// Double-tapping a business row switches the whole app to it — the same
+  /// optimistic-override + role-cache + Firestore-pointer write that
+  /// [MainShellPage._switchFinanceContext] does, minus the navigation: the user
+  /// stays on this screen and the list simply re-sorts to float the new active
+  /// business to the top. A single tap still opens the edit/delete sheet.
+  Future<void> _switchToBusiness(
+    Map<String, dynamic>? profile,
+    Map<String, dynamic> business,
+  ) async {
+    final businessId = (business['id'] as String?)?.trim() ?? '';
+    if (businessId.isEmpty || businessId == _selectedBusinessId(profile)) return;
+
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final name = (business['name'] as String?)?.trim() ?? '';
+
+    // Optimistic override first, synchronously — re-scopes every screen watching
+    // currentBusinessIdProvider to the new business immediately (persistence
+    // cache is disabled app-wide, so the defaultContext write below can't be
+    // relied on to round-trip quickly).
+    ref.read(pendingBusinessIdOverrideProvider.notifier).state = businessId;
+
+    try {
+      // Cache it so a cold start also resolves it instantly, then move the
+      // profile's active-business pointers.
+      await RoleCacheService.saveBusinessId(user.uid, businessId);
+      await _persistSelectedBusiness(
+        userId: user.uid,
+        selectedBusinessId: businessId,
+      );
+      // DashboardScreen's Hero card is on its own cached profile fetch — nudge
+      // it (and any other cached views) to refetch.
+      BusinessProfileService.notifyUpdated();
+    } catch (e) {
+      debugPrint('Business switch failed: $e');
+      // Roll back the optimistic override — the write never landed.
+      ref.read(pendingBusinessIdOverrideProvider.notifier).state = null;
+      if (!mounted) return;
+      AppNotification.error(
+        context,
+        _tr(
+          'Could not switch business. Please try again.',
+          'Imeshindikana kubadilisha biashara. Tafadhali jaribu tena.',
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _profileFuture = _loadProfile();
+    });
+    AppNotification.success(
+      context,
+      name.isNotEmpty
+          ? _tr('Switched to $name.', 'Umehamia $name.')
+          : _tr('Business switched.', 'Biashara imebadilishwa.'),
+    );
+  }
+
   // ─── UI builders ──────────────────────────────────────────────────────────────
 
   Future<void> _openBusinessActionsSheet(
@@ -1617,6 +1682,13 @@ class _ManageBusinessesScreenState
                                             biz,
                                           )
                                         : null,
+                                    // Double-tap an inactive business to make
+                                    // it the app-wide active one. The active
+                                    // row gets no handler so its single tap
+                                    // stays instant (no double-tap wait).
+                                    onDoubleTap: isOnline && !isActive
+                                        ? () => _switchToBusiness(profile, biz)
+                                        : null,
                                   );
                                 },
                               ),
@@ -1766,6 +1838,7 @@ class _BusinessRow extends StatelessWidget {
   final bool isLast;
   final bool isReadOnly;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
 
   const _BusinessRow({
     required this.business,
@@ -1774,6 +1847,7 @@ class _BusinessRow extends StatelessWidget {
     required this.isLast,
     required this.isReadOnly,
     required this.onTap,
+    required this.onDoubleTap,
   });
 
   @override
@@ -1787,6 +1861,7 @@ class _BusinessRow extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onDoubleTap: onDoubleTap,
       child: Container(
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

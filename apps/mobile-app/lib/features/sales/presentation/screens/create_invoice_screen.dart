@@ -174,11 +174,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         phone: (data['customerPhone'] ?? '').toString(),
       );
     }
-    _invoiceDate =
-        readTimestamp(
-          data['invoiceDate'] ?? data['createdAt'] ?? data['date'],
-        ) ??
-        _invoiceDate;
+    _invoiceDate = readSaleDate(data) ?? _invoiceDate;
     _dueDate = readTimestamp(data['dueDate']);
 
     final pmRaw = (data['paymentMethod'] ?? '').toString().toLowerCase();
@@ -1888,8 +1884,10 @@ class _TotalsCard extends StatelessWidget {
               ),
               Text(
                 'TZS ${_fmtNum(grandTotal)}',
-                style: GoogleFonts.dmSerifDisplay(
+                style: GoogleFonts.jetBrainsMono(
                   fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                   color: Colors.white,
                 ),
               ),

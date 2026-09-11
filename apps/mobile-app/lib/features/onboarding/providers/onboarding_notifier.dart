@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../data/services/onboarding_service.dart';
 import '../domain/models/onboarding_state.dart';
+import '../domain/models/pin_reset_result.dart';
 import '../domain/models/user_lookup_result.dart';
 import '../../../core/services/device_integrity_service.dart';
+import '../../../core/services/error_reporter.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/sentry_metrics_service.dart';
 import '../../rbac/data/role_cache_service.dart';
@@ -242,7 +243,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           );
       }
     } on TimeoutException catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('phone_lookup', 'timeout');
       state = state.copyWith(
         isLoading: false,
@@ -252,7 +253,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ),
       );
     } on SocketException catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('phone_lookup', 'network');
       state = state.copyWith(
         isLoading: false,
@@ -262,7 +263,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('phone_lookup', 'unknown');
       state = state.copyWith(
         isLoading: false,
@@ -289,8 +290,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        // Do not attach the Firebase UID to third-party diagnostics.
-        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: state.businessId,
           performedByUid: uid,
@@ -304,14 +303,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         isLoading: false,
       );
     } on FirebaseAuthException catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('pin_login', e.code);
       state = state.copyWith(
         isLoading: false,
         errorMessage: _pinLoginError(e),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('pin_login', 'unknown');
       state = state.copyWith(
         isLoading: false,
@@ -377,17 +376,51 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Sends PIN recovery instructions. Returns the real email on file (if any).
-  Future<String?> sendPinRecovery() async {
+  /// Step 1 — asks the backend to email a recovery magic link for [state.phone].
+  Future<PinResetRequestResult> requestPinReset() async {
     state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final email = await _service.sendPinRecovery(phone: state.phone);
+    final result = await _service.requestPinReset(
+      phone: state.phone,
+      language: _sw ? 'sw' : 'en',
+    );
+    state = state.copyWith(isLoading: false);
+    return result;
+  }
+
+  /// Step 2 — validates a token opened from the magic link.
+  Future<PinResetTokenInfo> validatePinResetToken(String token) {
+    return _service.validatePinResetToken(token);
+  }
+
+  /// Step 3 — sets the new PIN. On success, seeds phone + runs the returning-user
+  /// lookup so the PIN login screen renders correctly, and sets [pinJustReset]
+  /// so it shows a confirmation toast.
+  Future<PinResetConfirmResult> confirmPinReset({
+    required String token,
+    required String phone,
+    required String newPin,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    final result = await _service.confirmPinReset(
+      token: token,
+      phone: phone,
+      newPin: newPin,
+    );
+    if (result == PinResetConfirmResult.ok) {
+      state = state.copyWith(phone: phone, isLoading: false, pinJustReset: true);
+      // Populates isReturningUser / currentStep / name / businesses so the
+      // router lets /pin-login through and the greeting card is filled in.
+      await lookupPhone();
+    } else {
       state = state.copyWith(isLoading: false);
-      return email;
-    } catch (_) {
-      state = state.copyWith(isLoading: false);
-      return null;
     }
+    return result;
+  }
+
+  /// Clears the one-shot [OnboardingState.pinJustReset] flag once the PIN login
+  /// screen has shown its confirmation.
+  void clearPinJustReset() {
+    if (state.pinJustReset) state = state.copyWith(pinJustReset: false);
   }
 
   /// Saves the team member's first-time PIN, creates their account, and
@@ -408,8 +441,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        // Do not attach the Firebase UID to third-party diagnostics.
-        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: state.businessId,
           performedByUid: uid,
@@ -423,14 +454,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         isLoading: false,
       );
     } on FirebaseAuthException catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('team_member_setup', e.code);
       state = state.copyWith(
         isLoading: false,
         errorMessage: _accountCreationErrorMessage(e),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('team_member_setup', 'unknown');
       state = state.copyWith(
         isLoading: false,
@@ -501,8 +532,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       final bizId = await _service.saveAndCompleteNewUser(state);
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        // Do not attach the Firebase UID to third-party diagnostics.
-        Sentry.configureScope((s) => s.setUser(null));
         unawaited(DeviceIntegrityService.checkAndLog(
           businessId: bizId,
           performedByUid: uid,
@@ -516,14 +545,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         currentStep: OnboardingStep.success,
       );
     } on FirebaseAuthException catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('new_owner_registration', e.code);
       state = state.copyWith(
         isLoading: false,
         errorMessage: _accountCreationErrorMessage(e),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('new_owner_registration', 'unknown');
       state = state.copyWith(
         isLoading: false,
@@ -537,7 +566,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   void clearError() => state = state.copyWith(clearError: true);
 
   void reset() {
-    Sentry.configureScope((s) => s.setUser(null));
     state = const OnboardingState();
     _service.clearDraft();
   }
@@ -546,7 +574,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   /// router sends them to /phone instead of replaying language + intro.
   /// Use this on logout / account switch rather than [reset].
   void resetToPhoneEntry() {
-    Sentry.configureScope((s) => s.setUser(null));
     state = const OnboardingState(currentStep: OnboardingStep.phoneEntry);
     _service.clearDraft();
   }

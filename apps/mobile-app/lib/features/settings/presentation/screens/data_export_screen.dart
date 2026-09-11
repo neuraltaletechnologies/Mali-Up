@@ -371,7 +371,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                               scrollDirection: Axis.horizontal,
                               child: Text(
                                 exportedFilePath!,
-                                style: GoogleFonts.dmMono(
+                                style: GoogleFonts.jetBrainsMono(
                                   fontSize: 11,
                                   color: AppColors.navyPrimary,
                                 ),

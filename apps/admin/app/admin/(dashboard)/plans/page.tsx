@@ -15,6 +15,7 @@ import type { PlanTier, PlanDefinition, PlanDefinitions } from '@/types'
 import {
   Pencil, Users, FileText, CheckCircle2, XCircle, AlertCircle,
   Building2, Zap, Crown, Star, Layers, Gift, UserPlus, Package, Wrench,
+  ShoppingCart,
 } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ const TIER_META: Record<PlanTier, {
   },
 }
 
-const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts'>, string> = {
+const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay'>, string> = {
   cashFlow:             'Cash flow tracking',
   expenseTracking:      'Expense tracking',
   manualDebt:           'Manual debt entry',
@@ -168,6 +169,10 @@ function TierCard({
         <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
           <FileText className="h-3.5 w-3.5" />
           <span>{plan.monthlyInvoices === -1 ? 'Unlimited' : `${plan.monthlyInvoices}/mo`} invoices</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <ShoppingCart className="h-3.5 w-3.5" />
+          <span>{plan.maxSalesPerDay === -1 ? 'Unlimited' : `${plan.maxSalesPerDay}/day`} sales</span>
         </div>
         <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
           <Building2 className="h-3.5 w-3.5" />
@@ -300,6 +305,11 @@ function EditPlanDrawer({
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Monthly invoices (−1 = unlimited)</label>
               <input type="number" min="-1" value={form.monthlyInvoices} onChange={num('monthlyInvoices')} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Sales per day (−1 = unlimited)</label>
+              <input type="number" min="-1" value={form.maxSalesPerDay ?? 0} onChange={num('maxSalesPerDay')} className={inputCls} />
+              <p className="text-[11px] text-[var(--ink-faint)]">Daily cap on sales created, checked alongside the monthly invoice limit</p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Max businesses (−1 = unlimited)</label>
@@ -654,6 +664,7 @@ export default function PlansPage() {
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Effective / mo</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max users</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Invoices / mo</th>
+                <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Sales / day</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max businesses</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max customers</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max products</th>
@@ -683,6 +694,9 @@ export default function PlansPage() {
                     </td>
                     <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
                       {p.monthlyInvoices === -1 ? '∞' : p.monthlyInvoices}
+                    </td>
+                    <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
+                      {p.maxSalesPerDay === -1 ? '∞' : p.maxSalesPerDay}
                     </td>
                     <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
                       {p.maxBusinesses === -1 ? '∞' : p.maxBusinesses}

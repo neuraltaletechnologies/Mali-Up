@@ -140,7 +140,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Future<void> _manageCategories() async {
     await showAppSheet<void>(
       context,
-      maxHeightFactor: 0.88,
       builder: (_) => const ManageExpenseCategoriesSheet(),
     );
     if (!mounted) return;
@@ -388,7 +387,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         receiptUrl: finalReceiptUrl,
         paymentMethod: paymentMethodValue,
         paymentAccountId: account?.id ?? '',
-        createdBy: user.uid,
+        // Editing must not reassign the original creator — an owner or manager
+        // fixing a team member's expense should still show as issued by them.
+        createdBy: _isEditing && (widget.expenseToEdit?.createdBy ?? '').isNotEmpty
+            ? widget.expenseToEdit!.createdBy
+            : user.uid,
       );
 
       await ref.read(expenseRepositoryProvider).save(expense);

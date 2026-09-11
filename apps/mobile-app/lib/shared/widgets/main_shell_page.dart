@@ -35,11 +35,20 @@ import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
 import 'nav_aware_fab.dart';
+import 'page_tour.dart';
 import 'plan_activated_dialog.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
   const MainShellPage({super.key, required this.child});
+
+  /// Re-runs the first-run nav tour on demand — wired to Settings' "Take the
+  /// Tour Again". Unlike the automatic first run, this ignores the
+  /// SharedPreferences seen-flag and isn't owner-gated: anyone who can find
+  /// the Settings row can ask to see it again.
+  static void replayOnboardingTour() {
+    _MainShellPageState._current?._replayNavTour();
+  }
 
   @override
   ConsumerState<MainShellPage> createState() => _MainShellPageState();
@@ -57,14 +66,104 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // Timestamp of the last back-press on the Home tab, used for the
   // double-back-to-exit confirmation.
   DateTime? _lastBackPressAt;
+  // True only while the catch-up sync that runs when connectivity returns
+  // (SyncState.offline → syncing) is still draining the offline queue.
+  // Drives the header pill's "Syncing…" badge — the routine background sync
+  // that fires after every write while online is deliberately not shown
+  // here, so the pill stops flickering on every invoice/customer/stock
+  // edit. Flipped in the syncStateProvider listener in build().
+  bool _showReconnectSync = false;
   // slotPosition (0..2) -> catalog key of the screen assigned to that nav
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
 
+  // ── First-run spotlight tour ─────────────────────────────────────────────
+  // Points a new owner at the 3 default nav slots (sales/inventory/customers),
+  // Home, and finally the side menu (everything else — Debts, Expenses,
+  // Reports, Team, Settings — lives behind it), right after registration, so
+  // a blank dashboard isn't the only thing they see before deciding whether
+  // to come back. Keyed by the same catalog key _NavDestination.key uses for
+  // the first 3, so _buildBottomNavItem can look a key up for whichever
+  // destination currently occupies that slot — a team member with a
+  // different permission set, or an owner who has since long-pressed to
+  // swap a slot, simply won't get a Showcase wrapper for the keys that don't
+  // match, which is fine since the tour only ever runs once, before any of
+  // that customization has happened.
+  // _v2: an earlier build of PageTour could mark this seen right before a
+  // registration-order bug made the tour silently fail to show anything —
+  // bumping the key clears that false "seen" state for devices that hit it.
+  static const _tourSeenKey = 'main_shell_onboarding_tour_seen_v2';
+  final Map<String, GlobalKey> _tourKeys = {
+    'sales': GlobalKey(debugLabel: 'tour_sales'),
+    'inventory': GlobalKey(debugLabel: 'tour_inventory'),
+    'customers': GlobalKey(debugLabel: 'tour_customers'),
+    _homeKey: GlobalKey(debugLabel: 'tour_home'),
+    'menu': GlobalKey(debugLabel: 'tour_menu'),
+  };
+  // Fixed order for the nav tour, independent of iteration order over
+  // _tourKeys (a Map's order isn't something to rely on). Each step (bar
+  // 'menu', the closing one) navigates there when tapped — there's no Next
+  // button, so tapping the highlighted icon is both "go there" and "advance
+  // the tour" at once.
+  List<TourStep> get _navTourSteps => [
+    for (final MapEntry(key: key, value: route) in const {
+      'sales': AppRouter.salesPath,
+      'inventory': AppRouter.inventoryPath,
+      'customers': AppRouter.crmPath,
+    }.entries)
+      TourStep(
+        targetKey: _tourKeys[key]!,
+        title: _tourTitleFor(key),
+        description: _tourDescriptionFor(key),
+        onTap: () => context.go(route),
+      ),
+    TourStep(
+      targetKey: _tourKeys[_homeKey]!,
+      title: _tourTitleFor(_homeKey),
+      description: _tourDescriptionFor(_homeKey),
+      onTap: () => context.go(AppRoutes.dashboard),
+    ),
+    TourStep(
+      targetKey: _tourKeys['menu']!,
+      title: _tourTitleFor('menu'),
+      description: _tourDescriptionFor('menu'),
+    ),
+  ];
+  // Guards the SharedPreferences check so it only ever runs once per shell
+  // lifetime, not on every rebuild while permissions are still loading.
+  bool _tourTriggerChecked = false;
+  // The shell is a singleton for the app's lifetime (one Navigator, one
+  // bottom nav) — lets MainShellPage.replayOnboardingTour() reach the live
+  // State from Settings without threading a callback all the way down.
+  static _MainShellPageState? _current;
+
+  // ── Auto-sync when a data screen is opened ──────────────────────────────
+  // The offline-first pull otherwise only runs on cold start, reconnect and
+  // app-resume, so records added elsewhere (e.g. the admin Quick Setup panel
+  // or another device) didn't appear until the app was relaunched. Landing
+  // on one of these sections kicks off a pull; SyncService dedupes overlapping
+  // cycles and the Drift-backed screen streams fill in when it lands.
+  static const _syncOnOpenPaths = <String>[
+    AppRouter.dashboardPath,
+    AppRouter.salesPath,
+    AppRouter.inventoryPath,
+    AppRouter.crmPath,
+    AppRouter.debtPath,
+    AppRouter.expensesPath,
+    AppRouter.cashFlowPath,
+    AppRouter.reportsPath,
+    AppRouter.teamPath,
+  ];
+  // The section a pull was last kicked off for, and when — so tab-hopping
+  // fires at most one pull per section change, throttled to 15s.
+  String? _lastAutoSyncSection;
+  DateTime? _lastAutoSyncAt;
+
   @override
   void initState() {
     super.initState();
+    _current = this;
     _currentUser = FirebaseAuth.instance.currentUser;
     _profileFuture = _fetchUserProfile(_currentUser);
     _profileFuture.then((profile) {
@@ -103,6 +202,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
 
   @override
   void dispose() {
+    if (_current == this) _current = null;
     LocalizationService.languageNotifier.removeListener(_languageListener);
     BusinessProfileService.updatedNotifier.removeListener(
       _onBusinessProfileUpdated,
@@ -114,20 +214,60 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     super.dispose();
   }
 
-  static const _updateBannerDismissedKey = 'update_banner_dismissed_build';
+  static const _updateBannerDismissedKey = 'update_banner_dismissed_version';
 
   Future<void> _maybeShowUpdateBanner() async {
     final status = VersionGateService.statusNotifier.value;
-    final build = status.recommendedBuildNumber;
-    if (status.tier != VersionGateTier.softNag || build == null) return;
+    final version = status.recommendedVersion;
+    if (status.tier != VersionGateTier.softNag || version == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getInt(_updateBannerDismissedKey) == build) return;
+    if (prefs.getString(_updateBannerDismissedKey) == version) return;
     if (!mounted) return;
-    _showUpdateBanner(status, build);
+    _showUpdateBanner(status, version);
   }
 
-  void _showUpdateBanner(VersionGateStatus status, int build) {
+  /// Starts the first-run spotlight tour for a brand-new owner: Sales →
+  /// Inventory → Customers → Home → the side menu, "This is where you…"
+  /// style. [PageTour.maybeAutoStart] runs it at most once per install
+  /// (SharedPreferences flag set before the tour starts, not after, so a
+  /// killed app mid-tour doesn't retrigger it on relaunch). Gated on
+  /// [ps.isOwner] — team members are invited straight into an already-active
+  /// business and don't need the tour.
+  void _maybeStartOnboardingTour(PermissionService ps, bool permissionsLoaded) {
+    if (_tourTriggerChecked || !permissionsLoaded || !ps.isOwner) return;
+    _tourTriggerChecked = true;
+    _goToDashboardThen(
+      () => PageTour.maybeAutoStart(
+        context: context,
+        seenKey: _tourSeenKey,
+        steps: _navTourSteps,
+      ),
+    );
+  }
+
+  /// Re-runs the nav tour unconditionally — wired to
+  /// [MainShellPage.replayOnboardingTour].
+  void _replayNavTour() {
+    _goToDashboardThen(
+      () => PageTour.replay(context: context, steps: _navTourSteps),
+    );
+  }
+
+  /// Jumps to Home first (so every nav-tour target is guaranteed to exist,
+  /// even if this was triggered from another tab via the Settings replay),
+  /// then runs [action] once that frame has settled.
+  void _goToDashboardThen(VoidCallback action) {
+    if (!mounted) return;
+    if (GoRouterState.of(context).uri.toString() != AppRoutes.dashboard) {
+      context.go(AppRoutes.dashboard);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) action();
+    });
+  }
+
+  void _showUpdateBanner(VersionGateStatus status, String version) {
     final message = _isSwahili ? status.messageSw : status.messageEn;
     ScaffoldMessenger.of(context)
       ..clearMaterialBanners()
@@ -153,7 +293,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           ),
           actions: [
             TextButton(
-              onPressed: () => _dismissUpdateBanner(build),
+              onPressed: () => _dismissUpdateBanner(version),
               child: Text(_tr('Later', 'Baadaye')),
             ),
             TextButton(
@@ -165,10 +305,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       );
   }
 
-  Future<void> _dismissUpdateBanner(int build) async {
+  Future<void> _dismissUpdateBanner(String version) async {
     if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_updateBannerDismissedKey, build);
+    await prefs.setString(_updateBannerDismissedKey, version);
   }
 
   Future<void> _openUpdateUrl(VersionGateStatus status) async {
@@ -198,6 +338,43 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     setState(() {
       _currentUser = FirebaseAuth.instance.currentUser;
       _profileFuture = _fetchUserProfile(_currentUser);
+    });
+  }
+
+  /// Kicks off a sync pull the first time the user lands on a given data
+  /// section (Dashboard, Sales, Inventory, …), so anything imported from the
+  /// admin Quick Setup panel or added on another device shows up without a
+  /// relaunch. Runs at most once per section change, throttled to 15s, and
+  /// only while online. The pull is fire-and-forget — SyncService's own
+  /// `_isSyncing` guard drops it if a cycle is already running.
+  void _maybeSyncOnScreenOpen(String location, {required bool online}) {
+    final path = Uri.parse(location).path;
+    String? section;
+    for (final p in _syncOnOpenPaths) {
+      final matches = p == '/'
+          ? path == '/'
+          : (path == p || path.startsWith('$p/'));
+      if (matches) {
+        section = p;
+        break;
+      }
+    }
+    if (section == null || section == _lastAutoSyncSection) return;
+    _lastAutoSyncSection = section;
+    if (!online) return;
+    final now = DateTime.now();
+    if (_lastAutoSyncAt != null &&
+        now.difference(_lastAutoSyncAt!) < const Duration(seconds: 15)) {
+      return;
+    }
+    _lastAutoSyncAt = now;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final sync = ref.read(syncServiceProvider);
+      // No business resolved yet (first frame after login) — SyncService.start()
+      // runs its own initial pull once uid + businessId land.
+      if (sync.businessId.isEmpty) return;
+      unawaited(sync.syncNow());
     });
   }
 
@@ -1511,11 +1688,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       final route = next.valueOrNull;
       if (route != null && route.isNotEmpty) context.go(route);
     });
-    // Drive the Dynamic Island Live Activity whenever the sync state changes.
+    // Drive the Dynamic Island Live Activity whenever the sync state
+    // changes, and gate the header pill's "Syncing…" badge to the
+    // post-reconnect catch-up cycle only.
     ref.listen<SyncState>(syncStateProvider, (prev, next) {
       if (prev == next) return;
       final bizName = _currentBusinessName;
       _liveActivity.onSyncStateChanged(next, businessName: bizName);
+      // Only the sync kicked off when connectivity returns (offline →
+      // syncing) lights up the pill. The routine sync after every write
+      // (idle → syncing) stays silent — surfacing it there made the pill
+      // flicker constantly while the user was online the whole time.
+      if (next == SyncState.syncing && prev == SyncState.offline) {
+        setState(() => _showReconnectSync = true);
+      } else if (next != SyncState.syncing && _showReconnectSync) {
+        setState(() => _showReconnectSync = false);
+      }
     });
     // The header pill reflects actual device connectivity, not the last
     // Firestore sync outcome — a transient sync error (SyncState.error)
@@ -1524,10 +1712,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // connectivity change event. Sync-specific issues surface separately
     // via SyncStatusBanner.
     final isOnline = ref.watch(isOnlineProvider);
-    // Reassure the user the moment connectivity flips either way — the
-    // header pill's red/green dot is easy to miss, so a real message says
-    // it plainly: nothing is lost offline, and reconnecting kicks off a
-    // real sync rather than leaving them guessing.
+    // Pull fresh server data whenever the user opens a new data section.
+    _maybeSyncOnScreenOpen(location, online: isOnline);
+    // The header badge stays up while the post-reconnect catch-up sync
+    // drains the offline queue, so it doesn't blink away the instant
+    // connectivity returns and leave the user unsure their offline work was
+    // pushed. _showReconnectSync is flipped by the syncStateProvider
+    // listener above on an offline→syncing transition and cleared once that
+    // cycle finishes; a routine after-a-write sync never sets it.
+    final isSyncing = _showReconnectSync;
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
@@ -1544,6 +1737,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         'canInventory=${ps.canViewInventory}',
       );
     }
+    _maybeStartOnboardingTour(ps, permissionsLoaded);
     // Select valueOrNull so the shell only rebuilds when the member record
     // itself changes, not on every AsyncValue wrapper transition.
     final member = ref.watch(
@@ -1551,33 +1745,38 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     );
 
     // Live plan status — drives the sidebar plan tag and the congrats popup
-    // below when an admin activates an upgrade from the portal (an Enterprise
+    // below when an admin activates a plan from the portal (an Enterprise
     // deal, a manual reconciliation…). An in-app ClickPesa purchase claims
-    // its upgrade up front (PlanActivationWatcher.expectPurchase) and shows
-    // its own celebration in showUpgradeSheet, so this listener records that
-    // activation silently rather than popping a second dialog.
+    // its activation up front (PlanActivationWatcher.expectPurchase) and
+    // shows its own celebration in showUpgradeSheet, so this listener
+    // records that activation silently rather than popping a second dialog.
     final planStatus = ref.watch(
       planStatusProvider.select((a) => a.valueOrNull),
     );
     ref.listen<AsyncValue<PlanStatus>>(planStatusProvider, (prev, next) {
+      // Only settled data. planStatusProvider is autoDispose and is rebuilt
+      // whenever the active business changes (sign-in, sign-out, a switch);
+      // while the new one loads, Riverpod reports AsyncLoading that *retains
+      // the previous business's value*. Acting on that paired the old
+      // business's plan with the new business's id, which is what fired this
+      // popup on every account switch and re-login.
+      if (next.isLoading || next.hasError) return;
       final status = next.valueOrNull;
       if (status == null) return;
-      // The baseline is per-business (planStatusProvider is per-business) and
-      // only ever moves *up*, so neither a business switch nor the transient
-      // Starter placeholder planStatusProvider emits on a cold start before
-      // the real tier loads can manufacture a fake "upgrade" — see
-      // PlanActivationWatcher.checkForUpgrade.
       final businessId =
           ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
-      if (businessId.isEmpty) return;
-      _planActivationWatcher.checkForUpgrade(businessId, status.tier).then((
-        isUpgrade,
-      ) {
-        if (!context.mounted || !isUpgrade) return;
-        // A business switch that legitimately reveals a higher tier still
-        // shouldn't drop the popup on top of the "switching…" spinner (doing
-        // so used to strand that dialog). The baseline is already raised, so
-        // this just skips that one crowded moment.
+      if (businessId.isEmpty || status.businessId != businessId) return;
+      // Keyed on the server's activation stamp, so this is true only for an
+      // activation that actually happened since this device last looked —
+      // never for the Starter placeholder, a cache re-emit, or a business
+      // whose plan was already paid up. See PlanActivationWatcher.
+      _planActivationWatcher
+          .checkForActivation(businessId, status.tier, status.activatedAt)
+          .then((shouldCelebrate) {
+        if (!context.mounted || !shouldCelebrate) return;
+        // Don't drop the popup on top of the "switching…" spinner (doing so
+        // used to strand that dialog). The activation is already recorded,
+        // so this just skips that one crowded moment.
         if (_switchingDialogOpen) return;
         PlanActivatedDialog.show(
           context,
@@ -1672,18 +1871,24 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           // _openNavigationPanel) — this small pulsing dot is
                           // the only thing left in the top bar, just enough to
                           // say "there's something waiting for you in there".
-                          _MenuToggleButton(
-                            tooltip: _tr(
-                              'Open navigation menu',
-                              'Fungua menyu ya urambazaji',
-                            ),
-                            onPressed: () => _openNavigationPanel(
-                              context: context,
-                              location: location,
-                              profile: profile,
-                              ps: ps,
-                              member: member,
-                              planStatus: planStatus,
+                          // The key just gives the tour a stable target to
+                          // measure — it doesn't change anything about how
+                          // this button renders or behaves.
+                          KeyedSubtree(
+                            key: _tourKeys['menu']!,
+                            child: _MenuToggleButton(
+                              tooltip: _tr(
+                                'Open navigation menu',
+                                'Fungua menyu ya urambazaji',
+                              ),
+                              onPressed: () => _openNavigationPanel(
+                                context: context,
+                                location: location,
+                                profile: profile,
+                                ps: ps,
+                                member: member,
+                                planStatus: planStatus,
+                              ),
                             ),
                           ),
                           Row(
@@ -1696,6 +1901,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                   canSwitch: canSwitch,
                                   businesses: businesses,
                                   isOnline: isOnline,
+                                  isSyncing: isSyncing,
                                   onChanged: _switchFinanceContext,
                                   onManageBusinesses: () async {
                                     await context.push(
@@ -1892,12 +2098,55 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     );
 
     final slotPosition = destination.slotPosition;
-    if (slotPosition == null) return navItem;
-    return CompositedTransformTarget(
-      link: _navSlotLayerLinks[slotPosition],
-      child: navItem,
-    );
+    final built = slotPosition == null
+        ? navItem
+        : CompositedTransformTarget(
+            link: _navSlotLayerLinks[slotPosition],
+            child: navItem,
+          );
+
+    final tourKey = _tourKeys[destination.key];
+    if (tourKey == null) return built;
+    // The key just gives the tour a stable target to measure — it doesn't
+    // change anything about how this nav item renders or behaves.
+    return KeyedSubtree(key: tourKey, child: built);
   }
+
+  // Text for each first-run nav-tour step, keyed by _NavDestination.key (plus
+  // 'menu' for the hamburger icon, which isn't a nav destination). Kept as a
+  // plain switch rather than data alongside _tourKeys — there are only 5
+  // steps and the copy needs _tr(), an instance method.
+  String _tourTitleFor(String key) => switch (key) {
+    'sales' => _tr('Sales', 'Mauzo'),
+    'inventory' => _tr('Stock', 'Bidhaa'),
+    'customers' => _tr('Clients', 'Wateja'),
+    'menu' => _tr("You're all set! 🎉", 'Umeko tayari! 🎉'),
+    _ => _tr('Home', 'Nyumbani'), // _homeKey
+  };
+
+  String _tourDescriptionFor(String key) => switch (key) {
+    'sales' => _tr(
+      'This is where you create invoices and record sales.',
+      'Hapa ndipo unapotengeneza risiti na kurekodi mauzo.',
+    ),
+    'inventory' => _tr(
+      'Add your products or services here.',
+      'Ongeza bidhaa au huduma zako hapa.',
+    ),
+    'customers' => _tr(
+      'Keep track of your customers here.',
+      'Fuatilia wateja wako hapa.',
+    ),
+    'menu' => _tr(
+      'Tap here for Debts, Expenses, Reports, Team & Settings. Happy selling!',
+      'Bonyeza hapa kwa Madeni, Gharama, Ripoti, Timu na Mipangilio. Mauzo mema!',
+    ),
+    _ => _tr(
+      // _homeKey
+      'Come back to Home anytime to see your dashboard.',
+      'Rudi Nyumbani wakati wowote kuona dashibodi yako.',
+    ),
+  };
 }
 
 class _NavDestination {
@@ -2017,6 +2266,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
   final bool isOnline;
+  /// True only for the catch-up sync that runs when connectivity returns —
+  /// not the routine background sync after every write. Keeps the pill's
+  /// "Syncing…" badge from flickering on every edit.
+  final bool isSyncing;
   final List<Map<String, dynamic>> businesses;
   final ValueChanged<String> onChanged;
   final VoidCallback onManageBusinesses;
@@ -2025,6 +2278,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
     required this.selectedContext,
     required this.canSwitch,
     required this.isOnline,
+    required this.isSyncing,
     required this.businesses,
     required this.onChanged,
     required this.onManageBusinesses,
@@ -2260,32 +2514,109 @@ class _FinanceContextSwitcher extends StatelessWidget {
             ),
           ),
         ),
-        // Online is the default, unremarkable state — nothing to show.
-        // Offline is the one worth flagging, so only it gets a badge.
-        if (!isOnline)
+        // Online is the default, unremarkable state — nothing to show, not
+        // even for the routine background sync after a write. Offline gets a
+        // badge, and it lingers through the catch-up sync that runs on
+        // reconnect (isSyncing, set only for that cycle) so it doesn't
+        // vanish before the queued work has actually been pushed.
+        if (!isOnline || isSyncing)
           Positioned(
             top: -3,
             right: -3,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Text(
-                tr('Offline', 'Offline'),
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  height: 1.2,
-                ),
-              ),
-            ),
+            child: _ConnectionBadge(isOnline: isOnline, isSyncing: isSyncing),
           ),
       ],
+    );
+  }
+}
+
+/// Small status badge pinned to the header business pill.
+///
+/// - Offline           → red "Offline"
+/// - Online, syncing   → teal spinner + "Syncing…" (covers the window where
+///   connectivity is back but the offline queue is still draining)
+/// - Online, idle      → hidden
+class _ConnectionBadge extends StatefulWidget {
+  final bool isOnline;
+  final bool isSyncing;
+
+  const _ConnectionBadge({required this.isOnline, required this.isSyncing});
+
+  @override
+  State<_ConnectionBadge> createState() => _ConnectionBadgeState();
+}
+
+class _ConnectionBadgeState extends State<_ConnectionBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin;
+
+  bool get _showSpinner => widget.isOnline && widget.isSyncing;
+  bool get _visible => !widget.isOnline || widget.isSyncing;
+
+  @override
+  void initState() {
+    super.initState();
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (_showSpinner) _spin.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_ConnectionBadge old) {
+    super.didUpdateWidget(old);
+    if (_showSpinner && !_spin.isAnimating) {
+      _spin.repeat();
+    } else if (!_showSpinner && _spin.isAnimating) {
+      _spin.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+
+    final offline = !widget.isOnline;
+    final label = offline
+        ? 'Offline'
+        : (LocalizationService.isSwahili ? 'Syncing' : 'Syncing');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: offline ? AppColors.error : AppColors.info,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_showSpinner) ...[
+            RotationTransition(
+              turns: _spin,
+              child: const Icon(Icons.sync, size: 8, color: Colors.white),
+            ),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

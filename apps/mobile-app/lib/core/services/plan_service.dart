@@ -48,6 +48,7 @@ class PlanLimits {
   final int maxCustomers;    // -1 = unlimited
   final int maxProducts;        // -1 = unlimited; counts manually-created inventory items (excludes customer returns)
   final int maxServiceProducts; // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
+  final int maxSalesPerDay;     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -71,6 +72,7 @@ class PlanLimits {
     this.maxCustomers = -1,
     this.maxProducts = -1,
     this.maxServiceProducts = -1,
+    this.maxSalesPerDay = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -107,6 +109,7 @@ class PlanLimits {
       maxCustomers:        asInt('maxCustomers',        fallback.maxCustomers),
       maxProducts:         asInt('maxProducts',         fallback.maxProducts),
       maxServiceProducts:  asInt('maxServiceProducts',  fallback.maxServiceProducts),
+      maxSalesPerDay:      asInt('maxSalesPerDay',      fallback.maxSalesPerDay),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -132,6 +135,7 @@ class PlanLimits {
         'maxCustomers': maxCustomers,
         'maxProducts': maxProducts,
         'maxServiceProducts': maxServiceProducts,
+        'maxSalesPerDay': maxSalesPerDay,
         'pricePerCycle': pricePerCycle,
         'cycleMonths': cycleMonths,
         'fullReports': fullReports,
@@ -161,8 +165,10 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     monthlyInvoices: 50,
     maxUsers: 1,
     maxBusinesses: 1,
+    maxCustomers: 20,
     maxProducts: 15,
     maxServiceProducts: 3,
+    maxSalesPerDay: 10,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,
@@ -339,6 +345,23 @@ class PlanStatus {
   final DateTime? expiresAt;
   final PlanDefinitions? definitions;
 
+  /// The business these entitlements were resolved for. [planStatusProvider]
+  /// is rebuilt whenever the active business changes, and Riverpod hands
+  /// listeners the *previous* business's value while the new one loads
+  /// (`AsyncLoading` retains the last data). Carrying the id here lets a
+  /// listener tell that stale pairing apart from a real emission instead of
+  /// attributing one business's plan to another. Empty for the local
+  /// placeholder yielded before any business is resolved.
+  final String businessId;
+
+  /// Server timestamp of the last plan *activation* (`planStartedAt` on the
+  /// business doc), stamped by the ClickPesa function and by the admin
+  /// portal's plan-assign route. This is the identity of an activation
+  /// event — [PlanActivationWatcher] celebrates once per distinct value
+  /// rather than guessing from tier movement. Null on Starter, on businesses
+  /// activated before this field existed, and on the local placeholder.
+  final DateTime? activatedAt;
+
   /// Per-business negotiated Enterprise terms (admin-set), overriding
   /// specific fields of the shared Enterprise definition. Null for every
   /// tier except Enterprise businesses with a deal on file.
@@ -347,7 +370,9 @@ class PlanStatus {
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
+    this.businessId = '',
     this.expiresAt,
+    this.activatedAt,
     this.definitions,
     this.overrideLimits,
   });
@@ -367,6 +392,16 @@ class PlanStatus {
     final limit = limits.monthlyInvoices;
     if (limit == -1) return 999999;
     return (limit - invoicesUsedThisMonth).clamp(0, limit);
+  }
+
+  /// Whether the free-plan daily sales cap still allows another sale, given
+  /// the [recordedToday] sales already logged on this device today. Separate
+  /// from [canCreateInvoice] (the monthly cap) — the Add Sale entry point
+  /// checks both, and whichever is hit first blocks the sale.
+  bool allowsSaleToday(int recordedToday) {
+    final limit = limits.maxSalesPerDay;
+    if (limit == -1) return true;
+    return recordedToday < limit;
   }
 
   double get usagePercent {
@@ -429,6 +464,8 @@ class PlanStatusCache {
           'usageMonth': _usageMonth(DateTime.now()),
           if (status.expiresAt != null)
             'expiresAt': status.expiresAt!.millisecondsSinceEpoch,
+          if (status.activatedAt != null)
+            'activatedAt': status.activatedAt!.millisecondsSinceEpoch,
           if (status.overrideLimits != null)
             'overrideLimits': status.overrideLimits!.toCacheJson(),
         }),
@@ -461,6 +498,11 @@ class PlanStatusCache {
           ? PlanTier.starter
           : storedTier;
 
+      final activatedMs = (data['activatedAt'] as num?)?.toInt();
+      final activatedAt = activatedMs == null || tier == PlanTier.starter
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(activatedMs);
+
       final invoiceCount = data['usageMonth'] == _usageMonth(DateTime.now())
           ? ((data['invoicesUsedThisMonth'] as num?)?.toInt() ?? 0)
           : 0;
@@ -477,7 +519,9 @@ class PlanStatusCache {
       return PlanStatus(
         tier: tier,
         invoicesUsedThisMonth: invoiceCount,
+        businessId: businessId,
         expiresAt: expiresAt,
+        activatedAt: activatedAt,
         definitions: definitions,
         overrideLimits: overrideLimits,
       );
@@ -488,38 +532,40 @@ class PlanStatusCache {
   }
 }
 
-/// Orders tiers so an upgrade (rank increases) can be told apart from a
-/// no-op, an expiry-driven revert to Starter, or the transient Starter
-/// placeholder [planStatusProvider] emits before the real tier loads.
-int _planTierRank(PlanTier tier) {
-  switch (tier) {
-    case PlanTier.starter:
-      return 0;
-    case PlanTier.growth:
-      return 1;
-    case PlanTier.business:
-      return 2;
-    case PlanTier.enterprise:
-      return 3;
-    case PlanTier.lifetime:
-      return 4;
-  }
-}
-
-/// Remembers, per device and per business, the highest plan tier the user
-/// has already been *shown* — so the "plan activated" celebration fires
-/// exactly once per genuine upgrade:
+/// Decides when the "plan activated" celebration may be shown, so it fires
+/// exactly once per real activation and never again on a later sign-in or
+/// business switch.
 ///
-/// - never on a fresh install where the business is already on a paid tier
-///   (the first sighting only seeds the baseline),
-/// - never on the transient Starter placeholder [planStatusProvider] yields
-///   before the real tier loads, nor on any other dip to a lower tier (an
-///   expiry downgrade included) — the baseline never moves *down*, so the
-///   real tier coming back matches it and stays silent,
-/// - never a second time for an upgrade the in-app purchase flow already
-///   celebrated itself: that flow calls [expectPurchase] before it starts,
-///   so the `businesses/{id}` doc change landing via [planStatusProvider]
-///   is absorbed silently no matter when it arrives.
+/// The unit of comparison is the **activation event**, not the tier. Every
+/// activation is stamped server-side as `planStartedAt` on the business doc
+/// — by the ClickPesa function after a confirmed payment, and by the admin
+/// portal's plan-assign route for a manual grant — and clients cannot write
+/// it (firestore.rules). [PlanStatus.activatedAt] carries that stamp
+/// through, and this class remembers per device and per business which
+/// activation has already been celebrated.
+///
+/// Keying on the event rather than on tier movement is what makes the
+/// popup stable. The tier-delta approach it replaces inferred an upgrade
+/// from a local baseline, which two things routinely corrupted:
+/// [planStatusProvider] yields a hardcoded Starter placeholder before the
+/// real tier loads (that seeded the baseline low, so the real tier arriving
+/// a moment later looked like an upgrade), and Riverpod hands listeners the
+/// *previous* business's value while a new one loads, so a switch attributed
+/// one business's tier to another. An activation timestamp has neither
+/// failure mode: the placeholder carries none, and a leaked value carries
+/// the other business's, which is checked against that business's own
+/// record.
+///
+/// Consequences, all intended:
+/// - a first sighting on a device only records the activation, never
+///   celebrates — so signing in on a new phone, or switching to a business
+///   that has been paid up for months, is silent;
+/// - an activation that happens while the app is closed (an admin grant, an
+///   Enterprise deal) is celebrated on next open, once;
+/// - an in-app purchase is celebrated by the purchase flow itself, which
+///   claims the activation via [expectPurchase] / [claimPurchase] so this
+///   watcher absorbs the same event silently whenever it lands — including
+///   on a later launch, because the claim is persisted.
 ///
 /// A single shared [instance] keeps this state consistent between the
 /// passive watcher in MainShellPage and the purchase flow in the upgrade
@@ -529,90 +575,132 @@ class PlanActivationWatcher {
 
   static final PlanActivationWatcher instance = PlanActivationWatcher._();
 
-  static const _prefsKeyPrefix = 'last_seen_plan_tier_';
+  /// Millisecond timestamp of the newest activation already accounted for.
+  static const _seenKeyPrefix = 'plan_activation_seen_';
 
-  static String _prefsKey(String businessId) => '$_prefsKeyPrefix$businessId';
+  /// Set while an in-app purchase owns this business's next activation.
+  /// Persisted (not just in memory) so a purchase whose `businesses/{id}`
+  /// snapshot never arrives before the app is closed still can't produce a
+  /// duplicate popup on the next launch.
+  static const _claimKeyPrefix = 'plan_activation_claim_';
 
-  final Map<String, PlanTier> _cached = {};
-  final Set<String> _loaded = {};
+  static String _seenKey(String businessId) => '$_seenKeyPrefix$businessId';
+  static String _claimKey(String businessId) => '$_claimKeyPrefix$businessId';
 
-  /// Businesses whose next upgrade the in-app purchase flow owns and will
-  /// celebrate itself — see [expectPurchase] / [checkForUpgrade].
-  final Set<String> _purchaseInFlight = {};
+  /// Serialises every check/record. [planStatusProvider] emits in bursts
+  /// (cache, then the live snapshot) and each emission lands here through an
+  /// async prefs read — without this, two concurrent calls could both read
+  /// the same "not yet celebrated" state and pop two dialogs, or race each
+  /// other's write and leave the older activation recorded.
+  Future<void> _queue = Future.value();
 
-  Future<void> _ensureLoaded(String businessId) async {
-    if (_loaded.contains(businessId)) return;
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(_prefsKey(businessId));
-    if (stored != null) _cached[businessId] = PlanTierX.fromString(stored);
-    _loaded.add(businessId);
+  /// In-memory half of the purchase claim, so [expectPurchase] can be
+  /// synchronous and beat the server snapshot.
+  final Set<String> _inFlightClaims = {};
+
+  Future<T> _serialise<T>(Future<T> Function() action) {
+    final result = _queue.then((_) => action());
+    // Keep the chain alive regardless of how any single link resolves.
+    _queue = result.then((_) {}, onError: (_) {});
+    return result;
   }
 
-  Future<void> _persist(String businessId, PlanTier tier) async {
-    _cached[businessId] = tier;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey(businessId), tier.name);
-  }
-
-  /// The purchase flow is about to drive [businessId] to a higher tier and
-  /// will show its own celebration. Call this *before* initiating payment:
-  /// it is synchronous, so it always wins the race against the
-  /// `businesses/{id}` snapshot that [planStatusProvider] will emit once the
-  /// server activates the plan, and [checkForUpgrade] then records that
-  /// upgrade silently instead of firing a duplicate popup.
+  /// The purchase flow is about to activate a plan for [businessId] and will
+  /// show its own celebration. Call this *before* initiating payment: it is
+  /// synchronous, so it always wins the race against the `businesses/{id}`
+  /// snapshot that [planStatusProvider] emits once the server activates the
+  /// plan, and [checkForActivation] then records that activation silently
+  /// instead of firing a second dialog.
   ///
-  /// Pair every call with [markSeen] on success or [forgetPurchase] on
+  /// Pair every call with [claimPurchase] on success or [forgetPurchase] on
   /// failure / abandonment.
   void expectPurchase(String businessId) {
     if (businessId.isEmpty) return;
-    _purchaseInFlight.add(businessId);
+    _inFlightClaims.add(businessId);
   }
 
   /// Cancels a prior [expectPurchase] — the payment failed or the user
-  /// walked away — so a later genuine activation of that tier is celebrated
+  /// walked away — so a genuine activation that lands later is celebrated
   /// normally.
-  void forgetPurchase(String businessId) => _purchaseInFlight.remove(businessId);
-
-  /// Records [tier] as the highest tier shown for [businessId] without
-  /// celebrating, and ends any in-flight purchase claim. The purchase flow
-  /// calls this once it has shown its own celebration.
-  Future<void> markSeen(String businessId, PlanTier tier) async {
-    if (businessId.isEmpty) return;
-    _purchaseInFlight.remove(businessId);
-    await _ensureLoaded(businessId);
-    if (_cached[businessId] == null ||
-        _planTierRank(tier) > _planTierRank(_cached[businessId]!)) {
-      await _persist(businessId, tier);
-    }
+  Future<void> forgetPurchase(String businessId) {
+    if (businessId.isEmpty) return Future.value();
+    _inFlightClaims.remove(businessId);
+    return _serialise(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_claimKey(businessId));
+    });
   }
 
-  /// Compares [tier] against the highest tier recorded for [businessId].
-  /// Returns true — and raises the baseline — only for a genuine upgrade the
-  /// caller should celebrate. Returns false (leaving the baseline at its
-  /// highest-seen value) for a first sighting, a no-op, any dip to a lower
-  /// tier (an expiry downgrade or the Starter placeholder included), or an
-  /// upgrade the in-app purchase flow has claimed via [expectPurchase].
-  Future<bool> checkForUpgrade(String businessId, PlanTier tier) async {
-    if (businessId.isEmpty) return false;
-    await _ensureLoaded(businessId);
-    final previous = _cached[businessId];
-    if (previous == null) {
-      // No baseline on this device yet — seed it, never celebrate.
-      await _persist(businessId, tier);
-      return false;
+  /// The purchase succeeded and this flow is showing the one celebration.
+  /// Persists the claim so the matching activation is absorbed silently
+  /// whenever it arrives — this session or a later launch.
+  Future<void> claimPurchase(String businessId) async {
+    if (businessId.isEmpty) return;
+    _inFlightClaims.add(businessId);
+    await _serialise(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_claimKey(businessId), true);
+    });
+  }
+
+  /// Whether the caller should celebrate [activatedAt] for [businessId].
+  ///
+  /// True only for an activation this device has never accounted for and
+  /// that no purchase flow has claimed — and only when there is an earlier
+  /// activation on record, so a first sighting is recorded silently.
+  Future<bool> checkForActivation(
+    String businessId,
+    PlanTier tier,
+    DateTime? activatedAt,
+  ) {
+    // Starter is not an activation, and a business doc without a
+    // `planStartedAt` stamp (activated before the field existed) offers no
+    // event to celebrate — leave both alone entirely rather than recording
+    // a placeholder that a real activation would later have to out-rank.
+    if (businessId.isEmpty || tier == PlanTier.starter || activatedAt == null) {
+      return Future.value(false);
     }
-    if (_planTierRank(tier) <= _planTierRank(previous)) return false;
-    await _persist(businessId, tier);
-    // A real upgrade — but if the purchase flow claimed it, that flow shows
-    // the celebration; record it here, stay silent.
-    return !_purchaseInFlight.remove(businessId);
+
+    return _serialise(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final millis = activatedAt.millisecondsSinceEpoch;
+      final seen = prefs.getInt(_seenKey(businessId));
+
+      // Already accounted for — the common path on every sign-in, business
+      // switch and re-emission.
+      if (seen != null && millis <= seen) return false;
+
+      await prefs.setInt(_seenKey(businessId), millis);
+
+      // First activation seen for this business on this device. Record it,
+      // never celebrate: it is history, not something that just happened.
+      if (seen == null) {
+        _inFlightClaims.remove(businessId);
+        await prefs.remove(_claimKey(businessId));
+        return false;
+      }
+
+      // A genuinely new activation — unless the purchase flow owns it, in
+      // which case that flow shows the celebration and this consumes the
+      // claim silently.
+      final claimed = _inFlightClaims.remove(businessId) ||
+          (prefs.getBool(_claimKey(businessId)) ?? false);
+      if (claimed) {
+        await prefs.remove(_claimKey(businessId));
+        return false;
+      }
+      return true;
+      // Local persistence being unavailable must not surface as an unhandled
+      // async error in the shell's listener, and must not celebrate: without
+      // a readable record there is no way to tell a new activation from one
+      // already shown, and staying silent is the recoverable half of that.
+    }).catchError((_) => false);
   }
 
   @visibleForTesting
   void resetForTest() {
-    _cached.clear();
-    _loaded.clear();
-    _purchaseInFlight.clear();
+    _inFlightClaims.clear();
+    _queue = Future.value();
   }
 }
 
@@ -632,6 +720,13 @@ class PlanService {
     final expiresRaw = data['planExpiresAt'];
     DateTime? expiresAt;
     if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
+
+    // Written server-side on every activation — a confirmed ClickPesa
+    // payment (functions/src/clickpesa.ts) or an admin grant (admin portal's
+    // plans/assign route). Clients cannot write it (firestore.rules).
+    final activatedRaw = data['planStartedAt'];
+    DateTime? activatedAt;
+    if (activatedRaw is Timestamp) activatedAt = activatedRaw.toDate();
 
     // Revert to Starter if subscription has expired
     final effectiveTier =
@@ -680,7 +775,12 @@ class PlanService {
     return PlanStatus(
       tier: effectiveTier,
       invoicesUsedThisMonth: invoiceCount,
+      businessId: businessId,
       expiresAt: expiresAt,
+      // An expired paid plan reverts to Starter, and a Starter tier has no
+      // activation to celebrate — drop the stamp with it so a later renewal
+      // reads as a fresh activation.
+      activatedAt: effectiveTier == PlanTier.starter ? null : activatedAt,
       definitions: defs,
       overrideLimits: overrideLimits,
     );
@@ -711,6 +811,7 @@ class PlanService {
           PlanStatus(
             tier: PlanTier.starter,
             invoicesUsedThisMonth: 0,
+            businessId: businessId,
             definitions: defs,
           );
     }
@@ -776,9 +877,10 @@ final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
 
   final initialCached = await PlanStatusCache.load(businessId);
   yield initialCached ??
-      const PlanStatus(
+      PlanStatus(
         tier: PlanTier.starter,
         invoicesUsedThisMonth: 0,
+        businessId: businessId,
       );
 
   if (businessId.isEmpty) return;

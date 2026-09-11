@@ -6,11 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/error_reporter.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -23,6 +24,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/validation_banner.dart';
@@ -150,6 +152,29 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   int get _activeFilters => _filter != _SalesFilter.all ? 1 : 0;
 
+  // First-run page tour — just the FAB: "this is how you record a sale".
+  final _tourFabKey = GlobalKey(debugLabel: 'sales_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_sales_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Record a Sale', 'Andika Mauzo'),
+          description: _tr(
+            'Tap here every time you make a sale or write an invoice.',
+            'Bonyeza hapa kila unapouza au kutengeneza risiti.',
+          ),
+          onTap: () => _showNewSaleSheet(context),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -251,7 +276,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       );
       unawaited(ref.read(syncServiceProvider).syncNow());
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (context.mounted) {
         AppNotification.error(
           context,
@@ -278,10 +303,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       );
       return;
     }
+    // Free-plan daily sales cap — separate from the monthly one above, and
+    // counted from the offline-first Drift list so it stays correct with no
+    // connection.
+    final salesToday = ref.read(planUsageProvider).salesToday;
+    if (!plan.allowsSaleToday(salesToday)) {
+      if (!ctx.mounted) return;
+      await showUpgradeSheet(
+        ctx,
+        currentStatus: plan,
+        featureKey: PlanFeatureKey.dailySalesLimit,
+        triggerReason: _tr(
+          'You\'ve reached the ${plan.limits.maxSalesPerDay}-sale daily limit on the free plan. It resets tomorrow — upgrade for unlimited sales.',
+          'Umefika kikomo cha mauzo ${plan.limits.maxSalesPerDay} kwa siku kwenye mpango wa bure. Kinaanza upya kesho — boresha kupata mauzo yasiyo na kikomo.',
+        ),
+      );
+      return;
+    }
     if (!ctx.mounted) return;
     final saleReceipt = await showAppSheet<Map<String, dynamic>>(
       ctx,
-      maxHeightFactor: 0.92,
       builder: (_) => const _NewSaleSheet(),
     );
     if (saleReceipt == null || !ctx.mounted) return;
@@ -318,19 +359,22 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       floatingActionButton: !ps.canCreateSale
           ? null
           : NavAwareFab(
-              child: Builder(
-                builder: (ctx) => FloatingActionButton.extended(
-                  onPressed: () => _showNewSaleSheet(ctx),
-                  backgroundColor: AppColors.yellowBrand,
-                  foregroundColor: AppColors.navyPrimary,
-                  elevation: 3,
-                  icon: const Icon(Icons.add_rounded, size: 22),
-                  label: Text(
-                    _tr('Add Sale', 'Ongeza Mauzo'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary,
+              child: KeyedSubtree(
+                key: _tourFabKey,
+                child: Builder(
+                  builder: (ctx) => FloatingActionButton.extended(
+                    onPressed: () => _showNewSaleSheet(ctx),
+                    backgroundColor: AppColors.yellowBrand,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 3,
+                    icon: const Icon(Icons.add_rounded, size: 22),
+                    label: Text(
+                      _tr('Add Sale', 'Ongeza Mauzo'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -359,7 +403,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           final today = DateTime.now();
           final todayRevenue = items
               .where((i) {
-                final d = readTimestamp(i['createdAt'] ?? i['date']);
+                final d = readSaleDate(i);
                 return d != null &&
                     d.year == today.year &&
                     d.month == today.month &&
@@ -472,7 +516,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final customer = rawCustomer.isNotEmpty
         ? rawCustomer
         : _tr('Walk-in', 'Mteja wa kawaida');
-    final createdAt = readTimestamp(sale['createdAt'] ?? sale['date']);
+    final createdAt = readSaleDate(sale);
     final dueDate = readTimestamp(sale['dueDate']);
     final amount = readInvoiceTotal(sale);
     final amountPaid = parseNumericAmount(sale['amountPaid']);
@@ -636,6 +680,34 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       }
     }
 
+    Future<void> sharePdf(BuildContext sheetContext) async {
+      // Close the action sheet first so the OS share sheet isn't stacked on it.
+      Navigator.of(sheetContext).pop();
+      try {
+        await ReceiptPdfService.share(
+          sale: sale,
+          businessName: businessName,
+          printedBy: printedBy,
+          isSwahili: LocalizationService.isSwahili,
+          businessPhone: meta['businessPhone'] ?? '',
+          businessEmail: meta['businessEmail'] ?? '',
+          businessAddress: meta['businessAddress'] ?? '',
+          businessLogoUrl: meta['businessLogoUrl'] ?? '',
+          subject: _tr('Receipt', 'Risiti') +
+              ' ${sale['invoiceNumber'] ?? sale['id'] ?? ''}'.trimRight(),
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not create the receipt PDF. Please try again.',
+            'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+          ),
+        );
+      }
+    }
+
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
@@ -671,6 +743,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               const Divider(height: 20, color: AppColors.border),
               _ReceiptAction(
+                icon: Icons.ios_share_rounded,
+                iconColor: AppColors.tealAccent,
+                label: _tr('Share PDF (WhatsApp, Email…)', 'Shiriki PDF (WhatsApp, Barua pepe…)'),
+                onTap: () => sharePdf(ctx),
+              ),
+              _ReceiptAction(
                 icon: Icons.sms_outlined,
                 iconColor: AppColors.warning,
                 label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
@@ -684,8 +762,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ),
               _ReceiptAction(
                 icon: Icons.picture_as_pdf_outlined,
-                iconColor: AppColors.tealAccent,
-                label: _tr('Open PDF', 'Fungua PDF'),
+                iconColor: AppColors.textMuted,
+                label: _tr('Open / print PDF', 'Fungua / chapisha PDF'),
                 onTap: openPdf,
               ),
             ],
@@ -1069,7 +1147,7 @@ class _InvoiceCard extends StatelessWidget {
     final amount = readInvoiceTotal(item);
     final amountPaid = parseNumericAmount(item['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
-    final date = readTimestamp(item['createdAt'] ?? item['date']);
+    final date = readSaleDate(item);
     final dueDate = readTimestamp(item['dueDate']);
     // Quick sales store 'items' (name); the full editor stores
     // 'lineItems' (productName) — accept both shapes.
@@ -2359,7 +2437,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         }
       } catch (e, st) {
         debugPrint('[Sale] Drift stock mirror failed: $e');
-        unawaited(Sentry.captureException(e, stackTrace: st));
+        ErrorReporter.captureException(e, stackTrace: st);
       }
 
       // Update the Drift customer balance immediately so the credit-limit check
@@ -2374,7 +2452,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           );
         } catch (e, st) {
           debugPrint('[Sale] Drift customer balance mirror failed: $e');
-          unawaited(Sentry.captureException(e, stackTrace: st));
+          ErrorReporter.captureException(e, stackTrace: st);
         }
       }
 
@@ -2428,7 +2506,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       );
     } catch (e, st) {
       debugPrint('[Sale] Save failed: $e\n$st');
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -4216,7 +4294,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         'unit': _selectedUnit,
       });
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -4566,8 +4644,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
     return raw.isNotEmpty ? raw : _tr('Walk-in', 'Mteja wa Njiani');
   }
 
-  DateTime? get _invoiceDate =>
-      readTimestamp(_inv['createdAt'] ?? _inv['date']);
+  DateTime? get _invoiceDate => readSaleDate(_inv);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
 
   bool get _isOverdueNow {
@@ -4690,7 +4767,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
         _tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'),
       );
     } catch (e, st) {
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
       setState(() => _updating = false);
       _showSnack(_tr('Update failed. Try again.', 'Imeshindwa. Jaribu tena.'));
@@ -5926,7 +6003,7 @@ class _ReceiptAmountRow extends StatelessWidget {
             label,
             style: GoogleFonts.jetBrainsMono(
               fontSize: prominent ? 13 : 10.5,
-              fontWeight: prominent ? FontWeight.w800 : FontWeight.w500,
+              fontWeight: prominent ? FontWeight.w800 : FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),

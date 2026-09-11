@@ -168,11 +168,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: AppColors.navyPrimary,
-                      size: 18,
+                      size: 16,
                     ),
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.border.withValues(alpha: 0.3),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                     ),
                   ),
                   TextButton.icon(
@@ -180,21 +180,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     icon: const Icon(
                       Icons.headset_mic_outlined,
                       color: AppColors.navyPrimary,
-                      size: 15,
+                      size: 13,
                     ),
                     label: Text(
                       _tr('Help', 'Msaada'),
                       style: GoogleFonts.dmSans(
                         color: AppColors.navyPrimary,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: AppColors.border.withValues(alpha: 0.3),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
+                        horizontal: 12,
+                        vertical: 6,
                       ),
                     ),
                   ),

@@ -4,11 +4,12 @@ import { requireAdminSession } from '@/lib/api-guard'
 import { writeAudit } from '@/lib/write-audit'
 import type { VersionGateConfig } from '@/types'
 
-// Defaults to a no-op gate (min/recommended = 1) so an unconfigured doc never
-// blocks or nags anyone — an admin opts in by raising these numbers.
+// Defaults to a no-op gate (min/recommended = 0.0.0) so an unconfigured doc
+// never blocks or nags anyone — an admin opts in by raising these to a real
+// released version name.
 const DEFAULT_CONFIG: VersionGateConfig = {
-  minSupportedBuildNumber: 1,
-  recommendedBuildNumber: 1,
+  minSupportedVersion: '0.0.0',
+  recommendedVersion: '0.0.0',
   updateUrlAndroid: 'https://play.google.com/store/apps/details?id=com.neuraltale.maliup',
   updateUrlIOS: '',
   messageEn: '',

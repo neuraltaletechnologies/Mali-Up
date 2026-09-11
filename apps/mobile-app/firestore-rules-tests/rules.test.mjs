@@ -45,14 +45,16 @@ before(async () => {
 
     await db.doc(`businesses/${BIZ_ID}`).set({ ownerUid: OWNER_UID });
 
-    const staff = (uid, permissions) =>
+    const staff = (uid, permissions, memberId) =>
       db.doc(`businesses/${BIZ_ID}/staff/${uid}`).set({
         status: 'active',
         permissions,
+        // Mirrors the real pointer doc — see onboarding_repository.dart.
+        ...(memberId ? { memberId } : {}),
       });
     await staff(MANAGER_UID, ['viewSales', 'viewFinancialReports', 'viewInventory', 'createSale', 'manageExpenses']);
-    await staff(STAFF_A_UID, ['createSale', 'manageExpenses']);
-    await staff(STAFF_B_UID, ['createSale', 'manageExpenses']);
+    await staff(STAFF_A_UID, ['createSale', 'manageExpenses'], 'memberRecA');
+    await staff(STAFF_B_UID, ['createSale', 'manageExpenses'], 'memberRecB');
     await staff(NO_PERMS_UID, []);
 
     await db.doc(`businesses/${BIZ_ID}/sales_invoices/inv_a`).set({ createdBy: STAFF_A_UID, total: 1000 });
@@ -63,6 +65,9 @@ before(async () => {
 
     await db.doc(`businesses/${BIZ_ID}/inventory_items/item_a`).set({ name: 'Service Item A', assignedToUserId: STAFF_A_UID });
     await db.doc(`businesses/${BIZ_ID}/inventory_items/item_b`).set({ name: 'Service Item B', assignedToUserId: STAFF_B_UID });
+    // Assigned to staff A by staff *record id* — i.e. an assignment made
+    // before that member accepted their invite and got an Auth UID.
+    await db.doc(`businesses/${BIZ_ID}/inventory_items/item_c`).set({ name: 'Service Item C', assignedToUserId: 'memberRecA' });
   });
 });
 
@@ -154,4 +159,25 @@ test('staff with viewInventory reads every item', async () => {
   const db = firestoreAs(MANAGER_UID);
   await assertSucceeds(getDoc(doc(db, `businesses/${BIZ_ID}/inventory_items/item_a`)));
   await assertSucceeds(getDoc(doc(db, `businesses/${BIZ_ID}/inventory_items/item_b`)));
+});
+
+test('own-scoped staff reads an item assigned to them by staff record id', async () => {
+  const db = firestoreAs(STAFF_A_UID);
+  await assertSucceeds(getDoc(doc(db, `businesses/${BIZ_ID}/inventory_items/item_c`)));
+});
+
+test('own-scoped staff cannot read an item assigned to another member by record id', async () => {
+  const db = firestoreAs(STAFF_B_UID);
+  await assertFails(getDoc(doc(db, `businesses/${BIZ_ID}/inventory_items/item_c`)));
+});
+
+test('a staff-record-id-scoped list query returns only that member\'s assigned items', async () => {
+  const db = firestoreAs(STAFF_A_UID);
+  const q = query(
+    collection(db, `businesses/${BIZ_ID}/inventory_items`),
+    where('assignedToUserId', '==', 'memberRecA'),
+  );
+  const snap = await assertSucceeds(getDocs(q));
+  assert.equal(snap.size, 1);
+  assert.equal(snap.docs[0].id, 'item_c');
 });

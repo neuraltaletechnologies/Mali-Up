@@ -14,6 +14,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
@@ -373,6 +374,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   int _healthFilter = 0;
   int _expiryFilter = 0; // 0=none, 1=expiring_soon, 2=expired
 
+  // First-run page tour — just the FAB: "this is how you add stock".
+  final _tourFabKey = GlobalKey(debugLabel: 'inventory_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_inventory_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add Stock', 'Ongeza Bidhaa'),
+          description: _tr(
+            'Tap here to add a product or service to sell.',
+            'Bonyeza hapa kuongeza bidhaa au huduma ya kuuza.',
+          ),
+          onTap: () => _openAdd(context),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -423,7 +447,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           // black screen / crash. Just open the return sheet.
           showAppSheet<void>(
             ctx,
-            maxHeightFactor: 0.92,
             builder: (_) => SalesReturnScreen(originalInvoice: invoice),
           );
         },
@@ -461,15 +484,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return Scaffold(
       floatingActionButton: NavAwareFab(
-        child: FloatingActionButton.extended(
-          onPressed: () => _openAdd(context),
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.inventory_2_rounded, size: 20),
-          label: Text(
-            _tr('Add Product', 'Ongeza Bidhaa'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        child: KeyedSubtree(
+          key: _tourFabKey,
+          child: FloatingActionButton.extended(
+            onPressed: () => _openAdd(context),
+            backgroundColor: AppColors.yellowBrand,
+            foregroundColor: AppColors.navyPrimary,
+            elevation: 3,
+            icon: const Icon(Icons.inventory_2_rounded, size: 20),
+            label: Text(
+              _tr('Add Product', 'Ongeza Bidhaa'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ),
@@ -1732,6 +1758,48 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   bool _recording = false;
   bool _productionDone = false;
   double _lastBatchYield = 0;
+  bool _reassigning = false;
+
+  // Opens the assignee picker for a service item and persists the new
+  // assignment straight away — no trip through the edit form. Mirrors how
+  // _ProductFormSheet stores the pick (the staff record id).
+  Future<void> _handleReassign() async {
+    if (_reassigning) return;
+    final id = (widget.item['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    final current = (widget.item['assignedToUserId'] ?? '').toString();
+
+    final result = await showAppSheet<String?>(
+      context,
+      builder: (_) => _AssigneePickerSheet(selectedMemberId: current),
+    );
+    // null → dismissed without choosing; '' → explicitly unassigned.
+    if (result == null || result == current || !mounted) return;
+
+    setState(() => _reassigning = true);
+    try {
+      final repo = ref.read(inventoryRepositoryProvider);
+      final existing = await repo.getById(id);
+      if (existing == null) return;
+      await repo.save(
+        existing.copyWith(
+          assignedToUserId: result,
+          updatedAt: DateTime.now().toIso8601String(),
+        ),
+      );
+      if (!mounted) return;
+      setState(() => widget.item['assignedToUserId'] = result);
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr('Failed to update. Try again.', 'Imeshindikana. Jaribu tena.'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _reassigning = false);
+    }
+  }
 
   Future<void> _handleRecordProduction() async {
     if (_recording) return;
@@ -1912,6 +1980,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
       onRestock: () => setState(() => _restockMode = true),
       onRecordProduction: _recording ? null : _handleRecordProduction,
       recordingProduction: _recording,
+      onReassign: _reassigning ? null : _handleReassign,
+      reassigning: _reassigning,
     );
   }
 }
@@ -1922,12 +1992,16 @@ class _DetailView extends StatelessWidget {
   final VoidCallback? onRestock;
   final VoidCallback? onRecordProduction;
   final bool recordingProduction;
+  final VoidCallback? onReassign;
+  final bool reassigning;
   const _DetailView({
     required this.item,
     required this.onEdit,
     this.onRestock,
     this.onRecordProduction,
     this.recordingProduction = false,
+    this.onReassign,
+    this.reassigning = false,
   });
 
   @override
@@ -2081,6 +2155,16 @@ class _DetailView extends StatelessWidget {
                     profit: profitV,
                     margin: marginV,
                   ),
+
+                  // ── Assigned to (service items only) ─────────────────
+                  if (type == ProductType.service &&
+                      (item['assignedToUserId'] ?? '').toString().isNotEmpty)
+                    _AssignedToSection(
+                      assignedToUserId:
+                          (item['assignedToUserId'] ?? '').toString(),
+                      onTap: onReassign,
+                      busy: reassigning,
+                    ),
 
                   // ── Stock ────────────────────────────────────────────
                   if (type != ProductType.service) ...[
@@ -3021,6 +3105,121 @@ class _KeyValue extends StatelessWidget {
   }
 }
 
+// Detail-sheet section naming the team member a service is assigned to,
+// resolved from the local team list (same matching as _AssignedToField:
+// staff record id, or a legacy Auth-UID value). Only shown for service
+// items that actually have an assignee. Tapping opens the assignee picker
+// so the owner can reassign without going through the edit form.
+class _AssignedToSection extends ConsumerWidget {
+  final String assignedToUserId;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  const _AssignedToSection({
+    required this.assignedToUserId,
+    this.onTap,
+    this.busy = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(teamMembersProvider);
+    final members = membersAsync.valueOrNull ?? const <TeamMember>[];
+    final match = members
+        .where((m) =>
+            m.id == assignedToUserId || (m.userId ?? '') == assignedToUserId)
+        .cast<TeamMember?>()
+        .firstOrNull;
+
+    final String name;
+    if (match != null) {
+      name = match.name;
+    } else if (membersAsync.isLoading) {
+      name = _tr('Loading…', 'Inapakia…');
+    } else {
+      name = _tr('Unknown member', 'Mwanachama hajulikani');
+    }
+    final role = match?.roleLabel(sw: LocalizationService.isSwahili) ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        _Divider(),
+        const SizedBox(height: 20),
+        _DetailSectionLabel(_tr('Assigned to', 'Amepangiwa')),
+        const SizedBox(height: 14),
+        InkWell(
+          onTap: busy ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor:
+                      AppColors.tealAccent.withValues(alpha: 0.12),
+                  child: Text(
+                    match?.initials ?? '?',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                      if (role.isNotEmpty)
+                        Text(
+                          role,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (busy)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.textMuted,
+                    ),
+                  )
+                else if (onTap != null)
+                  Text(
+                    _tr('Change', 'Badilisha'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PricingRow extends StatelessWidget {
   final double buy;
   final double sell;
@@ -3239,8 +3438,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Assigned team member (service-type items only, e.g. a haircut or a
   // vehicle) — scopes Firestore reads for team members with DataScope.own.
-  // See firestore.rules.
-  String _assignedToUserId = '';
+  // Holds the member's staff *record id* (stable, and exists from the moment
+  // they're invited), so a service can be assigned to someone who hasn't
+  // accepted their invite yet. See firestore.rules (isOwnAssignedRecord).
+  String _assignedToMemberId = '';
 
   // Billing cadence for service-type items only: 'once' | 'weekly' |
   // 'monthly'. Recurring services let the Sales screen pre-fill how many
@@ -3358,7 +3559,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryId = (item['categoryId'] ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
-      _assignedToUserId = (item['assignedToUserId'] ?? '').toString();
+      _assignedToMemberId = (item['assignedToUserId'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3920,7 +4121,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedToUserId: _type == ProductType.service ? _assignedToUserId : '',
+        assignedToUserId: _type == ProductType.service ? _assignedToMemberId : '',
         billingCycle: _type == ProductType.service ? _billingCycle : 'once',
       );
 
@@ -4370,17 +4571,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Assigns a service-type item (e.g. a haircut or a vehicle) to a team
   // member — used to scope Firestore reads for team members with
-  // DataScope.own, so they see only their own assigned item(s). See
-  // firestore.rules.
+  // DataScope.own, so they see only their own assigned item(s). Members who
+  // haven't accepted their invite yet can be assigned too. See firestore.rules.
   Future<void> _openAssigneePicker() async {
     // '' (empty string) means the user explicitly chose "Unassigned";
     // null means the sheet was dismissed without a choice.
     final result = await showAppSheet<String?>(
       context,
-      builder: (_) => _AssigneePickerSheet(selectedUid: _assignedToUserId),
+      builder: (_) => _AssigneePickerSheet(selectedMemberId: _assignedToMemberId),
     );
     if (result != null) {
-      setState(() => _assignedToUserId = result);
+      setState(() => _assignedToMemberId = result);
     }
   }
 
@@ -5113,7 +5314,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                         const SizedBox(height: 6),
                         _AssignedToField(
-                          selectedUid: _assignedToUserId,
+                          selectedMemberId: _assignedToMemberId,
                           onTap: _openAssigneePicker,
                         ),
                         const SizedBox(height: 14),
@@ -7160,19 +7361,21 @@ class _AddRowButton extends StatelessWidget {
 // Shows the currently assigned team member's name (resolved from the local
 // team list) or "Unassigned" — tapping opens _AssigneePickerSheet.
 class _AssignedToField extends ConsumerWidget {
-  final String selectedUid;
+  final String selectedMemberId;
   final VoidCallback onTap;
 
-  const _AssignedToField({required this.selectedUid, required this.onTap});
+  const _AssignedToField({required this.selectedMemberId, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.watch(teamMembersProvider);
     String label = _tr('Unassigned', 'Hajapangiwa');
-    if (selectedUid.isNotEmpty) {
+    if (selectedMemberId.isNotEmpty) {
       final members = membersAsync.valueOrNull ?? const <TeamMember>[];
+      // Match on the staff record id; also accept a legacy Auth-UID value.
       final match = members
-          .where((m) => (m.userId ?? '') == selectedUid)
+          .where((m) =>
+              m.id == selectedMemberId || (m.userId ?? '') == selectedMemberId)
           .cast<TeamMember?>()
           .firstOrNull;
       label = match?.name ?? _tr('Unknown member', 'Mwanachama hajulikani');
@@ -7191,7 +7394,7 @@ class _AssignedToField extends ConsumerWidget {
             Icon(
               Icons.person_outline_rounded,
               size: 16,
-              color: selectedUid.isNotEmpty
+              color: selectedMemberId.isNotEmpty
                   ? AppColors.tealAccent
                   : AppColors.textDisabled,
             ),
@@ -7201,10 +7404,10 @@ class _AssignedToField extends ConsumerWidget {
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
-                  fontWeight: selectedUid.isNotEmpty
+                  fontWeight: selectedMemberId.isNotEmpty
                       ? FontWeight.w600
                       : FontWeight.w400,
-                  color: selectedUid.isNotEmpty
+                  color: selectedMemberId.isNotEmpty
                       ? AppColors.navyPrimary
                       : AppColors.textDisabled,
                 ),
@@ -7223,19 +7426,24 @@ class _AssignedToField extends ConsumerWidget {
 }
 
 class _AssigneePickerSheet extends ConsumerWidget {
-  final String selectedUid;
+  final String selectedMemberId;
 
-  const _AssigneePickerSheet({required this.selectedUid});
+  const _AssigneePickerSheet({required this.selectedMemberId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.watch(teamMembersProvider);
-    // Only accepted members have a Firebase Auth UID (userId) to assign —
-    // a still-pending invite can't be matched by isOwnRecord() in
-    // firestore.rules yet.
+    // Assignment is stored as the staff record id, so a member who hasn't
+    // accepted their invite yet (status 'pending', no Auth UID) can still be
+    // assigned — firestore.rules resolves it once they join. Suspended
+    // members are left out; they shouldn't be picking up new work.
     final assignable = (membersAsync.valueOrNull ?? const <TeamMember>[])
-        .where((m) => m.status == 'active' && (m.userId ?? '').isNotEmpty)
-        .toList();
+        .where((m) => m.status == 'active' || m.status == 'pending')
+        .toList()
+      ..sort((a, b) {
+        if (a.status == b.status) return a.name.compareTo(b.name);
+        return a.status == 'active' ? -1 : 1;
+      });
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -7272,7 +7480,7 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       color: AppColors.textMuted,
                     ),
                     title: Text(_tr('Unassigned', 'Hajapangiwa')),
-                    trailing: selectedUid.isEmpty
+                    trailing: selectedMemberId.isEmpty
                         ? const Icon(
                             Icons.check_circle_rounded,
                             color: AppColors.tealAccent,
@@ -7288,8 +7496,8 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       ),
                       child: Text(
                         _tr(
-                          'No active team members yet. Invite one from Team settings first.',
-                          'Bado hakuna wanachama wa timu amilifu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
+                          'No team members yet. Invite one from Team settings first.',
+                          'Bado hakuna wanachama wa timu. Mwalike mmoja kwenye mipangilio ya Timu kwanza.',
                         ),
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
@@ -7298,8 +7506,12 @@ class _AssigneePickerSheet extends ConsumerWidget {
                       ),
                     )
                   else
-                    ...assignable.map(
-                      (m) => ListTile(
+                    ...assignable.map((m) {
+                      final isPending = m.status == 'pending';
+                      final isSelected = selectedMemberId.isNotEmpty &&
+                          (selectedMemberId == m.id ||
+                              selectedMemberId == (m.userId ?? ''));
+                      return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: AppColors.tealAccent.withValues(
                             alpha: 0.12,
@@ -7314,16 +7526,20 @@ class _AssigneePickerSheet extends ConsumerWidget {
                           ),
                         ),
                         title: Text(m.name),
-                        subtitle: Text(m.role.label),
-                        trailing: selectedUid == m.userId
+                        subtitle: Text(
+                          isPending
+                              ? '${m.role.label} · ${_tr('invited — not joined yet', 'amealikwa — hajajiunga bado')}'
+                              : m.role.label,
+                        ),
+                        trailing: isSelected
                             ? const Icon(
                                 Icons.check_circle_rounded,
                                 color: AppColors.tealAccent,
                               )
                             : null,
-                        onTap: () => Navigator.pop(context, m.userId ?? ''),
-                      ),
-                    ),
+                        onTap: () => Navigator.pop(context, m.id),
+                      );
+                    }),
                 ],
               ),
             ),

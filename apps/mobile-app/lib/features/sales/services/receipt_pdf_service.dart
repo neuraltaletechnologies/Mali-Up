@@ -12,10 +12,12 @@ import '../../../core/utils/online_guard.dart';
 
 /// Builds and hands out customer-facing sale receipts as real PDF files.
 ///
-/// The caller continues to own channel selection. [open] generates the PDF
-/// and lets the user pick a viewer via the OS "Open with" chooser, printing
-/// uses [print], while SMS can keep using the compact text receipt already
-/// built by the sales screens.
+/// The caller continues to own channel selection. [share] hands the PDF to the
+/// OS share sheet (WhatsApp, email, Drive…) — the customer-facing "Share"
+/// path. [open] generates the PDF and lets the user pick a viewer via the OS
+/// "Open with" chooser (quick on-device preview), printing uses [print], while
+/// SMS can keep using the compact text receipt already built by the sales
+/// screens.
 abstract final class ReceiptPdfService {
   static const _navy = PdfColor.fromInt(0xFF0D1B3E);
   static const _teal = PdfColor.fromInt(0xFF1A6E8A);
@@ -144,6 +146,32 @@ abstract final class ReceiptPdfService {
     } catch (_) {
       // The business document fallback below can still supply the receipt name.
     }
+    // Team-member sales carry the member's Firebase UID in `createdBy`, but a
+    // member has no readable `users/{uid}` doc for anyone but themselves — the
+    // owner opening the receipt hits permission-denied above and the name stays
+    // "User". Their real name lives on the staff record, which the owner (and
+    // the member themselves) can read.
+    if (printedBy == 'User' && businessId != null && businessId.isNotEmpty) {
+      try {
+        final staffSnap = await firestore
+            .collection('businesses')
+            .doc(businessId)
+            .collection('staff')
+            .where('workerUid', isEqualTo: creatorUid)
+            .limit(3)
+            .get()
+            .timeout(const Duration(seconds: 3));
+        for (final doc in staffSnap.docs) {
+          final name = (doc.data()['name'] ?? '').toString().trim();
+          if (name.isNotEmpty) {
+            printedBy = name;
+            break;
+          }
+        }
+      } catch (_) {
+        // Offline or rules mismatch — the generic "User" label still ships.
+      }
+    }
     if (businessId != null && businessId.isNotEmpty) {
       try {
         final businessDoc = await firestore
@@ -191,8 +219,10 @@ abstract final class ReceiptPdfService {
         ? t('Walk-in customer', 'Mteja wa kawaida')
         : customerName;
     final customerPhone = (sale['customerPhone'] ?? '').toString().trim();
+    // The sale's actual date, not when the record was written — a backdated
+    // sale must print the date the user picked, not today's date.
     final createdAt = _asDate(
-      sale['createdAt'] ?? sale['invoiceDate'] ?? sale['date'],
+      sale['date'] ?? sale['invoiceDate'] ?? sale['createdAt'],
     );
     final dueDate = _asDate(sale['dueDate']);
     final amount = _amount(sale['totalAmount'] ?? sale['amount']);
@@ -564,6 +594,39 @@ abstract final class ReceiptPdfService {
       businessLogoUrl: businessLogoUrl,
     );
     await PdfExportService.openPdf(bytes, filename(invoiceNumber));
+  }
+
+  /// Hands the receipt PDF to the OS share sheet (WhatsApp, email, Drive…)
+  /// instead of opening it in a viewer. Returns `false` if the user dismissed
+  /// the share sheet without picking a target.
+  static Future<bool> share({
+    required Map<String, dynamic> sale,
+    required String businessName,
+    required String printedBy,
+    required bool isSwahili,
+    String businessPhone = '',
+    String businessEmail = '',
+    String businessAddress = '',
+    String businessLogoUrl = '',
+    String? subject,
+  }) async {
+    final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
+        .toString();
+    final bytes = await build(
+      sale: sale,
+      businessName: businessName,
+      printedBy: printedBy,
+      isSwahili: isSwahili,
+      businessPhone: businessPhone,
+      businessEmail: businessEmail,
+      businessAddress: businessAddress,
+      businessLogoUrl: businessLogoUrl,
+    );
+    return Printing.sharePdf(
+      bytes: bytes,
+      filename: filename(invoiceNumber),
+      subject: subject,
+    );
   }
 
   static Future<bool> print({

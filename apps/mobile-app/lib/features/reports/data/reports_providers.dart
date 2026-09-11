@@ -163,7 +163,7 @@ final filteredInvoicesProvider = Provider<List<Map<String, dynamic>>>((ref) {
         orElse: () => <Map<String, dynamic>>[],
       );
   return all.where((inv) {
-    final date = _parseDate(inv['createdAt']);
+    final date = readSaleDate(inv);
     return date != null && range.contains(date);
   }).toList();
 });
@@ -265,7 +265,7 @@ final pnlReportProvider = Provider<PnlReport>((ref) {
     double rev = 0;
     double exp = 0;
     for (final inv in allInvoices) {
-      final date = _parseDate(inv['createdAt']);
+      final date = readSaleDate(inv);
       if (date == null || date.year != m.year || date.month != m.month) continue;
       final status = (inv['status'] ?? inv['paymentStatus'] ?? '').toString().toLowerCase();
       if (status == 'paid' || status == 'completed' || status == 'partial') {
@@ -359,7 +359,7 @@ final salesReportProvider = Provider<SalesReport>((ref) {
     final m = DateTime(now.year, now.month - 5 + i);
     double rev = 0;
     for (final inv in allInvoices) {
-      final date = _parseDate(inv['createdAt']);
+      final date = readSaleDate(inv);
       if (date == null || date.year != m.year || date.month != m.month) continue;
       final status = (inv['status'] ?? inv['paymentStatus'] ?? '').toString().toLowerCase();
       if (status == 'paid' || status == 'completed' || status == 'partial') {
@@ -550,7 +550,9 @@ final arAgingProvider = Provider<ArAgingReport>((ref) {
     final status = (inv['status'] ?? inv['paymentStatus'] ?? '').toString().toLowerCase();
     if (status == 'paid' || status == 'completed') continue;
 
-    final date = _parseDate(inv['createdAt'] ?? inv['dueDate']);
+    // Age from the sale's own date (when the credit was extended), not when
+    // the record happened to be written.
+    final date = readSaleDate(inv) ?? _parseDate(inv['dueDate']);
     if (date == null) continue;
 
     final ageDays = now.difference(date).inDays;

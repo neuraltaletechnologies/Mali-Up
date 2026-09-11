@@ -283,4 +283,4 @@ same as any other Cloud Function in this app.
 
 - ClickPesa API docs: https://docs.clickpesa.com
 - ClickPesa support: support@clickpesa.com
-- Mali Up internal: Check Cloud Functions logs / Sentry for payment errors
+- Mali Up internal: Check Cloud Functions logs for payment errors

@@ -20,6 +20,7 @@ class AuditLogService {
   static const String memberActivated  = 'member_activated';
   static const String roleChanged      = 'role_changed';
   static const String permissionsChanged = 'permissions_changed';
+  static const String memberDetailsChanged = 'member_details_changed';
   static const String userSignedIn     = 'user_signed_in';
   static const String deviceIntegrityChecked = 'device_integrity_checked';
 

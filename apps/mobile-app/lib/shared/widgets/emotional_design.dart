@@ -120,6 +120,12 @@ class EmotionalLottieSpot extends StatelessWidget {
   final bool repeat;
   final CompanionMood fallbackMood;
 
+  /// The app ships a single bundled Lottie for every scene — one small
+  /// offline-safe animation instead of a per-scene set (which cost ~1 MB of
+  /// JSON). Reduced-motion still swaps in a per-scene static icon.
+  static const String _asset =
+      'assets/lottie/Appointment booking with smartphone.json';
+
   const EmotionalLottieSpot({
     super.key,
     required this.scene,
@@ -147,69 +153,15 @@ class EmotionalLottieSpot extends StatelessWidget {
           width: size,
           height: size,
           child: RepaintBoundary(
-            child: (_primaryLocalAssetForScene(scene) != null)
-                ? Lottie.asset(
-                    _primaryLocalAssetForScene(scene)!,
-                    repeat: repeat,
-                    fit: BoxFit.contain,
-                  )
-                : Lottie.network(
-                    _urlForScene(scene),
-                    repeat: repeat,
-                    fit: BoxFit.contain,
-                    frameRate: FrameRate.max,
-                    errorBuilder: (context, error, stackTrace) => Lottie.asset(
-                      _fallbackAssetForScene(scene),
-                      repeat: repeat,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+            child: Lottie.asset(
+              _asset,
+              repeat: repeat,
+              fit: BoxFit.contain,
+            ),
           ),
         );
       },
     );
-  }
-
-  String? _primaryLocalAssetForScene(EmotionalLottieScene scene) {
-    switch (scene) {
-      case EmotionalLottieScene.dashboard:
-        return 'assets/lottie/Appointment booking with smartphone.json';
-      case EmotionalLottieScene.onboarding:
-        return 'assets/lottie/Revenue.json';
-      case EmotionalLottieScene.authVerify:
-        return 'assets/lottie/Assistant-Bot.json';
-      case EmotionalLottieScene.celebrate:
-        return 'assets/lottie/DATA.json';
-      case EmotionalLottieScene.authWelcome:
-        return null;
-    }
-  }
-
-  String _urlForScene(EmotionalLottieScene scene) {
-    switch (scene) {
-      case EmotionalLottieScene.onboarding:
-        return 'https://assets9.lottiefiles.com/packages/lf20_xvrofzfk.json';
-      case EmotionalLottieScene.authWelcome:
-        return 'https://assets10.lottiefiles.com/packages/lf20_puciaact.json';
-      case EmotionalLottieScene.authVerify:
-        return 'https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json';
-      case EmotionalLottieScene.celebrate:
-        return 'https://assets1.lottiefiles.com/packages/lf20_touohxv0.json';
-      case EmotionalLottieScene.dashboard:
-        return 'https://app.lottiefiles.com/animation/6a8b31f5-f8e1-4719-a797-62dbb4c21a33';
-    }
-  }
-
-  String _fallbackAssetForScene(EmotionalLottieScene scene) {
-    switch (scene) {
-      case EmotionalLottieScene.celebrate:
-        return 'assets/lottie/DATA.json';
-      case EmotionalLottieScene.onboarding:
-      case EmotionalLottieScene.authWelcome:
-      case EmotionalLottieScene.authVerify:
-      case EmotionalLottieScene.dashboard:
-        return 'assets/lottie/Revenue.json';
-    }
   }
 
   IconData _staticIcon(EmotionalLottieScene scene) {

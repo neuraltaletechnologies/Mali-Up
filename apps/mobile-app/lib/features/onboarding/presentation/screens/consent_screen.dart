@@ -129,11 +129,11 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                     ),
                   ),
                 ],
