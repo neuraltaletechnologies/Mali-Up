@@ -174,11 +174,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         phone: (data['customerPhone'] ?? '').toString(),
       );
     }
-    _invoiceDate =
-        readTimestamp(
-          data['invoiceDate'] ?? data['createdAt'] ?? data['date'],
-        ) ??
-        _invoiceDate;
+    _invoiceDate = readSaleDate(data) ?? _invoiceDate;
     _dueDate = readTimestamp(data['dueDate']);
 
     final pmRaw = (data['paymentMethod'] ?? '').toString().toLowerCase();

@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../data/cash_flow_providers.dart';
@@ -40,6 +41,32 @@ class CashFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
+  // First-run page tour — just the FAB: "this is how you log a transaction".
+  final _tourFabKey = GlobalKey(debugLabel: 'cashflow_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_cashflow_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add a Transaction', 'Ongeza Muamala'),
+          description: _tr(
+            'Tap here to move money between your accounts.',
+            'Bonyeza hapa kuhamisha fedha kati ya akaunti zako.',
+          ),
+          onTap: () => showAppSheet<void>(
+            context,
+            builder: (_) => const AddTransactionDialog(),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,7 +82,9 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
           ),
         ],
       ),
-      floatingActionButton: NavAwareFab(child: _CashFlowFab()),
+      floatingActionButton: NavAwareFab(
+        child: KeyedSubtree(key: _tourFabKey, child: _CashFlowFab()),
+      ),
     );
   }
 }

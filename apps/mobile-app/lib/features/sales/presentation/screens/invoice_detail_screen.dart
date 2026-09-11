@@ -115,8 +115,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   String get _customerName =>
       _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-  DateTime? get _invoiceDate =>
-      readTimestamp(_inv['invoiceDate'] ?? _inv['createdAt']);
+  DateTime? get _invoiceDate => readSaleDate(_inv);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
 
   List<Map<String, dynamic>> get _lineItems {

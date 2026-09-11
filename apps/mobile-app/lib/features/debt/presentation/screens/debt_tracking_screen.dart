@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/customer_debt_sync_service.dart';
@@ -131,11 +132,29 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
   String? _filterBucket;
   _DebtSort _sort = _DebtSort.nameAz;
 
+  // First-run page tour — just the FAB: "this is how you log a debt".
+  final _tourFabKey = GlobalKey(debugLabel: 'debt_tour_fab');
+
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _tabCtrl.addListener(() => setState(() {}));
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_debt_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Track a Debt', 'Fuatilia Deni'),
+          description: _tr(
+            'Tap here to log money owed to you, or that you owe.',
+            'Bonyeza hapa kurekodi fedha unayodai au unayodaiwa.',
+          ),
+          onTap: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+        ),
+      ],
+    );
   }
 
   @override
@@ -251,16 +270,19 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
         ],
       ),
       floatingActionButton: NavAwareFab(
-        child: FloatingActionButton.extended(
-          onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          icon: const Icon(Icons.add_rounded),
-          label: Text(
-            _tabCtrl.index == 0
-                ? _tr('Add Receivable', 'Ongeza Dai')
-                : _tr('Add Payable', 'Ongeza Deni'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        child: KeyedSubtree(
+          key: _tourFabKey,
+          child: FloatingActionButton.extended(
+            onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+            backgroundColor: AppColors.yellowBrand,
+            foregroundColor: AppColors.navyPrimary,
+            icon: const Icon(Icons.add_rounded),
+            label: Text(
+              _tabCtrl.index == 0
+                  ? _tr('Add Receivable', 'Ongeza Dai')
+                  : _tr('Add Payable', 'Ongeza Deni'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ),

@@ -2264,7 +2264,7 @@ class _TopPerformersSection extends StatelessWidget {
     final result = <String, double>{};
     for (final inv in salesItems) {
       if (!_isRevenueSale(inv)) continue;
-      final ts = readTimestamp(inv['createdAt']);
+      final ts = readSaleDate(inv);
       if (ts == null || ts.isBefore(monthStart)) continue;
       final invItems = (inv['items'] as List?)?.whereType<Map>().toList() ?? [];
       for (final item in invItems) {
@@ -2282,7 +2282,7 @@ class _TopPerformersSection extends StatelessWidget {
     final result = <String, double>{};
     for (final inv in salesItems) {
       if (!_isRevenueSale(inv)) continue;
-      final ts = readTimestamp(inv['createdAt']);
+      final ts = readSaleDate(inv);
       if (ts == null || ts.isBefore(monthStart)) continue;
       final key = (inv['customerName'] ?? '').toString().trim();
       if (key.isEmpty) continue;
@@ -3296,7 +3296,7 @@ double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
   ).subtract(Duration(days: daysBack));
   return invoices.fold<double>(0, (total, inv) {
     if (!_isRevenueSale(inv)) return total;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(cutoff)) return total;
@@ -3309,7 +3309,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
   final monthStart = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
     if (!_isRevenueSale(inv)) return total;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(monthStart)) return total;
@@ -3322,7 +3322,7 @@ double _yearRevenue(List<Map<String, dynamic>> invoices) {
   final yearStart = DateTime(now.year);
   return invoices.fold<double>(0, (total, inv) {
     if (!_isRevenueSale(inv)) return total;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(yearStart)) return total;
@@ -3341,7 +3341,7 @@ double _revenueForRange(
   final to = today.subtract(Duration(days: toDaysAgo));
   return invoices.fold<double>(0, (total, inv) {
     if (!_isRevenueSale(inv)) return total;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(from) || d.isAfter(to)) return total;
@@ -3355,7 +3355,7 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
   final lastMonthEnd = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
     if (!_isRevenueSale(inv)) return total;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
     if (d.isBefore(lastMonthStart) || !d.isBefore(lastMonthEnd)) return total;
@@ -3388,7 +3388,7 @@ double _cogsForRevenueSales(
   return invoices.fold<double>(0, (running, inv) {
     if (!_isRevenueSale(inv)) return running;
     if (since != null) {
-      final ts = readTimestamp(inv['createdAt']);
+      final ts = readSaleDate(inv);
       if (ts == null) return running;
       final d = DateTime(ts.year, ts.month, ts.day);
       if (d.isBefore(since)) return running;
@@ -3425,7 +3425,7 @@ Map<int, double> _buildDailySalesData(List<Map<String, dynamic>> invoices) {
   final daily = <int, double>{};
   for (final inv in invoices) {
     if (!_isRevenueSale(inv)) continue;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null) continue;
     final d = DateTime(ts.year, ts.month, ts.day);
     final daysAgo = today.difference(d).inDays;
@@ -3461,7 +3461,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
   final totals = <String, double>{};
   for (final invoice in invoices) {
     if (!_isRevenueSale(invoice)) continue;
-    final timestamp = readTimestamp(invoice['createdAt']);
+    final timestamp = readSaleDate(invoice);
     if (timestamp == null) continue;
     final date = DateTime(timestamp.year, timestamp.month, timestamp.day);
     if (date.isBefore(cutoff)) continue;
@@ -3565,7 +3565,7 @@ List<String> _generateInsights({
   double monthTotal = 0;
   for (final inv in salesItems) {
     if (!_isRevenueSale(inv)) continue;
-    final ts = readTimestamp(inv['createdAt']);
+    final ts = readSaleDate(inv);
     if (ts == null || ts.isBefore(monthStart)) continue;
     final key = (inv['customerName'] ?? '').toString().trim();
     final amt = readInvoiceTotal(inv);

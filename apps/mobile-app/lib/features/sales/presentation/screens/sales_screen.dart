@@ -24,6 +24,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/validation_banner.dart';
@@ -150,6 +151,29 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   String _query = '';
 
   int get _activeFilters => _filter != _SalesFilter.all ? 1 : 0;
+
+  // First-run page tour — just the FAB: "this is how you record a sale".
+  final _tourFabKey = GlobalKey(debugLabel: 'sales_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_sales_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Record a Sale', 'Andika Mauzo'),
+          description: _tr(
+            'Tap here every time you make a sale or write an invoice.',
+            'Bonyeza hapa kila unapouza au kutengeneza risiti.',
+          ),
+          onTap: () => _showNewSaleSheet(context),
+        ),
+      ],
+    );
+  }
 
   @override
   void dispose() {
@@ -335,19 +359,22 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       floatingActionButton: !ps.canCreateSale
           ? null
           : NavAwareFab(
-              child: Builder(
-                builder: (ctx) => FloatingActionButton.extended(
-                  onPressed: () => _showNewSaleSheet(ctx),
-                  backgroundColor: AppColors.yellowBrand,
-                  foregroundColor: AppColors.navyPrimary,
-                  elevation: 3,
-                  icon: const Icon(Icons.add_rounded, size: 22),
-                  label: Text(
-                    _tr('Add Sale', 'Ongeza Mauzo'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary,
+              child: KeyedSubtree(
+                key: _tourFabKey,
+                child: Builder(
+                  builder: (ctx) => FloatingActionButton.extended(
+                    onPressed: () => _showNewSaleSheet(ctx),
+                    backgroundColor: AppColors.yellowBrand,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 3,
+                    icon: const Icon(Icons.add_rounded, size: 22),
+                    label: Text(
+                      _tr('Add Sale', 'Ongeza Mauzo'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -376,7 +403,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           final today = DateTime.now();
           final todayRevenue = items
               .where((i) {
-                final d = readTimestamp(i['createdAt'] ?? i['date']);
+                final d = readSaleDate(i);
                 return d != null &&
                     d.year == today.year &&
                     d.month == today.month &&
@@ -489,7 +516,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final customer = rawCustomer.isNotEmpty
         ? rawCustomer
         : _tr('Walk-in', 'Mteja wa kawaida');
-    final createdAt = readTimestamp(sale['createdAt'] ?? sale['date']);
+    final createdAt = readSaleDate(sale);
     final dueDate = readTimestamp(sale['dueDate']);
     final amount = readInvoiceTotal(sale);
     final amountPaid = parseNumericAmount(sale['amountPaid']);
@@ -1120,7 +1147,7 @@ class _InvoiceCard extends StatelessWidget {
     final amount = readInvoiceTotal(item);
     final amountPaid = parseNumericAmount(item['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
-    final date = readTimestamp(item['createdAt'] ?? item['date']);
+    final date = readSaleDate(item);
     final dueDate = readTimestamp(item['dueDate']);
     // Quick sales store 'items' (name); the full editor stores
     // 'lineItems' (productName) — accept both shapes.
@@ -4617,8 +4644,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
     return raw.isNotEmpty ? raw : _tr('Walk-in', 'Mteja wa Njiani');
   }
 
-  DateTime? get _invoiceDate =>
-      readTimestamp(_inv['createdAt'] ?? _inv['date']);
+  DateTime? get _invoiceDate => readSaleDate(_inv);
   DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
 
   bool get _isOverdueNow {

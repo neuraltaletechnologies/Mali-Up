@@ -14,6 +14,7 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
@@ -373,6 +374,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   int _healthFilter = 0;
   int _expiryFilter = 0; // 0=none, 1=expiring_soon, 2=expired
 
+  // First-run page tour — just the FAB: "this is how you add stock".
+  final _tourFabKey = GlobalKey(debugLabel: 'inventory_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_inventory_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add Stock', 'Ongeza Bidhaa'),
+          description: _tr(
+            'Tap here to add a product or service to sell.',
+            'Bonyeza hapa kuongeza bidhaa au huduma ya kuuza.',
+          ),
+          onTap: () => _openAdd(context),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -460,15 +484,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return Scaffold(
       floatingActionButton: NavAwareFab(
-        child: FloatingActionButton.extended(
-          onPressed: () => _openAdd(context),
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.inventory_2_rounded, size: 20),
-          label: Text(
-            _tr('Add Product', 'Ongeza Bidhaa'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        child: KeyedSubtree(
+          key: _tourFabKey,
+          child: FloatingActionButton.extended(
+            onPressed: () => _openAdd(context),
+            backgroundColor: AppColors.yellowBrand,
+            foregroundColor: AppColors.navyPrimary,
+            elevation: 3,
+            icon: const Icon(Icons.inventory_2_rounded, size: 20),
+            label: Text(
+              _tr('Add Product', 'Ongeza Bidhaa'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ),

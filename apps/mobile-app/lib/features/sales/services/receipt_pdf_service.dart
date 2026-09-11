@@ -219,8 +219,10 @@ abstract final class ReceiptPdfService {
         ? t('Walk-in customer', 'Mteja wa kawaida')
         : customerName;
     final customerPhone = (sale['customerPhone'] ?? '').toString().trim();
+    // The sale's actual date, not when the record was written — a backdated
+    // sale must print the date the user picked, not today's date.
     final createdAt = _asDate(
-      sale['createdAt'] ?? sale['invoiceDate'] ?? sale['date'],
+      sale['date'] ?? sale['invoiceDate'] ?? sale['createdAt'],
     );
     final dueDate = _asDate(sale['dueDate']);
     final amount = _amount(sale['totalAmount'] ?? sale['amount']);

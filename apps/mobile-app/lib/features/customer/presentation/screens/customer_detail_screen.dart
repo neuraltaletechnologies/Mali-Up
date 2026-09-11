@@ -129,7 +129,7 @@ class _Insights {
     for (final inv in invoices) {
       final status = (inv['status'] ?? '').toString().toLowerCase();
       final amount = readInvoiceTotal(inv);
-      final date = readTimestamp(inv['createdAt'] ?? inv['invoiceDate']);
+      final date = readSaleDate(inv);
 
       if (status == 'paid') {
         totalSpent += amount;
@@ -310,7 +310,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
         final invNum =
             inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
         final amt = readInvoiceTotal(inv);
-        final date = readTimestamp(inv['invoiceDate'] ?? inv['createdAt']);
+        final date = readSaleDate(inv);
         final datePart = date != null ? ' (${_fmtDate(date)})' : '';
         buf.writeln(
           '• ${_tr('Invoice', 'Ankara')} $invNum$datePart — TZS ${_fmtNum(amt)}',
@@ -2603,9 +2603,7 @@ class _InvoiceTile extends StatelessWidget {
         invoice['invoiceNumber']?.toString() ??
         invoice['id']?.toString() ??
         '—';
-    final createdAt = readTimestamp(
-      invoice['createdAt'] ?? invoice['invoiceDate'],
-    );
+    final createdAt = readSaleDate(invoice);
     final dueDate = readTimestamp(invoice['dueDate']);
     final isQuotation =
         (invoice['type'] ?? '').toString().toLowerCase() == 'quotation';
@@ -3980,9 +3978,7 @@ class _ActivityTab extends ConsumerWidget {
 
     final items = <_ActivityEntry>[
       ...invoices.map((inv) {
-        final date =
-            readTimestamp(inv['createdAt'] ?? inv['invoiceDate']) ??
-            DateTime(2000);
+        final date = readSaleDate(inv) ?? DateTime(2000);
         final amount = readInvoiceTotal(inv);
         final status = (inv['status'] ?? 'pending').toString().toLowerCase();
         final number =

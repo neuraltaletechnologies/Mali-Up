@@ -35,11 +35,20 @@ import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
 import 'nav_aware_fab.dart';
+import 'page_tour.dart';
 import 'plan_activated_dialog.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
   const MainShellPage({super.key, required this.child});
+
+  /// Re-runs the first-run nav tour on demand — wired to Settings' "Take the
+  /// Tour Again". Unlike the automatic first run, this ignores the
+  /// SharedPreferences seen-flag and isn't owner-gated: anyone who can find
+  /// the Settings row can ask to see it again.
+  static void replayOnboardingTour() {
+    _MainShellPageState._current?._replayNavTour();
+  }
 
   @override
   ConsumerState<MainShellPage> createState() => _MainShellPageState();
@@ -69,6 +78,66 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
 
+  // ── First-run spotlight tour ─────────────────────────────────────────────
+  // Points a new owner at the 3 default nav slots (sales/inventory/customers),
+  // Home, and finally the side menu (everything else — Debts, Expenses,
+  // Reports, Team, Settings — lives behind it), right after registration, so
+  // a blank dashboard isn't the only thing they see before deciding whether
+  // to come back. Keyed by the same catalog key _NavDestination.key uses for
+  // the first 3, so _buildBottomNavItem can look a key up for whichever
+  // destination currently occupies that slot — a team member with a
+  // different permission set, or an owner who has since long-pressed to
+  // swap a slot, simply won't get a Showcase wrapper for the keys that don't
+  // match, which is fine since the tour only ever runs once, before any of
+  // that customization has happened.
+  // _v2: an earlier build of PageTour could mark this seen right before a
+  // registration-order bug made the tour silently fail to show anything —
+  // bumping the key clears that false "seen" state for devices that hit it.
+  static const _tourSeenKey = 'main_shell_onboarding_tour_seen_v2';
+  final Map<String, GlobalKey> _tourKeys = {
+    'sales': GlobalKey(debugLabel: 'tour_sales'),
+    'inventory': GlobalKey(debugLabel: 'tour_inventory'),
+    'customers': GlobalKey(debugLabel: 'tour_customers'),
+    _homeKey: GlobalKey(debugLabel: 'tour_home'),
+    'menu': GlobalKey(debugLabel: 'tour_menu'),
+  };
+  // Fixed order for the nav tour, independent of iteration order over
+  // _tourKeys (a Map's order isn't something to rely on). Each step (bar
+  // 'menu', the closing one) navigates there when tapped — there's no Next
+  // button, so tapping the highlighted icon is both "go there" and "advance
+  // the tour" at once.
+  List<TourStep> get _navTourSteps => [
+    for (final MapEntry(key: key, value: route) in const {
+      'sales': AppRouter.salesPath,
+      'inventory': AppRouter.inventoryPath,
+      'customers': AppRouter.crmPath,
+    }.entries)
+      TourStep(
+        targetKey: _tourKeys[key]!,
+        title: _tourTitleFor(key),
+        description: _tourDescriptionFor(key),
+        onTap: () => context.go(route),
+      ),
+    TourStep(
+      targetKey: _tourKeys[_homeKey]!,
+      title: _tourTitleFor(_homeKey),
+      description: _tourDescriptionFor(_homeKey),
+      onTap: () => context.go(AppRoutes.dashboard),
+    ),
+    TourStep(
+      targetKey: _tourKeys['menu']!,
+      title: _tourTitleFor('menu'),
+      description: _tourDescriptionFor('menu'),
+    ),
+  ];
+  // Guards the SharedPreferences check so it only ever runs once per shell
+  // lifetime, not on every rebuild while permissions are still loading.
+  bool _tourTriggerChecked = false;
+  // The shell is a singleton for the app's lifetime (one Navigator, one
+  // bottom nav) — lets MainShellPage.replayOnboardingTour() reach the live
+  // State from Settings without threading a callback all the way down.
+  static _MainShellPageState? _current;
+
   // ── Auto-sync when a data screen is opened ──────────────────────────────
   // The offline-first pull otherwise only runs on cold start, reconnect and
   // app-resume, so records added elsewhere (e.g. the admin Quick Setup panel
@@ -94,6 +163,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   @override
   void initState() {
     super.initState();
+    _current = this;
     _currentUser = FirebaseAuth.instance.currentUser;
     _profileFuture = _fetchUserProfile(_currentUser);
     _profileFuture.then((profile) {
@@ -132,6 +202,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
 
   @override
   void dispose() {
+    if (_current == this) _current = null;
     LocalizationService.languageNotifier.removeListener(_languageListener);
     BusinessProfileService.updatedNotifier.removeListener(
       _onBusinessProfileUpdated,
@@ -154,6 +225,46 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     if (prefs.getString(_updateBannerDismissedKey) == version) return;
     if (!mounted) return;
     _showUpdateBanner(status, version);
+  }
+
+  /// Starts the first-run spotlight tour for a brand-new owner: Sales →
+  /// Inventory → Customers → Home → the side menu, "This is where you…"
+  /// style. [PageTour.maybeAutoStart] runs it at most once per install
+  /// (SharedPreferences flag set before the tour starts, not after, so a
+  /// killed app mid-tour doesn't retrigger it on relaunch). Gated on
+  /// [ps.isOwner] — team members are invited straight into an already-active
+  /// business and don't need the tour.
+  void _maybeStartOnboardingTour(PermissionService ps, bool permissionsLoaded) {
+    if (_tourTriggerChecked || !permissionsLoaded || !ps.isOwner) return;
+    _tourTriggerChecked = true;
+    _goToDashboardThen(
+      () => PageTour.maybeAutoStart(
+        context: context,
+        seenKey: _tourSeenKey,
+        steps: _navTourSteps,
+      ),
+    );
+  }
+
+  /// Re-runs the nav tour unconditionally — wired to
+  /// [MainShellPage.replayOnboardingTour].
+  void _replayNavTour() {
+    _goToDashboardThen(
+      () => PageTour.replay(context: context, steps: _navTourSteps),
+    );
+  }
+
+  /// Jumps to Home first (so every nav-tour target is guaranteed to exist,
+  /// even if this was triggered from another tab via the Settings replay),
+  /// then runs [action] once that frame has settled.
+  void _goToDashboardThen(VoidCallback action) {
+    if (!mounted) return;
+    if (GoRouterState.of(context).uri.toString() != AppRoutes.dashboard) {
+      context.go(AppRoutes.dashboard);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) action();
+    });
   }
 
   void _showUpdateBanner(VersionGateStatus status, String version) {
@@ -1626,6 +1737,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         'canInventory=${ps.canViewInventory}',
       );
     }
+    _maybeStartOnboardingTour(ps, permissionsLoaded);
     // Select valueOrNull so the shell only rebuilds when the member record
     // itself changes, not on every AsyncValue wrapper transition.
     final member = ref.watch(
@@ -1759,18 +1871,24 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           // _openNavigationPanel) — this small pulsing dot is
                           // the only thing left in the top bar, just enough to
                           // say "there's something waiting for you in there".
-                          _MenuToggleButton(
-                            tooltip: _tr(
-                              'Open navigation menu',
-                              'Fungua menyu ya urambazaji',
-                            ),
-                            onPressed: () => _openNavigationPanel(
-                              context: context,
-                              location: location,
-                              profile: profile,
-                              ps: ps,
-                              member: member,
-                              planStatus: planStatus,
+                          // The key just gives the tour a stable target to
+                          // measure — it doesn't change anything about how
+                          // this button renders or behaves.
+                          KeyedSubtree(
+                            key: _tourKeys['menu']!,
+                            child: _MenuToggleButton(
+                              tooltip: _tr(
+                                'Open navigation menu',
+                                'Fungua menyu ya urambazaji',
+                              ),
+                              onPressed: () => _openNavigationPanel(
+                                context: context,
+                                location: location,
+                                profile: profile,
+                                ps: ps,
+                                member: member,
+                                planStatus: planStatus,
+                              ),
                             ),
                           ),
                           Row(
@@ -1980,12 +2098,55 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     );
 
     final slotPosition = destination.slotPosition;
-    if (slotPosition == null) return navItem;
-    return CompositedTransformTarget(
-      link: _navSlotLayerLinks[slotPosition],
-      child: navItem,
-    );
+    final built = slotPosition == null
+        ? navItem
+        : CompositedTransformTarget(
+            link: _navSlotLayerLinks[slotPosition],
+            child: navItem,
+          );
+
+    final tourKey = _tourKeys[destination.key];
+    if (tourKey == null) return built;
+    // The key just gives the tour a stable target to measure — it doesn't
+    // change anything about how this nav item renders or behaves.
+    return KeyedSubtree(key: tourKey, child: built);
   }
+
+  // Text for each first-run nav-tour step, keyed by _NavDestination.key (plus
+  // 'menu' for the hamburger icon, which isn't a nav destination). Kept as a
+  // plain switch rather than data alongside _tourKeys — there are only 5
+  // steps and the copy needs _tr(), an instance method.
+  String _tourTitleFor(String key) => switch (key) {
+    'sales' => _tr('Sales', 'Mauzo'),
+    'inventory' => _tr('Stock', 'Bidhaa'),
+    'customers' => _tr('Clients', 'Wateja'),
+    'menu' => _tr("You're all set! 🎉", 'Umeko tayari! 🎉'),
+    _ => _tr('Home', 'Nyumbani'), // _homeKey
+  };
+
+  String _tourDescriptionFor(String key) => switch (key) {
+    'sales' => _tr(
+      'This is where you create invoices and record sales.',
+      'Hapa ndipo unapotengeneza risiti na kurekodi mauzo.',
+    ),
+    'inventory' => _tr(
+      'Add your products or services here.',
+      'Ongeza bidhaa au huduma zako hapa.',
+    ),
+    'customers' => _tr(
+      'Keep track of your customers here.',
+      'Fuatilia wateja wako hapa.',
+    ),
+    'menu' => _tr(
+      'Tap here for Debts, Expenses, Reports, Team & Settings. Happy selling!',
+      'Bonyeza hapa kwa Madeni, Gharama, Ripoti, Timu na Mipangilio. Mauzo mema!',
+    ),
+    _ => _tr(
+      // _homeKey
+      'Come back to Home anytime to see your dashboard.',
+      'Rudi Nyumbani wakati wowote kuona dashibodi yako.',
+    ),
+  };
 }
 
 class _NavDestination {

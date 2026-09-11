@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/main_shell_page.dart';
 import 'audit_log_screen.dart';
 import 'data_export_screen.dart';
 import 'delete_account_screen.dart';
@@ -338,6 +339,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.secondary,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.explore_outlined,
+                iconBg: AppColors.primary.withValues(alpha: 0.15),
+                iconColor: AppColors.primaryDark,
+                title: _tr('Take the Tour Again', 'Onyesha Tena Mwongozo'),
+                subtitle: _tr(
+                  'Replay the quick nav walkthrough',
+                  'Rudia mwongozo mfupi wa uelekezi',
+                ),
+                // Navigates to Home itself if needed — every tour target
+                // lives on the nav bar there.
+                onTap: MainShellPage.replayOnboardingTour,
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
                 ),
               ),
             ],

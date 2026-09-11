@@ -16,6 +16,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
@@ -127,6 +128,29 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
 
   int get _activeFilters => _filter != _TeamFilter.all ? 1 : 0;
 
+  // First-run page tour — just the FAB: "this is how you invite staff".
+  final _tourFabKey = GlobalKey(debugLabel: 'team_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_team_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add Your Team', 'Ongeza Timu Yako'),
+          description: _tr(
+            'Tap here to invite a cashier or staff member, and control what they can see.',
+            'Bonyeza hapa kualika mfanyakazi na kudhibiti wanachoweza kuona.',
+          ),
+          onTap: () => _tryInvite(context),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -162,17 +186,20 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     return Scaffold(
       floatingActionButton: ps.isOwner
           ? NavAwareFab(
-              child: FloatingActionButton.extended(
-                onPressed: () => _tryInvite(context),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.person_add_rounded, size: 20),
-                label: Text(
-                  _tr('Add Member', 'Ongeza Mwanachama'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+              child: KeyedSubtree(
+                key: _tourFabKey,
+                child: FloatingActionButton.extended(
+                  onPressed: () => _tryInvite(context),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: const Icon(Icons.person_add_rounded, size: 20),
+                  label: Text(
+                    _tr('Add Member', 'Ongeza Mwanachama'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

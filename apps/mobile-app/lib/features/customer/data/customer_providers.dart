@@ -154,8 +154,11 @@ final customerInvoicesProvider =
   return ref.watch(invoicesProvider).whenData((invoices) {
     final filtered = invoices.where((inv) => inv.customerId == customerId).toList()
       ..sort((a, b) {
-        final at = _toDateTime(a.createdAt);
-        final bt = _toDateTime(b.createdAt);
+        // Sort by the sale's own date, not when the record was written —
+        // otherwise a backdated sale would show up top-of-list despite
+        // displaying an older date.
+        final at = _toDateTime(a.date) ?? _toDateTime(a.createdAt);
+        final bt = _toDateTime(b.date) ?? _toDateTime(b.createdAt);
         if (at == null && bt == null) return 0;
         if (at == null) return 1;
         if (bt == null) return -1;

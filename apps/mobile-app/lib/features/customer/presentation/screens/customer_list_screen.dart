@@ -15,6 +15,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../debt/data/customer_debt_sync_service.dart';
@@ -90,6 +91,32 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   bool _searchExpanded = false;
   String _query = '';
 
+  // First-run page tour — just the FAB: "this is how you add a customer".
+  final _tourFabKey = GlobalKey(debugLabel: 'customers_tour_fab');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_customers_v3',
+      steps: [
+        TourStep(
+          targetKey: _tourFabKey,
+          title: _tr('Add a Customer', 'Ongeza Mteja'),
+          description: _tr(
+            "Tap here to save a customer's details and track what they owe.",
+            'Bonyeza hapa kuhifadhi taarifa za mteja na kufuatilia madeni yao.',
+          ),
+          onTap: () => _showAddDialog(
+            context,
+            ref.read(customerListProvider).valueOrNull?.length ?? 0,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -157,15 +184,18 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     return Scaffold(
       floatingActionButton: ps.canManageCustomers || ps.isOwner
           ? NavAwareFab(
-              child: FloatingActionButton.extended(
-                onPressed: () => _showAddDialog(context, all.length),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-                label: Text(
-                  _tr('Add Customer', 'Ongeza Mteja'),
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+              child: KeyedSubtree(
+                key: _tourFabKey,
+                child: FloatingActionButton.extended(
+                  onPressed: () => _showAddDialog(context, all.length),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                  label: Text(
+                    _tr('Add Customer', 'Ongeza Mteja'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             )
