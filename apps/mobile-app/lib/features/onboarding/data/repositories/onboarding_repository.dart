@@ -642,14 +642,27 @@ class OnboardingRepository {
   }
 
   /// Persists the business the owner picked on the PIN screen so the dashboard
-  /// opens it — `currentBusinessIdProvider` reads `selectedBusinessId`.
-  /// Best-effort: a failure here just means the last-used business opens.
+  /// opens it.
+  ///
+  /// Must write `defaultContext` alongside `selectedBusinessId` — see
+  /// [ContextFirestoreRepository.resolveContextFromData]: it checks
+  /// `defaultContext` FIRST and, when set, extracts the businessId straight
+  /// out of that string, ignoring `selectedBusinessId` entirely. Writing only
+  /// `selectedBusinessId` (as this used to) left `defaultContext` pointing at
+  /// whichever business was active last session, so a multi-business owner
+  /// who picked a different business on this screen still landed on the old
+  /// one — nav bar included. Mirrors the write in
+  /// ManageBusinessesScreen._persistSelectedBusiness and
+  /// MainShellPage._switchFinanceContext. Best-effort: a failure here just
+  /// means the last-used business opens.
   Future<void> setSelectedBusiness(String userId, String businessId) async {
     if (userId.isEmpty || businessId.isEmpty) return;
     try {
-      await _db.collection('users').doc(userId).update({
+      await _db.collection('users').doc(userId).set({
+        'defaultContext': 'business:$businessId',
+        'defaultAccountType': 'business',
         'selectedBusinessId': businessId,
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[OnboardingRepository.setSelectedBusiness] $e');

@@ -125,6 +125,21 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // Guards the SharedPreferences check so it only ever runs once per shell
   // lifetime, not on every rebuild while permissions are still loading.
   bool _tourTriggerChecked = false;
+  // A *second*, independent guard against the one bug report this tour has
+  // had: switching between two businesses under the same account showing
+  // the whole walkthrough again. _tourTriggerChecked and the SharedPreferences
+  // seenKey inside PageTour.maybeAutoStart should already make that
+  // impossible — but both are scoped to *this* State instance (the former)
+  // or read asynchronously (the latter), so if a business switch ever
+  // causes MainShellPage's State to be torn down and recreated mid-session
+  // (its own remount from GoRouter, independent of anything Cash Flow's
+  // per-business hint intentionally does), _tourTriggerChecked resets to
+  // false right along with it. `static` fields belong to the class, not any
+  // one instance, so this one survives exactly that scenario — it's set
+  // the instant the tour is ever attempted, for the remaining lifetime of
+  // the app process, regardless of how many MainShellPage instances come
+  // and go after that.
+  static bool _mainTourAttemptedThisProcess = false;
   // The shell is a singleton for the app's lifetime (one Navigator, one
   // bottom nav) — lets MainShellPage.replayOnboardingTour() reach the live
   // State from Settings without threading a callback all the way down.
@@ -229,6 +244,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   void _maybeStartOnboardingTour(PermissionService ps, bool permissionsLoaded) {
     if (_tourTriggerChecked || !permissionsLoaded || !ps.isOwner) return;
     _tourTriggerChecked = true;
+    if (_mainTourAttemptedThisProcess) return;
+    _mainTourAttemptedThisProcess = true;
     _goToDashboardThen(
       () => PageTour.maybeAutoStart(
         context: context,
