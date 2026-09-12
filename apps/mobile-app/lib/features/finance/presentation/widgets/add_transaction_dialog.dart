@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../data/finance_providers.dart';
@@ -43,6 +45,23 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     ('financing', 'Financing', 'Ufadhili'),
   ];
 
+  // Continues the tour into this dialog once it's opened from the Cash
+  // Flow page's own FAB tour. From/To account keys only ever attach to
+  // whichever of the two the current _type actually renders — PageTour
+  // drops a step whose target never rendered, so whichever doesn't apply
+  // right now is safely skipped.
+  final _tourAmountKey = GlobalKey(debugLabel: 'add_transaction_tour_amount');
+  final _tourFromAccountKey = GlobalKey(
+    debugLabel: 'add_transaction_tour_from_account',
+  );
+  final _tourToAccountKey = GlobalKey(
+    debugLabel: 'add_transaction_tour_to_account',
+  );
+  final _tourDescriptionKey = GlobalKey(
+    debugLabel: 'add_transaction_tour_description',
+  );
+  final _tourSaveKey = GlobalKey(debugLabel: 'add_transaction_tour_save');
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +70,63 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
       _fromAccountId = widget.defaultAccount!.id;
       _toAccountId = widget.defaultAccount!.id;
     }
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_add_transaction_v4',
+      steps: [
+        TourStep(
+          targetKey: _tourAmountKey,
+          title: _t('Enter the Amount', 'Weka Kiasi'),
+          description: _t(
+            'Type how much moved here.',
+            'Andika kiasi kilichohamishwa hapa.',
+          ),
+          inputController: _amountController,
+        ),
+        TourStep(
+          targetKey: _tourFromAccountKey,
+          title: _t('Which Account', 'Akaunti Gani'),
+          description: _t(
+            'Tap to choose the account it left.',
+            'Bonyeza kuchagua akaunti iliyotoka.',
+          ),
+        ),
+        TourStep(
+          targetKey: _tourToAccountKey,
+          title: _t('Which Account', 'Akaunti Gani'),
+          description: _t(
+            'Tap to choose the account it went into.',
+            'Bonyeza kuchagua akaunti iliyoingia.',
+          ),
+        ),
+        TourStep(
+          targetKey: _tourDescriptionKey,
+          title: _t('Describe It', 'Eleza'),
+          description: _t(
+            'A short note on what this transaction was for.',
+            'Maelezo mafupi ya muamala huu ulikuwa wa nini.',
+          ),
+          inputController: _descController,
+        ),
+        TourStep(
+          targetKey: _tourSaveKey,
+          title: _t('Save It', 'Hifadhi'),
+          description: _t(
+            'Once everything looks right, tap here to save.',
+            'Ukiona kila kitu ni sahihi, bonyeza hapa kuhifadhi.',
+          ),
+        ),
+      ],
+      // Part of the guided first-run journey: finishing a transaction here
+      // (as its very first one) is the "cash flow" stop done — move on to
+      // adding a product next. No-ops if this dialog wasn't reached via
+      // that journey (e.g. a returning user just logging a transaction).
+      onFullyComplete: () => OnboardingJourney.advanceFrom(
+        context,
+        AppRoutes.cashflow,
+        AppRoutes.inventory,
+      ),
+    );
   }
 
   @override
@@ -135,75 +211,88 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   const SizedBox(height: 16),
 
                   // Amount
-                  TextFormField(
-                    controller: _amountController,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 14, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      labelText: _t('Amount', 'Kiasi'),
-                      prefixText: 'TZS ',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                  KeyedSubtree(
+                    key: _tourAmountKey,
+                    child: TextFormField(
+                      controller: _amountController,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 14, color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: _t('Amount', 'Kiasi'),
+                        prefixText: 'TZS ',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 2),
+                        ),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: AppColors.primary, width: 2),
-                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return _t('Enter amount', 'Weka kiasi');
+                        }
+                        if (double.tryParse(v) == null ||
+                            double.parse(v) <= 0) {
+                          return _t('Enter valid amount', 'Weka kiasi halali');
+                        }
+                        return null;
+                      },
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return _t('Enter amount', 'Weka kiasi');
-                      }
-                      if (double.tryParse(v) == null || double.parse(v) <= 0) {
-                        return _t('Enter valid amount', 'Weka kiasi halali');
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 16),
 
                   // From account (withdrawal / transfer)
                   if (_type == 'withdrawal' || _type == 'transfer') ...[
-                    _AccountDropdown(
-                      label: _type == 'transfer'
-                          ? _t('From Account', 'Akaunti ya Kutoa')
-                          : _t('Account', 'Akaunti'),
-                      accounts: accounts,
-                      value: _fromAccountId,
-                      excludeId: _type == 'transfer' ? _toAccountId : null,
-                      onChanged: (id) => setState(() => _fromAccountId = id),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? _t('Select account', 'Chagua akaunti')
-                          : null,
+                    KeyedSubtree(
+                      key: _tourFromAccountKey,
+                      child: _AccountDropdown(
+                        label: _type == 'transfer'
+                            ? _t('From Account', 'Akaunti ya Kutoa')
+                            : _t('Account', 'Akaunti'),
+                        accounts: accounts,
+                        value: _fromAccountId,
+                        excludeId: _type == 'transfer' ? _toAccountId : null,
+                        onChanged: (id) => setState(() => _fromAccountId = id),
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? _t('Select account', 'Chagua akaunti')
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
 
                   // To account (deposit / transfer)
                   if (_type == 'deposit' || _type == 'transfer') ...[
-                    _AccountDropdown(
-                      label: _type == 'transfer'
-                          ? _t('To Account', 'Akaunti ya Kupokea')
-                          : _t('Account', 'Akaunti'),
-                      accounts: accounts,
-                      value: _toAccountId,
-                      excludeId: _type == 'transfer' ? _fromAccountId : null,
-                      onChanged: (id) => setState(() => _toAccountId = id),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? _t('Select account', 'Chagua akaunti')
-                          : null,
+                    KeyedSubtree(
+                      key: _tourToAccountKey,
+                      child: _AccountDropdown(
+                        label: _type == 'transfer'
+                            ? _t('To Account', 'Akaunti ya Kupokea')
+                            : _t('Account', 'Akaunti'),
+                        accounts: accounts,
+                        value: _toAccountId,
+                        excludeId: _type == 'transfer' ? _fromAccountId : null,
+                        onChanged: (id) => setState(() => _toAccountId = id),
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? _t('Select account', 'Chagua akaunti')
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
 
                   // Description
-                  TextFormField(
+                  KeyedSubtree(
+                    key: _tourDescriptionKey,
+                    child: TextFormField(
                     controller: _descController,
                     style: GoogleFonts.dmSans(
                         fontSize: 14, color: AppColors.textPrimary),
@@ -229,6 +318,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? _t('Enter description', 'Weka maelezo')
                         : null,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -337,6 +427,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
+                        key: _tourSaveKey,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(

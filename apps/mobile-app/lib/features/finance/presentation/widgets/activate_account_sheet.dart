@@ -6,6 +6,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/payment_method_accounts.dart';
 
@@ -29,6 +30,34 @@ class _ActivateAccountSheetState extends ConsumerState<ActivateAccountSheet> {
   final _balanceController = TextEditingController();
   final _accountNumberController = TextEditingController();
   bool _isLoading = false;
+
+  final _tourBalanceKey = GlobalKey(debugLabel: 'activate_account_tour_balance');
+  final _tourSubmitKey = GlobalKey(debugLabel: 'activate_account_tour_submit');
+
+  @override
+  void initState() {
+    super.initState();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_activate_account_v1',
+      steps: [
+        TourStep(
+          targetKey: _tourBalanceKey,
+          title: _t('Enter the Amount', 'Weka Kiasi'),
+          description: _t(
+            'Required — the money actually there right now.',
+            'Inahitajika — pesa iliyopo sasa hivi.',
+          ),
+          inputController: _balanceController,
+        ),
+        TourStep(
+          targetKey: _tourSubmitKey,
+          title: _t('Activate', 'Washa'),
+          description: _t('Tap here to activate this account.', 'Bonyeza hapa kuwasha akaunti hii.'),
+        ),
+      ],
+    );
+  }
 
   @override
   void dispose() {
@@ -95,6 +124,7 @@ class _ActivateAccountSheetState extends ConsumerState<ActivateAccountSheet> {
                   const SizedBox(height: 20),
 
                   TextFormField(
+                    key: _tourBalanceKey,
                     controller: _balanceController,
                     autofocus: true,
                     style: GoogleFonts.dmSans(
@@ -177,6 +207,7 @@ class _ActivateAccountSheetState extends ConsumerState<ActivateAccountSheet> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
+                        key: _tourSubmitKey,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(

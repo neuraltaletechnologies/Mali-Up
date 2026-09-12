@@ -41,12 +41,39 @@ class CashFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
-  // First-run page tour — just the FAB: "this is how you log a transaction".
+  // First-run page tour, in two separate single-step legs (kept as
+  // one-step-each so tapping either target closes it immediately — freeing
+  // PageTour.isActive right away for whatever sheet that tap opens next,
+  // exactly like every other FAB tour in the app). A brand-new owner has no
+  // active account yet, so the first thing this screen ever points at is
+  // "activate an account", not the FAB — the FAB leg only fires once an
+  // account actually exists, which includes the moment right after
+  // activating one, continuing the "washa akaunti → enter amount" flow.
+  final _tourActivateKey = GlobalKey(debugLabel: 'cashflow_tour_activate');
   final _tourFabKey = GlobalKey(debugLabel: 'cashflow_tour_fab');
+  // Which hasAnyAccount value a tour attempt has already been made for, so
+  // the false→true transition (right after activating) gets its own fresh
+  // attempt instead of being silently skipped.
+  bool? _tourCheckedFor;
 
-  @override
-  void initState() {
-    super.initState();
+  void _maybeStartTour(bool hasAnyAccount) {
+    if (!hasAnyAccount) {
+      PageTour.maybeAutoStart(
+        context: context,
+        seenKey: 'page_tour_seen_cashflow_activate_v1',
+        steps: [
+          TourStep(
+            targetKey: _tourActivateKey,
+            title: _tr('Activate an Account', 'Washa Akaunti'),
+            description: _tr(
+              'You need at least one active account before you can record money — tap here to activate one.',
+              'Unahitaji akaunti moja iliyowashwa kabla ya kurekodi fedha — bonyeza hapa kuiwasha.',
+            ),
+          ),
+        ],
+      );
+      return;
+    }
     PageTour.maybeAutoStart(
       context: context,
       seenKey: 'page_tour_seen_cashflow_v3',
@@ -58,10 +85,6 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
             'Tap here to move money between your accounts.',
             'Bonyeza hapa kuhamisha fedha kati ya akaunti zako.',
           ),
-          onTap: () => showAppSheet<void>(
-            context,
-            builder: (_) => const AddTransactionDialog(),
-          ),
         ),
       ],
     );
@@ -69,6 +92,16 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasAnyAccount = ref.watch(cashAccountListProvider).maybeWhen(
+      data: (accounts) => accounts.isNotEmpty,
+      orElse: () => null,
+    );
+    if (hasAnyAccount != null && _tourCheckedFor != hasAnyAccount) {
+      _tourCheckedFor = hasAnyAccount;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeStartTour(hasAnyAccount);
+      });
+    }
     return Scaffold(
       body: Column(
         children: [
@@ -77,7 +110,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
           Expanded(
             child: SilentRefresh(
               onRefresh: () => triggerSilentSync(context, ref),
-              child: const _OverviewTab(),
+              child: _OverviewTab(tourActivateKey: _tourActivateKey),
             ),
           ),
         ],
@@ -231,7 +264,13 @@ class _CashFlowFab extends StatelessWidget {
 // ── Tab 1: Overview ───────────────────────────────────────────────────────────
 
 class _OverviewTab extends ConsumerWidget {
-  const _OverviewTab();
+  const _OverviewTab({this.tourActivateKey});
+
+  // Attached to the first "Activate" card only — when the tour is showing
+  // its activate-an-account step, that's guaranteed to be i == 0 (no
+  // built-in account exists at all yet, see _maybeStartTour), so there's no
+  // ambiguity about which card to spotlight.
+  final Key? tourActivateKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -305,7 +344,10 @@ class _OverviewTab extends ConsumerWidget {
                       final spec = specs[i];
                       final account = byId[spec.accountId];
                       if (account == null) {
-                        return _ActivateMethodCard(spec: spec);
+                        return _ActivateMethodCard(
+                          key: i == 0 ? tourActivateKey : null,
+                          spec: spec,
+                        );
                       }
                       return _AccountCard(
                         account: account,
@@ -715,7 +757,7 @@ class _AccountCard extends ConsumerWidget {
 /// present in the channel. Until then the channel cannot move money.
 class _ActivateMethodCard extends StatelessWidget {
   final PaymentMethodSpec spec;
-  const _ActivateMethodCard({required this.spec});
+  const _ActivateMethodCard({super.key, required this.spec});
 
   @override
   Widget build(BuildContext context) {

@@ -108,10 +108,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
             "Tap here to save a customer's details and track what they owe.",
             'Bonyeza hapa kuhifadhi taarifa za mteja na kufuatilia madeni yao.',
           ),
-          onTap: () => _showAddDialog(
-            context,
-            ref.read(customerListProvider).valueOrNull?.length ?? 0,
-          ),
         ),
       ],
     );

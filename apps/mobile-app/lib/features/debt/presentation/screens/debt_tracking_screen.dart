@@ -151,7 +151,6 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
             'Tap here to log money owed to you, or that you owe.',
             'Bonyeza hapa kurekodi fedha unayodai au unayodaiwa.',
           ),
-          onTap: () => _openAdd(isReceivable: _tabCtrl.index == 0),
         ),
       ],
     );
