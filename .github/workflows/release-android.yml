@@ -228,7 +228,7 @@ jobs:
       - name: Bump patch version for the next release
         continue-on-error: true
         run: |
-          cd apps/mobile-app
+          # Already in apps/mobile-app via the job's default working-directory.
           current=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:\s*//')
           name=${current%%+*}
           build=${current#*+}
