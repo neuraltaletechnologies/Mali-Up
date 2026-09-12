@@ -24,6 +24,8 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../onboarding/data/repositories/onboarding_repository.dart';
+import '../../../onboarding/domain/models/user_lookup_result.dart';
 import '../../../onboarding/domain/validators/onboarding_validator.dart';
 import '../../../onboarding/presentation/screens/_onboarding_scaffold.dart';
 import '../../../rbac/data/audit_log_service.dart';
@@ -145,7 +147,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
             'Tap here to invite a cashier or staff member, and control what they can see.',
             'Bonyeza hapa kualika mfanyakazi na kudhibiti wanachoweza kuona.',
           ),
-          onTap: () => _tryInvite(context),
         ),
       ],
     );
@@ -978,6 +979,12 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
 
+  // Continues the tour into this sheet once it's opened from the Team
+  // page's own FAB tour.
+  final _tourNameKey = GlobalKey(debugLabel: 'invite_member_tour_name');
+  final _tourPhoneKey = GlobalKey(debugLabel: 'invite_member_tour_phone');
+  final _tourSaveKey = GlobalKey(debugLabel: 'invite_member_tour_save');
+
   @override
   void initState() {
     super.initState();
@@ -993,6 +1000,38 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_invite_member_v2',
+      steps: [
+        TourStep(
+          targetKey: _tourNameKey,
+          title: _tr('Enter Their Name', 'Weka Jina Lao'),
+          description: _tr(
+            'Type their full name here.',
+            'Andika jina lao kamili hapa.',
+          ),
+          inputController: _nameCtrl,
+        ),
+        TourStep(
+          targetKey: _tourPhoneKey,
+          title: _tr('Add Their Phone', 'Ongeza Namba Yao'),
+          description: _tr(
+            'Their phone number here — this is what they use to sign in.',
+            'Namba yao ya simu hapa — hii ndiyo watakayoitumia kuingia.',
+          ),
+          inputController: _phoneCtrl,
+        ),
+        TourStep(
+          targetKey: _tourSaveKey,
+          title: _tr('Send the Invite', 'Tuma Mwaliko'),
+          description: _tr(
+            'Pick a role above, then tap here to invite them.',
+            'Chagua wadhifa hapo juu, kisha bonyeza hapa kuwaalika.',
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1056,6 +1095,32 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
+
+      // Reject a phone number already tied to another Mali Up account —
+      // the owner's own number, another user's, or an existing/pending team
+      // member's. Left unchecked, this member's first login silently signs
+      // into that OTHER account instead (createTeamMemberAccount's
+      // email-already-in-use fallback derives the same Auth email from the
+      // same phone number), leaving a staff doc whose workerUid the owner
+      // can never remove — removeTeamMember refuses removing yourself.
+      final phoneToCheck = normalizedPhone.isNotEmpty
+          ? normalizedPhone
+          : rawPhone;
+      final lookup = await ref
+          .read(onboardingRepositoryProvider)
+          .lookupByPhone(phoneToCheck)
+          .timeout(const Duration(seconds: 15));
+      if (lookup is ReturningUser || lookup is TeamMemberPending) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        _snack(
+          _tr(
+            'This phone number already belongs to a Mali Up account. Use a different number for this team member.',
+            'Namba hii ya simu inatumika kwenye akaunti nyingine ya Mali Up. Tumia namba tofauti kwa mwanachama huyu.',
+          ),
+        );
+        return;
+      }
 
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
@@ -1291,34 +1356,47 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           ),
                           const SizedBox(height: 8),
 
-                          OnboardingField(
-                            controller: _nameCtrl,
-                            label: _tr('Full Name *', 'Jina Kamili *'),
-                            hint: _tr('Enter full name', 'Ingiza jina kamili'),
-                            autofocus: true,
-                            prefix: const Icon(
-                              Icons.person_outline_rounded,
-                              size: 18,
-                              color: AppColors.textMuted,
+                          KeyedSubtree(
+                            key: _tourNameKey,
+                            child: OnboardingField(
+                              controller: _nameCtrl,
+                              label: _tr('Full Name *', 'Jina Kamili *'),
+                              hint: _tr(
+                                'Enter full name',
+                                'Ingiza jina kamili',
+                              ),
+                              autofocus: true,
+                              prefix: const Icon(
+                                Icons.person_outline_rounded,
+                                size: 18,
+                                color: AppColors.textMuted,
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.trim().isEmpty)
+                                  ? _tr(
+                                      'Name is required.',
+                                      'Jina linahitajika.',
+                                    )
+                                  : null,
                             ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? _tr('Name is required.', 'Jina linahitajika.')
-                                : null,
                           ),
                           const SizedBox(height: 16),
 
-                          OnboardingField(
-                            controller: _phoneCtrl,
-                            label: _tr('Phone Number *', 'Namba ya Simu *'),
-                            hint: '+255 700 000 000',
-                            keyboardType: TextInputType.phone,
-                            prefix: const Icon(
-                              Icons.phone_outlined,
-                              size: 18,
-                              color: AppColors.textMuted,
+                          KeyedSubtree(
+                            key: _tourPhoneKey,
+                            child: OnboardingField(
+                              controller: _phoneCtrl,
+                              label: _tr('Phone Number *', 'Namba ya Simu *'),
+                              hint: '+255 700 000 000',
+                              keyboardType: TextInputType.phone,
+                              prefix: const Icon(
+                                Icons.phone_outlined,
+                                size: 18,
+                                color: AppColors.textMuted,
+                              ),
+                              validator: (v) =>
+                                  OnboardingValidator.validatePhone(v ?? ''),
                             ),
-                            validator: (v) =>
-                                OnboardingValidator.validatePhone(v ?? ''),
                           ),
                           const SizedBox(height: 24),
 
@@ -1468,39 +1546,45 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           const SizedBox(height: 28),
 
                           // ── Save button ───────────────────────────────
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: _isSaving ? null : _save,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: AppColors.navyPrimary,
-                                elevation: 4,
-                                shadowColor: AppColors.primary.withValues(
-                                  alpha: 0.3,
+                          KeyedSubtree(
+                            key: _tourSaveKey,
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isSaving ? null : _save,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.navyPrimary,
+                                  elevation: 4,
+                                  shadowColor: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                minimumSize: const Size.fromHeight(52),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.navyPrimary,
+                                        ),
+                                      )
+                                    : Text(
+                                        _tr(
+                                          'Add to Team',
+                                          'Ongeza kwenye Timu',
+                                        ),
+                                        style: GoogleFonts.dmSans(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                               ),
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: AppColors.navyPrimary,
-                                      ),
-                                    )
-                                  : Text(
-                                      _tr('Add to Team', 'Ongeza kwenye Timu'),
-                                      style: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
                             ),
                           ),
                         ],
@@ -1608,6 +1692,34 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception();
+
+      // Same duplicate-phone guard as inviting — only relevant when the
+      // phone number is actually changing, and a match on this same member
+      // (e.g. their own still-pending invite) isn't a real duplicate.
+      if (storedPhone != _member.phone) {
+        final lookup = await ref
+            .read(onboardingRepositoryProvider)
+            .lookupByPhone(normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone)
+            .timeout(const Duration(seconds: 15));
+        final isDuplicate = switch (lookup) {
+          ReturningUser() => true,
+          TeamMemberPending(memberId: final id) => id != _member.id,
+          NewUser() => false,
+        };
+        if (isDuplicate) {
+          if (!mounted) return;
+          setState(() => _isSaving = false);
+          AppNotification.info(
+            context,
+            _tr(
+              'This phone number already belongs to a Mali Up account. Use a different number for this team member.',
+              'Namba hii ya simu inatumika kwenye akaunti nyingine ya Mali Up. Tumia namba tofauti kwa mwanachama huyu.',
+            ),
+          );
+          return;
+        }
+      }
+
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
 

@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/error_reporter.dart';
@@ -169,7 +170,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             'Tap here every time you make a sale or write an invoice.',
             'Bonyeza hapa kila unapouza au kutengeneza risiti.',
           ),
-          onTap: () => _showNewSaleSheet(context),
         ),
       ],
     );
@@ -1743,11 +1743,48 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _items.fold(0.0, (s, e) => s + e.lineDiscount);
   double get _itemPriceMarkup => _items.fold(0.0, (s, e) => s + e.lineMarkup);
 
+  // Continues the tour into this sheet once it's opened from the Sales
+  // page's own FAB tour — points at the first item field, then the Save
+  // button, so a first-time owner knows what to fill before they save.
+  final _tourItemKey = GlobalKey(debugLabel: 'new_sale_tour_item');
+  final _tourSaveKey = GlobalKey(debugLabel: 'new_sale_tour_save');
+
   @override
   void initState() {
     super.initState();
     _addItem();
     _customerCtrl.addListener(_onCustomerChanged);
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_sales_sheet_v2',
+      steps: [
+        TourStep(
+          targetKey: _tourItemKey,
+          title: _tr('Add What You Sold', 'Ongeza Ulichouza'),
+          description: _tr(
+            'Search for a product or service, then set how many were sold.',
+            'Tafuta bidhaa au huduma, kisha weka idadi iliyouzwa.',
+          ),
+          inputController: _items.first.nameCtrl,
+        ),
+        TourStep(
+          targetKey: _tourSaveKey,
+          title: _tr('Save the Sale', 'Hifadhi Mauzo'),
+          description: _tr(
+            'Once everything looks right, tap here to complete the sale.',
+            'Ukiona kila kitu ni sahihi, bonyeza hapa kukamilisha mauzo.',
+          ),
+        ),
+      ],
+      // This is the guided first-run journey's true end: cash flow set up,
+      // a product added, and now a first sale made. No-ops if this sheet
+      // wasn't reached via that journey.
+      onFullyComplete: () => OnboardingJourney.advanceFrom(
+        context,
+        AppRoutes.sales,
+        null,
+      ),
+    );
   }
 
   @override
@@ -2900,7 +2937,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           const SizedBox(width: 10),
-          SizedBox(width: 176, child: _buildSaveButton()),
+          SizedBox(
+            key: _tourSaveKey,
+            width: 176,
+            child: _buildSaveButton(),
+          ),
         ],
       ),
     );

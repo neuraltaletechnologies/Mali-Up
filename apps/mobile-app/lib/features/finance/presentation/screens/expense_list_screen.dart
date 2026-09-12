@@ -59,7 +59,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             'Tap here to record what you spend — it keeps your profit accurate.',
             'Bonyeza hapa kurekodi unachotumia — huweka faida yako sahihi.',
           ),
-          onTap: _openAdd,
         ),
       ],
     );

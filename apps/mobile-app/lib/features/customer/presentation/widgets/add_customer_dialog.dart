@@ -18,6 +18,7 @@ import '../../domain/models/customer.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/page_tour.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -53,10 +54,48 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   bool _isImportingContact = false;
   bool _isOrganisation = false;
 
+  // Continues the tour into this dialog once it's opened from the Customers
+  // page's own FAB tour.
+  final _tourNameKey = GlobalKey(debugLabel: 'add_customer_tour_name');
+  final _tourPhoneKey = GlobalKey(debugLabel: 'add_customer_tour_phone');
+  final _tourSaveKey = GlobalKey(debugLabel: 'add_customer_tour_save');
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_add_customer_v2',
+      steps: [
+        TourStep(
+          targetKey: _tourNameKey,
+          title: _tr('Name Them', 'Wape Jina'),
+          description: _tr(
+            "Enter the customer's name here.",
+            'Ingiza jina la mteja hapa.',
+          ),
+          inputController: _nameController,
+        ),
+        TourStep(
+          targetKey: _tourPhoneKey,
+          title: _tr('Add Their Phone', 'Ongeza Namba Yao'),
+          description: _tr(
+            'Their phone number here — everything else is optional.',
+            'Namba yao ya simu hapa — mengine yote ni hiari.',
+          ),
+          inputController: _phoneController,
+        ),
+        TourStep(
+          targetKey: _tourSaveKey,
+          title: _tr('Save the Customer', 'Hifadhi Mteja'),
+          description: _tr(
+            'Tap here once the details look right.',
+            'Bonyeza hapa taarifa zikiwa sahihi.',
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -234,39 +273,45 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     const SizedBox(height: 16),
 
                     // ── Fields ───────────────────────────────────────────────
-                    TextFormField(
-                      controller: _nameController,
-                      textCapitalization: TextCapitalization.words,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 15, color: AppColors.navyPrimary),
-                      decoration: _field(
-                        _isOrganisation
-                            ? _tr('Organisation Name *', 'Jina la Shirika *')
-                            : _tr('Customer Name *', 'Jina la Mteja *'),
-                        _isOrganisation
-                            ? Icons.business_outlined
-                            : Icons.person_outline_rounded,
+                    KeyedSubtree(
+                      key: _tourNameKey,
+                      child: TextFormField(
+                        controller: _nameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 15, color: AppColors.navyPrimary),
+                        decoration: _field(
+                          _isOrganisation
+                              ? _tr('Organisation Name *', 'Jina la Shirika *')
+                              : _tr('Customer Name *', 'Jina la Mteja *'),
+                          _isOrganisation
+                              ? Icons.business_outlined
+                              : Icons.person_outline_rounded,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? _tr('Name is required', 'Jina linahitajika')
+                            : null,
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? _tr('Name is required', 'Jina linahitajika')
-                          : null,
                     ),
                     const SizedBox(height: 12),
 
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 15, color: AppColors.navyPrimary),
-                      decoration: _field(
-                        _tr('Phone Number *', 'Namba ya Simu *'),
-                        Icons.phone_outlined,
-                        hint: '+255 7XX XXX XXX',
+                    KeyedSubtree(
+                      key: _tourPhoneKey,
+                      child: TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 15, color: AppColors.navyPrimary),
+                        decoration: _field(
+                          _tr('Phone Number *', 'Namba ya Simu *'),
+                          Icons.phone_outlined,
+                          hint: '+255 7XX XXX XXX',
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? _tr('Phone number is required',
+                                'Namba ya simu inahitajika')
+                            : null,
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? _tr('Phone number is required',
-                              'Namba ya simu inahitajika')
-                          : null,
                     ),
                     const SizedBox(height: 12),
 
@@ -330,6 +375,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
+                          key: _tourSaveKey,
                           flex: 2,
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _addCustomer,

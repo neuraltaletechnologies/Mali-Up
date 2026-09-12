@@ -15,6 +15,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -85,6 +86,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   bool get _isEditing => widget.expenseToEdit != null;
 
+  // Continues the tour into this screen once opened from the Expenses
+  // page's own FAB tour — only for a genuinely new expense, not an edit.
+  final _tourAmountKey = GlobalKey(debugLabel: 'add_expense_tour_amount');
+  final _tourAccountKey = GlobalKey(debugLabel: 'add_expense_tour_account');
+  final _tourSaveKey = GlobalKey(debugLabel: 'add_expense_tour_save');
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +125,38 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _receiptUrl = e.receiptUrl;
       _isRecurring = e.isRecurring;
       _frequency = e.recurrenceType.isNotEmpty ? e.recurrenceType : 'monthly';
+    } else {
+      PageTour.maybeAutoStart(
+        context: context,
+        seenKey: 'page_tour_seen_add_expense_v3',
+        steps: [
+          TourStep(
+            targetKey: _tourAmountKey,
+            title: _tr('Enter the Amount', 'Weka Kiasi'),
+            description: _tr(
+              'Type how much you spent here.',
+              'Andika kiasi ulichotumia hapa.',
+            ),
+            inputController: _amountCtrl,
+          ),
+          TourStep(
+            targetKey: _tourAccountKey,
+            title: _tr('Where From', 'Kutoka Wapi'),
+            description: _tr(
+              'Pick which account the money left.',
+              'Chagua akaunti iliyotoa fedha.',
+            ),
+          ),
+          TourStep(
+            targetKey: _tourSaveKey,
+            title: _tr('Save It', 'Hifadhi'),
+            description: _tr(
+              'Pick a category above, then tap here to save.',
+              'Chagua kundi hapo juu, kisha bonyeza hapa kuhifadhi.',
+            ),
+          ),
+        ],
+      );
     }
   }
 
@@ -583,16 +622,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   controller: _scrollCtrl,
                   padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
                   children: [
-                    _AmountSection(
-                      controller: _amountCtrl,
-                      onChanged: (_) {
-                        setState(() {
-                          if (_errorField == _ExpenseErrorField.amount &&
-                              _errorMessage != null) {
-                            _errorMessage = null;
-                          }
-                        });
-                      },
+                    KeyedSubtree(
+                      key: _tourAmountKey,
+                      child: _AmountSection(
+                        controller: _amountCtrl,
+                        onChanged: (_) {
+                          setState(() {
+                            if (_errorField == _ExpenseErrorField.amount &&
+                                _errorMessage != null) {
+                              _errorMessage = null;
+                            }
+                          });
+                        },
+                      ),
                     ),
                     _buildValidation(_ExpenseErrorField.amount),
                     const SizedBox(height: 20),
@@ -616,17 +658,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    PaymentAccountChips(
-                      selectedAccountId: _selectedAccountId,
-                      onSelectAccount: (a) => setState(() {
-                        _selectedAccountId = a.id;
-                        if (_errorField == _ExpenseErrorField.payment) {
-                          _errorMessage = null;
-                        }
-                      }),
-                      onActivationRequired: (message) =>
-                          _showValidation(message, _ExpenseErrorField.payment),
-                      onActivateMethod: (spec) => _showActivateAccountSheet(spec),
+                    KeyedSubtree(
+                      key: _tourAccountKey,
+                      child: PaymentAccountChips(
+                        selectedAccountId: _selectedAccountId,
+                        onSelectAccount: (a) => setState(() {
+                          _selectedAccountId = a.id;
+                          if (_errorField == _ExpenseErrorField.payment) {
+                            _errorMessage = null;
+                          }
+                        }),
+                        onActivationRequired: (message) => _showValidation(
+                          message,
+                          _ExpenseErrorField.payment,
+                        ),
+                        onActivateMethod: (spec) =>
+                            _showActivateAccountSheet(spec),
+                      ),
                     ),
                     _buildValidation(_ExpenseErrorField.payment),
                     const SizedBox(height: 20),
@@ -856,6 +904,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 saving: _saving,
                 amount: _amountCtrl.text,
                 onSave: _save,
+                buttonKey: _tourSaveKey,
               ),
             ],
           ),
@@ -1455,11 +1504,15 @@ class _BottomSaveBar extends StatelessWidget {
   final bool saving;
   final String amount;
   final VoidCallback onSave;
+  // Keys just the button itself for the page tour, not this whole bar (which
+  // also shows a running total) — see add_expense_screen.dart's initState.
+  final Key? buttonKey;
 
   const _BottomSaveBar({
     required this.saving,
     required this.amount,
     required this.onSave,
+    this.buttonKey,
   });
 
   String get _formattedAmount {
@@ -1511,6 +1564,7 @@ class _BottomSaveBar extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           SizedBox(
+            key: buttonKey,
             width: 184,
             height: 48,
             child: FilledButton.icon(

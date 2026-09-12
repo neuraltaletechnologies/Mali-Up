@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../data/customer_debt_sync_service.dart';
@@ -79,6 +80,12 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
   final _noteCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  // Continues the tour into this screen once it's opened from the Debt
+  // page's own FAB tour — only for a genuinely new debt, not an edit.
+  final _tourAmountKey = GlobalKey(debugLabel: 'add_debt_tour_amount');
+  final _tourWhoKey = GlobalKey(debugLabel: 'add_debt_tour_who');
+  final _tourSaveKey = GlobalKey(debugLabel: 'add_debt_tour_save');
+
   @override
   void initState() {
     super.initState();
@@ -116,7 +123,60 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
           }
         }
       }
+    } else {
+      // "Who" is kept as its OWN tour leg, ending right there, rather than
+      // folded into one longer [Amount, Who, Save] sequence. Tapping it
+      // opens CustomerPickerSheet — and often, from its "Add New Customer"
+      // button, AddCustomerDialog on top of that. If this tour's overlay
+      // were still up (mid-sequence, about to spotlight Save), its dimmed
+      // backdrop would sit over that whole nested flow and swallow every
+      // tap into it, so the picker/add-contact detour would look like it
+      // "goes nowhere". Ending the tour here instead frees it immediately,
+      // the same way a single-step FAB tour frees up for the sheet it just
+      // opened. The Save step picks back up on its own, from
+      // _selectCustomer below, once a customer has actually been chosen.
+      PageTour.maybeAutoStart(
+        context: context,
+        seenKey: 'page_tour_seen_add_debt_v4',
+        steps: [
+          TourStep(
+            targetKey: _tourAmountKey,
+            title: _tr('Enter the Amount', 'Weka Kiasi'),
+            description: _tr(
+              'Type how much is owed here.',
+              'Andika kiasi kinachodaiwa hapa.',
+            ),
+            inputController: _amountCtrl,
+          ),
+          TourStep(
+            targetKey: _tourWhoKey,
+            title: _tr('Pick Who', 'Chagua Anayehusika'),
+            description: _tr(
+              'Required — choose the customer this debt is with.',
+              'Inahitajika — chagua anayekudai au unayemdai.',
+            ),
+          ),
+        ],
+      );
     }
+  }
+
+  /// Continues the tour once a customer has actually been chosen (including
+  /// via the "Add New Customer" detour) — see the note in initState above
+  /// for why this isn't just the tour's third step instead.
+  void _maybeContinueTourToSave() {
+    if (widget.debtToEdit != null) return;
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_add_debt_save_v1',
+      steps: [
+        TourStep(
+          targetKey: _tourSaveKey,
+          title: _tr('Save It', 'Hifadhi'),
+          description: _tr('Tap here to save.', 'Bonyeza hapa kuhifadhi.'),
+        ),
+      ],
+    );
   }
 
   String _trimZeros(double v) =>
@@ -136,6 +196,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
       _linkedCustomer = c;
       if (c != null) _customerError = null;
     });
+    if (c != null) _maybeContinueTourToSave();
   }
 
   Future<void> _pickDate() async {
@@ -314,10 +375,13 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                         ),
                         const SizedBox(height: 20),
                       ],
-                      _AmountEntry(
-                        controller: _amountCtrl,
-                        isReceivable: _isReceivable,
-                        onChanged: () => setState(() {}),
+                      KeyedSubtree(
+                        key: _tourAmountKey,
+                        child: _AmountEntry(
+                          controller: _amountCtrl,
+                          isReceivable: _isReceivable,
+                          onChanged: () => setState(() {}),
+                        ),
                       ),
                       const SizedBox(height: 24),
 
@@ -327,9 +391,12 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                             : _tr('Who you owe', 'Unamdaiwa nani'),
                       ),
                       const SizedBox(height: 8),
-                      CustomerPickerField(
-                        selected: _linkedCustomer,
-                        onSelected: _selectCustomer,
+                      KeyedSubtree(
+                        key: _tourWhoKey,
+                        child: CustomerPickerField(
+                          selected: _linkedCustomer,
+                          onSelected: _selectCustomer,
+                        ),
                       ),
                       if (_customerError != null) ...[
                         const SizedBox(height: 6),
@@ -389,12 +456,15 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                       ),
                       const SizedBox(height: 28),
 
-                      _SaveButton(
-                        saving: _saving,
-                        isEdit: isEdit,
-                        isReceivable: _isReceivable,
-                        accentColor: accentColor,
-                        onTap: _save,
+                      KeyedSubtree(
+                        key: _tourSaveKey,
+                        child: _SaveButton(
+                          saving: _saving,
+                          isEdit: isEdit,
+                          isReceivable: _isReceivable,
+                          accentColor: accentColor,
+                          onTap: _save,
+                        ),
                       ),
                     ],
                   ),

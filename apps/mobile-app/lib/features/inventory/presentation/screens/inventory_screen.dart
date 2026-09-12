@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -391,7 +392,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             'Tap here to add a product or service to sell.',
             'Bonyeza hapa kuongeza bidhaa au huduma ya kuuza.',
           ),
-          onTap: () => _openAdd(context),
         ),
       ],
     );
@@ -3543,10 +3543,78 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       ) ??
       0;
 
+  // Continues the tour into this sheet once it's opened from the Inventory
+  // page's own FAB tour — only for a genuinely new product, not when
+  // editing or restocking an existing one.
+  final _tourNameKey = GlobalKey(debugLabel: 'product_form_tour_name');
+  final _tourPriceKey = GlobalKey(debugLabel: 'product_form_tour_price');
+  final _tourStockKey = GlobalKey(debugLabel: 'product_form_tour_stock');
+  final _tourSaveKey = GlobalKey(debugLabel: 'product_form_tour_save');
+
   @override
   void initState() {
     super.initState();
     final item = widget.existingItem;
+    if (item == null && widget.restockItem == null) {
+      PageTour.maybeAutoStart(
+        context: context,
+        seenKey: 'page_tour_seen_product_form_v2',
+        steps: [
+          TourStep(
+            targetKey: _tourNameKey,
+            title: _tr('Name It', 'Ipe Jina'),
+            description: _tr(
+              'Type the product or service name — search results will suggest one as you type.',
+              'Andika jina la bidhaa au huduma — matokeo yataonyesha mapendekezo unapoandika.',
+            ),
+            inputController: _nameCtrl,
+          ),
+          // _tourPriceKey / _tourStockKey are only attached in the plain
+          // product/service pricing layouts, not the return or manufactured
+          // ones — PageTour._start() drops a step whose target never
+          // rendered, so this is safely skipped for those other layouts.
+          TourStep(
+            targetKey: _tourPriceKey,
+            title: _tr('Set the Price', 'Weka Bei'),
+            description: _tr(
+              'Type how much you sell it for.',
+              'Andika bei unayouzia.',
+            ),
+            inputController: _sellCtrl,
+          ),
+          TourStep(
+            targetKey: _tourStockKey,
+            title: _tr('Set the Stock', 'Weka Kiasi'),
+            description: _tr(
+              'This is how many you have — adjust it if it\'s not right.',
+              'Hii ni idadi uliyonayo — badilisha kama si sahihi.',
+            ),
+            // _stockCtrl already defaults to '1' — attaching it here (rather
+            // than leaving this a plain tap-to-advance step) means a tap
+            // that's actually the start of editing the quantity or reorder
+            // point doesn't immediately end the step; see
+            // _scheduleDebouncedAdvance in page_tour.dart.
+            inputController: _stockCtrl,
+          ),
+          TourStep(
+            targetKey: _tourSaveKey,
+            title: _tr('Save It', 'Hifadhi'),
+            description: _tr(
+              'Once it looks right, tap here to add it.',
+              'Ikiwa sahihi, bonyeza hapa kuongeza.',
+            ),
+          ),
+        ],
+        // Part of the guided first-run journey: adding this first product
+        // is the "inventory" stop done — move on to making a sale next.
+        // No-ops if this sheet wasn't reached via that journey.
+        onFullyComplete: () => OnboardingJourney.advanceFrom(
+          context,
+          AppRoutes.inventory,
+          AppRoutes.sales,
+        ),
+      );
+    }
     if (item != null) {
       _type = _readType(item);
       _nameCtrl.text = (item['name'] ?? item['productName'] ?? '').toString();
@@ -4903,25 +4971,28 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             : BusinessProductConfig.productNameLabel(bizType, isSwahili: LocalizationService.isSwahili)} *',
                       ),
                       const SizedBox(height: 6),
-                      _FormField(
-                        ctrl: _nameCtrl,
-                        hint: isReturn
-                            ? _tr(
-                                'e.g. Book, T-Shirt …',
-                                'k.m. Kitabu, Shati …',
-                              )
-                            : _type == ProductType.service
-                            ? _tr(
-                                'e.g. Water supply, Cleaning',
-                                'k.m. Usambazaji wa maji, Usafi',
-                              )
-                            : _tr(
-                                'e.g. Unga wa mahindi 2kg',
-                                'k.m. Unga wa mahindi 2kg',
-                              ),
-                        caps: TextCapitalization.words,
-                        focusNode: _nameFocus,
-                        onChanged: (_) => setState(() {}),
+                      KeyedSubtree(
+                        key: _tourNameKey,
+                        child: _FormField(
+                          ctrl: _nameCtrl,
+                          hint: isReturn
+                              ? _tr(
+                                  'e.g. Book, T-Shirt …',
+                                  'k.m. Kitabu, Shati …',
+                                )
+                              : _type == ProductType.service
+                              ? _tr(
+                                  'e.g. Water supply, Cleaning',
+                                  'k.m. Usambazaji wa maji, Usafi',
+                                )
+                              : _tr(
+                                  'e.g. Unga wa mahindi 2kg',
+                                  'k.m. Unga wa mahindi 2kg',
+                                ),
+                          caps: TextCapitalization.words,
+                          focusNode: _nameFocus,
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
                       // ── Existing-product suggestions (restock) ────────
                       if (nameSuggestions.isNotEmpty) ...[
@@ -5963,62 +6034,67 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           _ProfitStrip(profit: profitAmt, margin: marginAmt),
                         ],
                       ] else ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _FormLabel(
-                                    _tr('Buying price', 'Bei ya kununua'),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  _FormField(
-                                    ctrl: _buyCtrl,
-                                    hint: '0',
-                                    prefix: 'TSh',
-                                    keyboard:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
+                        KeyedSubtree(
+                          key: _tourPriceKey,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    _FormLabel(
+                                      _tr('Buying price', 'Bei ya kununua'),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _FormField(
+                                      ctrl: _buyCtrl,
+                                      hint: '0',
+                                      prefix: 'TSh',
+                                      keyboard:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      formatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9.]'),
                                         ),
-                                    formatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9.]'),
-                                      ),
-                                    ],
-                                    onChanged: (_) => setState(() {}),
-                                  ),
-                                ],
+                                      ],
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _FormLabel(
-                                    _tr('Selling price *', 'Bei ya kuuza *'),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  _FormField(
-                                    ctrl: _sellCtrl,
-                                    hint: '0',
-                                    prefix: 'TSh',
-                                    keyboard:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    _FormLabel(
+                                      _tr('Selling price *', 'Bei ya kuuza *'),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _FormField(
+                                      ctrl: _sellCtrl,
+                                      hint: '0',
+                                      prefix: 'TSh',
+                                      keyboard:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      formatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9.]'),
                                         ),
-                                    formatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9.]'),
-                                      ),
-                                    ],
-                                    onChanged: (_) => setState(() {}),
-                                  ),
-                                ],
+                                      ],
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         if (showProfit) ...[
                           const SizedBox(height: 10),
@@ -6125,48 +6201,55 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               : _tr('Stock', 'Stoo'),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _FormLabel(
-                                    _restockTarget != null
-                                        ? _tr('Add quantity', 'Ongeza kiasi')
-                                        : _tr('Quantity', 'Kiasi'),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  _FormField(
-                                    ctrl: _stockCtrl,
-                                    hint: '1',
-                                    keyboard: TextInputType.number,
-                                    formatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                  ),
-                                ],
+                        KeyedSubtree(
+                          key: _tourStockKey,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    _FormLabel(
+                                      _restockTarget != null
+                                          ? _tr('Add quantity', 'Ongeza kiasi')
+                                          : _tr('Quantity', 'Kiasi'),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _FormField(
+                                      ctrl: _stockCtrl,
+                                      hint: '1',
+                                      keyboard: TextInputType.number,
+                                      formatters: [
+                                        FilteringTextInputFormatter
+                                            .digitsOnly,
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _FormLabel(_tr('Reorder point', 'Kikomo')),
-                                  const SizedBox(height: 6),
-                                  _FormField(
-                                    ctrl: _reorderCtrl,
-                                    hint: '5',
-                                    keyboard: TextInputType.number,
-                                    formatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                  ),
-                                ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    _FormLabel(_tr('Reorder point', 'Kikomo')),
+                                    const SizedBox(height: 6),
+                                    _FormField(
+                                      ctrl: _reorderCtrl,
+                                      hint: '5',
+                                      keyboard: TextInputType.number,
+                                      formatters: [
+                                        FilteringTextInputFormatter
+                                            .digitsOnly,
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -6495,51 +6578,57 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
                       const SizedBox(height: 28),
 
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _saving ? null : _save,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navyPrimary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: AppColors.navyPrimary
-                                .withValues(alpha: 0.4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                      KeyedSubtree(
+                        key: _tourSaveKey,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _saving ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: AppColors.navyPrimary
+                                  .withValues(alpha: 0.4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
                             ),
-                            elevation: 0,
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _isEdit
+                                        ? _tr(
+                                            'Save changes',
+                                            'Hifadhi mabadiliko',
+                                          )
+                                        : isReturn
+                                        ? _tr(
+                                            'Record Return',
+                                            'Rekodi Urejesho',
+                                          )
+                                        : isManufactured
+                                        ? _tr('Save product', 'Hifadhi bidhaa')
+                                        : _type == ProductType.service
+                                        ? _tr('Save service', 'Hifadhi huduma')
+                                        : _tr(
+                                            'Add to inventory',
+                                            'Ongeza kwenye bidhaa',
+                                          ),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
-                          child: _saving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  _isEdit
-                                      ? _tr(
-                                          'Save changes',
-                                          'Hifadhi mabadiliko',
-                                        )
-                                      : isReturn
-                                      ? _tr('Record Return', 'Rekodi Urejesho')
-                                      : isManufactured
-                                      ? _tr('Save product', 'Hifadhi bidhaa')
-                                      : _type == ProductType.service
-                                      ? _tr('Save service', 'Hifadhi huduma')
-                                      : _tr(
-                                          'Add to inventory',
-                                          'Ongeza kwenye bidhaa',
-                                        ),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
                       ),
                     ],

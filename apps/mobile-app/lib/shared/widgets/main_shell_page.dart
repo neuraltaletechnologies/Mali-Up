@@ -28,6 +28,7 @@ import '../../core/providers/sync_provider.dart';
 import '../../core/services/business_profile_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/sync/sync_service.dart';
+import '../../features/finance/data/finance_providers.dart';
 import '../../features/notifications/data/notification_aggregator.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/data/role_cache_service.dart';
@@ -101,34 +102,25 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _homeKey: GlobalKey(debugLabel: 'tour_home'),
     'menu': GlobalKey(debugLabel: 'tour_menu'),
   };
+  // Highlighted inside the navigation panel itself, once it's open — the
+  // follow-up single-step tour that continues a brand-new owner's guided
+  // journey on into Cash Flow. Kept separate from _tourKeys since it isn't
+  // part of the fixed _navTourSteps sequence.
+  final _tourCashFlowMenuItemKey = GlobalKey(
+    debugLabel: 'tour_cashflow_menu_item',
+  );
   // Fixed order for the nav tour, independent of iteration order over
-  // _tourKeys (a Map's order isn't something to rely on). Each step (bar
-  // 'menu', the closing one) navigates there when tapped — there's no Next
-  // button, so tapping the highlighted icon is both "go there" and "advance
-  // the tour" at once.
+  // _tourKeys (a Map's order isn't something to rely on). Tapping a
+  // highlighted icon navigates there — via the translucent hole passing the
+  // tap through to that icon's own real GestureDetector, not a duplicated
+  // onTap here — and advances the tour at once; there's no Next button.
   List<TourStep> get _navTourSteps => [
-    for (final MapEntry(key: key, value: route) in const {
-      'sales': AppRouter.salesPath,
-      'inventory': AppRouter.inventoryPath,
-      'customers': AppRouter.crmPath,
-    }.entries)
+    for (final key in ['sales', 'inventory', 'customers', _homeKey, 'menu'])
       TourStep(
         targetKey: _tourKeys[key]!,
         title: _tourTitleFor(key),
         description: _tourDescriptionFor(key),
-        onTap: () => context.go(route),
       ),
-    TourStep(
-      targetKey: _tourKeys[_homeKey]!,
-      title: _tourTitleFor(_homeKey),
-      description: _tourDescriptionFor(_homeKey),
-      onTap: () => context.go(AppRoutes.dashboard),
-    ),
-    TourStep(
-      targetKey: _tourKeys['menu']!,
-      title: _tourTitleFor('menu'),
-      description: _tourDescriptionFor('menu'),
-    ),
   ];
   // Guards the SharedPreferences check so it only ever runs once per shell
   // lifetime, not on every rebuild while permissions are still loading.
@@ -242,6 +234,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         context: context,
         seenKey: _tourSeenKey,
         steps: _navTourSteps,
+        onFullyComplete: _maybeContinueJourneyIntoCashFlow,
       ),
     );
   }
@@ -250,7 +243,50 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   /// [MainShellPage.replayOnboardingTour].
   void _replayNavTour() {
     _goToDashboardThen(
-      () => PageTour.replay(context: context, steps: _navTourSteps),
+      () => PageTour.replay(
+        context: context,
+        steps: _navTourSteps,
+        onFullyComplete: _maybeContinueJourneyIntoCashFlow,
+      ),
+    );
+  }
+
+  /// Fires once the nav tour's closing "menu" step is tapped — the menu
+  /// icon's own real onPressed opens the navigation panel at (almost) the
+  /// same moment. A user who already has an active cash account has
+  /// evidently already started using the app for real, not just clicked
+  /// through a tour — for them, the tour simply ends here, at the side
+  /// menu, same as before this guided journey existed. Only a genuinely
+  /// brand-new owner (no account at all yet) gets steered on: rather than
+  /// silently navigating to Cash Flow on their behalf, this highlights the
+  /// "Cash Flow" item inside the panel that's now opening, so *tapping it*
+  /// — the same "tap the real, highlighted thing" rule as every other step
+  /// in this tour — is both the real navigation and what continues the
+  /// journey.
+  Future<void> _maybeContinueJourneyIntoCashFlow() async {
+    List<dynamic> accounts;
+    try {
+      accounts = await ref.read(cashAccountListProvider.future);
+    } catch (_) {
+      return;
+    }
+    if (accounts.isNotEmpty) return;
+    if (!mounted) return;
+    await OnboardingJourney.prime(AppRoutes.cashflow);
+    if (!mounted) return;
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: 'page_tour_seen_menu_cashflow_hint_v1',
+      steps: [
+        TourStep(
+          targetKey: _tourCashFlowMenuItemKey,
+          title: _tr('Set Up Cash Flow', 'Anzisha Mtiririko wa Fedha'),
+          description: _tr(
+            'Tap Cash Flow to start tracking your money.',
+            'Bonyeza Mtiririko wa Fedha kuanza kufuatilia fedha zako.',
+          ),
+        ),
+      ],
     );
   }
 
@@ -1132,6 +1168,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                   ),
                                 if (ps.canViewCashFlow)
                                   _DrawerItemLight(
+                                    key: _tourCashFlowMenuItemKey,
                                     icon: Icons.account_balance_wallet_outlined,
                                     iconColor: AppColors.secondary,
                                     label: _tr(
@@ -2120,7 +2157,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     'sales' => _tr('Sales', 'Mauzo'),
     'inventory' => _tr('Stock', 'Bidhaa'),
     'customers' => _tr('Clients', 'Wateja'),
-    'menu' => _tr("You're all set! 🎉", 'Umeko tayari! 🎉'),
+    'menu' => _tr("You're all set! 🎉", 'Upo tayari! 🎉'),
     _ => _tr('Home', 'Nyumbani'), // _homeKey
   };
 
@@ -2673,6 +2710,7 @@ class _DrawerItemLight extends StatelessWidget {
   final int trailingBadgeCount;
 
   const _DrawerItemLight({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
