@@ -128,7 +128,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } else {
       PageTour.maybeAutoStart(
         context: context,
-        seenKey: 'page_tour_seen_add_expense_v3',
+        seenKey: 'page_tour_seen_add_expense_v4',
         steps: [
           TourStep(
             targetKey: _tourAmountKey,

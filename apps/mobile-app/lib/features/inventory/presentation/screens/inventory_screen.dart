@@ -3558,7 +3558,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     if (item == null && widget.restockItem == null) {
       PageTour.maybeAutoStart(
         context: context,
-        seenKey: 'page_tour_seen_product_form_v2',
+        seenKey: 'page_tour_seen_product_form_v3',
         steps: [
           TourStep(
             targetKey: _tourNameKey,

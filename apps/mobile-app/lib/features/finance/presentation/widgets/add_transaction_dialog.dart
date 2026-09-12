@@ -72,7 +72,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     }
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_add_transaction_v3',
+      seenKey: 'page_tour_seen_add_transaction_v4',
       steps: [
         TourStep(
           targetKey: _tourAmountKey,

@@ -66,7 +66,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     _nameController = TextEditingController(text: widget.initialName);
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_add_customer_v2',
+      seenKey: 'page_tour_seen_add_customer_v3',
       steps: [
         TourStep(
           targetKey: _tourNameKey,

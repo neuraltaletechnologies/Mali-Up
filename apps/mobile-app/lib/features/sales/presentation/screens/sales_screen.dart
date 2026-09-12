@@ -161,7 +161,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     super.initState();
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_sales_v3',
+      seenKey: 'page_tour_seen_sales_v4',
       steps: [
         TourStep(
           targetKey: _tourFabKey,
@@ -1756,7 +1756,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     _customerCtrl.addListener(_onCustomerChanged);
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_sales_sheet_v2',
+      seenKey: 'page_tour_seen_sales_sheet_v3',
       steps: [
         TourStep(
           targetKey: _tourItemKey,

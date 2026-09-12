@@ -1002,7 +1002,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     _animCtrl.forward();
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_invite_member_v2',
+      seenKey: 'page_tour_seen_invite_member_v3',
       steps: [
         TourStep(
           targetKey: _tourNameKey,
