@@ -1201,6 +1201,14 @@ class _ManageBusinessesScreenState
             userId: user.uid,
             selectedBusinessId: pendingSelectId,
           );
+          // Nudge MainShellPage (and any other cached views) to refetch now
+          // that defaultContext/selectedBusinessId actually point at the new
+          // business — the notifyUpdated() call inside _saveBusinessForm
+          // fires too early for this (before this pending write lands), so
+          // without this second call the nav bar's business pill keeps
+          // showing the previously active business's name until something
+          // else happens to refresh it. Mirrors _switchToBusiness below.
+          BusinessProfileService.notifyUpdated();
         }
       }
       if (!mounted) return;

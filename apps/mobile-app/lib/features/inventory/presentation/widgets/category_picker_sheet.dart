@@ -252,6 +252,15 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               elevation: 0,
+                              // The app theme's default ElevatedButton style
+                              // sets minimumSize: Size(double.infinity, 52)
+                              // for the usual full-width buttons. This one
+                              // sits next to a TextField in a Row (not
+                              // wrapped in Expanded), so that infinite-width
+                              // minimum propagates straight into an infinite
+                              // width constraint and crashes layout — opt
+                              // out of it here.
+                              minimumSize: Size.zero,
                             ),
                             child: _adding
                                 ? const SizedBox(

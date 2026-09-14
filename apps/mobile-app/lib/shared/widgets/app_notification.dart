@@ -35,7 +35,11 @@ class AppNotification {
 
   static Color _backgroundFor(AppNotificationType type) => switch (type) {
     AppNotificationType.info => AppColors.secondary, // navy — app default
-    AppNotificationType.success => AppColors.success,
+    // Same navy as `info`, not AppColors.success (green) — the app
+    // standardizes every success confirmation (add customer, add product,
+    // etc.) on the one reusable navy/blue card instead of a separate green
+    // one. The check-circle icon below still carries the "success" meaning.
+    AppNotificationType.success => AppColors.secondary,
     AppNotificationType.error => AppColors.error,
     AppNotificationType.warning => AppColors.warning,
   };

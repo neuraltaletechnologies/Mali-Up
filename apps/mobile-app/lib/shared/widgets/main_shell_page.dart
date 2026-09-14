@@ -246,14 +246,27 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _tourTriggerChecked = true;
     if (_mainTourAttemptedThisProcess) return;
     _mainTourAttemptedThisProcess = true;
-    _goToDashboardThen(
-      () => PageTour.maybeAutoStart(
-        context: context,
-        seenKey: _tourSeenKey,
-        steps: _navTourSteps,
-        onFullyComplete: _maybeContinueJourneyIntoCashFlow,
-      ),
-    );
+    // Deferred to a post-frame callback, same as _maybeSyncOnScreenOpen above
+    // — this guard trips on the very first build() where permissionsLoaded
+    // flips true for a new owner (e.g. right after creating a business), and
+    // _goToDashboardThen below can call context.go(). Calling that
+    // synchronously from inside build(), as this used to, is reentrant:
+    // GoRouter's navigation rebuilds the Navigator/Overlay while this same
+    // frame's build for MainShellPage is still in progress, which corrupted
+    // the Overlay's element tree — surfaced as "Duplicate GlobalKeys
+    // detected" / "Tried to build dirty widget in the wrong build scope"
+    // right after becoming owner-ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _goToDashboardThen(
+        () => PageTour.maybeAutoStart(
+          context: context,
+          seenKey: _tourSeenKey,
+          steps: _navTourSteps,
+          onFullyComplete: _maybeContinueJourneyIntoCashFlow,
+        ),
+      );
+    });
   }
 
   /// Re-runs the nav tour unconditionally — wired to

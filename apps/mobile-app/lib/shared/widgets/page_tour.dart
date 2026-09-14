@@ -29,12 +29,43 @@ class TourStep {
   final String description;
   final TextEditingController? inputController;
 
+  /// For a step whose target holds more than one field the user needs to
+  /// fill in before moving on — e.g. Inventory's Stock step, a single Row
+  /// with both a quantity and a reorder-point field. Every controller here
+  /// feeds the same debounced "quiet period" (see
+  /// _TourOverlayState._scheduleDebouncedAdvance), and the step only
+  /// advances once *all* of them are non-empty — so typing into the second
+  /// field doesn't get cut short by a countdown that only the first field's
+  /// last keystroke started. Leave null for a single-field step and use
+  /// [inputController] instead; only one of the two should be set.
+  final List<TextEditingController>? inputControllers;
+
+  /// For a multi-field step (see [inputControllers]): each field's own
+  /// FocusNode, in no particular order. Both fields here typically start
+  /// with a sensible non-empty default (Stock's quantity/reorder-point
+  /// start at '1'/'5'), so "all controllers are non-empty" alone is true
+  /// from the very first frame — a single tap into the *first* field would
+  /// otherwise satisfy the debounce and skip the step the moment the user
+  /// pauses, before they ever reach the second field. Listing focus nodes
+  /// here adds a second requirement: the step won't advance until every one
+  /// of them has actually *received* focus at least once (i.e. the user has
+  /// genuinely visited each field), regardless of how the debounce timer is
+  /// behaving. Leave null for a step where a plain quiet-period timeout is
+  /// enough on its own (every other input step so far).
+  final List<FocusNode>? inputFocusNodes;
+
   const TourStep({
     required this.targetKey,
     required this.title,
     required this.description,
     this.inputController,
+    this.inputControllers,
+    this.inputFocusNodes,
   });
+
+  /// Every controller this step watches, single- or multi-field alike.
+  List<TextEditingController> get _allInputControllers =>
+      inputControllers ?? (inputController != null ? [inputController!] : const []);
 }
 
 /// Hand-built spotlight tour: a full-screen dimmed [Overlay] entry with a
@@ -189,6 +220,18 @@ class OnboardingJourney {
   /// used for a stop's *first* hand-off — only [advanceFrom] auto-navigates
   /// later, once a stop's own tour has already had the user tap something
   /// real to get there.
+  /// True while the journey's current stop is exactly [stop] — for a screen
+  /// that has its *own*, independent first-run tour (Cash Flow's "Add a
+  /// Transaction" FAB hint) to skip starting it when [advanceFrom] has
+  /// already whisked the journey on to a later stop, so that screen's tour
+  /// overlay doesn't linger, pointing at a stale target, over whatever
+  /// screen the journey navigates to next. Returns false once the journey
+  /// has finished or was never started.
+  static Future<bool> isAt(String stop) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_currentStopKey) == stop;
+  }
+
   static Future<void> prime(String firstStop) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_currentStopKey, firstStop);
@@ -245,11 +288,16 @@ class _TourOverlayState extends State<_TourOverlay>
   late final AnimationController _enterCtrl;
   late final AnimationController _glowCtrl;
 
-  // Wired up per-step when the target is a text field (see
-  // TourStep.inputController) — advances the tour once the user actually
-  // finishes entering something, instead of on tap. See
+  // Wired up per-step when the target is one or more text fields (see
+  // TourStep.inputController / inputControllers) — advances the tour once
+  // the user actually finishes entering something, instead of on tap. See
   // _scheduleDebouncedAdvance for how "finishes" is decided.
-  TextEditingController? _listenedController;
+  List<TextEditingController> _listenedControllers = const [];
+  // See TourStep.inputFocusNodes — every node the step requires, and which
+  // of them have actually received focus at least once so far this step.
+  // Reset whenever the step changes (_goTo).
+  List<FocusNode> _listenedFocusNodes = const [];
+  final Set<FocusNode> _visitedFocusNodes = {};
   Timer? _inputDebounce;
   static const _inputDebounceDelay = Duration(milliseconds: 700);
 
@@ -330,43 +378,90 @@ class _TourOverlayState extends State<_TourOverlay>
 
   void _attachInputListenerIfNeeded() {
     _detachInputListener();
-    final controller = _step.inputController;
-    if (controller == null) return;
-    controller.addListener(_scheduleDebouncedAdvance);
-    _listenedController = controller;
+    final controllers = _step._allInputControllers;
+    final nodes = _step.inputFocusNodes ?? const <FocusNode>[];
+    if (controllers.isEmpty && nodes.isEmpty) return;
+    for (final controller in controllers) {
+      controller.addListener(_scheduleDebouncedAdvance);
+    }
+    for (final node in nodes) {
+      node.addListener(_onFocusChanged);
+    }
+    _listenedControllers = controllers;
+    _listenedFocusNodes = nodes;
+    _visitedFocusNodes.clear();
     // Deliberately no "already has a value → advance right away" case here
     // anymore — a field can carry a sensible non-empty default (Inventory's
-    // Stock step starts at '1') without the user having actually looked at
-    // or confirmed it yet. Tapping such a step now runs through the exact
-    // same debounced path as typing (see the hole's Listener in build()),
-    // so either accepting the default with a tap, or tapping in to change
-    // it, behaves the same way: the countdown below is what actually moves
-    // the tour on, not the tap or keystroke itself.
+    // Stock step starts both its quantity and reorder-point fields non-
+    // empty) without the user having actually looked at or confirmed either
+    // one yet. Tapping such a step now runs through the exact same
+    // debounced path as typing (see the hole's Listener in build()), so
+    // either accepting the defaults with a tap, or tapping in to change
+    // them, behaves the same way: the countdown below is what actually
+    // moves the tour on, not the tap or keystroke itself.
   }
 
-  /// Shared by both a keystroke (the controller listener above) and a tap on
-  /// an input step's own hole (see `isInputStep` in build()) — either one
-  /// restarts the same short "quiet period" countdown rather than advancing
-  /// immediately. That's what lets a tap on a field that already has a
-  /// sensible default (Stock, pre-filled with '1') advance on its own after
-  /// a moment — accepting the default — while a tap that's actually the
-  /// start of editing just restarts the same timer on every subsequent
-  /// keystroke, so the user gets the *entire* pause after their last
-  /// keystroke to keep typing before it fires, not just after the first one.
+  /// Fires whenever any of the step's required fields gains or loses focus
+  /// — records which ones have genuinely been visited (see
+  /// TourStep.inputFocusNodes) and re-runs the same debounce check, so
+  /// tabbing from one field to the next re-evaluates readiness right away
+  /// rather than waiting for the next keystroke.
+  void _onFocusChanged() {
+    for (final node in _listenedFocusNodes) {
+      if (node.hasFocus) _visitedFocusNodes.add(node);
+    }
+    _scheduleDebouncedAdvance();
+  }
+
+  /// Shared by a keystroke (the controller listeners above, on *any* of the
+  /// step's controllers), a focus change, and a tap on an input step's own
+  /// hole (see `isInputStep` in build()) — all three restart the same short
+  /// "quiet period" countdown rather than advancing immediately. That's
+  /// what lets a tap on a field that already has a sensible default (Stock,
+  /// pre-filled with '1' and '5') advance on its own after a moment —
+  /// accepting the defaults — while a tap that's actually the start of
+  /// editing just restarts the same timer on every subsequent keystroke,
+  /// *in either field*, so the user gets the entire pause after their very
+  /// last keystroke — in whichever field they typed it — to keep going
+  /// before it fires, not just after the first field's first one. When the
+  /// step lists [TourStep.inputFocusNodes], firing this timer isn't enough
+  /// on its own either — every one of those fields must have actually
+  /// received focus at least once first, or the timer just quietly expires
+  /// without advancing (a plain tap on the *first* field, then a pause,
+  /// would otherwise satisfy "all controllers non-empty" and skip the
+  /// second field entirely).
   void _scheduleDebouncedAdvance() {
     _inputDebounce?.cancel();
-    final controller = _step.inputController;
-    if (controller == null) return;
+    final controllers = _step._allInputControllers;
+    final requiredNodes = _step.inputFocusNodes;
+    if (controllers.isEmpty && (requiredNodes == null || requiredNodes.isEmpty)) {
+      return;
+    }
     _inputDebounce = Timer(_inputDebounceDelay, () {
-      if (mounted && controller.text.trim().isNotEmpty) _advance();
+      if (!mounted) return;
+      if (!controllers.every((c) => c.text.trim().isNotEmpty)) return;
+      if (requiredNodes != null &&
+          !requiredNodes.every(_visitedFocusNodes.contains)) {
+        return;
+      }
+      _advance();
     });
   }
 
   void _detachInputListener() {
     _inputDebounce?.cancel();
     _inputDebounce = null;
-    final controller = _listenedController;
-    if (controller != null) {
+    for (final node in _listenedFocusNodes) {
+      try {
+        node.removeListener(_onFocusChanged);
+      } catch (_) {
+        // Node may already be disposed if the sheet closed out from under
+        // the tour (e.g. via Skip) — nothing left to detach from.
+      }
+    }
+    _listenedFocusNodes = const [];
+    _visitedFocusNodes.clear();
+    for (final controller in _listenedControllers) {
       try {
         controller.removeListener(_scheduleDebouncedAdvance);
       } catch (_) {
@@ -374,7 +469,7 @@ class _TourOverlayState extends State<_TourOverlay>
         // under the tour (e.g. via Skip) — nothing left to detach from.
       }
     }
-    _listenedController = null;
+    _listenedControllers = const [];
   }
 
   void _goTo(int newIndex) {
@@ -414,15 +509,17 @@ class _TourOverlayState extends State<_TourOverlay>
     final hole = target.inflate(10);
     final holeRadius = hole.shortestSide / 2;
     final layout = _textLayoutFor(_step, hole, screenSize);
-    final isInputStep = _step.inputController != null;
+    final isInputStep = _step._allInputControllers.isNotEmpty;
 
     return Stack(
       children: [
         // Dimmed area outside the hole — absorbs taps so nothing underneath
-        // is triggered by accident.
+        // is triggered by accident. Clipped to the plain rectangular `hole`,
+        // *not* the rounded pill `_TourPainter` draws — see the hole below
+        // for why the tap-through region has to be the full rectangle.
         Positioned.fill(
           child: ClipPath(
-            clipper: _OutsideHoleClipper(hole, holeRadius),
+            clipper: _OutsideHoleClipper(hole),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _noop,
@@ -441,6 +538,19 @@ class _TourOverlayState extends State<_TourOverlay>
         // beneath still wins its own tap (or its own focus-for-typing)
         // normally, on top of this also feeding the tour.
         //
+        // Deliberately the plain rectangular `hole`, not clipped to the
+        // rounded pill `holeRadius` describes — a real widget (a Container,
+        // a button, a text field) hit-tests its full rectangular bounds
+        // regardless of how rounded it looks, since border-radius is
+        // cosmetic for painting only. Clipping this Listener to the rounder,
+        // visually-nicer pill shape used to carve dead corners out of the
+        // tappable area — for a short, wide target (a compact card, an
+        // account chip) those corners are a large enough fraction of it that
+        // a perfectly normal tap near one landed on the dimmer instead and
+        // silently did nothing. The pill shape is still what gets painted
+        // (see _TourPainter below, which is IgnorePointer'd and free to look
+        // however it wants).
+        //
         // Button/icon/picker step: that raw tap advances the tour at once.
         // Text-field step: the tap *doesn't* advance directly — it instead
         // restarts the same debounced "quiet period" countdown that typing
@@ -449,14 +559,11 @@ class _TourOverlayState extends State<_TourOverlay>
         // carries a sensible default can still be accepted with a plain tap.
         Positioned.fromRect(
           rect: hole,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(holeRadius),
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerUp: (_) => isInputStep
-                  ? _scheduleDebouncedAdvance()
-                  : _onTargetTap(),
-            ),
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerUp: (_) => isInputStep
+                ? _scheduleDebouncedAdvance()
+                : _onTargetTap(),
           ),
         ),
         IgnorePointer(
@@ -722,20 +829,22 @@ class _TourPainter extends CustomPainter {
 }
 
 class _OutsideHoleClipper extends CustomClipper<Path> {
-  const _OutsideHoleClipper(this.hole, this.holeRadius);
+  const _OutsideHoleClipper(this.hole);
 
   final Rect hole;
-  final double holeRadius;
 
+  // A plain rectangular cutout, matching the Listener's own tap-through
+  // area above (not the rounded pill _TourPainter draws) — see the build()
+  // comment on why the two are deliberately different shapes.
   @override
   Path getClip(Size size) => Path()
     ..addRect(Offset.zero & size)
-    ..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(holeRadius)))
+    ..addRect(hole)
     ..fillType = PathFillType.evenOdd;
 
   @override
   bool shouldReclip(covariant _OutsideHoleClipper oldClipper) =>
-      oldClipper.hole != hole || oldClipper.holeRadius != holeRadius;
+      oldClipper.hole != hole;
 }
 
 // ── Text: number + title + description, straight on the dimmed screen ──────

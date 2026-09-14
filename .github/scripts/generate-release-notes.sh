@@ -12,12 +12,16 @@ set -euo pipefail
 # "chore(release): bump mobile app to ..." marker release-android.yml's
 # bump step leaves on main -- see that step for why it exists).
 #
-# No translation step: this only translates the small fixed set of section
-# headers to Swahili. The commit text itself stays in English in BOTH
-# files -- arbitrary commit prose can't be machine-translated here without
-# an AI/translation API, which this pipeline deliberately doesn't call.
-# Real bilingual copy still needs a human pass; see CLAUDE.md
-# ("Swahili-first, English fallback") and l10n/DEVELOPER_STYLE_GUIDE.md.
+# Section headers are hardcoded Swahili; each bullet's commit text is
+# machine-translated via the free MyMemory API (no key needed at this
+# volume: https://mymemory.translated.net) -- deliberately not an LLM
+# call, to avoid an Anthropic API key/cost in this pipeline. Quality is
+# "plain MT", not reviewed Swahili copy -- see CLAUDE.md ("Swahili-first,
+# English fallback") and l10n/DEVELOPER_STYLE_GUIDE.md for the bar real
+# in-app strings are held to; this is a lower bar, released notes only.
+# Network hiccups degrade gracefully: any bullet that fails to translate
+# (timeout, rate limit, bad response) falls back to its English text
+# rather than failing the step.
 #
 # Must run from the repo root (not apps/mobile-app) and needs full git
 # history (actions/checkout with fetch-depth: 0) -- both the release-marker
@@ -74,17 +78,38 @@ done <<< "$subjects"
 # Caps each section to MAX_ITEMS_PER_SECTION lines. Without this, a busy
 # "New" section alone can eat the whole 450-char budget before "Fixed" (the
 # section users most want to see) ever gets written -- truncate_text's
-# final cut-off is a safety net, not the primary control.
+# final cut-off is a safety net, not the primary control. Also bounds how
+# many translate_to_sw calls happen per release (at most 3 sections x this).
 MAX_ITEMS_PER_SECTION=4
 
+# Translates one line of English text to Swahili via MyMemory's free API.
+# On any failure (network, timeout, rate limit, empty/malformed response)
+# prints the original English text unchanged -- a translation hiccup must
+# never fail the release. 10s cap so one slow request can't stall the job.
+translate_to_sw() {
+  local text="$1" response translated
+  response=$(curl -sf --max-time 10 -G \
+    --data-urlencode "q=$text" \
+    --data-urlencode "langpair=en|sw" \
+    "https://api.mymemory.translated.net/get" 2>/dev/null) || { printf '%s' "$text"; return; }
+  translated=$(printf '%s' "$response" | jq -r '.responseData.translatedText // empty' 2>/dev/null || true)
+  if [ -z "$translated" ]; then
+    printf '%s' "$text"
+  else
+    printf '%s' "$translated"
+  fi
+}
+
 build_section() {
-  local header="$1" more_label="$2"; shift 2
+  local header="$1" more_label="$2" translate="$3"; shift 3
   local items=("$@")
   [ "${#items[@]}" -eq 0 ] && return 0
   echo "$header"
   local shown=$(( ${#items[@]} < MAX_ITEMS_PER_SECTION ? ${#items[@]} : MAX_ITEMS_PER_SECTION ))
   for ((i = 0; i < shown; i++)); do
-    echo "- ${items[$i]}"
+    local item="${items[$i]}"
+    [ "$translate" = "yes" ] && item=$(translate_to_sw "$item")
+    echo "- $item"
   done
   local remaining=$(( ${#items[@]} - shown ))
   [ "$remaining" -gt 0 ] && echo "$(printf "$more_label" "$remaining")"
@@ -99,15 +124,15 @@ build_section() {
 }
 
 en_body=$(
-  build_section "New:" "(+%s more)" "${new_items[@]}"
-  build_section "Fixed:" "(+%s more)" "${fixed_items[@]}"
-  build_section "Improved:" "(+%s more)" "${improved_items[@]}"
+  build_section "New:" "(+%s more)" "no" "${new_items[@]}"
+  build_section "Fixed:" "(+%s more)" "no" "${fixed_items[@]}"
+  build_section "Improved:" "(+%s more)" "no" "${improved_items[@]}"
 )
 
 sw_body=$(
-  build_section "Vipya:" "(+%s zaidi)" "${new_items[@]}"
-  build_section "Marekebisho:" "(+%s zaidi)" "${fixed_items[@]}"
-  build_section "Maboresho:" "(+%s zaidi)" "${improved_items[@]}"
+  build_section "Vipya:" "(+%s zaidi)" "yes" "${new_items[@]}"
+  build_section "Marekebisho:" "(+%s zaidi)" "yes" "${fixed_items[@]}"
+  build_section "Maboresho:" "(+%s zaidi)" "yes" "${improved_items[@]}"
 )
 
 if [ -z "$en_body" ]; then

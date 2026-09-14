@@ -265,6 +265,48 @@ jobs:
             git rebase origin/main
           done
 
+      # The bump above only ever lands on main. CLAUDE.md's branching docs
+      # call syncing dev back up after a release a manual step ("git merge
+      # main into dev"); in practice nobody was doing it just for this
+      # commit, so dev's pubspec.yaml silently drifted further behind what
+      # was actually live on every release (caught 2026-09-14 -- dev sat at
+      # 1.1.2+3 while main had already climbed to 1.1.3+4). Since nothing
+      # else ever lands on main without going through dev first (per those
+      # same docs), a bot-authored version bump is the only thing that can
+      # make main outrun dev here -- so mirroring just that one line onto
+      # dev closes the gap for good, without the risk of an automated full
+      # `git merge main` picking up something unrelated.
+      #
+      # Uses a separate worktree rather than `git checkout dev` so this
+      # job's own `main` checkout (which later steps and the post-job cache
+      # actions still expect) is never touched.
+      - name: Sync version to dev
+        continue-on-error: true
+        working-directory: ${{ github.workspace }}
+        run: |
+          main_version=$(grep -E '^version:' apps/mobile-app/pubspec.yaml | sed -E 's/^version:\s*//')
+          git fetch origin dev
+          git worktree add /tmp/dev-version-sync origin/dev
+          cd /tmp/dev-version-sync
+          git config user.name 'Mali Up Release Bot'
+          git config user.email 'release-bot@users.noreply.github.com'
+          dev_version=$(grep -E '^version:' apps/mobile-app/pubspec.yaml | sed -E 's/^version:\s*//')
+          if [ "$dev_version" = "$main_version" ]; then
+            echo "dev is already at $main_version, nothing to sync"
+          else
+            sed -i -E "s/^version:.*/version: $main_version/" apps/mobile-app/pubspec.yaml
+            git add apps/mobile-app/pubspec.yaml
+            git commit -m "chore(release): sync mobile app version to $main_version on dev [skip ci]"
+            for attempt in 1 2 3; do
+              git push origin HEAD:dev && break
+              echo "Push rejected, retrying (attempt $attempt)..."
+              git fetch origin dev
+              git rebase origin/dev
+            done
+          fi
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove /tmp/dev-version-sync --force
+
       - name: Remove decoded keystore
         if: always()
         run: rm -f android/app/keystore/mali-up-release.jks
