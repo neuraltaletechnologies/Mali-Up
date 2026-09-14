@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -56,6 +57,17 @@ class _ActivateAccountSheetState extends ConsumerState<ActivateAccountSheet> {
           description: _t('Tap here to activate this account.', 'Bonyeza hapa kuwasha akaunti hii.'),
         ),
       ],
+      // Part of the guided first-run journey: activating the very first
+      // account (its opening balance doubling as the "cash flow" stop's own
+      // entry) is that stop done — move straight on to adding a product,
+      // same as the "log a transaction" path in add_transaction_dialog.dart
+      // does for a user who already had an account. No-ops if this sheet
+      // wasn't reached via that journey.
+      onFullyComplete: () => OnboardingJourney.advanceFrom(
+        context,
+        AppRoutes.cashflow,
+        AppRoutes.inventory,
+      ),
     );
   }
 

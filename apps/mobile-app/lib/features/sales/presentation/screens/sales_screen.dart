@@ -161,7 +161,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     super.initState();
     PageTour.maybeAutoStart(
       context: context,
-      seenKey: 'page_tour_seen_sales_v4',
+      seenKey: 'page_tour_seen_sales_v5',
       steps: [
         TourStep(
           targetKey: _tourFabKey,

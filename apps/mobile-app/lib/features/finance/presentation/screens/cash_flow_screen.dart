@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -56,7 +57,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
   // attempt instead of being silently skipped.
   bool? _tourCheckedFor;
 
-  void _maybeStartTour(bool hasAnyAccount) {
+  Future<void> _maybeStartTour(bool hasAnyAccount) async {
     if (!hasAnyAccount) {
       PageTour.maybeAutoStart(
         context: context,
@@ -74,6 +75,20 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen> {
       );
       return;
     }
+    // ActivateAccountSheet's own tour just advanced the guided first-run
+    // journey straight from here to Inventory (see its onFullyComplete) —
+    // that hand-off is already mid-flight (a short delay, then
+    // router.go(AppRoutes.inventory)). Starting this screen's own FAB hint
+    // now would show it for a moment and then leave it stranded, still
+    // pointing at this screen's FAB, on top of whatever Inventory renders
+    // next — Overlay entries are inserted at the root, so they outlive this
+    // screen's own widgets. A returning user with no journey in progress
+    // still gets this hint as before, since isAt only returns true for one
+    // that's actively mid-hop through here.
+    final justAdvancedPastHere = await OnboardingJourney.isAt(
+      AppRoutes.inventory,
+    );
+    if (!mounted || justAdvancedPastHere) return;
     PageTour.maybeAutoStart(
       context: context,
       seenKey: 'page_tour_seen_cashflow_v3',

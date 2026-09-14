@@ -3416,6 +3416,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   final _sellCtrl = TextEditingController();
   final _stockCtrl = TextEditingController(text: '1');
   final _reorderCtrl = TextEditingController(text: '5');
+  // Tour-only: lets the Stock step require that the user has actually
+  // visited both fields before advancing — see TourStep.inputFocusNodes.
+  final _stockFocus = FocusNode();
+  final _reorderFocus = FocusNode();
   final _batchCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
   final _warrantyCtrl = TextEditingController();
@@ -3558,7 +3562,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     if (item == null && widget.restockItem == null) {
       PageTour.maybeAutoStart(
         context: context,
-        seenKey: 'page_tour_seen_product_form_v3',
+        seenKey: 'page_tour_seen_product_form_v5',
         steps: [
           TourStep(
             targetKey: _tourNameKey,
@@ -3586,15 +3590,21 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             targetKey: _tourStockKey,
             title: _tr('Set the Stock', 'Weka Kiasi'),
             description: _tr(
-              'This is how many you have — adjust it if it\'s not right.',
-              'Hii ni idadi uliyonayo — badilisha kama si sahihi.',
+              'Adjust the quantity and reorder point if they\'re not right.',
+              'Badilisha idadi na kikomo cha kuagiza kama si sahihi.',
             ),
-            // _stockCtrl already defaults to '1' — attaching it here (rather
-            // than leaving this a plain tap-to-advance step) means a tap
-            // that's actually the start of editing the quantity or reorder
-            // point doesn't immediately end the step; see
-            // _scheduleDebouncedAdvance in page_tour.dart.
-            inputController: _stockCtrl,
+            // Both fields — quantity and reorder point — feed the same
+            // debounced countdown (see _scheduleDebouncedAdvance in
+            // page_tour.dart), so finishing the quantity first doesn't cut
+            // the reorder-point field's turn short. _stockCtrl/_reorderCtrl
+            // already default to '1'/'5', so "both non-empty" alone would
+            // already be true before the user touches anything — inputFocusNodes
+            // adds the real requirement: the step won't advance until the
+            // user has actually visited *both* fields at least once, however
+            // long that takes, not just paused for a moment after visiting
+            // only the first one.
+            inputControllers: [_stockCtrl, _reorderCtrl],
+            inputFocusNodes: [_stockFocus, _reorderFocus],
           ),
           TourStep(
             targetKey: _tourSaveKey,
@@ -3723,6 +3733,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _sellCtrl.dispose();
     _stockCtrl.dispose();
     _reorderCtrl.dispose();
+    _stockFocus.dispose();
+    _reorderFocus.dispose();
     _batchCtrl.dispose();
     _brandCtrl.dispose();
     _warrantyCtrl.dispose();
@@ -4336,7 +4348,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       }
 
       // Navy "info" card (white text, above the nav bar, in front of the
-      // add-product sheet) — not the green success toast.
+      // add-product sheet).
       AppNotification.info(
         context,
         _isEdit
@@ -6220,6 +6232,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       ctrl: _stockCtrl,
                                       hint: '1',
                                       keyboard: TextInputType.number,
+                                      focusNode: _stockFocus,
                                       formatters: [
                                         FilteringTextInputFormatter
                                             .digitsOnly,
@@ -6240,6 +6253,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       ctrl: _reorderCtrl,
                                       hint: '5',
                                       keyboard: TextInputType.number,
+                                      focusNode: _reorderFocus,
                                       formatters: [
                                         FilteringTextInputFormatter
                                             .digitsOnly,
@@ -7952,6 +7966,17 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   elevation: 0,
+                                  // The app theme's default ElevatedButton
+                                  // style sets minimumSize: Size(double.infinity,
+                                  // 52) for the usual full-width buttons. This
+                                  // one sits next to a TextField in a Row (not
+                                  // wrapped in Expanded), so that infinite-width
+                                  // minimum propagates straight into an
+                                  // infinite width constraint and crashes
+                                  // layout ("BoxConstraints forces an infinite
+                                  // width") the moment this row builds — opt
+                                  // out of it here.
+                                  minimumSize: Size.zero,
                                 ),
                                 child: _adding
                                     ? const SizedBox(
