@@ -88,6 +88,11 @@ jobs:
             echo "PR #$existing (dev -> main) is already open; GitHub keeps it up to date with new commits."
             exit 0
           fi
+          compare_status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...dev" --jq '.status')
+          if [ "$compare_status" = "identical" ]; then
+            echo "No commits between main and dev; no release PR to open."
+            exit 0
+          fi
           cat > /tmp/pr-body.md <<'EOF'
           Automated integration PR opened by `dev-integration.yml`.
 
