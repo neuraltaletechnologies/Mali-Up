@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Play Store upload and commits it back to main, so this always reflects the
 # version currently live (or about to ship). Bump minor/major by hand in the
 # PR when a release deserves it; CI keeps patch-bumping from whatever you set.
-version: 1.2.1+2
+version: 1.2.2+3
 
 environment:
   sdk: ^3.10.4
