@@ -255,6 +255,17 @@ jobs:
           git config user.name 'Mali Up Release Bot'
           git config user.email 'release-bot@users.noreply.github.com'
           git add apps/mobile-app/pubspec.yaml
+          # Earlier steps in this job (generate-release-notes.sh) rewrite
+          # the tracked whatsnew-* files in place; those diffs are done
+          # being used (the Play publish step already read them) but are
+          # still sitting unstaged. Discard everything except the
+          # just-staged pubspec.yaml so the tree is clean before the
+          # rebase below -- otherwise `git rebase` refuses with "cannot
+          # rebase: You have unstaged changes" the moment a push race
+          # forces a retry (seen in run 2026-09-14: main advanced between
+          # checkout and push, the retry's rebase then failed on the dirty
+          # whatsnew files and the bump was silently lost).
+          git checkout -- .
           git commit -m "chore(release): bump mobile app to $next_name [skip ci]"
           # main may have moved (e.g. a web-only merge) since this run's
           # checkout; rebase the bump commit on top before pushing.
