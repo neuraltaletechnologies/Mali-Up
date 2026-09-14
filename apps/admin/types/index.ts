@@ -379,6 +379,7 @@ export interface PlanDefinition {
   maxProducts: number        // -1 = unlimited; total manually-created inventory items (excludes customer returns)
   maxServiceProducts: number // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   maxSalesPerDay: number     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
+  maxAccounts: number        // -1 = unlimited; caps total active Cash Flow accounts (activated payment channels + custom accounts combined)
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean

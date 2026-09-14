@@ -1751,6 +1751,18 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
       );
       return;
     }
+    // A payment can never exceed what is still owed — settleInvoicePayment
+    // would otherwise silently clamp it, discarding the difference the user
+    // typed with no record of it anywhere (see invoice_payment_service.dart).
+    if (amount > widget.outstanding + 0.005) {
+      setState(
+        () => _amountError = _tr(
+          'Exceeds outstanding balance',
+          'Inazidi salio linalodaiwa',
+        ),
+      );
+      return;
+    }
     final account = _selectedAccount;
     if (account == null) {
       setState(

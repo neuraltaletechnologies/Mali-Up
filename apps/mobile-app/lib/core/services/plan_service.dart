@@ -49,6 +49,7 @@ class PlanLimits {
   final int maxProducts;        // -1 = unlimited; counts manually-created inventory items (excludes customer returns)
   final int maxServiceProducts; // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   final int maxSalesPerDay;     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
+  final int maxAccounts;     // -1 = unlimited; caps total active Cash Flow accounts (activated payment channels + custom accounts combined)
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -73,6 +74,7 @@ class PlanLimits {
     this.maxProducts = -1,
     this.maxServiceProducts = -1,
     this.maxSalesPerDay = -1,
+    this.maxAccounts = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -110,6 +112,7 @@ class PlanLimits {
       maxProducts:         asInt('maxProducts',         fallback.maxProducts),
       maxServiceProducts:  asInt('maxServiceProducts',  fallback.maxServiceProducts),
       maxSalesPerDay:      asInt('maxSalesPerDay',      fallback.maxSalesPerDay),
+      maxAccounts:         asInt('maxAccounts',         fallback.maxAccounts),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -136,6 +139,7 @@ class PlanLimits {
         'maxProducts': maxProducts,
         'maxServiceProducts': maxServiceProducts,
         'maxSalesPerDay': maxSalesPerDay,
+        'maxAccounts': maxAccounts,
         'pricePerCycle': pricePerCycle,
         'cycleMonths': cycleMonths,
         'fullReports': fullReports,
@@ -169,6 +173,7 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     maxProducts: 15,
     maxServiceProducts: 3,
     maxSalesPerDay: 10,
+    maxAccounts: 1,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,

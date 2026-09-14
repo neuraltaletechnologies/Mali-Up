@@ -232,6 +232,40 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     }
   }
 
+  Future<void> _sendSmsReminder() async {
+    if (_debt.partyPhone.isEmpty) {
+      AppNotification.warning(
+        context,
+        _tr('No phone number on file.', 'Hakuna namba ya simu iliyohifadhiwa.'),
+      );
+      return;
+    }
+
+    final invoice = await _loadLinkedInvoice();
+    // SMS is plain text — strip the WhatsApp-style markdown (*bold*, _italic_)
+    // from the shared reminder copy.
+    final message = DebtReminderText.build(
+      debt: _debt,
+      invoice: invoice,
+      isSwahili: LocalizationService.isSwahili,
+    ).replaceAll(RegExp(r'\*|_'), '');
+    final uri = Uri.parse(
+      'sms:${_debt.partyPhone}?body=${Uri.encodeComponent(message)}',
+    );
+    try {
+      final opened = await launchUrl(uri);
+      if (!opened) throw Exception('No SMS handler');
+      await _markReminderSent();
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr('Could not open the SMS app.', 'Imeshindwa kufungua programu ya SMS.'),
+        );
+      }
+    }
+  }
+
   Future<void> _sendPdfReminder() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -574,6 +608,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     busy: _busy,
                     onRecordPayment: _recordPayment,
                     onSendWhatsApp: _sendWhatsAppReminder,
+                    onSendSms: _sendSmsReminder,
                     onSendPdf: _sendPdfReminder,
                     onWriteOff: _showWriteOffDialog,
                     onEdit: _edit,
@@ -1183,6 +1218,7 @@ class _ActionsCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onRecordPayment;
   final VoidCallback onSendWhatsApp;
+  final VoidCallback onSendSms;
   final VoidCallback onSendPdf;
   final VoidCallback onWriteOff;
   final VoidCallback onEdit;
@@ -1193,6 +1229,7 @@ class _ActionsCard extends StatelessWidget {
     required this.busy,
     required this.onRecordPayment,
     required this.onSendWhatsApp,
+    required this.onSendSms,
     required this.onSendPdf,
     required this.onWriteOff,
     required this.onEdit,
@@ -1228,6 +1265,7 @@ class _ActionsCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: _ReminderShareRow(
                 onWhatsApp: busy ? null : onSendWhatsApp,
+                onSms: busy ? null : onSendSms,
                 onPdf: busy ? null : onSendPdf,
               ),
             ),
@@ -1322,14 +1360,21 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-/// Two half-width buttons — WhatsApp reminder and PDF reminder, both showing
-/// the full itemized bill — matching the share-button style already used on
-/// the Invoice detail screen (see _ShareRow there).
+/// Three buttons — WhatsApp, SMS, and PDF reminders, all showing the full
+/// itemized bill — matching the share-button style already used on the
+/// Invoice detail screen (see _ShareRow there). SMS exists alongside
+/// WhatsApp/PDF rather than being assumed away, since not every customer's
+/// phone has WhatsApp installed.
 class _ReminderShareRow extends StatelessWidget {
   final VoidCallback? onWhatsApp;
+  final VoidCallback? onSms;
   final VoidCallback? onPdf;
 
-  const _ReminderShareRow({required this.onWhatsApp, required this.onPdf});
+  const _ReminderShareRow({
+    required this.onWhatsApp,
+    required this.onSms,
+    required this.onPdf,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1341,6 +1386,15 @@ class _ReminderShareRow extends StatelessWidget {
             icon: Icons.chat_outlined,
             color: AppColors.success,
             onTap: onWhatsApp,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ReminderShareBtn(
+            label: _tr('SMS Reminder', 'Ukumbusho wa SMS'),
+            icon: Icons.sms_outlined,
+            color: AppColors.warning,
+            onTap: onSms,
           ),
         ),
         const SizedBox(width: 10),

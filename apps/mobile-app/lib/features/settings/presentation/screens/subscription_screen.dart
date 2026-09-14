@@ -446,6 +446,7 @@ class _UsagePanel extends ConsumerWidget {
     add('Customers', 'Wateja', usage.customers, limits.maxCustomers);
     add('Products', 'Bidhaa', usage.products, limits.maxProducts);
     add('Services', 'Huduma', usage.serviceProducts, limits.maxServiceProducts);
+    add('Accounts', 'Akaunti', usage.accounts, limits.maxAccounts);
 
     if (rows.isEmpty) return const SizedBox.shrink();
 

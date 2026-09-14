@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -32,6 +34,32 @@ String _fmtCompact(double v) {
   if (a >= 1000000) return '${sign}TZS ${(a / 1000000).toStringAsFixed(1)}M';
   if (a >= 1000) return '${sign}TZS ${(a / 1000).toStringAsFixed(0)}K';
   return '${sign}TZS ${_numFmt.format(a)}';
+}
+
+/// Free-plan users are capped at `PlanLimits.maxAccounts` total accounts —
+/// activated built-in payment channels and custom accounts combined, so
+/// wherever [currentCount] comes from `cashAccountListProvider`'s current
+/// value. Shows the upgrade sheet and returns true when the cap is already
+/// reached, so the caller should not open the add/activate flow.
+Future<bool> _blockedByAccountLimit(
+  BuildContext context,
+  WidgetRef ref,
+  int currentCount,
+) async {
+  final plan = await ref.read(planStatusProvider.future);
+  if (!context.mounted) return true;
+  final maxAccounts = plan.limits.maxAccounts;
+  if (maxAccounts == -1 || currentCount < maxAccounts) return false;
+  await showUpgradeSheet(
+    context,
+    currentStatus: plan,
+    featureKey: PlanFeatureKey.accountLimit,
+    triggerReason: _tr(
+      'You have reached the account limit for your plan. Upgrade to add more accounts.',
+      'Umefika kikomo cha akaunti kwa mpango wako. Panda mpango kuongeza akaunti zaidi.',
+    ),
+  );
+  return true;
 }
 
 class CashFlowScreen extends ConsumerStatefulWidget {
@@ -154,6 +182,9 @@ class _CashFlowDarkHeader extends ConsumerWidget {
         month.month == DateTime.now().month;
 
     Future<void> onAddAccount() async {
+      final count = ref.read(cashAccountListProvider).valueOrNull?.length ?? 0;
+      if (await _blockedByAccountLimit(context, ref, count)) return;
+      if (!context.mounted) return;
       await showAppSheet(context, builder: (_) => const AddAccountDialog());
     }
 
@@ -256,14 +287,33 @@ class _CashFlowDarkHeader extends ConsumerWidget {
 
 // ── FAB ───────────────────────────────────────────────────────────────────────
 
-class _CashFlowFab extends StatelessWidget {
+class _CashFlowFab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FloatingActionButton.extended(
-      onPressed: () => showAppSheet<void>(
-        context,
-        builder: (_) => const AddTransactionDialog(),
-      ),
+      onPressed: () async {
+        // Same gate as the account detail screen's FAB — Add Transaction is
+        // a paid-only feature on Starter, exactly like Add Debt/manualDebt.
+        final plan = await ref.read(planStatusProvider.future);
+        if (!context.mounted) return;
+        if (!plan.limits.cashFlow) {
+          await showUpgradeSheet(
+            context,
+            currentStatus: plan,
+            featureKey: PlanFeatureKey.cashFlow,
+            triggerReason: _tr(
+              'Required a Growth or Business plan.',
+              'unahitaji mpango wa Growth au Business.',
+            ),
+          );
+          return;
+        }
+        if (!context.mounted) return;
+        await showAppSheet<void>(
+          context,
+          builder: (_) => const AddTransactionDialog(),
+        );
+      },
       backgroundColor: AppColors.yellowBrand,
       foregroundColor: AppColors.navyPrimary,
       elevation: 3,
@@ -495,10 +545,18 @@ class _AccountsSheet extends ConsumerWidget {
                     ),
                   ),
                   FilledButton.icon(
-                    onPressed: () => showAppSheet<void>(
-                      context,
-                      builder: (_) => const AddAccountDialog(),
-                    ),
+                    onPressed: () async {
+                      final count =
+                          accountsAsync.valueOrNull?.length ?? 0;
+                      if (await _blockedByAccountLimit(context, ref, count)) {
+                        return;
+                      }
+                      if (!context.mounted) return;
+                      await showAppSheet<void>(
+                        context,
+                        builder: (_) => const AddAccountDialog(),
+                      );
+                    },
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.navyPrimary,
                       foregroundColor: Colors.white,
@@ -635,9 +693,19 @@ class _AccountsSheet extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
-                          onTap: () {
+                          onTap: () async {
                             if (account == null) {
-                              showAppSheet<void>(
+                              final count =
+                                  accountsAsync.valueOrNull?.length ?? 0;
+                              if (await _blockedByAccountLimit(
+                                context,
+                                ref,
+                                count,
+                              )) {
+                                return;
+                              }
+                              if (!context.mounted) return;
+                              await showAppSheet<void>(
                                 context,
                                 builder: (_) =>
                                     ActivateAccountSheet(spec: spec!),
@@ -770,18 +838,23 @@ class _AccountCard extends ConsumerWidget {
 /// A built-in payment channel that has not been activated yet. Tapping it
 /// opens the activation sheet where the user enters the money actually
 /// present in the channel. Until then the channel cannot move money.
-class _ActivateMethodCard extends StatelessWidget {
+class _ActivateMethodCard extends ConsumerWidget {
   final PaymentMethodSpec spec;
   const _ActivateMethodCard({super.key, required this.spec});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final name = spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en');
     return GestureDetector(
-      onTap: () => showAppSheet(
-        context,
-        builder: (_) => ActivateAccountSheet(spec: spec),
-      ),
+      onTap: () async {
+        final count = ref.read(cashAccountListProvider).valueOrNull?.length ?? 0;
+        if (await _blockedByAccountLimit(context, ref, count)) return;
+        if (!context.mounted) return;
+        await showAppSheet(
+          context,
+          builder: (_) => ActivateAccountSheet(spec: spec),
+        );
+      },
       child: Container(
         width: 118,
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),

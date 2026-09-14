@@ -41,6 +41,7 @@ enum PlanFeatureKey {
   productLimit,
   serviceProductLimit,
   dailySalesLimit,
+  accountLimit,
 }
 
 extension PlanFeatureKeyX on PlanFeatureKey {
@@ -59,6 +60,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.productLimit => Icons.inventory_2_rounded,
     PlanFeatureKey.serviceProductLimit => Icons.design_services_rounded,
     PlanFeatureKey.dailySalesLimit => Icons.point_of_sale_rounded,
+    PlanFeatureKey.accountLimit => Icons.account_balance_wallet_rounded,
   };
 
   String get labelSw => switch (this) {
@@ -76,6 +78,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.productLimit => 'Kikomo cha Bidhaa',
     PlanFeatureKey.serviceProductLimit => 'Kikomo cha Huduma',
     PlanFeatureKey.dailySalesLimit => 'Kikomo cha Mauzo kwa Siku',
+    PlanFeatureKey.accountLimit => 'Kikomo cha Akaunti',
   };
 
   String get labelEn => switch (this) {
@@ -93,6 +96,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.productLimit => 'Product Limit',
     PlanFeatureKey.serviceProductLimit => 'Service Limit',
     PlanFeatureKey.dailySalesLimit => 'Daily Sales Limit',
+    PlanFeatureKey.accountLimit => 'Account Limit',
   };
 }
 
@@ -1548,12 +1552,19 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
 
   @override
   Widget build(BuildContext context) {
-    // Transparent, not the white Material card the plan-picker sheet below
-    // uses — the failed state still needs a readable surface behind its
-    // text/buttons, but the normal processing/success state is nothing but
-    // the animation, so there's no card to paint a background on.
+    // Transparent while there's nothing but the animation to show (the
+    // normal processing/success state), so it overlays the plan-picker
+    // sheet's own white card underneath rather than painting a second one.
+    // The failed state has real text/buttons to read though, and the
+    // _PaymentFailedCard's own tint is too faint (6% alpha) to serve as a
+    // page background on its own — so that state gets an opaque white
+    // sheet behind it, matching every other slide-up sheet in the app.
     return Material(
-      color: Colors.transparent,
+      color: _failed ? Colors.white : Colors.transparent,
+      borderRadius: _failed
+          ? const BorderRadius.vertical(top: Radius.circular(28))
+          : null,
+      clipBehavior: _failed ? Clip.antiAlias : Clip.none,
       child: SafeArea(
         top: false,
         child: Padding(

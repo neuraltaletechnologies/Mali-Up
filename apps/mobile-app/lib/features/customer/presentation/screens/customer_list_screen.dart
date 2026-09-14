@@ -19,6 +19,7 @@ import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../debt/data/customer_debt_sync_service.dart';
+import '../../../debt/data/debt_providers.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -173,6 +174,21 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     );
     final filtered = _filterAndSort(all);
 
+    // Open payables (money the business owes a contact) don't touch
+    // Customer.balanceAmount — that field is intentionally receivables-only
+    // (see customer_debt_sync_service.dart) — so they're read live from the
+    // debt ledger here and merged into what the row displays. This picks up
+    // payables regardless of how they were created: the manual Add Debt
+    // screen, or auto-recorded ones from a credit purchase/restock or a
+    // credit expense.
+    final payables = ref.watch(payablesProvider);
+    final payableByCustomer = <String, double>{};
+    for (final d in payables) {
+      if (d.partyId.isEmpty) continue;
+      payableByCustomer[d.partyId] =
+          (payableByCustomer[d.partyId] ?? 0) + d.remainingAmount;
+    }
+
     final activeFilters =
         (_segment != _Segment.all ? 1 : 0) +
         (_sort != _CustomerSort.nameAz ? 1 : 0);
@@ -240,6 +256,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                         showFinancials: showFinancials,
                         canManage: ps.canManageCustomers || ps.isOwner,
                         isLast: i == filtered.length - 1,
+                        payableOwed: payableByCustomer[filtered[i].id] ?? 0,
                       ),
                     ),
             ),
@@ -660,11 +677,16 @@ class _CustomerCard extends ConsumerWidget {
   final bool canManage;
   final bool isLast;
 
+  /// Open payables linked to this contact (money the business owes them) —
+  /// not part of [Customer.balanceAmount], merged in purely for display.
+  final double payableOwed;
+
   const _CustomerCard({
     required this.customer,
     required this.showFinancials,
     required this.canManage,
     required this.isLast,
+    required this.payableOwed,
   });
 
   Color get _accentColor {
@@ -722,6 +744,10 @@ class _CustomerCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = customer.balanceAmount;
+    // Receivable balance and any open payable owed to this contact, merged
+    // into one net figure for the row: positive = they owe us, negative =
+    // we owe them (whether that's a supplier payable or a returns credit).
+    final netBalance = balance - payableOwed;
     final hasBalance = balance > 0;
     final accent = _accentColor;
     final lastDate = _relativeLastPurchase(customer);
@@ -895,17 +921,17 @@ class _CustomerCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          balance > 0
-                              ? 'TZS ${_fmtShort(balance)}'
-                              : balance < 0
-                              ? '+TZS ${_fmtShort(balance.abs())}'
+                          netBalance > 0
+                              ? 'TZS ${_fmtShort(netBalance)}'
+                              : netBalance < 0
+                              ? '+TZS ${_fmtShort(netBalance.abs())}'
                               : _tr('Clear', 'Safi'),
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: balance > 0
+                            color: netBalance > 0
                                 ? AppColors.error
-                                : balance < 0
+                                : netBalance < 0
                                 ? AppColors.success
                                 : AppColors.success,
                           ),
@@ -1550,6 +1576,13 @@ class _CustomerInfoSheet extends ConsumerWidget {
 
     final balance = live.balanceAmount;
     final hasBalance = balance > 0;
+    // Same merge as the list row: open payables owed to this contact don't
+    // live on balanceAmount, so they're read live from the debt ledger.
+    final payableOwed = ref
+        .watch(payablesProvider)
+        .where((d) => d.partyId == live.id)
+        .fold<double>(0, (s, d) => s + d.remainingAmount);
+    final netBalance = balance - payableOwed;
     final accent = _accent(live);
     final initials = _initials(live.name);
     final displayTags = live.tags
@@ -1708,12 +1741,12 @@ class _CustomerInfoSheet extends ConsumerWidget {
                         vertical: 11,
                       ),
                       decoration: BoxDecoration(
-                        color: balance > 0
+                        color: netBalance > 0
                             ? AppColors.error.withValues(alpha: 0.06)
                             : AppColors.success.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: balance > 0
+                          color: netBalance > 0
                               ? AppColors.error.withValues(alpha: 0.2)
                               : AppColors.success.withValues(alpha: 0.2),
                         ),
@@ -1721,29 +1754,36 @@ class _CustomerInfoSheet extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            balance > 0
+                            netBalance > 0
                                 ? Icons.account_balance_wallet_rounded
-                                : balance < 0
-                                ? Icons.savings_rounded
+                                : netBalance < 0
+                                ? (payableOwed > 0
+                                      ? Icons.local_shipping_rounded
+                                      : Icons.savings_rounded)
                                 : Icons.check_circle_rounded,
                             size: 16,
-                            color: balance > 0
+                            color: netBalance > 0
                                 ? AppColors.error
                                 : AppColors.success,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              balance > 0
+                              netBalance > 0
                                   ? _tr(
-                                      'Outstanding: TZS ${_fmtShort(balance)}',
-                                      'Deni: TZS ${_fmtShort(balance)}',
+                                      'Outstanding: TZS ${_fmtShort(netBalance)}',
+                                      'Deni: TZS ${_fmtShort(netBalance)}',
                                     )
-                                  : balance < 0
-                                  ? _tr(
-                                      'Reserve: +TZS ${_fmtShort(balance.abs())}',
-                                      'Akiba: +TZS ${_fmtShort(balance.abs())}',
-                                    )
+                                  : netBalance < 0
+                                  ? (payableOwed > 0
+                                        ? _tr(
+                                            'You owe them: TZS ${_fmtShort(netBalance.abs())}',
+                                            'Unamdaiwa: TZS ${_fmtShort(netBalance.abs())}',
+                                          )
+                                        : _tr(
+                                            'Reserve: +TZS ${_fmtShort(netBalance.abs())}',
+                                            'Akiba: +TZS ${_fmtShort(netBalance.abs())}',
+                                          ))
                                   : _tr(
                                       'No outstanding balance',
                                       'Hakuna deni',
@@ -1751,7 +1791,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: balance > 0
+                                color: netBalance > 0
                                     ? AppColors.error
                                     : AppColors.success,
                               ),
