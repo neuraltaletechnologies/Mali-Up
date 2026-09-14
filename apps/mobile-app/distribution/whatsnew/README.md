@@ -18,9 +18,16 @@ Practical implications:
   `feat:`/`fix:`/`perf:` subjects (optionally scoped, e.g. `fix(mobile):`)
   are surfaced; write the part after the colon as if a user were going to
   read it verbatim, because they might.
-- **Only the section headers are Swahili** ("Vipya:" / "Marekebisho:" /
-  "Maboresho:") -- the commit text itself is not machine-translated and
-  stays in English in both files. See the script's header comment for why.
+- **Swahili bullets are machine-translated**, not human-reviewed -- the
+  section headers ("Vipya:" / "Marekebisho:" / "Maboresho:") are hardcoded,
+  but each bullet's English text goes through MyMemory's free translation
+  API. It's plain MT quality, not the bar `l10n/DEVELOPER_STYLE_GUIDE.md`
+  holds real in-app strings to -- released notes only. If that API call
+  fails for a given bullet (timeout, rate limit, whatever), it silently
+  falls back to the English text for that line rather than blocking the
+  release -- so an occasional English sentence under a Swahili header in
+  a past release isn't a bug, it's that fallback. See the script's header
+  comment for details.
 - Google Play hard-rejects the whole release if either language exceeds
   500 characters, so the script caps items per section and the overall
   length; a long tail of commits shows up as `(+N more)` / `(+N zaidi)`
