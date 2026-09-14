@@ -207,6 +207,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   Future<void> _showProofOptions() async {
     final source = await showAppSheet<ImageSource>(
       context,
+      // showAppSheet defaults to a transparent modal background, so the
+      // sheet needs its own opaque surface — otherwise the list floats over
+      // whatever is behind it with no white backing.
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

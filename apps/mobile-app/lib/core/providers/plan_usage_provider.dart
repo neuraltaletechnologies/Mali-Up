@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/customer/data/customer_providers.dart';
+import '../../features/finance/data/finance_providers.dart';
 import '../../features/inventory/presentation/providers/inventory_providers.dart';
 import '../../features/invoice/presentation/providers/invoice_providers.dart';
 import '../../features/team/data/team_providers.dart';
@@ -35,6 +36,10 @@ class PlanUsage {
   /// Team members excluding the owner. Backs `maxUsers` (owner + this count).
   final int teamMembers;
 
+  /// Cash Flow accounts on file — activated built-in payment channels plus
+  /// custom accounts, combined. Backs `maxAccounts`.
+  final int accounts;
+
   const PlanUsage({
     this.salesToday = 0,
     this.invoicesThisMonth = 0,
@@ -42,6 +47,7 @@ class PlanUsage {
     this.products = 0,
     this.serviceProducts = 0,
     this.teamMembers = 0,
+    this.accounts = 0,
   });
 }
 
@@ -50,6 +56,7 @@ final planUsageProvider = Provider<PlanUsage>((ref) {
   final customers = ref.watch(customerListProvider).valueOrNull ?? const [];
   final inventory = ref.watch(inventoryProvider).valueOrNull ?? const [];
   final team = ref.watch(teamMembersProvider).valueOrNull ?? const [];
+  final accounts = ref.watch(cashAccountListProvider).valueOrNull ?? const [];
 
   final now = DateTime.now();
   String two(int v) => v.toString().padLeft(2, '0');
@@ -82,5 +89,6 @@ final planUsageProvider = Provider<PlanUsage>((ref) {
     products: products,
     serviceProducts: serviceProducts,
     teamMembers: team.length,
+    accounts: accounts.length,
   );
 });

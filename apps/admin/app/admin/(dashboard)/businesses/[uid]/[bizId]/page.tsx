@@ -764,7 +764,7 @@ function CatalogAttachPanel({
 
 // ─── Enterprise Deal Terms Panel ───────────────────────────────────────────────
 
-const OVERRIDE_FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay'>, string> = {
+const OVERRIDE_FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay' | 'maxAccounts'>, string> = {
   cashFlow:            'Cash flow tracking',
   expenseTracking:     'Expense tracking',
   manualDebt:          'Manual debt entry',
@@ -911,6 +911,10 @@ function EnterpriseTermsPanel({
         <div className="flex flex-col gap-1.5">
           <label className={labelCls}>Max service products (−1 = unlimited)</label>
           <input type="number" min="-1" value={form.maxServiceProducts} onChange={num('maxServiceProducts')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Max accounts (−1 = unlimited)</label>
+          <input type="number" min="-1" value={form.maxAccounts} onChange={num('maxAccounts')} className={inputCls} />
         </div>
       </div>
 
