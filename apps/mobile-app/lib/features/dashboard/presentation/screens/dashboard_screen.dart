@@ -531,15 +531,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${_timeBasedGreeting()}, ${_displayName(_profile)} 👋',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.secondary,
-                                    height: 1.2,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${_timeBasedGreeting()}, ${_displayName(_profile)}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.secondary,
+                                          height: 1.2,
+                                        ),
                                   ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('👋', style: TextStyle(fontSize: 20)),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(
