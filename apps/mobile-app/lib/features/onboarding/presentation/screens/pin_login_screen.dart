@@ -763,14 +763,21 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           const SheetHandle(),
           const SizedBox(height: 12),
 
-          Text(
-            sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
-            style: GoogleFonts.dmSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                sw ? 'Msaada wa PIN' : 'PIN Recovery',
+                style: GoogleFonts.dmSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('🔐', style: TextStyle(fontSize: 20)),
+            ],
           ),
           const SizedBox(height: 10),
 

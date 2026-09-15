@@ -930,6 +930,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
             Align(
               alignment: Alignment.centerLeft,
               child: SafeArea(
+                left: false,
                 // Bottom is NOT excluded here (unlike the header SafeArea
                 // below) — on devices with on-screen nav buttons or a tall
                 // gesture bar, leaving this off let the panel's last items
@@ -965,6 +966,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           // gradient flows underneath it continuously so header
                           // and nav list read as one seamless floating surface.
                           SafeArea(
+                            left: false,
                             bottom: false,
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
