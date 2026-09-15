@@ -220,14 +220,6 @@ class AppStrings {
   static const String workspaceReady = 'Great news, your workspace is ready.';
   static const String workspaceReadySw = 'Habari njema, workspace yako iko tayari.';
 
-  // Loading Messages
-  static const String loading = 'Loading...';
-  static const String loadingSw = 'Inapakia...';
-  static const String checking = 'Checking...';
-  static const String checkingSw = 'Inahakiki...';
-  static const String registering = 'Registering...';
-  static const String registeringSw = 'Inasajili...';
-
   // Support
   static const String emergencySupport = 'Emergency WhatsApp support';
   static const String emergencySupportSw = 'Msaada wa dharura WhatsApp';
@@ -395,9 +387,6 @@ class AppStrings {
     'verification_successful': verificationSuccessful,
     'registration_successful': registrationSuccessful,
     'workspace_ready': workspaceReady,
-    'loading': loading,
-    'checking': checking,
-    'registering': registering,
     'emergency_support': emergencySupport,
     'whatsapp_support': whatsappSupport,
     'contact_support': contactSupport,
@@ -498,9 +487,6 @@ class AppStrings {
     'verification_successful': verificationSuccessfulSw,
     'registration_successful': registrationSuccessfulSw,
     'workspace_ready': workspaceReadySw,
-    'loading': loadingSw,
-    'checking': checkingSw,
-    'registering': registeringSw,
     'emergency_support': emergencySupportSw,
     'whatsapp_support': whatsappSupportSw,
     'contact_support': contactSupportSw,

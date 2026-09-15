@@ -274,15 +274,41 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // right after becoming owner-ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _goToDashboardThen(
-        () => PageTour.maybeAutoStart(
-          context: context,
-          seenKey: _tourSeenKey,
-          steps: _navTourSteps,
-          onFullyComplete: _maybeContinueJourneyIntoCashFlow,
-        ),
-      );
+      _goToDashboardThen(() => _startNavTourAfterWebsiteGate());
     });
+  }
+
+  /// A brand-new owner who opted into "Build me a website" during onboarding
+  /// lands on the Dashboard with that request sheet queued up (see
+  /// DashboardScreen._checkWebsiteInterestNudge) — it shows itself a couple
+  /// of seconds after this same first frame, which otherwise raced the nav
+  /// tour starting right on top of it. Both flows would then be visible at
+  /// once: this tour's dimmed spotlight and the website sheet, fighting for
+  /// the same screen.
+  ///
+  /// `pending_website_interest` is the shared signal — Dashboard keeps it
+  /// set for as long as that sheet is queued *and* showing, only clearing it
+  /// once the user has actually finished with it (submitted the form or
+  /// dismissed the nudge). Polling it here means the tour simply waits its
+  /// turn; for the common case where nobody opted in, the flag is never set
+  /// at all and this resolves on the very first check, so there's no
+  /// perceptible delay. Capped at ~6s as a safety net — if that flag were
+  /// ever left set for some other reason, the tour still starts eventually
+  /// rather than being silently blocked forever.
+  Future<void> _startNavTourAfterWebsiteGate() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (var attempt = 0; attempt < 20; attempt++) {
+      if (!mounted) return;
+      if (!(prefs.getBool('pending_website_interest') ?? false)) break;
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+    if (!mounted) return;
+    PageTour.maybeAutoStart(
+      context: context,
+      seenKey: _tourSeenKey,
+      steps: _navTourSteps,
+      onFullyComplete: _maybeContinueJourneyIntoCashFlow,
+    );
   }
 
   /// Re-runs the nav tour unconditionally — wired to
