@@ -57,6 +57,22 @@ class MainShellPage extends ConsumerStatefulWidget {
 
 class _MainShellPageState extends ConsumerState<MainShellPage>
     with SingleTickerProviderStateMixin {
+  // Shell tabs whose top-of-screen widget is a DarkHeaderShell (navy banner
+  // reaching under the status bar) — these need light/white status bar
+  // icons. Every other shell tab (dashboard, settings, subscription,
+  // reports) has a plain white/light top and keeps dark icons.
+  static const Set<String> _tabsWithDarkHeader = {
+    AppRoutes.sales,
+    AppRoutes.inventory,
+    AppRoutes.crm,
+    AppRoutes.debt,
+    AppRoutes.expenses,
+    AppRoutes.cashflow,
+    AppRoutes.businesses,
+    AppRoutes.team,
+    AppRoutes.notifications,
+  };
+
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
@@ -888,7 +904,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
             Align(
               alignment: Alignment.centerLeft,
               child: SafeArea(
-                bottom: false,
+                // Bottom is NOT excluded here (unlike the header SafeArea
+                // below) — on devices with on-screen nav buttons or a tall
+                // gesture bar, leaving this off let the panel's last items
+                // (Settings, Team, …) sit underneath those system buttons,
+                // making them hard to tap.
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(24),
@@ -1889,9 +1909,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           );
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        // Shell pages (dashboard, sales, reports…) have a white top background,
-        // so keep dark status bar icons even when returning from navy screens.
-        value: AppTheme.statusBarDarkIcons,
+        // Most shell tabs open with a DarkHeaderShell (navy) banner that
+        // reaches right up under the status bar, so those need light/white
+        // icons to stay visible. The plain white-top tabs (dashboard,
+        // settings, subscription, reports) keep dark icons.
+        value: _tabsWithDarkHeader.contains(location)
+            ? AppTheme.statusBarLightIcons
+            : AppTheme.statusBarDarkIcons,
         child: FutureBuilder<Map<String, dynamic>?>(
           future: _profileFuture,
           builder: (context, snapshot) {

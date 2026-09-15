@@ -3131,11 +3131,13 @@ class _AssignedToSection extends ConsumerWidget {
         .cast<TeamMember?>()
         .firstOrNull;
 
-    final String name;
+    // null while the team list is still loading and this member hasn't
+    // resolved yet — rendered as a skeleton instead of a "Loading…" string.
+    final String? name;
     if (match != null) {
       name = match.name;
     } else if (membersAsync.isLoading) {
-      name = _tr('Loading…', 'Inapakia…');
+      name = null;
     } else {
       name = _tr('Unknown member', 'Mwanachama hajulikani');
     }
@@ -3174,14 +3176,16 @@ class _AssignedToSection extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
+                      name == null
+                          ? const SkeletonText(width: 90, height: 14)
+                          : Text(
+                              name,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
                       if (role.isNotEmpty)
                         Text(
                           role,
@@ -4782,6 +4786,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               .take(5)
               .toList()
         : const <MasterProduct>[];
+    // The catalog is still resolving (business type not loaded yet, or the
+    // local catalog cache is being read) — show a placeholder instead of
+    // silently nothing, so the field doesn't look unresponsive while typing.
+    final showCatalogLoadingSkeleton =
+        !_isEdit &&
+        _restockTarget == null &&
+        query.isNotEmpty &&
+        _nameFocus.hasFocus &&
+        catalogSuggestions.isEmpty &&
+        masterProductsAsync.isLoading;
 
     final isReturn = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
@@ -4997,9 +5011,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                   'e.g. Water supply, Cleaning',
                                   'k.m. Usambazaji wa maji, Usafi',
                                 )
-                              : _tr(
-                                  'e.g. Unga wa mahindi 2kg',
-                                  'k.m. Unga wa mahindi 2kg',
+                              : BusinessProductConfig.productNameHint(
+                                  bizType,
+                                  isSwahili: LocalizationService.isSwahili,
                                 ),
                           caps: TextCapitalization.words,
                           focusNode: _nameFocus,
@@ -5323,6 +5337,21 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                   ),
                                 );
                               }),
+                            ],
+                          ),
+                        ),
+                      ] else if (showCatalogLoadingSkeleton) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Column(
+                            children: [
+                              SkeletonListTile(),
+                              SkeletonListTile(),
                             ],
                           ),
                         ),
@@ -7682,26 +7711,7 @@ class _CategoryDropdownButton extends StatelessWidget {
           children: [
             Expanded(
               child: loading
-                  ? Row(
-                      children: [
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _tr('Loading…', 'Inapakia…'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            color: AppColors.textDisabled,
-                          ),
-                        ),
-                      ],
-                    )
+                  ? const SkeletonText(width: 70, height: 14)
                   : Text(
                       selectedName.isNotEmpty
                           ? selectedName
@@ -7791,8 +7801,22 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
       _addError = null;
     });
     try {
-      final bizType =
-          ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+      final bizType = ref.read(currentBusinessTypeProvider).valueOrNull;
+      if (bizType == null || bizType.isEmpty) {
+        // Business type hasn't resolved yet (slow/offline read) — bail out
+        // instead of defaulting to 'retail', which would permanently tag
+        // this category under the wrong vertical in the shared catalog.
+        if (mounted) {
+          setState(() {
+            _adding = false;
+            _addError = _tr(
+              'Could not save this category. Please try again.',
+              'Imeshindikana kuhifadhi kategoria. Jaribu tena.',
+            );
+          });
+        }
+        return;
+      }
       final repo = ref.read(masterCatalogRepositoryProvider);
       final newCat = await repo.addCommunityCategory(
         businessType: bizType,

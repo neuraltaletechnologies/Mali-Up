@@ -82,8 +82,14 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     if (user == null) return;
     setState(() => _adding = true);
     try {
-      final bizType =
-          ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+      final bizType = ref.read(currentBusinessTypeProvider).valueOrNull;
+      if (bizType == null || bizType.isEmpty) {
+        // Business type hasn't resolved yet (slow/offline read) — bail out
+        // instead of defaulting to 'retail', which would permanently tag
+        // this category under the wrong vertical in the shared catalog.
+        if (mounted) setState(() => _adding = false);
+        return;
+      }
       final repo = ref.read(masterCatalogRepositoryProvider);
       final newCat = await repo.addCommunityCategory(
         businessType: bizType,
