@@ -69,6 +69,10 @@ class OnboardingState {
     this.hasWebsite = false,
     this.websiteInterest = false,
 
+    // Screen 6 / 4B — OTP verification (first-time registration only)
+    this.otpPinId = '',
+    this.otpVerified = false,
+
     // Screen 6 — PIN setup
     this.pin = '',
     this.confirmPin = '',
@@ -137,6 +141,16 @@ class OnboardingState {
   final bool hasWebsite;
   final bool websiteInterest;
 
+  // ── Screen 6 / 4B — OTP verification ────────────────────────────────────
+  /// Beem's pinId for the currently pending/verified code — empty until
+  /// [sendOtp] succeeds.
+  final String otpPinId;
+
+  /// Set once [verifyOtp] succeeds. Gates the PIN-setup step in
+  /// SecuritySetupScreen / TeamMemberSetupScreen; the server independently
+  /// re-checks this via consumeOtpVerification before account creation.
+  final bool otpVerified;
+
   // ── Screen 6 ──────────────────────────────────────────────────────────────
   final String pin;
   final String confirmPin;
@@ -195,6 +209,8 @@ class OnboardingState {
     String? websiteUrl,
     bool? hasWebsite,
     bool? websiteInterest,
+    String? otpPinId,
+    bool? otpVerified,
     String? pin,
     String? confirmPin,
     bool? isLoading,
@@ -231,6 +247,8 @@ class OnboardingState {
       websiteUrl: websiteUrl ?? this.websiteUrl,
       hasWebsite: hasWebsite ?? this.hasWebsite,
       websiteInterest: websiteInterest ?? this.websiteInterest,
+      otpPinId: otpPinId ?? this.otpPinId,
+      otpVerified: otpVerified ?? this.otpVerified,
       pin: pin ?? this.pin,
       confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
@@ -270,6 +288,8 @@ class OnboardingState {
         other.websiteUrl == websiteUrl &&
         other.hasWebsite == hasWebsite &&
         other.websiteInterest == websiteInterest &&
+        other.otpPinId == otpPinId &&
+        other.otpVerified == otpVerified &&
         other.pin == pin &&
         other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
@@ -288,6 +308,7 @@ class OnboardingState {
         Object.hashAll(ownedBusinesses),
         businessCountry, businessRegion, businessDistrict, email,
         websiteUrl, hasWebsite, websiteInterest,
+        otpPinId, otpVerified,
         pin, confirmPin, isLoading, errorMessage, pinJustReset, isComplete,
       ]);
 }

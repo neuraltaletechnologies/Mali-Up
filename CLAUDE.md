@@ -26,6 +26,7 @@ flutter analyze                  # or run_analyze.bat from repo root
 flutter test                     # all tests
 flutter test test/core/database/invoice_dao_test.dart   # single test file
 dart run build_runner build --delete-conflicting-outputs # regen Drift/Freezed *.g.dart
+dart run slang                   # regen lib/i18n/gen/strings.g.dart after editing lib/i18n/*.i18n.json
 ```
 
 The app ships no third-party crash reporter (`sentry_flutter` was removed for app size). Caught non-fatal errors flow through `lib/core/services/error_reporter.dart` (`ErrorReporter`), which only logs in debug — that's the single hook to wire `firebase_crashlytics` into if it's wanted back.
@@ -97,7 +98,11 @@ When adding a new synced entity, mirror this whole chain: table + DAO + mapper +
 
 ### Localization
 
-Swahili-first, English fallback — every user-facing string needs both. The app currently uses static string classes with `(String language)` getters or En/Sw constant pairs (`lib/core/constants/app_strings.dart`, per-feature `strings/` files), keyed off `LocalizationService.languageNotifier` (`'sw'` / `'en'`). The shared `l10n/` JSON uses nested namespaces (`common`, `finance`, `errors`, …) that must stay consistent across mobile/web/backend — see `l10n/DEVELOPER_STYLE_GUIDE.md` and use the terminology dictionary for Kiswahili terms.
+Swahili-first, English fallback — every user-facing string needs both. Two coexisting patterns:
+
+- **Existing screens (legacy pattern, don't migrate)**: static string classes with `(String language)` getters or En/Sw constant pairs (`lib/core/constants/app_strings.dart`, per-feature `strings/` files), or a local `String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);` helper called inline. Keyed off `LocalizationService.languageNotifier` (`AppLanguage.english` / `.swahili`). Leave these as they are — don't rewrite a screen's existing strings into the slang pattern below just because you're touching it.
+- **New features (convention going forward): `package:slang`**. Add/extend `lib/i18n/en.i18n.json` and `lib/i18n/sw.i18n.json` (plain nested JSON, one object per locale, keys shared across both files), run `dart run slang` to regen `lib/i18n/gen/strings.g.dart` (gitignored, excluded from analysis like other `*.g.dart`), then read strings via the generated global `t` accessor, e.g. `t.someFeature.title`. Like Drift/Freezed output, `lib/i18n/gen/*.g.dart` is committed, not gitignored — regen and commit it whenever the `.i18n.json` files change. Use the plain `t` getter, not `context.t` — `main.dart`'s `MaterialApp.router` already sits under a `ValueListenableBuilder<AppLanguage>` on `LocalizationService.languageNotifier`, so the whole tree already rebuilds on language change; no `TranslationProvider` wrapping is wired up. `LocalizationService._applyLanguage` (called from `setLanguage`/`changeLanguage`/`initializeWithPrefs`/`resetLanguageSelection`) keeps slang's `LocaleSettings` in sync automatically — `LocalizationService.languageNotifier` stays the single source of truth for current language, slang just mirrors it. `slang.yaml` sets `lazy: false` so both locales are compiled in and available synchronously offline (no deferred/on-demand loading) — don't change that without checking offline behavior.
+- The shared `l10n/` JSON (`l10n/translations/en.json`, `sw.json`) is a **terminology reference only** — nothing in mobile/web/backend actually loads it at build or runtime. Use it (and `l10n/DEVELOPER_STYLE_GUIDE.md` / the terminology dictionary) to pick consistent Kiswahili wording, but it is not a data source to wire up.
 
 ### Auth & security
 

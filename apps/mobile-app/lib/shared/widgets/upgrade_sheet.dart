@@ -77,7 +77,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.customerLimit => 'Kikomo cha Wateja',
     PlanFeatureKey.productLimit => 'Kikomo cha Bidhaa',
     PlanFeatureKey.serviceProductLimit => 'Kikomo cha Huduma',
-    PlanFeatureKey.dailySalesLimit => 'Kikomo cha Mauzo kwa Siku',
+    PlanFeatureKey.dailySalesLimit => 'Mauzo kwa Siku',
     PlanFeatureKey.accountLimit => 'Kikomo cha Akaunti',
   };
 
@@ -95,7 +95,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
     PlanFeatureKey.customerLimit => 'Customer Limit',
     PlanFeatureKey.productLimit => 'Product Limit',
     PlanFeatureKey.serviceProductLimit => 'Service Limit',
-    PlanFeatureKey.dailySalesLimit => 'Daily Sales Limit',
+    PlanFeatureKey.dailySalesLimit => 'Sales Limit',
     PlanFeatureKey.accountLimit => 'Account Limit',
   };
 }

@@ -249,6 +249,112 @@ class OnboardingRepository {
     throw lastError!;
   }
 
+  // ─── OTP VERIFICATION (first-time registration only) ─────────────────────
+  //
+  // Beem Africa generates, delivers, and checks the actual code — see
+  // functions/src/beem_otp.ts / BEEM_OTP_INTEGRATION.md. Mali Up only proxies
+  // the two calls and, on success, gets a short-lived server-side marker that
+  // [_consumeOtpVerification] burns right before the Firebase Auth account is
+  // created.
+
+  /// Requests an OTP be sent to [phone]. Returns Beem's pinId, which must be
+  /// passed back to [verifyOtp]. Throws [FirebaseFunctionsException] on
+  /// rate-limit ('resource-exhausted') or provider failure.
+  Future<String> sendOtp(String phone) async {
+    final callable = _functions.httpsCallable('sendBeemOtp');
+    final res = await callable.call<Map<String, dynamic>>({
+      'phone': PhoneNumberUtils.canonical(phone),
+    });
+    final data = Map<String, dynamic>.from(res.data as Map);
+    return data['pinId'] as String;
+  }
+
+  /// Verifies [code] against [pinId] for [phone]. Returns false for a wrong
+  /// or expired code (not an error) — throws [FirebaseFunctionsException]
+  /// only on rate-limit or transport failure.
+  Future<bool> verifyOtp({
+    required String phone,
+    required String pinId,
+    required String code,
+  }) async {
+    final callable = _functions.httpsCallable('verifyBeemOtp');
+    final res = await callable.call<Map<String, dynamic>>({
+      'phone': PhoneNumberUtils.canonical(phone),
+      'pinId': pinId,
+      'pin': code,
+    });
+    final data = Map<String, dynamic>.from(res.data as Map);
+    return data['verified'] == true;
+  }
+
+  /// Whether [uid]'s phone has already been Beem-verified. False for any
+  /// account created before the OTP rollout (missing field) as well as a
+  /// genuinely unverified one. Fails open (returns true) on a transient read
+  /// error — this is a bookkeeping check, not the actual OTP gate, and a
+  /// Firestore hiccup shouldn't lock out a user whose PIN was already correct.
+  Future<bool> isPhoneVerified(String uid) async {
+    try {
+      final doc = await _db.collection('users').doc(uid).get();
+      return doc.data()?['phoneVerified'] == true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[OnboardingRepository.isPhoneVerified] $e');
+      return true;
+    }
+  }
+
+  /// Burns the server-side OTP-verified marker for [phone]. Throws
+  /// [FirebaseFunctionsException] with code 'failed-precondition' if the
+  /// phone was never verified or the marker expired — callers must not
+  /// proceed to create the Firebase Auth account in that case.
+  Future<void> _consumeOtpVerification(String phone) async {
+    final callable = _functions.httpsCallable('consumeOtpVerification');
+    await callable.call<Map<String, dynamic>>({
+      'phone': PhoneNumberUtils.canonical(phone),
+    });
+  }
+
+  /// Consumes the OTP verification marker for [phone], then creates the
+  /// Firebase Auth account — or signs in instead if it already exists.
+  ///
+  /// The sign-in fallback covers two cases identically: Firebase Auth
+  /// reporting 'email-already-in-use' (a retry after a prior attempt's
+  /// Firestore writes failed partway), and consumeOtpVerification finding no
+  /// pending marker because an earlier attempt already consumed it and
+  /// created the account. Only when sign-in *also* fails does this propagate
+  /// as a genuine "verify your phone again" error.
+  Future<UserCredential> _createAuthAccountAfterOtp({
+    required String phone,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _consumeOtpVerification(phone);
+    } on FirebaseFunctionsException catch (otpError) {
+      if (otpError.code != 'failed-precondition') rethrow;
+      try {
+        return await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } on FirebaseAuthException {
+        // No pending OTP verification AND no existing account to sign into —
+        // this really is an unverified attempt, not a retry. Surface the
+        // original, more actionable error so the caller can route back to
+        // OTP re-entry instead of a confusing sign-in failure.
+        throw otpError;
+      }
+    }
+    try {
+      return await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      return _auth.signInWithEmailAndPassword(email: email, password: password);
+    }
+  }
+
   // ─── AUTH — TEAM MEMBER FIRST-TIME SETUP ─────────────────────────────────
 
   /// Creates a Firebase Auth account for a team member, then writes their user
@@ -278,21 +384,14 @@ class OnboardingRepository {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
 
-    UserCredential cred;
-    try {
-      cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'email-already-in-use') rethrow;
-      // Account was created in a prior attempt but Firestore writes may have
-      // been partial.  Sign in and let the batch below self-heal the docs.
-      cred = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    }
+    // Account was created in a prior attempt but Firestore writes may have
+    // been partial — _createAuthAccountAfterOtp signs in instead so the batch
+    // below can self-heal the docs.
+    final cred = await _createAuthAccountAfterOtp(
+      phone: phone,
+      email: email,
+      password: password,
+    );
     final uid = cred.user!.uid;
 
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -314,6 +413,9 @@ class OnboardingRepository {
       'ownerUid': ownerUid,
       'businessId': businessId,
       'memberId': memberId,
+      // Already OTP-verified via consumeOtpVerification, just before this
+      // account was created — never asked again.
+      'phoneVerified': true,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
@@ -551,6 +653,10 @@ class OnboardingRepository {
       'language': state.isSwahili ? 'sw' : 'en',
       'isTeamMember': false,
       'selectedBusinessId': businessId,
+      // Already OTP-verified via consumeOtpVerification, just before this
+      // account was created — never asked again. firestore.rules blocks any
+      // later client self-update of this field.
+      'phoneVerified': true,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
@@ -601,20 +707,12 @@ class OnboardingRepository {
   }) async {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
-    try {
-      final cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return cred.user!.uid;
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'email-already-in-use') rethrow;
-      final cred = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return cred.user!.uid;
-    }
+    final cred = await _createAuthAccountAfterOtp(
+      phone: phone,
+      email: email,
+      password: password,
+    );
+    return cred.user!.uid;
   }
 
   /// Deletes the currently signed-in Firebase Auth user, if any.

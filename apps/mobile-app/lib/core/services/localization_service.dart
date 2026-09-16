@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../i18n/gen/strings.g.dart' show AppLocale, LocaleSettings;
+
 enum AppLanguage {
   english,
   swahili,
@@ -43,8 +45,18 @@ class LocalizationService {
   static final ValueNotifier<bool> languageSelectedNotifier =
       ValueNotifier<bool>(false);
 
+  // Keeps package:slang's LocaleSettings (used by new features via the
+  // generated `t` accessor) in lockstep with this notifier, which stays the
+  // single source of truth for the legacy AppStrings/_tr() call sites.
+  static void _applyLanguage(AppLanguage language) {
+    LocaleSettings.setLocaleSync(
+      language == AppLanguage.swahili ? AppLocale.sw : AppLocale.en,
+    );
+    languageNotifier.value = language;
+  }
+
   static Future<void> initialize() async {
-    languageNotifier.value = await getLanguage();
+    _applyLanguage(await getLanguage());
   }
 
   static Future<void> initializeWithPrefs(SharedPreferences prefs) async {
@@ -54,11 +66,11 @@ class LocalizationService {
 
     switch (languageCode) {
       case 'sw':
-        languageNotifier.value = AppLanguage.swahili;
+        _applyLanguage(AppLanguage.swahili);
         return;
       case 'en':
       default:
-        languageNotifier.value = AppLanguage.english;
+        _applyLanguage(AppLanguage.english);
         return;
     }
   }
@@ -78,7 +90,7 @@ class LocalizationService {
     }
 
     if (languageNotifier.value != language) {
-      languageNotifier.value = language;
+      _applyLanguage(language);
     }
   }
 
@@ -87,7 +99,7 @@ class LocalizationService {
     await prefs.setString(_languageKey, language.code);
 
     if (languageNotifier.value != language) {
-      languageNotifier.value = language;
+      _applyLanguage(language);
     }
   }
 
@@ -119,7 +131,7 @@ class LocalizationService {
     }
 
     if (languageNotifier.value != AppLanguage.english) {
-      languageNotifier.value = AppLanguage.english;
+      _applyLanguage(AppLanguage.english);
     }
   }
 }

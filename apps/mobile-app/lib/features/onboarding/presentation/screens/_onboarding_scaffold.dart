@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
@@ -666,6 +668,217 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
           borderRadius: BorderRadius.circular(1),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OtpVerifyBody  (first-time registration OTP step)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// First step of first-time registration (new owner and team-member first
+/// PIN setup share this): verifies phone ownership with a Beem Africa SMS
+/// code before PIN setup. Self-contained — owns its own 6-digit input and
+/// resend cooldown; the parent screen only supplies [onSend]/[onVerify],
+/// which call into [OnboardingNotifier.sendOtp]/[OnboardingNotifier.verifyOtp].
+/// See BEEM_OTP_INTEGRATION.md.
+class OtpVerifyBody extends StatefulWidget {
+  const OtpVerifyBody({
+    super.key,
+    required this.sw,
+    required this.phone,
+    required this.isLoading,
+    required this.isOnline,
+    required this.errorMessage,
+    required this.onSend,
+    required this.onVerify,
+  });
+
+  final bool sw;
+  final String phone;
+  final bool isLoading;
+  final bool isOnline;
+  final String? errorMessage;
+
+  /// Requests a fresh code. Returns true on success.
+  final Future<bool> Function() onSend;
+
+  /// Verifies [code]. Returns true once verified.
+  final Future<bool> Function(String code) onVerify;
+
+  @override
+  State<OtpVerifyBody> createState() => _OtpVerifyBodyState();
+}
+
+class _OtpVerifyBodyState extends State<OtpVerifyBody> {
+  static const _resendCooldownSeconds = 45;
+
+  final _codeCtrl = TextEditingController();
+  final _focus = FocusNode();
+  bool _hasError = false;
+  int _cooldown = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fire the first send automatically once this step mounts, mirroring how
+    // every other onboarding step's primary action is user-visible from the
+    // first frame rather than requiring an extra tap to "start".
+    WidgetsBinding.instance.addPostFrameCallback((_) => _send());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _codeCtrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    if (!widget.isOnline) return;
+    final ok = await widget.onSend();
+    if (!mounted || !ok) return;
+    setState(() => _hasError = false);
+    _startCooldown();
+  }
+
+  void _startCooldown() {
+    _timer?.cancel();
+    setState(() => _cooldown = _resendCooldownSeconds);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _cooldown--);
+      if (_cooldown <= 0) t.cancel();
+    });
+  }
+
+  Future<void> _verify() async {
+    final ok = await widget.onVerify(_codeCtrl.text);
+    if (!mounted || ok) return;
+    setState(() => _hasError = true);
+    _codeCtrl.clear();
+  }
+
+  String _maskPhone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length <= 4) return raw;
+    return '+${'•' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sw = widget.sw;
+    final canResend = _cooldown <= 0 && !widget.isLoading && widget.isOnline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          sw ? 'Thibitisha namba yako 📱' : 'Verify your number 📱',
+          style: GoogleFonts.dmSans(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.navyPrimary,
+            height: 1.2,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          sw
+              ? 'Tumetuma msimbo wa tarakimu 6 kwa SMS kwenda ${_maskPhone(widget.phone)}.'
+              : 'We sent a 6-digit code by SMS to ${_maskPhone(widget.phone)}.',
+          style: GoogleFonts.dmSans(
+            fontSize: 14,
+            color: AppColors.textMuted,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 40),
+
+        Center(
+          child: Column(
+            children: [
+              Text(
+                sw ? 'Ingiza msimbo' : 'Enter code',
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 18),
+              PinDotsInput(
+                controller: _codeCtrl,
+                focusNode: _focus,
+                pinLength: 6,
+                hasError: _hasError,
+                enabled: !widget.isLoading,
+                onChanged: (_) {
+                  if (_hasError) setState(() => _hasError = false);
+                },
+                onComplete: _verify,
+              ),
+            ],
+          ),
+        ),
+
+        if (_hasError) ...[
+          const SizedBox(height: 16),
+          OnboardingErrorBanner(
+            message: widget.errorMessage ??
+                (sw ? 'Msimbo si sahihi. Jaribu tena.' : 'Incorrect code. Please try again.'),
+          ),
+        ] else if (widget.errorMessage != null) ...[
+          const SizedBox(height: 16),
+          OnboardingErrorBanner(message: widget.errorMessage!),
+        ],
+
+        if (!widget.isOnline) ...[
+          const SizedBox(height: 16),
+          OnboardingOfflineBanner(
+            title: sw ? 'Hakuna mtandao' : 'No internet connection',
+            message: sw
+                ? 'Tafadhali unganisha mtandao na ujaribu tena.'
+                : 'Please connect to the internet and try again.',
+          ),
+        ],
+
+        const SizedBox(height: 28),
+
+        Center(
+          child: widget.isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              : TextButton(
+                  onPressed: canResend ? _send : null,
+                  child: Text(
+                    _cooldown > 0
+                        ? (sw
+                            ? 'Tuma tena baada ya sekunde $_cooldown'
+                            : 'Resend code in ${_cooldown}s')
+                        : (sw ? 'Tuma tena msimbo' : 'Resend code'),
+                    style: GoogleFonts.dmSans(
+                      color: canResend
+                          ? AppColors.navyPrimary
+                          : AppColors.textDisabled,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

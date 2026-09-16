@@ -82,6 +82,8 @@ dependencies:
   flutter_local_notifications: ^21.0.0
   firebase_messaging: ^16.5.0
   firebase_app_check: ^0.4.6 # pinned alongside firebase_core (see note above); 0.4.7 forces firebase_core ^4.14.0
+  slang: ^4.19.2
+  slang_flutter: ^4.19.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -90,6 +92,7 @@ dev_dependencies:
   freezed: ^3.0.0
   build_runner: ^2.15.0
   drift_dev: ^2.33.0
+  slang_build_runner: ^4.19.0
 
 
 # For information on the generic Dart part of this file, see the

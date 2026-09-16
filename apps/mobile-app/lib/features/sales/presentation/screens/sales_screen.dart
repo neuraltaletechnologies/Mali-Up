@@ -315,8 +315,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         currentStatus: plan,
         featureKey: PlanFeatureKey.dailySalesLimit,
         triggerReason: _tr(
-          'You\'ve reached the ${plan.limits.maxSalesPerDay}-sale daily limit on the free plan. It resets tomorrow — upgrade for unlimited sales.',
-          'Umefika kikomo cha mauzo ${plan.limits.maxSalesPerDay} kwa siku kwenye mpango wa bure. Kinaanza upya kesho — boresha kupata mauzo yasiyo na kikomo.',
+          'You\'ve reached the ${plan.limits.maxSalesPerDay}-sale daily limit on the free plan. Upgrade your Plan.',
+          'Umefika kikomo cha mauzo ${plan.limits.maxSalesPerDay} kwa siku kwenye mpango wa bure. Boresha mpango kupata zaidi.',
         ),
       );
       return;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -453,6 +454,21 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         isComplete: true,
         isLoading: false,
       );
+    } on FirebaseFunctionsException catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('team_member_setup', e.code);
+      state = state.copyWith(
+        // Send them back to the OTP step rather than leaving otpVerified
+        // true with no way to pass consumeOtpVerification again.
+        otpVerified: e.code == 'failed-precondition' ? false : state.otpVerified,
+        isLoading: false,
+        errorMessage: e.code == 'failed-precondition'
+            ? _t(
+                en: 'Phone verification expired. Please verify your number again.',
+                sw: 'Uthibitisho wa namba ya simu umeisha muda. Tafadhali thibitisha namba yako tena.',
+              )
+            : _accountCreationErrorMessage(e),
+      );
     } on FirebaseAuthException catch (e, st) {
       ErrorReporter.captureException(e, stackTrace: st);
       SentryMetricsService.authFailure('team_member_setup', e.code);
@@ -518,6 +534,103 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     _service.saveDraft(state);
   }
 
+  // ─── OTP VERIFICATION (first-time registration only) ────────────────────
+  //
+  // Shared by Screen 6 (new owner) and Screen 4B (team member first PIN
+  // setup) — both are pre-auth account-creation flows. Returning-user PIN
+  // login is untouched. See BEEM_OTP_INTEGRATION.md.
+
+  /// Requests a Beem OTP be sent to [OnboardingState.phone]. Returns true on
+  /// success (state.otpPinId is set); false on failure (state.errorMessage
+  /// is set).
+  Future<bool> sendOtp() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final pinId = await _service.sendOtp(phone: state.phone);
+      state = state.copyWith(otpPinId: pinId, isLoading: false);
+      return true;
+    } on FirebaseFunctionsException catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('otp_send', e.code);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.code == 'resource-exhausted'
+            ? _t(
+                en: 'Too many attempts. Please wait a few minutes and try again.',
+                sw: 'Majaribio mengi. Subiri dakika chache kisha ujaribu tena.',
+              )
+            : _t(
+                en: 'Could not send the verification code. Please try again.',
+                sw: 'Imeshindwa kutuma msimbo wa uthibitisho. Tafadhali jaribu tena.',
+              ),
+      );
+      return false;
+    } catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('otp_send', 'unknown');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _t(
+          en: 'Could not send the verification code. Please try again.',
+          sw: 'Imeshindwa kutuma msimbo wa uthibitisho. Tafadhali jaribu tena.',
+        ),
+      );
+      return false;
+    }
+  }
+
+  /// Verifies [code] against the pending Beem pinId. Sets
+  /// [OnboardingState.otpVerified] on success.
+  Future<bool> verifyOtp(String code) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final ok = await _service.verifyOtp(
+        phone: state.phone,
+        pinId: state.otpPinId,
+        code: code,
+      );
+      if (ok) {
+        state = state.copyWith(otpVerified: true, isLoading: false);
+        return true;
+      }
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _t(
+          en: 'Incorrect code. Please try again.',
+          sw: 'Msimbo si sahihi. Tafadhali jaribu tena.',
+        ),
+      );
+      return false;
+    } on FirebaseFunctionsException catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('otp_verify', e.code);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.code == 'resource-exhausted'
+            ? _t(
+                en: 'Too many attempts. Please request a new code and try again.',
+                sw: 'Majaribio mengi. Omba msimbo mpya kisha ujaribu tena.',
+              )
+            : _t(
+                en: 'Could not verify the code. Please try again.',
+                sw: 'Imeshindwa kuthibitisha msimbo. Tafadhali jaribu tena.',
+              ),
+      );
+      return false;
+    } catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('otp_verify', 'unknown');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _t(
+          en: 'Could not verify the code. Please try again.',
+          sw: 'Imeshindwa kuthibitisha msimbo. Tafadhali jaribu tena.',
+        ),
+      );
+      return false;
+    }
+  }
+
   // ─── SCREEN 6 — PIN SETUP ────────────────────────────────────────────────
 
   void setPin(String v) =>
@@ -543,6 +656,21 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         isLoading: false,
         isComplete: true,
         currentStep: OnboardingStep.success,
+      );
+    } on FirebaseFunctionsException catch (e, st) {
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('new_owner_registration', e.code);
+      state = state.copyWith(
+        // Send them back to the OTP step rather than leaving otpVerified
+        // true with no way to pass consumeOtpVerification again.
+        otpVerified: e.code == 'failed-precondition' ? false : state.otpVerified,
+        isLoading: false,
+        errorMessage: e.code == 'failed-precondition'
+            ? _t(
+                en: 'Phone verification expired. Please verify your number again.',
+                sw: 'Uthibitisho wa namba ya simu umeisha muda. Tafadhali thibitisha namba yako tena.',
+              )
+            : _accountCreationErrorMessage(e),
       );
     } on FirebaseAuthException catch (e, st) {
       ErrorReporter.captureException(e, stackTrace: st);

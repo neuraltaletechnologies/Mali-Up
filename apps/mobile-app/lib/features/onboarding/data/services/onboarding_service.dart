@@ -58,8 +58,11 @@ class OnboardingDraft {
 
 /// Orchestrates the onboarding flow.
 ///
-/// No OTP — authentication is PIN-based (phone → derive email+password).
-/// All Firebase Auth and Firestore calls delegate to [OnboardingRepository].
+/// Authentication is PIN-based (phone → derive email+password). First-time
+/// registration additionally requires Beem OTP phone verification (see
+/// [sendOtp] / [verifyOtp]) before the account is created; returning-user
+/// PIN login does not. All Firebase Auth and Firestore calls delegate to
+/// [OnboardingRepository].
 class OnboardingService {
   OnboardingService({required OnboardingRepository repository})
       : _repository = repository;
@@ -128,6 +131,23 @@ class OnboardingService {
         performedByName: performedByName,
       ),
     ]);
+  }
+
+  // ─── OTP VERIFICATION (first-time registration only) ─────────────────────
+
+  /// Requests a Beem OTP be sent to [phone]. Returns the pinId to pass to
+  /// [verifyOtp].
+  Future<String> sendOtp({required String phone}) {
+    return _repository.sendOtp(phone);
+  }
+
+  /// Verifies [code] against [pinId] for [phone].
+  Future<bool> verifyOtp({
+    required String phone,
+    required String pinId,
+    required String code,
+  }) {
+    return _repository.verifyOtp(phone: phone, pinId: pinId, code: code);
   }
 
   // ─── SCREEN 4B — TEAM MEMBER FIRST-TIME SETUP ────────────────────────────

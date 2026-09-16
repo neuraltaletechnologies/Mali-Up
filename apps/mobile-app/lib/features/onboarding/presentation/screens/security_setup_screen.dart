@@ -16,7 +16,7 @@ import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
 /// Screen 6 — PIN creation for new owner accounts.
-/// Two-step: set PIN → confirm PIN → save & complete.
+/// Three-step: verify phone (OTP) → set PIN → confirm PIN → save & complete.
 class SecuritySetupScreen extends ConsumerStatefulWidget {
   const SecuritySetupScreen({super.key});
 
@@ -289,41 +289,56 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                                       child: child,
                                     ),
                                   ),
-                              child: _showConfirm
-                                  ? _ConfirmPinBody(
-                                      key: const ValueKey('confirm'),
+                              child: !state.otpVerified
+                                  ? OtpVerifyBody(
+                                      key: const ValueKey('otp'),
                                       sw: sw,
-                                      controller: _confirmCtrl,
-                                      focusNode: _confirmFocus,
-                                      hasError: _confirmHasError,
+                                      phone: state.phone,
                                       isLoading: state.isLoading,
                                       isOnline: isOnline,
                                       errorMessage: state.errorMessage,
-                                      onChanged: (_) {
-                                        if (_confirmHasError) {
-                                          setState(
-                                            () => _confirmHasError = false,
-                                          );
-                                        }
-                                      },
-                                      onComplete: _submitConfirm,
-                                      onSubmit: _submitConfirm,
+                                      onSend: () => ref
+                                          .read(onboardingNotifierProvider.notifier)
+                                          .sendOtp(),
+                                      onVerify: (code) => ref
+                                          .read(onboardingNotifierProvider.notifier)
+                                          .verifyOtp(code),
                                     )
-                                  : _SetPinBody(
-                                      key: const ValueKey('set'),
-                                      sw: sw,
-                                      controller: _pinCtrl,
-                                      focusNode: _pinFocus,
-                                      hasError: _pinHasError,
-                                      isLoading: state.isLoading,
-                                      onChanged: (_) {
-                                        if (_pinHasError) {
-                                          setState(() => _pinHasError = false);
-                                        }
-                                      },
-                                      onComplete: _advanceToConfirm,
-                                      onSubmit: _advanceToConfirm,
-                                    ),
+                                  : _showConfirm
+                                      ? _ConfirmPinBody(
+                                          key: const ValueKey('confirm'),
+                                          sw: sw,
+                                          controller: _confirmCtrl,
+                                          focusNode: _confirmFocus,
+                                          hasError: _confirmHasError,
+                                          isLoading: state.isLoading,
+                                          isOnline: isOnline,
+                                          errorMessage: state.errorMessage,
+                                          onChanged: (_) {
+                                            if (_confirmHasError) {
+                                              setState(
+                                                () => _confirmHasError = false,
+                                              );
+                                            }
+                                          },
+                                          onComplete: _submitConfirm,
+                                          onSubmit: _submitConfirm,
+                                        )
+                                      : _SetPinBody(
+                                          key: const ValueKey('set'),
+                                          sw: sw,
+                                          controller: _pinCtrl,
+                                          focusNode: _pinFocus,
+                                          hasError: _pinHasError,
+                                          isLoading: state.isLoading,
+                                          onChanged: (_) {
+                                            if (_pinHasError) {
+                                              setState(() => _pinHasError = false);
+                                            }
+                                          },
+                                          onComplete: _advanceToConfirm,
+                                          onSubmit: _advanceToConfirm,
+                                        ),
                             ),
                           ],
                         ),
