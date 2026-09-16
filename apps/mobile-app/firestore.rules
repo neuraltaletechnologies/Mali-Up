@@ -124,6 +124,7 @@ service cloud.firestore {
         (!data.keys().hasAny(['isTeamMember']) || data.isTeamMember is bool) &&
         (!data.keys().hasAny(['businessId'])   || data.businessId is string) &&
         (!data.keys().hasAny(['selectedBusinessId']) || data.selectedBusinessId is string) &&
+        (!data.keys().hasAny(['phoneVerified']) || data.phoneVerified is bool) &&
         // Entitlement fields are never client-settable, not even at account
         // creation — 'plan' may only be the free-tier default a brand-new
         // account starts on. Paid activation only ever happens server-side
@@ -278,10 +279,13 @@ service cloud.firestore {
       allow create: if isSignedIn() && isOwner(userId) && isValidUserCreate(request.resource.data);
       // Client updates may touch any profile field EXCEPT the entitlement
       // fields above — those only ever change via a Cloud Function (verified
-      // ClickPesa payment) or the admin portal, both on the Admin SDK.
+      // ClickPesa payment) or the admin portal, both on the Admin SDK — and
+      // EXCEPT phoneVerified, which only ever changes via verifyBeemOtp
+      // (functions/src/beem_otp.ts) after a real Beem-confirmed code, so a
+      // client can never self-declare its phone verified.
       allow update: if isSignedIn() && isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
+          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource', 'phoneVerified']);
       // Phone lookup (login / onboarding): every real caller queries with
       // limit(1), signed in or not — a signed-in user must not be able to
       // run an unbounded query and dump every user's name/phone.
@@ -733,6 +737,30 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /otp_rate_limits_ip/{ipHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // BEEM OTP VERIFICATION  (functions/src/beem_otp.ts)
+    // otp_verifications/{phone} is the short-lived "this phone was verified"
+    // marker written by verifyBeemOtp and burned by consumeOtpVerification
+    // right before createNewUserAccount / createTeamMemberAccount create the
+    // Firebase Auth account. Explicit deny so a client can never fabricate,
+    // read, or reuse a verification for a phone number it doesn't control.
+    // =========================================================================
+    match /otp_verifications/{phone} {
+      allow read, write: if false;
+    }
+    match /beem_otp_send_rate_limits_phone_short/{keyHash} {
+      allow read, write: if false;
+    }
+    match /beem_otp_send_rate_limits_phone_daily/{keyHash} {
+      allow read, write: if false;
+    }
+    match /beem_otp_send_rate_limits_ip/{keyHash} {
+      allow read, write: if false;
+    }
+    match /beem_otp_verify_rate_limits_phone/{keyHash} {
       allow read, write: if false;
     }
 

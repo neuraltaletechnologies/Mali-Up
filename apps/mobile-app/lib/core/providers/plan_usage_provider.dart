@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/customer/data/customer_providers.dart';
 import '../../features/finance/data/finance_providers.dart';
+import '../../features/invoice/domain/models/invoice.dart';
 import '../../features/inventory/presentation/providers/inventory_providers.dart';
 import '../../features/invoice/presentation/providers/invoice_providers.dart';
 import '../../features/team/data/team_providers.dart';
@@ -13,15 +14,7 @@ import '../../features/team/data/team_providers.dart';
 /// so the panel stays accurate with no connection and matches exactly what the
 /// "add" gates in each feature enforce against.
 class PlanUsage {
-  /// Sales (invoices, excluding quotations) whose row was created today, on
-  /// this device. Backs the `maxSalesPerDay` cap.
-  final int salesToday;
-
-  /// Sales (invoices, excluding quotations) whose row was created this
-  /// calendar month. Backs the `monthlyInvoices` cap — computed locally here
-  /// so it stays consistent with [salesToday]; the gate itself still uses the
-  /// server-verified count on [PlanStatus].
-  final int invoicesThisMonth;
+  final List<Invoice> _invoices;
 
   /// Customers on file. Backs `maxCustomers`.
   final int customers;
@@ -41,14 +34,51 @@ class PlanUsage {
   final int accounts;
 
   const PlanUsage({
-    this.salesToday = 0,
-    this.invoicesThisMonth = 0,
+    List<Invoice> invoices = const [],
     this.customers = 0,
     this.products = 0,
     this.serviceProducts = 0,
     this.teamMembers = 0,
     this.accounts = 0,
-  });
+  }) : _invoices = invoices;
+
+  /// Sales (invoices, excluding quotations) whose row was created today, on
+  /// this device. Backs the `maxSalesPerDay` cap.
+  ///
+  /// Computed live from [DateTime.now()] on every access rather than cached
+  /// at provider-rebuild time, so the daily cap actually resets at local
+  /// midnight even if nothing else happens to trigger a rebuild (e.g. the
+  /// app stays open/backgrounded overnight with no new invoice/customer/
+  /// inventory write) — a stale cached value used to make the daily cap
+  /// behave like it never reset, i.e. like a much longer-window cap.
+  int get salesToday => _countMatching(_todayPrefix());
+
+  /// Sales (invoices, excluding quotations) whose row was created this
+  /// calendar month. Backs the `monthlyInvoices` cap — computed locally here
+  /// so it stays consistent with [salesToday]; the gate itself still uses the
+  /// server-verified count on [PlanStatus]. Same live-computation rationale
+  /// as [salesToday].
+  int get invoicesThisMonth => _countMatching(_monthPrefix());
+
+  int _countMatching(String prefix) {
+    var count = 0;
+    for (final inv in _invoices) {
+      if (inv.type.toLowerCase() == 'quotation') continue;
+      // Invoice.createdAt is an ISO-8601 string ('2026-09-07T14:30:00.000').
+      if (inv.createdAt.startsWith(prefix)) count++;
+    }
+    return count;
+  }
+
+  static String _twoDigits(int v) => v.toString().padLeft(2, '0');
+
+  static String _monthPrefix() {
+    final now = DateTime.now();
+    return '${now.year}-${_twoDigits(now.month)}';
+  }
+
+  static String _todayPrefix() =>
+      '${_monthPrefix()}-${_twoDigits(DateTime.now().day)}';
 }
 
 final planUsageProvider = Provider<PlanUsage>((ref) {
@@ -57,22 +87,6 @@ final planUsageProvider = Provider<PlanUsage>((ref) {
   final inventory = ref.watch(inventoryProvider).valueOrNull ?? const [];
   final team = ref.watch(teamMembersProvider).valueOrNull ?? const [];
   final accounts = ref.watch(cashAccountListProvider).valueOrNull ?? const [];
-
-  final now = DateTime.now();
-  String two(int v) => v.toString().padLeft(2, '0');
-  final monthPrefix = '${now.year}-${two(now.month)}';
-  final todayPrefix = '$monthPrefix-${two(now.day)}';
-
-  var salesToday = 0;
-  var invoicesThisMonth = 0;
-  for (final inv in invoices) {
-    if (inv.type.toLowerCase() == 'quotation') continue;
-    // Invoice.createdAt is an ISO-8601 string ('2026-09-07T14:30:00.000').
-    if (inv.createdAt.startsWith(monthPrefix)) {
-      invoicesThisMonth++;
-      if (inv.createdAt.startsWith(todayPrefix)) salesToday++;
-    }
-  }
 
   var products = 0;
   var serviceProducts = 0;
@@ -83,8 +97,7 @@ final planUsageProvider = Provider<PlanUsage>((ref) {
   }
 
   return PlanUsage(
-    salesToday: salesToday,
-    invoicesThisMonth: invoicesThisMonth,
+    invoices: invoices,
     customers: customers.length,
     products: products,
     serviceProducts: serviceProducts,

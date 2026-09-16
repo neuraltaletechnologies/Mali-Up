@@ -298,33 +298,35 @@ class _SlidePage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.dmSans(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-              height: 1.15,
-              letterSpacing: -1.2,
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.dmSans(
+                fontSize: 36,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+                height: 1.15,
+                letterSpacing: -1.2,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            body,
-            style: GoogleFonts.dmSans(
-              fontSize: 17,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-              height: 1.55,
-              letterSpacing: -0.2,
+            const SizedBox(height: 24),
+            Text(
+              body,
+              style: GoogleFonts.dmSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary,
+                height: 1.55,
+                letterSpacing: -0.2,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

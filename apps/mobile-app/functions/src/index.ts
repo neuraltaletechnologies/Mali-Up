@@ -19,7 +19,7 @@ admin.initializeApp();
 //      majority of installs (check release adoption in the Play/App Store
 //      console or Firebase Analytics active-version breakdown).
 //   2. Only then add `enforceAppCheck: true` to the onCall() options below
-//      (and in clickpesa.ts / otp_rate_limit.ts) AND flip Firestore's own
+//      (and in clickpesa.ts / otp_rate_limit.ts / beem_otp.ts) AND flip Firestore's own
 //      enforcement in Console → App Check → APIs → Cloud Firestore → Enforce.
 // Doing step 2 before step 1 locks out every user still on an older app
 // version, since their build never sends a token at all.
@@ -28,6 +28,7 @@ admin.initializeApp();
 export {initiateClickPesaPayment, verifyClickPesaPayment, clickpesaWebhook} from "./clickpesa";
 export {sendAdminBroadcast} from "./notifications";
 export {requestOtpAllowance} from "./otp_rate_limit";
+export {sendBeemOtp, verifyBeemOtp, consumeOtpVerification} from "./beem_otp";
 export {requestPinReset, validatePinResetToken, confirmPinReset} from "./pin_recovery";
 export {removeTeamMember} from "./team";
 

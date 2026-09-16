@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/main_shell_page.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
 import 'audit_log_screen.dart';
 import 'data_export_screen.dart';
 import 'delete_account_screen.dart';
@@ -685,17 +686,9 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                           ),
                         ),
                         planAsync.when(
-                          loading: () => _PlanCardBody(
-                            planName: 'Starter',
-                            statusLabel: tr('Loading…', 'Inapakia…'),
-                            isStarter: true,
-                            usageItems: const [],
-                            expiresAt: null,
-                            tr: tr,
-                          ),
+                          loading: () => const _PlanCardBodySkeleton(),
                           error: (err, st) => _PlanCardBody(
                             planName: 'Starter',
-                            statusLabel: tr('Free plan', 'Mpango wa bure'),
                             isStarter: true,
                             usageItems: const [],
                             expiresAt: null,
@@ -703,9 +696,6 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                           ),
                           data: (s) => _PlanCardBody(
                             planName: s.tierLabel,
-                            statusLabel: s.isStarter
-                                ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
-                                : tr('Active subscription', 'Usajili unaofanya kazi'),
                             isStarter: s.isStarter,
                             usageItems: s.isStarter
                                 ? _starterUsageItems(s, planUsage, tr)
@@ -970,7 +960,6 @@ List<_UsageItem> _starterUsageItems(
 
 class _PlanCardBody extends StatelessWidget {
   final String planName;
-  final String statusLabel;
   final bool isStarter;
   final List<_UsageItem> usageItems;
   final DateTime? expiresAt;
@@ -978,7 +967,6 @@ class _PlanCardBody extends StatelessWidget {
 
   const _PlanCardBody({
     required this.planName,
-    required this.statusLabel,
     required this.isStarter,
     required this.usageItems,
     required this.expiresAt,
@@ -1076,6 +1064,34 @@ class _PlanCardBody extends StatelessWidget {
 
   static String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+/// Placeholder shown in place of [_PlanCardBody] while [planAsync] is still
+/// resolving — mirrors its layout so nothing shifts once real data lands.
+/// Deliberately doesn't guess a plan name/status text in the meantime.
+class _PlanCardBodySkeleton extends StatelessWidget {
+  const _PlanCardBodySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        SkeletonAvatar(size: 16, circle: false),
+        SizedBox(width: 7),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SkeletonText(width: 90),
+              SizedBox(height: 8),
+              SkeletonText(width: 130, height: 11),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// A single "label 3/10" figure on the Settings plan card. Number only — the

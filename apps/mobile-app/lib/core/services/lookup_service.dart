@@ -1,75 +1,163 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LookupService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Fetches business types from Firestore under `lookups/business_types`.
-  /// Falls back to [defaultBusinessTypes] when no remote data is available.
-  static Future<List<Map<String, dynamic>>> fetchBusinessTypes() async {
-    try {
-      final doc = await _firestore.collection('lookups').doc('business_types').get();
-      if (doc.exists) {
-        final data = doc.data();
-        final items = data?['items'] as List<dynamic>?;
-        if (items != null) {
-          return items
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(
-                    item.map((key, value) => MapEntry(key.toString(), value)),
-                  ))
-              .toList();
-        }
+  static const _keyBusinessTypes = 'lookup_cache_business_types_v1';
+  static const _keyCities = 'lookup_cache_cities_v1';
+  static const _keyDistricts = 'lookup_cache_districts_v1';
+
+  /// Fetches business types, cities and districts once and keeps them on the
+  /// phone from then on — the same "fetch once, persist, refresh silently"
+  /// policy used for the product/category master catalog. A cached list is
+  /// returned immediately (no network wait); if it's missing, this call fetches from
+  /// Firestore under `lookups/<key>` and caches the result; if that also
+  /// fails (offline, first run), it falls back to the hardcoded defaults
+  /// below without caching them, so the next call still tries the network.
+  /// When a cache already exists, a background refresh is kicked off so the
+  /// list eventually catches up with admin changes, without ever blocking
+  /// the caller or failing because the cache is old.
+  static Future<T> _cachedFetch<T>({
+    required String cacheKey,
+    required Future<T?> Function() fetchRemote,
+    required T Function(String json) decode,
+    required String Function(T value) encode,
+    required T fallback,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedRaw = prefs.getString(cacheKey);
+    if (cachedRaw != null) {
+      try {
+        final cached = decode(cachedRaw);
+        unawaited(_refreshInBackground(prefs, cacheKey, fetchRemote, encode));
+        return cached;
+      } catch (_) {
+        // Corrupt cache entry — fall through to a fresh fetch below.
       }
-    } catch (_) {}
-    return defaultBusinessTypes;
+    }
+
+    final fetched = await _fetchRemoteSafely(fetchRemote);
+    if (fetched != null) {
+      try {
+        await prefs.setString(cacheKey, encode(fetched));
+      } catch (_) {}
+      return fetched;
+    }
+    return fallback;
   }
 
-  /// Fetches city list from Firestore under `lookups/cities`.
-  /// Falls back to [defaultTanzaniaCities] when remote unavailable.
-  static Future<List<Map<String, String>>> fetchCities() async {
+  static Future<void> _refreshInBackground<T>(
+    SharedPreferences prefs,
+    String cacheKey,
+    Future<T?> Function() fetchRemote,
+    String Function(T value) encode,
+  ) async {
+    final fetched = await _fetchRemoteSafely(fetchRemote);
+    if (fetched == null) return;
     try {
-      final doc = await _firestore.collection('lookups').doc('cities').get();
-      if (doc.exists) {
-        final data = doc.data();
-        final items = data?['items'] as List<dynamic>?;
-        if (items != null) {
-          return items
-              .whereType<Map>()
-              .map((item) => Map<String, String>.from(
-                    item.map((key, value) => MapEntry(key.toString(), value?.toString() ?? '')),
-                  ))
-              .toList();
-        }
-      }
+      await prefs.setString(cacheKey, encode(fetched));
     } catch (_) {}
-    return defaultTanzaniaCities;
   }
 
-  /// Fetches region→district map from Firestore under `lookups/districts`.
-  /// Falls back to [defaultDistricts] when remote unavailable.
-  /// Structure in Firestore: { items: { "Arusha": ["Arusha City", ...], ... } }
-  static Future<Map<String, List<String>>> fetchDistricts() async {
+  static Future<T?> _fetchRemoteSafely<T>(
+    Future<T?> Function() fetchRemote,
+  ) async {
     try {
-      final doc = await _firestore.collection('lookups').doc('districts').get();
-      if (doc.exists) {
-        final data = doc.data();
-        final items = data?['items'];
-        if (items is Map) {
-          return Map<String, List<String>>.fromEntries(
-            items.entries.map((e) {
-              final key = e.key.toString();
-              final val = e.value;
-              final list = val is List
-                  ? val.map((d) => d.toString()).toList()
-                  : <String>[];
-              return MapEntry(key, list);
-            }),
-          );
-        }
-      }
-    } catch (_) {}
-    return defaultDistricts;
+      return await fetchRemote();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Business types, cached on-device after the first fetch from
+  /// `lookups/business_types`. Falls back to [defaultBusinessTypes] only
+  /// when both the cache and a live fetch are unavailable.
+  static Future<List<Map<String, dynamic>>> fetchBusinessTypes() {
+    return _cachedFetch<List<Map<String, dynamic>>>(
+      cacheKey: _keyBusinessTypes,
+      fetchRemote: () async {
+        final doc =
+            await _firestore.collection('lookups').doc('business_types').get();
+        final items = doc.data()?['items'] as List<dynamic>?;
+        if (items == null) return null;
+        return items
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+                ))
+            .toList();
+      },
+      decode: (json) => (jsonDecode(json) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
+      encode: jsonEncode,
+      fallback: defaultBusinessTypes,
+    );
+  }
+
+  /// City list, cached on-device after the first fetch from `lookups/cities`.
+  /// Falls back to [defaultTanzaniaCities] only when both the cache and a
+  /// live fetch are unavailable.
+  static Future<List<Map<String, String>>> fetchCities() {
+    return _cachedFetch<List<Map<String, String>>>(
+      cacheKey: _keyCities,
+      fetchRemote: () async {
+        final doc = await _firestore.collection('lookups').doc('cities').get();
+        final items = doc.data()?['items'] as List<dynamic>?;
+        if (items == null) return null;
+        return items
+            .whereType<Map>()
+            .map((item) => Map<String, String>.from(
+                  item.map(
+                    (key, value) =>
+                        MapEntry(key.toString(), value?.toString() ?? ''),
+                  ),
+                ))
+            .toList();
+      },
+      decode: (json) => (jsonDecode(json) as List)
+          .map((e) => Map<String, String>.from(e as Map))
+          .toList(),
+      encode: jsonEncode,
+      fallback: defaultTanzaniaCities,
+    );
+  }
+
+  /// Region→district map, cached on-device after the first fetch from
+  /// `lookups/districts` (structure: `{ items: { "Arusha": [...], ... } }`).
+  /// Falls back to [defaultDistricts] only when both the cache and a live
+  /// fetch are unavailable.
+  static Future<Map<String, List<String>>> fetchDistricts() {
+    return _cachedFetch<Map<String, List<String>>>(
+      cacheKey: _keyDistricts,
+      fetchRemote: () async {
+        final doc =
+            await _firestore.collection('lookups').doc('districts').get();
+        final items = doc.data()?['items'];
+        if (items is! Map) return null;
+        return Map<String, List<String>>.fromEntries(
+          items.entries.map((e) {
+            final val = e.value;
+            final list =
+                val is List ? val.map((d) => d.toString()).toList() : <String>[];
+            return MapEntry(e.key.toString(), list);
+          }),
+        );
+      },
+      decode: (json) => (jsonDecode(json) as Map).map(
+        (key, value) => MapEntry(
+          key.toString(),
+          (value as List).map((e) => e.toString()).toList(),
+        ),
+      ),
+      encode: jsonEncode,
+      fallback: defaultDistricts,
+    );
   }
 
   // Default fallback data (kept locally only as a safe fallback)

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// One administrative division returned by the Country-State-City API — a
 /// state/region ("mkoa") or a city/district ("wilaya"). [code] is the API's
@@ -33,6 +34,12 @@ class GeoDivision {
 /// `flutter run --dart-define=CSC_API_KEY=xxxx` (or via `.env.json`). When it
 /// is missing every call returns an empty list and the UI falls back to
 /// free-text entry — the app never blocks on this.
+///
+/// Results are cached to disk per country/region, the same "fetch once,
+/// persist, refresh silently" policy as [LookupService] and the product
+/// catalog: a cached list is returned immediately, and refreshed from the
+/// API in the background without ever blocking the picker or failing
+/// because the cache is old.
 class GeoLookupService {
   GeoLookupService._();
 
@@ -44,7 +51,8 @@ class GeoLookupService {
   /// to free-text entry rather than showing a spinner that can't resolve.
   static bool get isConfigured => _apiKey.isNotEmpty;
 
-  // Session caches — onboarding is short-lived, so in-memory is enough.
+  // In-memory mirror of the disk cache — avoids a SharedPreferences read on
+  // every keystroke while a picker is open in the same session.
   static final Map<String, List<GeoDivision>> _regionCache = {};
   static final Map<String, List<GeoDivision>> _districtCache = {};
 
@@ -53,22 +61,24 @@ class GeoLookupService {
   static Future<List<GeoDivision>> fetchRegions(String countryCode) async {
     final cc = countryCode.toUpperCase();
     if (!isConfigured || cc.isEmpty) return const [];
-    final cached = _regionCache[cc];
-    if (cached != null) return cached;
-
-    final result = await _get('/countries/$cc/states');
-    final regions = result
-        .map((e) => GeoDivision(
-              name: (e['name'] ?? '').toString().trim(),
-              code: (e['iso2'] ?? '').toString().trim().isEmpty
-                  ? null
-                  : (e['iso2']).toString().trim(),
-            ))
-        .where((r) => r.name.isNotEmpty)
-        .toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    if (regions.isNotEmpty) _regionCache[cc] = regions;
-    return regions;
+    return _cachedFetch(
+      memCache: _regionCache,
+      key: cc,
+      cacheKey: 'geo_cache_regions_$cc',
+      fetchRemote: () async {
+        final result = await _get('/countries/$cc/states');
+        return result
+            .map((e) => GeoDivision(
+                  name: (e['name'] ?? '').toString().trim(),
+                  code: (e['iso2'] ?? '').toString().trim().isEmpty
+                      ? null
+                      : (e['iso2']).toString().trim(),
+                ))
+            .where((r) => r.name.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      },
+    );
   }
 
   /// Districts ("wilaya") — the API's cities — for a region within a country.
@@ -80,18 +90,89 @@ class GeoLookupService {
     final cc = countryCode.toUpperCase();
     final rc = regionCode.toUpperCase();
     if (!isConfigured || cc.isEmpty || rc.isEmpty) return const [];
-    final key = '$cc/$rc';
-    final cached = _districtCache[key];
-    if (cached != null) return cached;
+    return _cachedFetch(
+      memCache: _districtCache,
+      key: '$cc/$rc',
+      cacheKey: 'geo_cache_districts_${cc}_$rc',
+      fetchRemote: () async {
+        final result = await _get('/countries/$cc/states/$rc/cities');
+        return result
+            .map((e) => GeoDivision(name: (e['name'] ?? '').toString().trim()))
+            .where((d) => d.name.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      },
+    );
+  }
 
-    final result = await _get('/countries/$cc/states/$rc/cities');
-    final districts = result
-        .map((e) => GeoDivision(name: (e['name'] ?? '').toString().trim()))
-        .where((d) => d.name.isNotEmpty)
-        .toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    if (districts.isNotEmpty) _districtCache[key] = districts;
-    return districts;
+  /// Shared cache-then-fetch flow for both regions and districts: an
+  /// in-memory hit returns instantly; a disk hit returns instantly and
+  /// refreshes in the background; otherwise it fetches live and, only on a
+  /// non-empty result, writes through to both caches (an empty result is
+  /// never cached, so the next call retries rather than getting stuck).
+  static Future<List<GeoDivision>> _cachedFetch({
+    required Map<String, List<GeoDivision>> memCache,
+    required String key,
+    required String cacheKey,
+    required Future<List<GeoDivision>> Function() fetchRemote,
+  }) async {
+    final memCached = memCache[key];
+    if (memCached != null) return memCached;
+
+    final prefs = await SharedPreferences.getInstance();
+    final diskCached = _decode(prefs.getString(cacheKey));
+    if (diskCached != null && diskCached.isNotEmpty) {
+      memCache[key] = diskCached;
+      unawaited(_refresh(memCache, key, cacheKey, prefs, fetchRemote));
+      return diskCached;
+    }
+
+    List<GeoDivision> fetched;
+    try {
+      fetched = await fetchRemote();
+    } catch (_) {
+      fetched = const [];
+    }
+    if (fetched.isNotEmpty) {
+      memCache[key] = fetched;
+      try {
+        await prefs.setString(cacheKey, _encode(fetched));
+      } catch (_) {}
+    }
+    return fetched;
+  }
+
+  static Future<void> _refresh(
+    Map<String, List<GeoDivision>> memCache,
+    String key,
+    String cacheKey,
+    SharedPreferences prefs,
+    Future<List<GeoDivision>> Function() fetchRemote,
+  ) async {
+    try {
+      final fetched = await fetchRemote();
+      if (fetched.isEmpty) return;
+      memCache[key] = fetched;
+      await prefs.setString(cacheKey, _encode(fetched));
+    } catch (_) {}
+  }
+
+  static String _encode(List<GeoDivision> divisions) => jsonEncode(
+        divisions.map((d) => {'name': d.name, 'code': d.code}).toList(),
+      );
+
+  static List<GeoDivision>? _decode(String? raw) {
+    if (raw == null) return null;
+    try {
+      return (jsonDecode(raw) as List)
+          .map((e) => GeoDivision(
+                name: (e as Map)['name'] as String? ?? '',
+                code: e['code'] as String?,
+              ))
+          .toList();
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<List<Map<String, dynamic>>> _get(String path) async {

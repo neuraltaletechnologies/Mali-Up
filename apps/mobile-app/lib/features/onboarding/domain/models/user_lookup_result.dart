@@ -73,6 +73,7 @@ final class ReturningUser extends UserLookupResult {
     required this.businessId,
     this.businessLogo,
     this.businesses = const [],
+    this.phoneVerified = false,
   });
 
   /// Firestore document ID in the `users` collection.
@@ -104,6 +105,11 @@ final class ReturningUser extends UserLookupResult {
   /// for the common one-business case; the PIN screen shows a picker when
   /// there is more than one. Empty when the user owns no business doc.
   final List<BusinessSummary> businesses;
+
+  /// Whether this account already Beem-verified its phone. False (missing
+  /// field) for any account created before the OTP rollout — PinLoginScreen
+  /// shows the OTP step (before PIN entry) once, then never asks again.
+  final bool phoneVerified;
 
   @override
   String toString() =>

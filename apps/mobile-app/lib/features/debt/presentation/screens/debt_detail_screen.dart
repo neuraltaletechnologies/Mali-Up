@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/reminder_share_row.dart';
 import '../../../../shared/widgets/validation_banner.dart';
 import '../../../finance/data/payment_account_service.dart';
 import '../../../finance/domain/models/cash_account.dart';
@@ -192,6 +193,33 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     } catch (_) {}
   }
 
+  /// Sale map for the reminder PDF: invoice line items plus the debt's own
+  /// money figures, since a payment recorded straight on this page never
+  /// updates the originating invoice's amountPaid — the debt stays the one
+  /// authoritative source for what's actually still owed.
+  Map<String, dynamic> _buildReminderSale(Map<String, dynamic> invoice) {
+    return {
+      ...invoice,
+      // Overrides the invoice's own 'type' (sale/quotation/…) — this PDF is
+      // a receipt of what's still owed, not proof of the completed sale, so
+      // ReceiptPdfService titles it "DEBT RECEIPT" instead.
+      'type': 'debt',
+      'invoiceNumber': invoice['invoiceNumber'] ?? _debt.invoiceRef,
+      'customerName': _debt.partyName,
+      'customerPhone': _debt.partyPhone,
+      'totalAmount': _debt.totalOwedWithInterest,
+      'amount': _debt.totalOwedWithInterest,
+      'amountPaid': _debt.paidAmount,
+      'dueDate': _debt.dueDate,
+      'notes': _debt.note,
+    };
+  }
+
+  /// WhatsApp's `wa.me` link can only pre-fill text, not attach a file, so
+  /// sending the actual invoice PDF goes through the OS share sheet instead
+  /// (same mechanism as the Invoice detail screen's share button) — the user
+  /// picks WhatsApp there and the PDF (items, amount owed, amount paid) goes
+  /// as a real attachment rather than a typed-out summary.
   Future<void> _sendWhatsAppReminder() async {
     if (_debt.partyPhone.isEmpty) {
       AppNotification.warning(
@@ -200,8 +228,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       );
       return;
     }
-    final phone = normalizeWhatsAppPhone(_debt.partyPhone);
-    if (phone.isEmpty) {
+    if (normalizeWhatsAppPhone(_debt.partyPhone).isEmpty) {
       AppNotification.error(
         context,
         _tr('Invalid phone number.', 'Namba ya simu si sahihi.'),
@@ -209,19 +236,30 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       return;
     }
 
-    final invoice = await _loadLinkedInvoice();
-    final message = DebtReminderText.build(
-      debt: _debt,
-      invoice: invoice,
-      isSwahili: LocalizationService.isSwahili,
-    );
-    final uri = Uri.parse(
-      'https://wa.me/$phone?text=${Uri.encodeComponent(message)}',
-    );
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!opened) throw Exception('No WhatsApp handler');
-      await _markReminderSent();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final bizId = ref.read(currentBusinessIdProvider).valueOrNull;
+      final invoice = await _loadLinkedInvoice();
+      final sale = _buildReminderSale(invoice);
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: uid,
+        businessId: bizId,
+        createdByUid: _debt.createdBy,
+      );
+      final invoiceNumber = (sale['invoiceNumber'] ?? _debt.invoiceRef)
+          .toString();
+      final shared = await ReceiptPdfService.share(
+        sale: sale,
+        businessName: meta['businessName'] ?? 'Business',
+        printedBy: meta['printedBy'] ?? 'User',
+        isSwahili: LocalizationService.isSwahili,
+        businessPhone: meta['businessPhone'] ?? '',
+        businessEmail: meta['businessEmail'] ?? '',
+        businessAddress: meta['businessAddress'] ?? '',
+        businessLogoUrl: meta['businessLogoUrl'] ?? '',
+        subject: '${_tr('Debt Reminder', 'Ukumbusho wa Deni')} $invoiceNumber',
+      );
+      if (shared) await _markReminderSent();
     } catch (_) {
       if (mounted) {
         AppNotification.error(
@@ -271,20 +309,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final bizId = ref.read(currentBusinessIdProvider).valueOrNull;
       final invoice = await _loadLinkedInvoice();
-      final sale = {
-        ...invoice,
-        // The debt is the authoritative money figure — a payment recorded
-        // straight on this page never updates the invoice's own amountPaid,
-        // so the invoice's figures alone could show a stale balance.
-        'invoiceNumber': invoice['invoiceNumber'] ?? _debt.invoiceRef,
-        'customerName': _debt.partyName,
-        'customerPhone': _debt.partyPhone,
-        'totalAmount': _debt.totalOwedWithInterest,
-        'amount': _debt.totalOwedWithInterest,
-        'amountPaid': _debt.paidAmount,
-        'dueDate': _debt.dueDate,
-        'notes': _debt.note,
-      };
+      final sale = _buildReminderSale(invoice);
       final meta = await ReceiptPdfService.loadMeta(
         uid: uid,
         businessId: bizId,
@@ -1263,7 +1288,7 @@ class _ActionsCard extends StatelessWidget {
           if (showReminders) ...[
             Padding(
               padding: const EdgeInsets.all(12),
-              child: _ReminderShareRow(
+              child: ReminderShareRow(
                 onWhatsApp: busy ? null : onSendWhatsApp,
                 onSms: busy ? null : onSendSms,
                 onPdf: busy ? null : onSendPdf,
@@ -1360,101 +1385,6 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-/// Three buttons — WhatsApp, SMS, and PDF reminders, all showing the full
-/// itemized bill — matching the share-button style already used on the
-/// Invoice detail screen (see _ShareRow there). SMS exists alongside
-/// WhatsApp/PDF rather than being assumed away, since not every customer's
-/// phone has WhatsApp installed.
-class _ReminderShareRow extends StatelessWidget {
-  final VoidCallback? onWhatsApp;
-  final VoidCallback? onSms;
-  final VoidCallback? onPdf;
-
-  const _ReminderShareRow({
-    required this.onWhatsApp,
-    required this.onSms,
-    required this.onPdf,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ReminderShareBtn(
-            label: _tr('WhatsApp Reminder', 'Ukumbusho wa WhatsApp'),
-            icon: Icons.chat_outlined,
-            color: AppColors.success,
-            onTap: onWhatsApp,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ReminderShareBtn(
-            label: _tr('SMS Reminder', 'Ukumbusho wa SMS'),
-            icon: Icons.sms_outlined,
-            color: AppColors.warning,
-            onTap: onSms,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ReminderShareBtn(
-            label: _tr('PDF Reminder', 'Ukumbusho wa PDF'),
-            icon: Icons.picture_as_pdf_outlined,
-            color: AppColors.tealAccent,
-            onTap: onPdf,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReminderShareBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _ReminderShareBtn({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _Divider extends StatelessWidget {
   const _Divider();

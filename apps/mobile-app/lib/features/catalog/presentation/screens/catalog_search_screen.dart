@@ -551,42 +551,27 @@ class _CatalogError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isNoCache = error is CatalogOfflineException;
-    final isExpired = error is CatalogCacheExpiredException;
 
-    final icon = isNoCache || isExpired
-        ? Icons.wifi_off_rounded
-        : Icons.error_outline_rounded;
+    final icon = isNoCache ? Icons.wifi_off_rounded : Icons.error_outline_rounded;
 
     final title = isNoCache
         ? _tr(
             'Internet required for first use',
             'Muunganiko wa intaneti unahitajika mara ya kwanza',
           )
-        : isExpired
-            ? _tr(
-                'Catalog needs a refresh',
-                'Katalogi inahitaji kusasishwa',
-              )
-            : _tr('Could not load catalog', 'Imeshindikana kupakia katalogi');
+        : _tr('Could not load catalog', 'Imeshindikana kupakia katalogi');
 
     final subtitle = isNoCache
         ? _tr(
             'Connect to the internet once to download your industry catalog. '
-            'After that it works offline for 24 hours.',
+            'After that it works offline.',
             'Unganisha intaneti mara moja kupakua katalogi ya tasnia yako. '
-            'Baadaye inafanya kazi bila intaneti kwa masaa 24.',
+            'Baadaye inafanya kazi bila intaneti.',
           )
-        : isExpired
-            ? _tr(
-                'Your offline catalog is more than 24 hours old. '
-                'Connect briefly to refresh it.',
-                'Katalogi yako ya nje ya mtandao ina zaidi ya masaa 24. '
-                'Unganisha kwa muda mfupi kuisasisha.',
-              )
-            : _tr(
-                'Check your connection and try again.',
-                'Angalia muunganiko wako na ujaribu tena.',
-              );
+        : _tr(
+            'Check your connection and try again.',
+            'Angalia muunganiko wako na ujaribu tena.',
+          );
 
     return Center(
       child: Padding(

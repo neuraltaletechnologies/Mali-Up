@@ -14,6 +14,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/reminder_share_row.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/validation_banner.dart';
@@ -31,6 +32,7 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
 import '../../../sales/presentation/screens/invoice_detail_screen.dart';
 import '../../data/customer_providers.dart';
+import '../../data/customer_reminder_service.dart';
 import '../../domain/models/customer.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -252,143 +254,27 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     await launchUrl(Uri(scheme: 'sms', path: _customer.phone));
   }
 
-  void _sendReminder() async {
-    final balance = _customer.balanceAmount;
-    if (balance <= 0) {
-      _showSnack(_tr('No outstanding balance', 'Hakuna deni linalodaiwa'));
-      return;
-    }
-
-    final invoices = ref
-        .read(customerInvoicesProvider(_customer.id))
-        .maybeWhen(data: (d) => d, orElse: () => <Map<String, dynamic>>[]);
-    final overdue = invoices.where((inv) {
-      final s = (inv['status'] ?? '').toString().toLowerCase();
-      return s != 'paid' && s != 'cancelled' && s != 'draft';
-    }).toList();
-
-    final phone = _customer.phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final msg = _buildReminderText(_customer, balance, overdue);
-    final url = 'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}';
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-
-    await _saveNote(
-      type: _NoteType.reminder,
-      text: _tr(
-        'Payment reminder sent via WhatsApp',
-        'Kumbusho la malipo kilitumwa kupitia WhatsApp',
-      ),
-    );
-    await ref
-        .read(customerAuditLoggerProvider)
-        .log(
-          AuditLogService.reminderSent,
-          customerId: _customer.id,
-          customerName: _customer.name,
-          newValue: 'whatsapp',
-        );
-  }
-
-  String _buildReminderText(
-    Customer c,
-    double balance,
-    List<Map<String, dynamic>> overdue,
-  ) {
-    final buf = StringBuffer();
-    buf.writeln(_tr('Dear *${c.name}*,', 'Ndugu *${c.name}*,'));
-    buf.writeln();
-    buf.writeln(
-      _tr(
-        'This is a friendly reminder of your outstanding balance with us.',
-        'Hii ni ukumbusho wa kirafiki wa salio lako linalodaiwa kwetu.',
-      ),
-    );
-    buf.writeln();
-    if (overdue.isNotEmpty) {
-      buf.writeln(_tr('Unpaid invoices:', 'Ankara ambazo hazijalipwa:'));
-      for (final inv in overdue.take(5)) {
-        final invNum =
-            inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
-        final amt = readInvoiceTotal(inv);
-        final date = readSaleDate(inv);
-        final datePart = date != null ? ' (${_fmtDate(date)})' : '';
-        buf.writeln(
-          '• ${_tr('Invoice', 'Ankara')} $invNum$datePart — TZS ${_fmtNum(amt)}',
-        );
-
-        // List the purchased items so the customer knows which purchase created this debt.
-        final rawItems = inv['lineItems'] ?? inv['items'];
-        if (rawItems is List && rawItems.isNotEmpty) {
-          for (final item in rawItems.take(3)) {
-            final name = (item['name'] ?? item['productName'] ?? '').toString();
-            if (name.isEmpty) continue;
-            final rawQty = item['quantity'] ?? item['qty'] ?? 1;
-            final qtyVal = rawQty is num ? rawQty.toDouble() : 1.0;
-            final qtyStr = qtyVal % 1 == 0
-                ? qtyVal.toInt().toString()
-                : qtyVal.toStringAsFixed(1);
-            buf.writeln('   › $name × $qtyStr');
-          }
-          if (rawItems.length > 3) {
-            final extra = rawItems.length - 3;
-            buf.writeln(
-              '   ${_tr('+ $extra more item${extra == 1 ? '' : 's'}', '+ vitu $extra zaidi')}',
-            );
-          }
-          buf.writeln();
-        }
-      }
-      buf.writeln();
-    }
-    buf.writeln(
-      '*${_tr('Total Outstanding: TZS ${_fmtNum(balance)}', 'Jumla Inayodaiwa: TZS ${_fmtNum(balance)}')}*',
-    );
-    buf.writeln();
-    buf.writeln(
-      _tr(
-        'Please arrange payment at your earliest convenience.',
-        'Tafadhali panga malipo haraka iwezekanavyo.',
-      ),
-    );
-    buf.writeln(_tr('Thank you!', 'Asante!'));
-    return buf.toString();
-  }
-
-  Future<void> _saveNote({
-    required _NoteType type,
-    required String text,
-    DateTime? scheduledFor,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      // Notes live under the tenant owner's business — the same path the
-      // notes stream reads from. Team members must not write to their own
-      // (empty) tenant.
-      final ownerUid = ref.read(tenantOwnerUidProvider) ?? user.uid;
-      final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
-      if (bizId.isEmpty) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final customersCol = repo.scopeCollection(
-        uid: ownerUid,
-        context: ResolvedFinanceContext.business(bizId),
-        childCollection: 'customers',
+  Future<void> _sendWhatsAppReminder() =>
+      CustomerReminderService.sendWhatsApp(
+        ref,
+        context,
+        _customer,
+        _customer.balanceAmount,
       );
-      // Best-effort, non-blocking: notes have no offline store and this
-      // Firestore write never completes while offline (persistence is disabled
-      // — see main.dart). Awaiting it would strand the caller's spinner (e.g.
-      // the reminder flow); Firestore flushes the queued write on reconnect.
-      customersCol.doc(_customer.id).collection('notes').add({
-        'type': type.name,
-        'text': text,
-        'addedAt': FieldValue.serverTimestamp(),
-        'addedBy': user.uid,
-        if (scheduledFor != null)
-          'scheduledFor': Timestamp.fromDate(scheduledFor),
-        if (type == _NoteType.reminder) 'reminderSent': false,
-      }).ignore();
-    } catch (_) {}
-  }
+
+  Future<void> _sendSmsReminder() => CustomerReminderService.sendSms(
+    ref,
+    context,
+    _customer,
+    _customer.balanceAmount,
+  );
+
+  Future<void> _sendPdfReminder() => CustomerReminderService.sendPdf(
+    ref,
+    context,
+    _customer,
+    _customer.balanceAmount,
+  );
 
   Future<void> _updateTags(List<String> newTags) async {
     final previous = _customer.tags;
@@ -517,7 +403,9 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                         onCall: _callCustomer,
                         onWhatsApp: _whatsappCustomer,
                         onSms: _smsCustomer,
-                        onReminder: _sendReminder,
+                        onSendWhatsAppReminder: _sendWhatsAppReminder,
+                        onSendSmsReminder: _sendSmsReminder,
+                        onSendPdfReminder: _sendPdfReminder,
                         onPayDebt: showFinancials ? _showPayDebtSheet : null,
                       ),
                       _ActivityTab(
@@ -754,7 +642,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     showAppSheet(
       context,
       builder: (_) => CustomerPayDebtSheet(
-        customerName: _customer.name,
+        customer: _customer,
         balance: balance,
         onSave: (amount, method, accountId, note) async {
           final newBalance = balance - amount;
@@ -858,7 +746,9 @@ class _OverviewTab extends ConsumerStatefulWidget {
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
   final VoidCallback onSms;
-  final VoidCallback onReminder;
+  final VoidCallback onSendWhatsAppReminder;
+  final VoidCallback onSendSmsReminder;
+  final VoidCallback onSendPdfReminder;
   final VoidCallback? onPayDebt;
 
   const _OverviewTab({
@@ -870,7 +760,9 @@ class _OverviewTab extends ConsumerStatefulWidget {
     required this.onCall,
     required this.onWhatsApp,
     required this.onSms,
-    required this.onReminder,
+    required this.onSendWhatsAppReminder,
+    required this.onSendSmsReminder,
+    required this.onSendPdfReminder,
     this.onPayDebt,
   });
 
@@ -949,8 +841,6 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
           onCall: widget.onCall,
           onWhatsApp: widget.onWhatsApp,
           onSms: widget.onSms,
-          onReminder: widget.onReminder,
-          showReminder: widget.showFinancials,
         ),
         const SizedBox(height: 16),
 
@@ -967,6 +857,9 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             canEditCredit: widget.canEditCredit,
             onSaveLimit: (v) => widget.onCreditLimitSave(v),
             onPayDebt: widget.onPayDebt,
+            onSendWhatsAppReminder: widget.onSendWhatsAppReminder,
+            onSendSmsReminder: widget.onSendSmsReminder,
+            onSendPdfReminder: widget.onSendPdfReminder,
           ),
           const SizedBox(height: 16),
           // Payables this business owes this contact (as a supplier) —
@@ -1001,15 +894,11 @@ class _QuickActions extends StatelessWidget {
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
   final VoidCallback onSms;
-  final VoidCallback onReminder;
-  final bool showReminder;
 
   const _QuickActions({
     required this.onCall,
     required this.onWhatsApp,
     required this.onSms,
-    required this.onReminder,
-    required this.showReminder,
   });
 
   @override
@@ -1042,17 +931,6 @@ class _QuickActions extends StatelessWidget {
             onTap: onSms,
           ),
         ),
-        if (showReminder) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _ActionBtn(
-              icon: Icons.alarm_rounded,
-              label: _tr('Remind', 'Kumbushia'),
-              color: AppColors.warning,
-              onTap: onReminder,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1127,6 +1005,9 @@ class _BalanceCard extends StatefulWidget {
   final bool canEditCredit;
   final ValueChanged<double> onSaveLimit;
   final VoidCallback? onPayDebt;
+  final VoidCallback? onSendWhatsAppReminder;
+  final VoidCallback? onSendSmsReminder;
+  final VoidCallback? onSendPdfReminder;
 
   const _BalanceCard({
     required this.balance,
@@ -1135,6 +1016,9 @@ class _BalanceCard extends StatefulWidget {
     required this.canEditCredit,
     required this.onSaveLimit,
     this.onPayDebt,
+    this.onSendWhatsAppReminder,
+    this.onSendSmsReminder,
+    this.onSendPdfReminder,
   });
 
   @override
@@ -1468,6 +1352,19 @@ class _BalanceCardState extends State<_BalanceCard> {
                   ),
                 ),
               ),
+            ),
+          ],
+
+          // ── Debt reminder buttons ─────────────────────────────────
+          if (widget.balance > 0 &&
+              widget.onSendWhatsAppReminder != null &&
+              widget.onSendSmsReminder != null &&
+              widget.onSendPdfReminder != null) ...[
+            const SizedBox(height: 10),
+            ReminderShareRow(
+              onWhatsApp: widget.onSendWhatsAppReminder,
+              onSms: widget.onSendSmsReminder,
+              onPdf: widget.onSendPdfReminder,
             ),
           ],
         ],
@@ -3642,7 +3539,7 @@ class _MiniStat extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class CustomerPayDebtSheet extends ConsumerStatefulWidget {
-  final String customerName;
+  final Customer customer;
   final double balance;
   final Future<void> Function(
     double amount,
@@ -3654,7 +3551,7 @@ class CustomerPayDebtSheet extends ConsumerStatefulWidget {
 
   const CustomerPayDebtSheet({
     super.key,
-    required this.customerName,
+    required this.customer,
     required this.balance,
     required this.onSave,
   });
@@ -3688,6 +3585,33 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
       builder: (_) => ActivateAccountSheet(spec: spec),
     );
   }
+
+  // ── Reminders ────────────────────────────────────────────────────────
+  // Same three channels, same shared CustomerReminderService, as the
+  // customer screen's Balance card and the customer list's info sheet — so
+  // this sheet reminds identically whether it's opened from "Pay Debt" here
+  // or from the customer list's swipe action.
+
+  Future<void> _sendWhatsAppReminder() => CustomerReminderService.sendWhatsApp(
+    ref,
+    context,
+    widget.customer,
+    widget.balance,
+  );
+
+  Future<void> _sendSmsReminder() => CustomerReminderService.sendSms(
+    ref,
+    context,
+    widget.customer,
+    widget.balance,
+  );
+
+  Future<void> _sendPdfReminder() => CustomerReminderService.sendPdf(
+    ref,
+    context,
+    widget.customer,
+    widget.balance,
+  );
 
   Future<void> _save() async {
     if (_paymentError != null) setState(() => _paymentError = null);
@@ -3769,7 +3693,17 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
                 color: AppColors.textMuted,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
+
+            // ── Send a reminder instead of / before recording payment ──
+            ReminderShareRow(
+              onWhatsApp: _sendWhatsAppReminder,
+              onSms: _sendSmsReminder,
+              onPdf: _sendPdfReminder,
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 14),
 
             // Amount field
             TextFormField(
@@ -4192,3 +4126,4 @@ String _fmtShort(double v) {
 
 String _fmtDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+

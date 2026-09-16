@@ -479,9 +479,6 @@ abstract final class OnboardingStrings {
   static const cancelEn = 'Cancel';
   static const cancelSw = 'Ghairi';
 
-  static const loadingEn = 'Loading…';
-  static const loadingSw = 'Inapakia…';
-
   static const genericErrorEn = 'Something went wrong. Please try again.';
   static const genericErrorSw = 'Hitilafu imetokea. Tafadhali jaribu tena.';
 

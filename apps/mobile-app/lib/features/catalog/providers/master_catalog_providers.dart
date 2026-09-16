@@ -20,7 +20,7 @@ final masterCatalogRepositoryProvider =
 // Business type resolution
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Resolves the current business type, falling back to 'retail'.
+/// Resolves the current business type, or `null` while it's still unknown.
 ///
 /// Watches [currentBusinessTypeProvider] itself (not just its `.future`) so
 /// dependents rebuild on *every* emission — including a later change of
@@ -29,22 +29,26 @@ final masterCatalogRepositoryProvider =
 /// type in Settings updated the stream, but callers that only awaited
 /// `.future` never rebuilt, so the category/product pickers kept showing the
 /// previous business type's catalog until the app restarted.
-Future<String> _resolveBizType(Ref ref) async {
+///
+/// Deliberately returns `null` (never a hardcoded vertical like 'retail')
+/// when the real type hasn't resolved yet — e.g. still loading, or the 4s
+/// offline timeout in [currentBusinessTypeProvider] emitting ''. A pharmacy
+/// account on a slow connection must never see another vertical's catalog
+/// (e.g. "Unga") just because its own business type hadn't loaded yet;
+/// callers should show no suggestions instead until the real value arrives.
+Future<String?> _resolveBizType(Ref ref) async {
   final bizTypeAsync = ref.watch(currentBusinessTypeProvider);
   String bizType;
   if (bizTypeAsync.hasValue) {
     bizType = bizTypeAsync.value!;
   } else {
-    // No value yet (first load, still resolving) — await the first
-    // emission once instead of falling back straight to 'retail', so we
-    // still use the real business type once it's known.
     try {
       bizType = await ref.watch(currentBusinessTypeProvider.future);
     } catch (_) {
       bizType = '';
     }
   }
-  return bizType.isEmpty ? 'retail' : bizType;
+  return bizType.isEmpty ? null : bizType;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +60,7 @@ final masterCategoriesProvider =
     FutureProvider<List<MasterCategory>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
   final bizType = await _resolveBizType(ref);
+  if (bizType == null) return const [];
   return repo.getCategoriesForType(bizType);
 });
 
@@ -68,6 +73,7 @@ final masterProductsProvider =
     FutureProvider<List<MasterProduct>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
   final bizType = await _resolveBizType(ref);
+  if (bizType == null) return const [];
   return repo.getProductsForType(bizType);
 });
 
@@ -76,6 +82,7 @@ final masterProductsByCategoryProvider =
     FutureProvider.family<List<MasterProduct>, String>((ref, categorySlug) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
   final bizType = await _resolveBizType(ref);
+  if (bizType == null) return const [];
 
   if (categorySlug.isEmpty) return repo.getProductsForType(bizType);
   return repo.getProductsForCategory(bizType, categorySlug);
@@ -98,6 +105,7 @@ final catalogSearchResultsProvider =
   final query = ref.watch(catalogSearchQueryProvider);
   final categorySlug = ref.watch(catalogSelectedCategoryProvider);
   final bizType = await _resolveBizType(ref);
+  if (bizType == null) return const [];
 
   if (query.isEmpty && categorySlug.isEmpty) {
     return repo.getProductsForType(bizType);
