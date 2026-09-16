@@ -543,8 +543,17 @@ class _PinDotsInputState extends State<PinDotsInput>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── 4 circles ──────────────────────────────────────────────────
-          Row(
+          // ── circles (sized to fit widget.pinLength within the available
+          // width — a fixed 60px/7px margin only ever fit 4 digits; a 6-digit
+          // OTP at that size overflows most phone screens) ─────────────────
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final perDigit = constraints.maxWidth / widget.pinLength;
+              final dotMargin = (perDigit * 0.10).clamp(3.0, 7.0);
+              final dotSize = (perDigit - dotMargin * 2).clamp(36.0, 60.0);
+              final dotIndicator = (dotSize * 0.167).clamp(6.0, 10.0);
+
+              return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(widget.pinLength, (i) {
               final filled = i < len;
@@ -556,9 +565,9 @@ class _PinDotsInputState extends State<PinDotsInput>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
-                    width: 60,
-                    height: 60,
-                    margin: const EdgeInsets.symmetric(horizontal: 7),
+                    width: dotSize,
+                    height: dotSize,
+                    margin: EdgeInsets.symmetric(horizontal: dotMargin),
                     decoration: BoxDecoration(
                       color: filled
                           ? AppColors.navyPrimary
@@ -588,8 +597,8 @@ class _PinDotsInputState extends State<PinDotsInput>
                     child: filled
                         ? Center(
                             child: Container(
-                              width: 10,
-                              height: 10,
+                              width: dotIndicator,
+                              height: dotIndicator,
                               decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppColors.yellowBrand,
@@ -605,6 +614,8 @@ class _PinDotsInputState extends State<PinDotsInput>
                 ),
               );
             }),
+              );
+            },
           ),
 
           // ── Hidden text input ─────────────────────────────────────────
@@ -779,7 +790,7 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          sw ? 'Thibitisha namba yako 📱' : 'Verify your number 📱',
+          sw ? 'Thibitisha namba yako ' : 'Verify your number ',
           style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,

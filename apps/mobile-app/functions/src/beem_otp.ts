@@ -158,17 +158,15 @@ interface VerifyOtpResponse {
 }
 
 /**
- * Verifies `pin` against `pinId` with Beem. Serves two callers:
- *  - Pre-auth (first-time registration, no Firebase Auth account yet): on
- *    success, records a short-lived marker at otp_verifications/{phone} that
- *    createNewUserAccount / createTeamMemberAccount must consume
- *    (consumeOtpVerification) before creating the account.
- *  - Authenticated (an already-registered account predating the Beem OTP
- *    rollout, re-verifying on login — see PinLoginScreen): on success,
- *    stamps users/{uid}.phoneVerified = true directly via the Admin SDK
- *    (firestore.rules blocks clients from setting that field themselves).
- *    No otp_verifications marker needed here — the account already exists,
- *    there's no subsequent creation step to gate.
+ * Verifies `pin` against `pinId` with Beem. Always called pre-auth — both
+ * new registration (no Firebase Auth account yet) and an already-registered
+ * account re-verifying on login (OTP happens BEFORE PIN entry there, see
+ * PinLoginScreen — there's no session yet either) hit this the same way. On
+ * success, records a short-lived marker at otp_verifications/{phone} that
+ * consumeOtpVerification burns later: right before createNewUserAccount /
+ * createTeamMemberAccount create the account, or right after an existing
+ * account's PIN is confirmed (at which point it's authenticated and also
+ * stamps users/{uid}.phoneVerified = true).
  */
 export const verifyBeemOtp = onCall<VerifyOtpRequest>(
   {region: "us-central1", secrets: [BEEM_API_KEY, BEEM_SECRET_KEY]},
@@ -218,22 +216,18 @@ export const verifyBeemOtp = onCall<VerifyOtpRequest>(
     const verified = response.ok && body.data?.message?.code === BEEM_VERIFIED_SUCCESS_CODE;
 
     if (verified) {
-      if (request.auth?.uid) {
-        await admin
-          .firestore()
-          .collection("users")
-          .doc(request.auth.uid)
-          .set({phoneVerified: true}, {merge: true});
-      } else {
-        await admin
-          .firestore()
-          .collection("otp_verifications")
-          .doc(phone)
-          .set({
-            verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-            expiresAtMs: Date.now() + OTP_VERIFIED_TTL_MS,
-          });
-      }
+      // Both callers (new registration, and an already-registered account
+      // re-verifying before PIN entry on login — see PinLoginScreen) call
+      // this pre-auth, so it's always the same marker write; consumeOtpVerification
+      // is what actually stamps users/{uid}.phoneVerified once a uid exists.
+      await admin
+        .firestore()
+        .collection("otp_verifications")
+        .doc(phone)
+        .set({
+          verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAtMs: Date.now() + OTP_VERIFIED_TTL_MS,
+        });
     }
 
     return {verified};
@@ -249,14 +243,20 @@ interface ConsumeOtpResponse {
 }
 
 /**
- * Called by OnboardingRepository.createNewUserAccount / createTeamMemberAccount
- * immediately before creating the Firebase Auth account. Burns the
- * otp_verifications marker so it can't be reused, and fails closed if it's
- * missing or expired — Firebase Auth account creation itself is a direct
- * client SDK call with no server hook, so this is the one enforcement point
- * that a signed-in-but-unverified client can't route around without also
- * skipping this callable entirely (same trust boundary as the rest of the
- * onboarding flow's step guards, which are otherwise client-state-driven).
+ * Burns the otp_verifications marker so it can't be reused, failing closed
+ * if it's missing or expired. Two callers:
+ *  - OnboardingRepository.createNewUserAccount / createTeamMemberAccount,
+ *    pre-auth, immediately before creating the Firebase Auth account.
+ *    Firebase Auth account creation itself is a direct client SDK call with
+ *    no server hook, so this is the one enforcement point that a client
+ *    can't route around without also skipping this callable entirely (same
+ *    trust boundary as the rest of the onboarding flow's step guards, which
+ *    are otherwise client-state-driven).
+ *  - OnboardingNotifier.loginWithPin, authenticated, right after a correct
+ *    PIN for an already-registered account that needed re-verification (see
+ *    PinLoginScreen). Here it additionally stamps users/{uid}.phoneVerified
+ *    = true via the Admin SDK — firestore.rules blocks a client from setting
+ *    that field itself — so this account is never asked again.
  */
 export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
   {region: "us-central1"},
@@ -265,6 +265,7 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
     if (phone.length < 9 || phone.length > 15) {
       throw new HttpsError("invalid-argument", "A valid phone number is required.");
     }
+    await assertOwnPhoneIfAuthenticated(request.auth?.uid, phone);
 
     const ref = admin.firestore().collection("otp_verifications").doc(phone);
     const snap = await ref.get();
@@ -277,6 +278,15 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
     }
 
     await ref.delete();
+
+    if (request.auth?.uid) {
+      await admin
+        .firestore()
+        .collection("users")
+        .doc(request.auth.uid)
+        .set({phoneVerified: true}, {merge: true});
+    }
+
     return {ok: true};
   },
 );

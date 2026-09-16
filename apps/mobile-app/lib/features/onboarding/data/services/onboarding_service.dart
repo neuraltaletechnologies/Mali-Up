@@ -58,10 +58,13 @@ class OnboardingDraft {
 
 /// Orchestrates the onboarding flow.
 ///
-/// Authentication is PIN-based (phone → derive email+password). First-time
-/// registration additionally requires Beem OTP phone verification (see
-/// [sendOtp] / [verifyOtp]) before the account is created; returning-user
-/// PIN login does not. All Firebase Auth and Firestore calls delegate to
+/// Authentication is PIN-based (phone → derive email+password). Every
+/// account — new or already-registered — must have a Beem-verified phone
+/// (see [sendOtp] / [verifyOtp] / [consumeOtpVerification]): first-time
+/// registration verifies before the account is created; an already-
+/// registered account that predates this requirement verifies once, before
+/// PIN entry, on its next login (see PinLoginScreen / OnboardingNotifier.
+/// loginWithPin). All Firebase Auth and Firestore calls delegate to
 /// [OnboardingRepository].
 class OnboardingService {
   OnboardingService({required OnboardingRepository repository})
@@ -131,6 +134,16 @@ class OnboardingService {
         performedByName: performedByName,
       ),
     ]);
+  }
+
+  /// Burns the OTP-verified marker for [phone] and stamps
+  /// `users/{uid}.phoneVerified = true` server-side. Called right after a
+  /// correct PIN for an account that needed re-verification (see
+  /// [OnboardingNotifier.loginWithPin]) — by then the user is signed in, so
+  /// the callable is authenticated. Throws [FirebaseFunctionsException] with
+  /// code 'failed-precondition' if the OTP step wasn't actually completed.
+  Future<void> consumeOtpVerification(String phone) {
+    return _repository.consumeOtpVerification(phone);
   }
 
   // ─── OTP VERIFICATION (first-time registration only) ─────────────────────

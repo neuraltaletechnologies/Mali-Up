@@ -202,6 +202,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             businessId: r.businessId,
             ownedBusinesses: r.businesses,
             currentStep: OnboardingStep.pinLogin,
+            // Reset any stale OTP state from a different phone looked up
+            // earlier this session. otpRequiredForLogin reflects THIS
+            // account: false (missing field) means it predates the Beem OTP
+            // rollout and PinLoginScreen must verify before showing PIN
+            // entry; true means it's already verified and never asked again.
+            otpPinId: '',
+            otpVerified: false,
+            otpRequiredForLogin: !r.phoneVerified,
             isLoading: false,
           );
           // Pre-warm the role cache so that when loginWithPin fires
@@ -232,6 +240,9 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
             role: t.role,
             currentStep: OnboardingStep.teamMemberSetup,
+            otpPinId: '',
+            otpVerified: false,
+            otpRequiredForLogin: false,
             isLoading: false,
           );
 
@@ -240,6 +251,9 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             isReturningUser: false,
             isTeamMember: false,
             currentStep: OnboardingStep.newUserInfo,
+            otpPinId: '',
+            otpVerified: false,
+            otpRequiredForLogin: false,
             isLoading: false,
           );
       }
@@ -279,6 +293,17 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   // ─── SCREEN 4A — EXISTING USER PIN LOGIN ─────────────────────────────────
 
   /// Signs the user in with their PIN, marks onboarding complete.
+  ///
+  /// If [OnboardingState.otpRequiredForLogin] was set by [lookupPhone] (this
+  /// account predates the Beem OTP rollout), PinLoginScreen has already run
+  /// the OTP step BEFORE calling this — [OnboardingState.otpVerified] is
+  /// true by the time the user even sees the PIN field. Once the PIN
+  /// confirms it's really them, this burns that OTP verification server-side
+  /// (consumeOtpVerification, now authenticated so it also stamps
+  /// `users/{uid}.phoneVerified = true`) before completing sign-in. A wrong
+  /// PIN here does NOT reset the OTP step — the marker stays valid for its
+  /// full TTL, so a mistyped PIN just means retyping the PIN, not
+  /// re-verifying the phone.
   Future<void> loginWithPin(String pin) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -289,6 +314,9 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         businessId: state.businessId,
         performedByName: state.fullName,
       );
+      if (state.otpRequiredForLogin) {
+        await _service.consumeOtpVerification(state.phone);
+      }
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         unawaited(DeviceIntegrityService.checkAndLog(
@@ -302,6 +330,26 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         currentStep: OnboardingStep.success,
         isComplete: true,
         isLoading: false,
+      );
+    } on FirebaseFunctionsException catch (e, st) {
+      // consumeOtpVerification failed — most likely the OTP marker expired
+      // because too long passed between verifying and entering the PIN.
+      // Firebase Auth sign-in already succeeded above, but don't complete —
+      // send them back to the OTP step to re-verify.
+      ErrorReporter.captureException(e, stackTrace: st);
+      SentryMetricsService.authFailure('pin_login', e.code);
+      state = state.copyWith(
+        otpVerified: false,
+        isLoading: false,
+        errorMessage: e.code == 'failed-precondition'
+            ? _t(
+                en: 'Phone verification expired. Please verify your number again.',
+                sw: 'Uthibitisho wa namba ya simu umeisha muda. Tafadhali thibitisha namba yako tena.',
+              )
+            : _t(
+                en: 'Sign in failed. Please try again.',
+                sw: 'Kuingia kumeshindwa. Tafadhali jaribu tena.',
+              ),
       );
     } on FirebaseAuthException catch (e, st) {
       ErrorReporter.captureException(e, stackTrace: st);

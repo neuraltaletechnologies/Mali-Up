@@ -15,8 +15,16 @@ final connectivityStreamProvider =
 
 /// True when at least one active connection type is present.
 /// Used by SyncManager to gate outbound Firestore operations.
+///
+/// While `checkConnectivity()` is still resolving (the platform channel call
+/// itself is async), the stream has no value yet. Defaulting that window to
+/// "online" avoids a false "Offline" flash on cold start for the common case
+/// of an actually-connected device; a real offline device corrects to `false`
+/// as soon as the check resolves a moment later.
 final isOnlineProvider = Provider<bool>((ref) {
-  final results =
-      ref.watch(connectivityStreamProvider).valueOrNull ?? const [];
-  return results.any((r) => r != ConnectivityResult.none);
+  final async = ref.watch(connectivityStreamProvider);
+  return async.maybeWhen(
+    data: (results) => results.any((r) => r != ConnectivityResult.none),
+    orElse: () => true,
+  );
 });

@@ -139,6 +139,7 @@ class OnboardingRepository {
           businessId: businessId,
           businessLogo: businessLogo,
           businesses: businesses,
+          phoneVerified: userData['phoneVerified'] == true,
         );
       }
 
@@ -249,13 +250,14 @@ class OnboardingRepository {
     throw lastError!;
   }
 
-  // ─── OTP VERIFICATION (first-time registration only) ─────────────────────
+  // ─── OTP VERIFICATION ──────────────────────────────────────────────────────
   //
   // Beem Africa generates, delivers, and checks the actual code — see
   // functions/src/beem_otp.ts / BEEM_OTP_INTEGRATION.md. Mali Up only proxies
   // the two calls and, on success, gets a short-lived server-side marker that
-  // [_consumeOtpVerification] burns right before the Firebase Auth account is
-  // created.
+  // [consumeOtpVerification] burns — either right before a new Firebase Auth
+  // account is created, or right after an already-registered account's PIN
+  // is confirmed (see that method's doc for both callers).
 
   /// Requests an OTP be sent to [phone]. Returns Beem's pinId, which must be
   /// passed back to [verifyOtp]. Throws [FirebaseFunctionsException] on
@@ -287,26 +289,19 @@ class OnboardingRepository {
     return data['verified'] == true;
   }
 
-  /// Whether [uid]'s phone has already been Beem-verified. False for any
-  /// account created before the OTP rollout (missing field) as well as a
-  /// genuinely unverified one. Fails open (returns true) on a transient read
-  /// error — this is a bookkeeping check, not the actual OTP gate, and a
-  /// Firestore hiccup shouldn't lock out a user whose PIN was already correct.
-  Future<bool> isPhoneVerified(String uid) async {
-    try {
-      final doc = await _db.collection('users').doc(uid).get();
-      return doc.data()?['phoneVerified'] == true;
-    } catch (e) {
-      if (kDebugMode) debugPrint('[OnboardingRepository.isPhoneVerified] $e');
-      return true;
-    }
-  }
-
   /// Burns the server-side OTP-verified marker for [phone]. Throws
   /// [FirebaseFunctionsException] with code 'failed-precondition' if the
-  /// phone was never verified or the marker expired — callers must not
-  /// proceed to create the Firebase Auth account in that case.
-  Future<void> _consumeOtpVerification(String phone) async {
+  /// phone was never verified or the marker expired.
+  ///
+  /// Two callers:
+  /// - [_createAuthAccountAfterOtp] (new registration) — must succeed before
+  ///   the Firebase Auth account is created.
+  /// - [OnboardingNotifier.loginWithPin] (an already-registered account
+  ///   re-verifying — OTP happens before PIN entry there, see
+  ///   PinLoginScreen) — called right after a correct PIN signs the user in,
+  ///   so the callable is authenticated and also stamps
+  ///   `users/{uid}.phoneVerified = true` server-side (functions/src/beem_otp.ts).
+  Future<void> consumeOtpVerification(String phone) async {
     final callable = _functions.httpsCallable('consumeOtpVerification');
     await callable.call<Map<String, dynamic>>({
       'phone': PhoneNumberUtils.canonical(phone),
@@ -328,7 +323,7 @@ class OnboardingRepository {
     required String password,
   }) async {
     try {
-      await _consumeOtpVerification(phone);
+      await consumeOtpVerification(phone);
     } on FirebaseFunctionsException catch (otpError) {
       if (otpError.code != 'failed-precondition') rethrow;
       try {
