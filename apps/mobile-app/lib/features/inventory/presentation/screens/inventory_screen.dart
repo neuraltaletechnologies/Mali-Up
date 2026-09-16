@@ -826,8 +826,8 @@ class _EmptyPlaceholder extends StatelessWidget {
             'Jaribu utafutaji tofauti au ondoa kichujio.',
           )
         : _tr(
-            'Tap + to add your first product.',
-            'Bonyeza + kuongeza bidhaa yako ya kwanza.',
+            'Tap "Add Product" to add your first product.',
+            'Bonyeza "Ongeza Bidhaa" kuongeza bidhaa yako ya kwanza.',
           ),
   );
 }

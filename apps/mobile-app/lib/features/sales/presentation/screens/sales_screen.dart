@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/providers/plan_usage_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/error_reporter.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
@@ -2581,6 +2582,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     // Record the feature event only. Financial amounts must never be sent to
     // analytics or crash-reporting providers.
     SentryMetricsService.salesCreated(status: statusStr);
+
+    // A confirmed sale is a genuine happy-path moment — count it toward
+    // the "rate us" prompt gating (see AppRatingService). This is the quick
+    // sale sheet, the primary way most sales get recorded, so it must count
+    // signals the same way CreateInvoiceScreen's confirm path does.
+    unawaited(AppRatingService.recordPositiveSignal());
 
     // Build a plain data map for the receipt popup — no server timestamps,
     // just the values we already have in memory.

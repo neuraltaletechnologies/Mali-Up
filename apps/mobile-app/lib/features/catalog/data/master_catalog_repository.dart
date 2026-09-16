@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,15 +18,18 @@ import '../domain/models/master_product.dart';
 // master_products), filtered by businessTypes (array of human-readable
 // catalog names — an item may belong to more than one business type).
 //
-// Cache: local Drift SQLite — valid for 24 hours per normalised business-type.
+// Cache: local Drift SQLite, kept indefinitely per normalised business-type.
 // The cache key is the app's normalised token (e.g. "retail", "pharmacy")
 // while Firestore stores the human-readable value ("Retail", "Pharmacy & Healthcare").
 //
-// First use REQUIRES a network connection. After that the app works
-// fully offline for up to 24 hours using the cached rows.
+// First use REQUIRES a network connection. After that, reads are served
+// straight from Drift — the UI never blocks on or fails because of a stale
+// cache. Once the cache is older than [_backgroundRefreshIntervalMs], a
+// refresh is kicked off in the background (fire-and-forget); if it fails
+// (e.g. offline) the existing cached rows just keep being served.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _cacheTtlMs = 24 * 60 * 60 * 1000; // 24 hours
+const _backgroundRefreshIntervalMs = 24 * 60 * 60 * 1000; // 24 hours
 
 class CatalogOfflineException implements Exception {
   final String businessType;
@@ -35,15 +39,6 @@ class CatalogOfflineException implements Exception {
   String toString() =>
       'CatalogOfflineException: no cached catalog for "$businessType". '
       'Connect to the internet to load the product catalog.';
-}
-
-class CatalogCacheExpiredException implements Exception {
-  const CatalogCacheExpiredException();
-
-  @override
-  String toString() =>
-      'CatalogCacheExpiredException: catalog cache is older than 24 hours. '
-      'Connect to refresh.';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,7 +104,10 @@ List<String> _catalogTypeNames(String normalizedKey) {
         'E-Commerce',
       ];
     default:
-      return ['Retail'];
+      // Unrecognised key — no catalog names to match. Never fall back to
+      // 'Retail': that would silently hand this business another vertical's
+      // categories. Callers see an empty catalog instead.
+      return const <String>[];
   }
 }
 
@@ -185,13 +183,25 @@ class MasterCatalogRepository {
     final catCount = await _db.masterCatalogDao.categoryCount(businessType);
 
     if (catCount == 0) {
+      // Nothing on the phone for this business type yet — this first load
+      // has to hit the network; there's nothing else to show meanwhile.
       await _fetchFromFirestore(businessType);
       return;
     }
 
+    // Already have something to show. Never block the UI on a refresh, and
+    // never fail because the cache is "too old" — the cached rows keep
+    // being served either way. Just kick a silent background refresh once
+    // in a while so the catalog eventually catches up with admin changes.
     final ageMs = await _cacheAgeMs(businessType);
-    if (ageMs == null || ageMs > _cacheTtlMs) {
-      await _fetchFromFirestore(businessType);
+    if (ageMs == null || ageMs > _backgroundRefreshIntervalMs) {
+      unawaited(
+        _fetchFromFirestore(businessType).catchError((Object e) {
+          debugPrint(
+            '[MasterCatalog] background refresh failed for "$businessType": $e',
+          );
+        }),
+      );
     }
   }
 
@@ -204,14 +214,12 @@ class MasterCatalogRepository {
   }
 
   Future<void> _fetchFromFirestore(String businessType) async {
-    final hasCacheAlready =
-        await _db.masterCatalogDao.categoryCount(businessType) > 0;
+    final catalogNames = _catalogTypeNames(businessType);
+    if (catalogNames.isEmpty) return; // unrecognised type — nothing to fetch
 
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
       const opts = GetOptions(source: Source.server);
-
-      final catalogNames = _catalogTypeNames(businessType);
 
       // ── Categories ──────────────────────────────────────────────────────
       final catSnap = await _firestore
@@ -295,13 +303,8 @@ class MasterCatalogRepository {
               e.code == 'deadline-exceeded' ||
               e.code == 'network-request-failed');
 
-      if (!hasCacheAlready) {
-        if (isOffline) throw const CatalogOfflineException('');
-        rethrow;
-      } else {
-        if (isOffline) throw const CatalogCacheExpiredException();
-        rethrow;
-      }
+      if (isOffline) throw const CatalogOfflineException('');
+      rethrow;
     }
   }
 
