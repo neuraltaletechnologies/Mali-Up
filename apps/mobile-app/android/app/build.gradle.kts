@@ -34,10 +34,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.neuraltale.maliup"
@@ -74,6 +70,13 @@ android {
             // Without KEYSTORE_PASSWORD, release signing validation must fail.
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+// Keep the Kotlin JVM target aligned with compileOptions above.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
