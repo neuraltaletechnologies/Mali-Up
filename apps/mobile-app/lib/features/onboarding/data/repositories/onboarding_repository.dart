@@ -402,7 +402,11 @@ class OnboardingRepository {
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||
           e.code == 'invalid-credential') {
-        throw FirebaseAuthException(code: 'email-already-in-use');
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'Auth account exists for this phone but the '
+              'PIN-derived password did not match.',
+        );
       }
       rethrow;
     }
