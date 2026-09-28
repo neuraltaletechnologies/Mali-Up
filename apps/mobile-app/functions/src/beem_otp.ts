@@ -236,10 +236,25 @@ export const verifyBeemOtp = onCall<VerifyOtpRequest>(
 
 interface ConsumeOtpRequest {
   phone: string;
+
+  /**
+   * Optional — first-time registration only (new owner / team member). The
+   * PIN-derived Firebase Auth password the client is about to sign in with.
+   * When supplied and an auth account already exists for this phone
+   * (`{phone}@mali.up` — an orphan from an earlier attempt whose Firestore
+   * writes never completed, or one created under an older password scheme),
+   * its password is reset to this value so the registration retry can sign
+   * in instead of dead-ending on `email-already-in-use`. Gated behind the
+   * same OTP marker as the rest of the flow: only a caller that just proved
+   * it receives this phone's SMS can set it.
+   */
+  newPassword?: string;
 }
 
 interface ConsumeOtpResponse {
   ok: true;
+  /** True when a pre-existing auth account's password was just reset. */
+  accountExisted: boolean;
 }
 
 /**
@@ -257,6 +272,11 @@ interface ConsumeOtpResponse {
  *    PinLoginScreen). Here it additionally stamps users/{uid}.phoneVerified
  *    = true via the Admin SDK — firestore.rules blocks a client from setting
  *    that field itself — so this account is never asked again.
+ *
+ * When the registration caller passes `newPassword` and the phone's auth
+ * account already exists, its password is reset BEFORE the marker is burned,
+ * so a failed heal can be retried without forcing the user through another
+ * OTP round (and another rate-limited SMS send).
  */
 export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
   {region: "us-central1"},
@@ -267,6 +287,12 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
     }
     await assertOwnPhoneIfAuthenticated(request.auth?.uid, phone);
 
+    const rawNewPassword = request.data?.newPassword;
+    const newPassword = typeof rawNewPassword === "string" ? rawNewPassword : "";
+    if (rawNewPassword != null && (newPassword.length < 6 || newPassword.length > 128)) {
+      throw new HttpsError("invalid-argument", "A valid password is required.");
+    }
+
     const ref = admin.firestore().collection("otp_verifications").doc(phone);
     const snap = await ref.get();
     const expiresAtMs = snap.data()?.expiresAtMs as number | undefined;
@@ -275,6 +301,24 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
         "failed-precondition",
         "Phone verification has expired. Please verify your number again.",
       );
+    }
+
+    // Heal an orphaned account for this phone before burning the marker —
+    // mirrors PhoneNumberUtils.authEmail (canonical digits-only phone).
+    let accountExisted = false;
+    if (newPassword) {
+      try {
+        const user = await admin.auth().getUserByEmail(`${phone}@mali.up`);
+        await admin.auth().updateUser(user.uid, {password: newPassword});
+        accountExisted = true;
+      } catch (e) {
+        const code = (e as {code?: string}).code;
+        if (code !== "auth/user-not-found") {
+          // Marker not burned — the client may retry without a new OTP.
+          console.error("[BeemOtp] password heal failed", e);
+          throw new HttpsError("internal", "Could not complete registration. Please try again.");
+        }
+      }
     }
 
     await ref.delete();
@@ -287,6 +331,6 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
         .set({phoneVerified: true}, {merge: true});
     }
 
-    return {ok: true};
+    return {ok: true, accountExisted};
   },
 );

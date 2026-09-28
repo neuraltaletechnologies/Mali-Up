@@ -293,37 +293,59 @@ class OnboardingRepository {
   /// [FirebaseFunctionsException] with code 'failed-precondition' if the
   /// phone was never verified or the marker expired.
   ///
+  /// When [newPassword] is provided (first-time registration, pre-auth) the
+  /// server also resets the PIN-derived Firebase Auth password of an
+  /// already-existing `{phone}@mali.up` account before burning the marker,
+  /// and this returns true. That heals orphaned accounts left behind by an
+  /// earlier attempt whose Firestore writes never completed — without it,
+  /// registration would dead-end on 'email-already-in-use' + a sign-in that
+  /// can never succeed (see [_createAuthAccountAfterOtp]).
+  ///
   /// Two callers:
   /// - [_createAuthAccountAfterOtp] (new registration) — must succeed before
-  ///   the Firebase Auth account is created.
+  ///   the Firebase Auth account is created; passes [newPassword].
   /// - [OnboardingNotifier.loginWithPin] (an already-registered account
   ///   re-verifying — OTP happens before PIN entry there, see
   ///   PinLoginScreen) — called right after a correct PIN signs the user in,
   ///   so the callable is authenticated and also stamps
   ///   `users/{uid}.phoneVerified = true` server-side (functions/src/beem_otp.ts).
-  Future<void> consumeOtpVerification(String phone) async {
+  Future<bool> consumeOtpVerification(String phone, {String? newPassword}) async {
     final callable = _functions.httpsCallable('consumeOtpVerification');
-    await callable.call<Map<String, dynamic>>({
+    final payload = <String, dynamic>{
       'phone': PhoneNumberUtils.canonical(phone),
-    });
+    };
+    if (newPassword != null) payload['newPassword'] = newPassword;
+    final res = await callable.call<Map<String, dynamic>>(payload);
+    final data = Map<String, dynamic>.from(res.data as Map);
+    return data['accountExisted'] == true;
   }
 
   /// Consumes the OTP verification marker for [phone], then creates the
   /// Firebase Auth account — or signs in instead if it already exists.
   ///
-  /// The sign-in fallback covers two cases identically: Firebase Auth
-  /// reporting 'email-already-in-use' (a retry after a prior attempt's
-  /// Firestore writes failed partway), and consumeOtpVerification finding no
-  /// pending marker because an earlier attempt already consumed it and
-  /// created the account. Only when sign-in *also* fails does this propagate
-  /// as a genuine "verify your phone again" error.
+  /// The sign-in fallback covers three cases:
+  /// 1. consumeOtpVerification reported the phone's auth account already
+  ///    existed and just reset its password to [password] — sign in with it
+  ///    (the normal heal path for orphaned accounts).
+  /// 2. Firebase Auth reporting 'email-already-in-use' (a retry after a prior
+  ///    attempt's Firestore writes failed partway) with a matching password.
+  /// 3. consumeOtpVerification finding no pending marker because an earlier
+  ///    attempt already consumed it and created the account.
+  /// Only when sign-in *also* fails does case 3 propagate as a genuine
+  /// "verify your phone again" error, and case 2's credential failure is
+  /// remapped to 'email-already-in-use' so the UI can show the actionable
+  /// "account already exists" message instead of a generic one.
   Future<UserCredential> _createAuthAccountAfterOtp({
     required String phone,
     required String email,
     required String password,
   }) async {
+    final bool accountExisted;
     try {
-      await consumeOtpVerification(phone);
+      accountExisted = await consumeOtpVerification(
+        phone,
+        newPassword: password,
+      );
     } on FirebaseFunctionsException catch (otpError) {
       if (otpError.code != 'failed-precondition') rethrow;
       try {
@@ -339,6 +361,16 @@ class OnboardingRepository {
         throw otpError;
       }
     }
+    if (accountExisted) {
+      // The server just reset this phone's existing account to the PIN the
+      // user chose on this screen — signing in completes registration.
+      if (kDebugMode) {
+        debugPrint(
+          '[OnboardingRepository] orphaned auth account healed for $email',
+        );
+      }
+      return _signExistingAccount(email, password);
+    }
     try {
       return await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -346,7 +378,33 @@ class OnboardingRepository {
       );
     } on FirebaseAuthException catch (e) {
       if (e.code != 'email-already-in-use') rethrow;
-      return _auth.signInWithEmailAndPassword(email: email, password: password);
+      return _signExistingAccount(email, password);
+    }
+  }
+
+  /// Signs into an auth account that is known to exist, remapping credential
+  /// failures to 'email-already-in-use'. With email-enumeration protection a
+  /// missing account also reports 'invalid-credential', so without the remap
+  /// a genuine "this phone already has an account with a different password"
+  /// surfaced as the useless generic "Could not create your account" — this
+  /// is what [OnboardingNotifier._accountCreationErrorMessage] keys off for
+  /// the actionable "go back and sign in with your PIN" message.
+  Future<UserCredential> _signExistingAccount(
+    String email,
+    String password,
+  ) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        throw FirebaseAuthException(code: 'email-already-in-use');
+      }
+      rethrow;
     }
   }
 

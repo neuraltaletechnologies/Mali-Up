@@ -736,7 +736,17 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
     // Fire the first send automatically once this step mounts, mirroring how
     // every other onboarding step's primary action is user-visible from the
     // first frame rather than requiring an extra tap to "start".
-    WidgetsBinding.instance.addPostFrameCallback((_) => _send());
+    //
+    // Skipped when we arrived carrying an error — i.e. bounced back here
+    // after a failed registration attempt (e.g. "Phone verification
+    // expired"). Server-side sends are rate-limited (3 per 15 min per
+    // number, see functions/src/beem_otp.ts), so an automatic resend on
+    // every bounce immediately surfaced "Too many attempts" ON TOP of the
+    // real error and burned a send slot. The explicit resend button is the
+    // deliberate path instead.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.errorMessage == null) _send();
+    });
   }
 
   @override

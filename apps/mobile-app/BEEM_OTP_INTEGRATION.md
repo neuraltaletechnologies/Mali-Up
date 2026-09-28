@@ -55,9 +55,15 @@ Endpoints/field names were verified against Beem's own docs
    (30-minute TTL — long enough to finish the rest of onboarding).
 5. Immediately before creating the Firebase Auth account,
    `createNewUserAccount` / `createTeamMemberAccount` call
-   `consumeOtpVerification({ phone })`, which reads-and-deletes that marker
-   (one-time use) and throws `failed-precondition` if it's missing or
-   expired — the app then routes the user back to re-verify.
+   `consumeOtpVerification({ phone, newPassword? })`, which reads-and-deletes
+   that marker (one-time use) and throws `failed-precondition` if it's missing
+   or expired — the app then routes the user back to re-verify.
+   `newPassword` (the PIN-derived Firebase Auth password, passed only by the
+   pre-auth registration callers) additionally heals an orphaned
+   `{phone}@mali.up` auth account left behind by an earlier attempt: if one
+   exists, its password is reset to `newPassword` *before* the marker is
+   burned and the response returns `{ ok, accountExisted: true }`, so the
+   client can sign in instead of dead-ending on `email-already-in-use`.
 
 Firebase Auth account creation itself is a direct client SDK call with no
 server hook (no Blocking Functions / Identity Platform are used here), so
