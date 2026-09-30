@@ -1,3 +1,15 @@
-The otp si for Tanzania Number only 
+The otp si for the canties thta beam support only Number only 
 then the email is the same but this is done later when user has already login
 the image used should be real not ai
+The skip should work to sjip the whore toor also i want it to be visibale 
+on the top part under the status bar i awn the background to have a blury effect thta just a plane to see also the color of the status bar is to be white not black 
+also in the product details page user what to see more details abou the product like sale fro thta product also all re stocks details and date this is an online feature 
+in the app for a new user who has just doeloaded tha app i an i have the details 10 minutes after the user account has been cretaed i want to us on of the beeam sms to send him this Maelezo ya mteja mpya
+we will have to creat the windows app of the app fro the verticla view also 
+in table view the bottom navbar will be removed and the left with the 
+in table view the image should start on the top not the mobbdle 
+also in tablet mode horizontal the sde bar in taking more thna  half of the screen
+i notice in tbale t the app crashs 
+also make sure the windows app works 
+chnage the ratinhg rpopt to be jst after the firts sale and on the new update if the user has already done one sale ask him abou the rateing 
+also rmove the remove mtoion button and all it function in setting
