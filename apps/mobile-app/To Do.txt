@@ -13,3 +13,6 @@ i notice in tbale t the app crashs
 also make sure the windows app works 
 chnage the ratinhg rpopt to be jst after the firts sale and on the new update if the user has already done one sale ask him abou the rateing 
 also rmove the remove mtoion button and all it function in setting
+the website page the screen shot page should snyc weel with the flare 
+in the dashboard page to have beem page so thta i cna create cmapin automaticla in my admin page so i cna send cmapin message eitehr for xmass or fro new year and other 
+Add picture in the on baording screen  than just text 
