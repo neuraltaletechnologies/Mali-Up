@@ -513,7 +513,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 
       // ── Phase 1: Load names fast (no properties) ─────────────────────
       // This call is much faster and lets us show the list immediately.
-      final basicContacts = await FlutterContacts.getContacts();
+      final basicContacts = await FlutterContacts.getAll();
       if (!mounted) return;
 
       // ── Phase 2: Open picker with progressive property loading ────────
@@ -590,7 +590,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     var done = 0;
     var skipped = 0;
     for (final contact in contacts) {
-      final name = contact.displayName.trim();
+      final name = (contact.displayName ?? '').trim();
       final phone = await _resolveImportPhone(contact);
       if (name.isEmpty || phone.isEmpty) {
         done++;
@@ -736,7 +736,11 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         }
       }
 
-      final full = await FlutterContacts.getContact(contact.id);
+      if (contact.id == null) return '';
+      final full = await FlutterContacts.get(
+        contact.id!,
+        properties: {ContactProperty.phone},
+      );
       return full?.phones.firstOrNull?.number.trim() ?? '';
     } catch (_) {
       return '';
@@ -802,8 +806,8 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
       _filtered = q.isEmpty
           ? widget.allContacts
           : widget.allContacts.where((c) {
-              final name = c.displayName.toLowerCase();
-              final phone = (_phoneCache[c.id] ?? '').toLowerCase();
+              final name = (c.displayName ?? '').toLowerCase();
+              final phone = (_phoneCache[c.id ?? ''] ?? '').toLowerCase();
               return name.contains(q) || phone.contains(q);
             }).toList();
     });
@@ -816,7 +820,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
       } else {
         _selectedIds
           ..clear()
-          ..addAll(_filtered.map((c) => c.id));
+          ..addAll(_filtered.map((c) => c.id).whereType<String>());
       }
     });
   }
@@ -828,7 +832,10 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
       return _phoneCache[contactId]!;
     }
     try {
-      final full = await FlutterContacts.getContact(contactId);
+      final full = await FlutterContacts.get(
+        contactId,
+        properties: {ContactProperty.phone},
+      );
       final phone = full?.phones.firstOrNull?.number ?? '';
       if (mounted) {
         setState(() => _phoneCache[contactId] = phone);
@@ -968,9 +975,10 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                     itemCount: _filtered.length,
                     itemBuilder: (_, index) {
                       final contact = _filtered[index];
-                      final isSelected =
-                          _selectedIds.contains(contact.id);
-                      final cachedPhone = _phoneCache[contact.id];
+                      final id = contact.id ?? '';
+                      final displayName = contact.displayName ?? '';
+                      final isSelected = _selectedIds.contains(id);
+                      final cachedPhone = _phoneCache[id];
 
                       return CheckboxListTile(
                         value: isSelected,
@@ -979,21 +987,21 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                         onChanged: (_) {
                           setState(() {
                             if (isSelected) {
-                              _selectedIds.remove(contact.id);
+                              _selectedIds.remove(id);
                             } else {
-                              _selectedIds.add(contact.id);
+                              _selectedIds.add(id);
                               // Eagerly resolve phone when selected.
                               if (cachedPhone == null) {
-                                _resolvePhone(contact.id);
+                                _resolvePhone(id);
                               }
                             }
                           });
                         },
                         title: Text(
-                          contact.displayName.isEmpty
+                          displayName.isEmpty
                               ? _tr('Unnamed contact',
                                   'Mawasiliano bila jina')
-                              : contact.displayName,
+                              : displayName,
                           style: GoogleFonts.dmSans(
                               fontWeight: FontWeight.w600,
                               fontSize: 14),
@@ -1006,7 +1014,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                                         fontSize: 12,
                                         color: AppColors.textMuted)))
                             : FutureBuilder<String>(
-                                future: _resolvePhone(contact.id),
+                                future: _resolvePhone(id),
                                 builder: (_, snap) {
                                   final phone = snap.data ?? '';
                                   return phone.isEmpty

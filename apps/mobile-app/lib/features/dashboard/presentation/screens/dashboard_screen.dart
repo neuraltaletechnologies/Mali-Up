@@ -196,14 +196,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     setState(() => _showEntryReward = false);
   }
 
+  /// The `pending_website_interest` flag is deliberately kept set (not
+  /// cleared here right away) all the way through the delay below AND while
+  /// the sheet itself is showing — only cleared once the user has actually
+  /// finished with it. MainShellPage's nav tour polls this same flag before
+  /// it ever starts (see its own _maybeStartOnboardingTour), so the two
+  /// can't show at once: a user who just said yes to "build me a website"
+  /// during onboarding sees that sheet resolved first, and only then does
+  /// the walkthrough begin.
   Future<void> _checkWebsiteInterestNudge() async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool('pending_website_interest') ?? false;
     if (!pending || !mounted) return;
-    await prefs.remove('pending_website_interest');
     await Future.delayed(const Duration(milliseconds: 2200));
-    if (!mounted) return;
-    showAppSheet<void>(context, builder: (_) => const _WebsiteInterestSheet());
+    if (!mounted) {
+      await prefs.remove('pending_website_interest');
+      return;
+    }
+    await showAppSheet<void>(
+      context,
+      builder: (_) => const _WebsiteInterestSheet(),
+    );
+    await prefs.remove('pending_website_interest');
   }
 
   /// Soft-ask for a Play Store rating, gated by [AppRatingService] so it
@@ -517,15 +531,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${_timeBasedGreeting()}, ${_displayName(_profile)} 👋',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.secondary,
-                                    height: 1.2,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${_timeBasedGreeting()}, ${_displayName(_profile)}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.secondary,
+                                          height: 1.2,
+                                        ),
                                   ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('👋', style: TextStyle(fontSize: 20)),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(

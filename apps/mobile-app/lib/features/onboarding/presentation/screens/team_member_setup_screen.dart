@@ -322,45 +322,60 @@ class _TeamMemberSetupScreenState extends ConsumerState<TeamMemberSetupScreen>
                                     ),
                                   ),
                               child: _showPinSetup
-                                  ? _PinSetupBody(
-                                      key: ValueKey('pin_$_onConfirmStep'),
-                                      sw: sw,
-                                      emailCtrl: _emailCtrl,
-                                      pinCtrl: _pinCtrl,
-                                      confirmCtrl: _confirmCtrl,
-                                      pinFocus: _pinFocus,
-                                      confirmFocus: _confirmFocus,
-                                      onConfirmStep: _onConfirmStep,
-                                      emailHasError: _emailHasError,
-                                      pinHasError: _pinHasError,
-                                      confirmHasError: _confirmHasError,
-                                      isLoading: state.isLoading,
-                                      isOnline: isOnline,
-                                      errorMessage: state.errorMessage,
-                                      onEmailChanged: (_) {
-                                        if (_emailHasError) {
-                                          setState(
-                                            () => _emailHasError = false,
-                                          );
-                                        }
-                                      },
-                                      onPinChanged: (_) {
-                                        if (_pinHasError) {
-                                          setState(() => _pinHasError = false);
-                                        }
-                                      },
-                                      onConfirmChanged: (_) {
-                                        if (_confirmHasError) {
-                                          setState(
-                                            () => _confirmHasError = false,
-                                          );
-                                        }
-                                      },
-                                      onPinComplete: _advanceToConfirm,
-                                      onConfirmComplete: _savePin,
-                                      onPinSubmit: _advanceToConfirm,
-                                      onConfirmSubmit: _savePin,
-                                    )
+                                  ? (!state.otpVerified
+                                      ? OtpVerifyBody(
+                                          key: const ValueKey('otp'),
+                                          sw: sw,
+                                          phone: state.phone,
+                                          isLoading: state.isLoading,
+                                          isOnline: isOnline,
+                                          errorMessage: state.errorMessage,
+                                          onSend: () => ref
+                                              .read(onboardingNotifierProvider.notifier)
+                                              .sendOtp(),
+                                          onVerify: (code) => ref
+                                              .read(onboardingNotifierProvider.notifier)
+                                              .verifyOtp(code),
+                                        )
+                                      : _PinSetupBody(
+                                          key: ValueKey('pin_$_onConfirmStep'),
+                                          sw: sw,
+                                          emailCtrl: _emailCtrl,
+                                          pinCtrl: _pinCtrl,
+                                          confirmCtrl: _confirmCtrl,
+                                          pinFocus: _pinFocus,
+                                          confirmFocus: _confirmFocus,
+                                          onConfirmStep: _onConfirmStep,
+                                          emailHasError: _emailHasError,
+                                          pinHasError: _pinHasError,
+                                          confirmHasError: _confirmHasError,
+                                          isLoading: state.isLoading,
+                                          isOnline: isOnline,
+                                          errorMessage: state.errorMessage,
+                                          onEmailChanged: (_) {
+                                            if (_emailHasError) {
+                                              setState(
+                                                () => _emailHasError = false,
+                                              );
+                                            }
+                                          },
+                                          onPinChanged: (_) {
+                                            if (_pinHasError) {
+                                              setState(() => _pinHasError = false);
+                                            }
+                                          },
+                                          onConfirmChanged: (_) {
+                                            if (_confirmHasError) {
+                                              setState(
+                                                () => _confirmHasError = false,
+                                              );
+                                            }
+                                          },
+                                          onPinComplete: _advanceToConfirm,
+                                          onConfirmComplete: _savePin,
+                                          onPinSubmit: _advanceToConfirm,
+                                          onConfirmSubmit: _savePin,
+                                        ))
                                   : _InvitationBody(
                                       key: const ValueKey('invite'),
                                       sw: sw,

@@ -170,7 +170,7 @@ importers:
         specifier: ^13.4.10
         version: 13.5.11(eslint@8.57.1(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.7.3)
       postcss:
-        specifier: ^8.5.23
+        specifier: ^8.5.18
         version: 8.5.23
       tailwindcss:
         specifier: ^4.2.0

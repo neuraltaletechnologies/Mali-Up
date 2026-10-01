@@ -87,4 +87,26 @@ class BusinessProductConfig {
         return isSwahili ? 'Jina la Bidhaa' : 'Product Name';
     }
   }
+
+  /// Example placeholder shown in the product-name field. Kept per-vertical
+  /// so a pharmacy (etc.) isn't shown an unrelated grocery example like
+  /// "Unga wa mahindi" (maize flour).
+  static String productNameHint(String businessType, {bool isSwahili = false}) {
+    switch (businessType.toLowerCase()) {
+      case 'pharmacy':
+      case 'health':
+        return isSwahili ? 'k.m. Panadol 500mg' : 'e.g. Panadol 500mg';
+      case 'restaurant':
+      case 'food_beverages':
+        return isSwahili ? 'k.m. Chipsi Kuku' : 'e.g. Chicken and Chips';
+      case 'electronics':
+        return isSwahili
+            ? 'k.m. Simu ya Samsung A14'
+            : 'e.g. Samsung A14 Phone';
+      case 'agriculture':
+        return isSwahili ? 'k.m. Mbolea ya NPK 50kg' : 'e.g. NPK Fertilizer 50kg';
+      default:
+        return isSwahili ? 'k.m. Unga wa mahindi 2kg' : 'e.g. Maize Flour 2kg';
+    }
+  }
 }

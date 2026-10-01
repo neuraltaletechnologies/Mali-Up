@@ -43,7 +43,7 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.add_circle_outline_rounded,
-            label: _tr('Create Custom', 'Unda Mwenyewe'),
+            label: _tr('New Product', 'Bidhaa Mpya'),
             onTap: () {
               Navigator.of(context).pop();
               onCreateCustom();
@@ -53,7 +53,7 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.assignment_return_outlined,
-            label: _tr('Customer Return', 'Bidhaa Iliyorudishwa'),
+            label: _tr('Product Return', 'Kurudisha Bidhaa'),
             onTap: () {
               Navigator.of(context).pop();
               onCreateReturn?.call();

@@ -266,6 +266,43 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                 ),
                               ),
                             ),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.08, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: state.otpRequiredForLogin && !state.otpVerified
+                                  ? OtpVerifyBody(
+                                      key: const ValueKey('otp'),
+                                      sw: sw,
+                                      phone: state.phone,
+                                      isLoading: state.isLoading,
+                                      isOnline: isOnline,
+                                      errorMessage: state.errorMessage,
+                                      onSend: () => ref
+                                          .read(onboardingNotifierProvider.notifier)
+                                          .sendOtp(),
+                                      // Just verifies — loginWithPin (still
+                                      // ahead of us, see the PIN step below)
+                                      // is what actually completes sign-in.
+                                      onVerify: (code) => ref
+                                          .read(onboardingNotifierProvider.notifier)
+                                          .verifyOtp(code),
+                                    )
+                                  : Column(
+                            key: const ValueKey('pin'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             // Greeting heading
                             Center(
                               child: Text(
@@ -468,6 +505,9 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               ),
                             ),
                             const SizedBox(height: 24),
+                            ],
+                                    ),
+                            ),
                           ],
                         ),
                       ),
@@ -763,14 +803,21 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           const SheetHandle(),
           const SizedBox(height: 12),
 
-          Text(
-            sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
-            style: GoogleFonts.dmSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                sw ? 'Msaada wa PIN' : 'PIN Recovery',
+                style: GoogleFonts.dmSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('🔐', style: TextStyle(fontSize: 20)),
+            ],
           ),
           const SizedBox(height: 10),
 

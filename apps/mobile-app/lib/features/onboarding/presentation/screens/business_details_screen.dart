@@ -662,8 +662,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                               _LocationRow(
                                 icon: Icons.public_rounded,
                                 label: sw ? 'Nchi' : 'Country',
-                                value:
-                                    '${_countryObj.flag}  ${_countryObj.name}',
+                                value: _countryObj.name,
+                                flag: _countryObj.flag,
                                 onTap: () => _pickCountry(sw),
                               ),
                               const SizedBox(height: 10),
@@ -997,6 +997,7 @@ class _LocationRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.value,
+    this.flag,
     this.placeholder,
     this.disabled = false,
     this.loading = false,
@@ -1005,6 +1006,7 @@ class _LocationRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? value;
+  final String? flag;
   final String? placeholder;
   final bool disabled;
   final bool loading;
@@ -1056,18 +1058,30 @@ class _LocationRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    value ?? placeholder ?? '',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight:
-                          hasValue ? FontWeight.w600 : FontWeight.w400,
-                      color: disabled
-                          ? AppColors.textDisabled
-                          : hasValue
-                              ? AppColors.navyPrimary
-                              : AppColors.textDisabled,
-                    ),
+                  Row(
+                    children: [
+                      if (flag != null && hasValue) ...[
+                        Text(flag!, style: const TextStyle(fontSize: 15)),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          value ?? placeholder ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: hasValue
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: disabled
+                                ? AppColors.textDisabled
+                                : hasValue
+                                    ? AppColors.navyPrimary
+                                    : AppColors.textDisabled,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

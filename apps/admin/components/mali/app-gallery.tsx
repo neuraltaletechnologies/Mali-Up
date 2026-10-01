@@ -6,9 +6,9 @@ import NextImage from "next/image"
 
 const screens = [
   {
-    src: "/app-dashboard.jpg",
-    alt: "Mali Up main dashboard with revenue chart and business overview",
-    label: "Dashboard",
+    src: "/app-login.jpg",
+    alt: "Mali Up login screen",
+    label: "Login",
     color: "#F5A623",
     angle: "-8deg",
     zIndex: 4,

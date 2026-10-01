@@ -13,7 +13,7 @@ import '../../../../core/services/localization_service.dart';
 abstract final class OnboardingValidator {
   // ─── PHONE ────────────────────────────────────────────────────────────────
 
-  /// Accepts any of:  +255XXXXXXXXX  |  07XXXXXXXX  |  06XXXXXXXX
+  /// Accepts local formats (e.g. 07XXXXXXXX) or international numbers (e.g. +255..., +254..., etc.).
   /// Strips spaces, dashes, and parentheses before matching.
   static String? validatePhone(String phone, {bool isSwahili = false}) {
     final cleaned = _strip(phone);
@@ -22,12 +22,11 @@ abstract final class OnboardingValidator {
           en: 'Phone number is required.',
           sw: 'Namba ya simu inahitajika.');
     }
-    // Must be a valid Tanzanian mobile number.
-    final ok = RegExp(r'^(\+255|0)(6|7)\d{8}$').hasMatch(cleaned);
-    if (!ok) {
+    final digits = cleaned.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 8 || digits.length > 15) {
       return _t(isSwahili,
-          en: 'Enter a valid Tanzania number (+255 or 07/06 followed by 8 digits).',
-          sw: 'Ingiza namba sahihi ya Tanzania (+255 au 07/06 ikifuatiwa na tarakimu 8).');
+          en: 'Enter a valid phone number (8–15 digits).',
+          sw: 'Ingiza namba sahihi ya simu (tarakimu 8–15).');
     }
     return null;
   }
@@ -63,14 +62,13 @@ abstract final class OnboardingValidator {
     return null;
   }
 
-  /// Converts any local format to E.164 (+255XXXXXXXXX).
+  /// Converts any phone format to E.164 (+[countryCode][nationalNumber]).
   static String normalisePhone(String phone) {
     final cleaned = _strip(phone);
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.startsWith('00')) return '+${cleaned.substring(2)}';
     if (cleaned.startsWith('0')) return '+255${cleaned.substring(1)}';
-    if (cleaned.startsWith('255') && !cleaned.startsWith('+')) {
-      return '+$cleaned';
-    }
-    return cleaned; // already +255...
+    return '+$cleaned';
   }
 
   // ─── NAME ─────────────────────────────────────────────────────────────────

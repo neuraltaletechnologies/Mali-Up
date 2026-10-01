@@ -25,8 +25,30 @@ void main() {
       );
     });
 
+    test('returns legacy Firestore lookup variants for international numbers', () {
+      expect(
+        PhoneNumberUtils.lookupVariants('+254712345678'),
+        containsAll(<String>[
+          '254712345678',
+          '+254712345678',
+          '0712345678',
+          '712345678',
+        ]),
+      );
+      expect(
+        PhoneNumberUtils.lookupVariants('+256772123456'),
+        containsAll(<String>[
+          '256772123456',
+          '+256772123456',
+          '0772123456',
+          '772123456',
+        ]),
+      );
+    });
+
     test('derives auth email from the canonical phone', () {
       expect(PhoneNumberUtils.authEmail('0784735111'), '255784735111@mali.up');
+      expect(PhoneNumberUtils.authEmail('+254712345678'), '254712345678@mali.up');
     });
   });
 }
