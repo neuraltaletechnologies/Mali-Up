@@ -183,7 +183,15 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     if (!mounted) return;
     if (!_formKey.currentState!.validate()) return;
 
-    final local = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    var local = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (local.startsWith('00')) local = local.substring(2);
+    if (local.startsWith('+')) {
+      local = local.substring(1);
+    }
+    final dialDigits = _country.dial.replaceAll(RegExp(r'\D'), '');
+    if (local.startsWith(dialDigits)) {
+      local = local.substring(dialDigits.length);
+    }
     final stripped = local.replaceFirst(RegExp(r'^0+'), '');
     final phone = '${_country.dial}$stripped';
 
@@ -700,7 +708,9 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                         color: AppColors.navyPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: '7XX XXX XXX',
+                        hintText: widget.country.dial == '+255'
+                            ? '7XX XXX XXX'
+                            : 'XXX XXX XXX',
                         hintStyle: GoogleFonts.dmSans(
                           fontSize: 15,
                           color: AppColors.textDisabled,

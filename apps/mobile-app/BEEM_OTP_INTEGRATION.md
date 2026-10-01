@@ -74,24 +74,35 @@ otherwise client-state-driven (see `routing.dart`'s `_redirect`).
 ## Setup
 
 1. Create a free account at https://login.beem.africa, verify email + phone.
-2. **OTP → Applications** → create a new application, channel **Tanzania
-   SMS**, pin length **6 digits** (must match
-   `OnboardingValidator.validateOtp` and `OtpVerifyBody`'s 6-digit input).
-   Copy the **Application ID**.
+2. **Multi-Country OTP Setup (All Supported African Countries)**:
+   - For Tanzania-only SMS, the default channel is **Tanzania SMS**.
+   - To send OTP and SMS to **all countries supported by Beem Africa** (Kenya, Uganda, Rwanda, Nigeria, South Africa, etc.):
+     - Go to your Beem profile settings -> **International API** and ensure credentials are set up.
+     - In **OTP → Applications**, create or edit your application, selecting **International API** (or Multi-Country SMS) as the channel.
+     - Set pin length to **6 digits** (must match `OnboardingValidator.validateOtp` and `OtpVerifyBody`'s 6-digit input).
+     - Copy the **Application ID** and set it as `BEEM_OTP_APP_ID`.
 3. **OTP → SMS Templates** → create and get an SMS OTP template approved with
    an approved Sender ID (Beem rejects OTP sends from an unapproved template
    or Sender ID).
-4. **OTP → API Setup** → Generate API Key & Secret (the secret is shown once
+4. **Welcome SMS Template ("Maelezo ya mteja mpya")**:
+   - In Beem dashboard -> **SMS Templates**, create or configure the template named:
+     `Maelezo ya mteja mpya`
+   - Content:
+     `Habari!! {name} Tumekukalibishe kishupavu zaidi na Ofa ya Free plan kwenye account yako Kwa huduma ya kukuhamishia taarifa zako zote kwenye App, msadaa au changamoto yoyote Piga +255-653-520-829`
+   - Note: The Cloud Function fetches this template dynamically from Beem's API (`GET /public/v1/sms-templates`). Whenever you update the wording, offer, or phone number in Beem, it automatically syncs and uses the new template without redeploying code.
+   - Timing: Sent 5 minutes after a user account is created.
+   - Existing users: Automatically detects users in Firestore who have not yet received the welcome message and delivers it to them.
+5. **OTP → API Setup** → Generate API Key & Secret (the secret is shown once
    — store it now).
-5. Set the two real secrets (never in `.env`, never committed):
+6. Set the two real secrets (never in `.env`, never committed):
    ```bash
    firebase functions:secrets:set BEEM_API_KEY
    firebase functions:secrets:set BEEM_SECRET_KEY
    ```
-6. Copy `functions/.env.example` to `functions/.env` and set
-   `BEEM_OTP_APP_ID` to the Application ID from step 2 (not secret, but
-   required — deploy fails closed with `internal` if unset).
-7. `firebase deploy --only functions,firestore:rules`.
+7. Copy `functions/.env.example` to `functions/.env`:
+   - Set `BEEM_OTP_APP_ID` to the Application ID from step 2.
+   - Set `BEEM_SMS_SENDER_ID` to your approved Beem Sender ID (e.g. `INFO` or your brand name).
+8. `firebase deploy --only functions,firestore:rules`.
 
 For local emulator testing, mirror the two secret names in
 `functions/.secret.local` (gitignored) per the existing convention in
