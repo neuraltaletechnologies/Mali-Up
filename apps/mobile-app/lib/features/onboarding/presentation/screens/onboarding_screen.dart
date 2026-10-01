@@ -33,49 +33,48 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AppLanguage _language;
   // ── Slide data ──────────────────────────────────────────────────────────────
 
-  static const _slides = [
-    _SlideData(
-      titleEn: 'Works perfectly,\neven offline.',
-      titleSw: 'Inafanya kazi vizuri,\nhata bila mtandao.',
-      bodyEn:
-          'Mali Up saves everything on your phone first. No internet? No problem — your sales, invoices, and stock keep updating, then sync automatically once you\'re back online.',
-      bodySw:
-          'Mali Up huhifadhi kila kitu kwenye simu yako kwanza. Huna mtandao? Si tatizo — mauzo, ankara, na hifadhi yako yanaendelea kusasishwa, kisha yanasawazishwa kiotomatiki mtandao ukirudi.',
-    ),
-    _SlideData(
-      titleEn: 'Make confident\nbusiness decisions.',
-      titleSw: 'Fanya maamuzi ya\nbiashara kwa ujasiri.',
-      bodyEn:
-          'Understand your money, sales, and business performance clearly with real-time insights.',
-      bodySw:
-          'Elewa pesa yako, mauzo, na utendaji wa biashara kwa uwazi kwa kutumia taarifa za wakati halisi.',
-    ),
-    _SlideData(
-      titleEn: 'Spend less time\nwriting things down.',
-      titleSw: 'Tumia muda mchache\nkuandika mambo.',
-      bodyEn:
-          'Automate your invoices, inventory updates, and payment tracking in one seamless ecosystem.',
-      bodySw:
-          'Otomatisha ankara, masasisho ya hifadhi, na ufuatiliaji wa malipo katika mfumo mmoja madhubuti.',
-    ),
-    _SlideData(
-      titleEn: 'Speaks your language,\nliterally.',
-      titleSw: 'Inaongea lugha yako,\nkihalisi.',
-      bodyEn:
-          'Fully bilingual in Kiswahili and English, switch anytime. Built specifically for the way African businesses actually operate.',
-      bodySw:
-          'Inapatikana kikamilifu kwa Kiswahili na Kiingereza, badilisha wakati wowote. Imeundwa maalum kwa jinsi biashara za Afrika zinavyofanya kazi.',
-    ),
-    _SlideData(
-      titleEn: 'Your data,\nlocked down.',
-      titleSw: 'Taarifa zako,\nzimelindwa.',
-      bodyEn:
-          'A secure PIN keeps your business safe, even if someone else picks up your phone.',
-      bodySw:
-          'PIN salama inalinda biashara yako, hata kama mtu mwingine akishika simu yako.',
-    ),
-  ];
-
+static const _slides = [
+  _SlideData(
+    titleEn: 'NO INTERNET?',
+    titleSw: 'HUNA MTANDAO?',
+    bodyEn:
+        'Keep selling, recording sales, and managing stock offline. Everything syncs automatically when you’re back online.',
+    bodySw:
+        'Endelea kuuza, kurekodi mauzo na kusimamia hifadhi bila mtandao. Kila kitu kitasawazishwa mtandao ukirudi.',
+  ),
+  _SlideData(
+    titleEn: 'LOST IN NUMBERS?',
+    titleSw: 'HUJUI BIASHARA YAKO?',
+    bodyEn:
+        'See your sales, money, and business performance clearly with real-time insights.',
+    bodySw:
+        'Ona mauzo, pesa na mwenendo wa biashara yako kwa urahisi kupitia taarifa za wakati halisi.',
+  ),
+  _SlideData(
+    titleEn: 'TOO MUCH WRITING?',
+    titleSw: 'UNAANDIKA SANA?',
+    bodyEn:
+        'Create invoices, update stock, and track payments without doing everything manually.',
+    bodySw:
+        'Tengeneza ankara, sasisha hifadhi na fuatilia malipo bila kufanya kila kitu kwa mkono.',
+  ),
+  _SlideData(
+    titleEn: 'LANGUAGE PROBLEM?',
+    titleSw: 'LUGHA INAKUSUMBUA?',
+    bodyEn:
+        'Use Mali Up in Kiswahili or English. Switch languages anytime to work the way you prefer.',
+    bodySw:
+        'Tumia Mali Up kwa Kiswahili au Kiingereza. Badilisha lugha wakati wowote unapotaka.',
+  ),
+  _SlideData(
+    titleEn: 'WORRIED ABOUT YOUR DATA?',
+    titleSw: 'UNAOGOPA TAARIFA ZAKO?',
+    bodyEn:
+        'Protect your business with a secure PIN, even when someone else has your phone.',
+    bodySw:
+        'Linda biashara yako kwa PIN salama, hata mtu mwingine akiwa na simu yako.',
+  ),
+];
   @override
   void initState() {
     super.initState();

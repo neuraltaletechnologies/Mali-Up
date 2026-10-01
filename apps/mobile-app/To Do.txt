@@ -16,3 +16,13 @@ also rmove the remove mtoion button and all it function in setting
 the website page the screen shot page should snyc weel with the flare 
 in the dashboard page to have beem page so thta i cna create cmapin automaticla in my admin page so i cna send cmapin message eitehr for xmass or fro new year and other 
 Add picture in the on baording screen  than just text 
+the enter number the focus should not be inside the number but the whole back boarder 
+paging in y directioin ofr the bottom navbar lokk too small
+The glistched in iht toour also 
+add some tetx nin the wating ussd code  thta hjuts the paymentb
+maure sure you balance the status pill 
+
+
+Done 
+
+
