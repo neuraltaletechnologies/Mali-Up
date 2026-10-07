@@ -1,4 +1,4 @@
-The otp si for the canties thta beam support only Number only 
+iThe otp si for the coanties thta beam support only Number only 
 then the email is the same but this is done later when user has already login
 the image used should be real not ai
 The skip should work to sjip the whore toor also i want it to be visibale 
@@ -18,15 +18,16 @@ in the dashboard page to have beem page so thta i cna create cmapin automaticla 
 Add picture in the on baording screen  than just text 
 the enter number the focus should not be inside the number but the whole back boarder 
 paging in y directioin ofr the bottom navbar lokk too small
-The glistched in iht toour also 
+The glitch in iht tour placement also 
 add some tetx nin the wating ussd code  thta hjuts the paymentb
-maure sure you balance the status pill 
+maure sure you balance the status pill  width
 5 minutes is alot of time  cna you make a minute after also how can i check if the SMS Templatewas working or sent
 so the amdin notifictaion has email notification in app anotifictaion and message notifictaion fro each i cna cretae cmapins also the atuo genertae in bem i want it to be available of template 
-implment the email verificaton system
+implment the email verificaton system add resend also
 for the invited tema member when the oner just creates a tema mbember the htne automatic the message is sen to thta number to notify that user his account is created in the business hwich thta owner has a nd role an d url to dowload it the app
 in all the user who are still in feee plan at the edn of every two month in th e admin page should have a notifictaion that i am reqired to send a reminder to all user thatare still in free plan to upgrade to  get better usage and unclok poten o r having nay problems notify and call but its should not be automatic i go an chskc and choose to whom to send 
 in the amdin page the user page when i click it i see business o while each user has it own business also is is impossible fro user to have no businees so user cannot delet busines in the app or even in the admin is attached to a user unless thta user has multiple busine of which he mya still own 
+
 
 also in the admin page if sesion expire it should not only say una utjorized acces it hsoul d acutan send hime back to the login page 
  i the Assign Plan to Business i can search by name and business also also show them
@@ -40,9 +41,24 @@ Firestore
 1368ms p95
  is degrading  also add the beema System Health)
 
+ app iso or compliance certification
+
  does the Version Gate
 Block or nudge users on old app builds to update. Build numbers are the +N in the app's version (e.g. 1.1.0+2 → 2). work is ther away instaded of enering i cna see all production version thta re ther i cn a just chekc to make it easy thta enetriung the number 
 
+after one sell foce the app for review sent to playsore with out leaving the ap
+
 Done 
 
+after email verlification i wahve to use resend to store and use them for promotion and reminder and send them in voice after payment or subscription is email not verfied yet send the verification via beem sms
 
+For reset password use beem otp but sy  a you reset passowrd opt is and for the ligin sya ot sig  up otp is o t the same page he enter the opt new password and it confirmation pasword also send via email also if possibel                                                                                                       
+
+in the admin page the export details of user has no phon number and fix the business each user has one business alsready also the out put cxv fro business does no show the owner and phone number 
+
+the app should be able to function also in a pos system when installed also fro a simple one ahdeed on and also the two sreeen pages also 
+
+find the way to fix with the vfd also  but cna cost baout 1M and other yearly cost  or have another vfd softnewere thta is a dublicated 
+
+
+i want to change the pipeline when i push to production i want the app to go to closed testing 
