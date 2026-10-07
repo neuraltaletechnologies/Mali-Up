@@ -54,7 +54,7 @@ const jsonLd = {
       '@type': 'MobileApplication',
       '@id': `${BASE_URL}/#app`,
       name: 'Mali Up',
-      alternateName: 'MaliUp',
+      alternateName: 'Mali Up',
       description:
         'ERP ya simu kwa biashara ndogo za Tanzania — mauzo, ankara, bidhaa, fedha na wateja katika programu moja.',
       applicationCategory: 'BusinessApplication',

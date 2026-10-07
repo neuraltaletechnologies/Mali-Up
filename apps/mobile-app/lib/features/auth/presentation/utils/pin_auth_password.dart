@@ -8,7 +8,7 @@ import 'package:crypto/crypto.dart';
 /// by itself make PIN login resistant to brute force — that protection comes
 /// from app-level attempt throttling (see `SecurityService`/`PinAttemptGuard`)
 /// and Firebase's own per-account rate limiting. What this function fixes is
-/// the previous scheme (`'MaliUp#$pin@2026'`), which was a single fixed
+/// the previous scheme (`'Mali Up#$pin@2026'`), which was a single fixed
 /// template shared by every account: knowing the algorithm let anyone
 /// recompute *any* user's password from the PIN alone, with no per-account
 /// variation at all. Salting with the phone number ties the derived password
@@ -29,4 +29,4 @@ String buildAuthPasswordFromPin({required String phone, required String pin}) {
 /// the client binary — it only prevents casual reuse of the old, fully
 /// public template, and the phone-number salt is what removes the
 /// one-template-fits-all flaw.
-const _pepper = 'MaliUp::Auth::v2::2026::9f3a7c1e2b6d4f81';
+const _pepper = 'Mali Up::Auth::v2::2026::9f3a7c1e2b6d4f81';

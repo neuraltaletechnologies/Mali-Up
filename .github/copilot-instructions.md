@@ -1,7 +1,7 @@
-# Copilot Instructions for MaliUp
+# Copilot Instructions for Mali Up
 
 ## Project Overview
-- **MaliUp** is a modular SaaS business management platform for African SMEs, built with a microservices architecture.
+- **Mali Up** is a modular SaaS business management platform for African SMEs, built with a microservices architecture.
 - The system is composed of multiple independent services (auth, client, inventory, sales, payment, notification, reporting), each as a NestJS (Node.js/TypeScript) microservice.
 - The frontend consists of a Flutter mobile app and a Next.js/React web dashboard.
 - All services interact with a centralized, multi-tenant PostgreSQL database.

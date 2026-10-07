@@ -312,7 +312,7 @@ export default function LoginPage() {
                 priority
               />
               <span style={{ fontSize: 17, fontWeight: 700, color: '#0C1B2E', letterSpacing: '-0.01em' }}>
-                Mali<span style={{ color: '#F5A623' }}>Up</span>
+                Mali<span style={{ color: '#F5A623' }}> Up</span>
               </span>
             </div>
             <div

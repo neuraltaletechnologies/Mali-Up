@@ -51,7 +51,7 @@ export function Footer() {
                 className="rounded-xl shadow-lg logo-heartbeat"
               />
               <span className="font-heading font-bold text-[#0C1B2E] text-lg tracking-tight">
-                Mali<span style={{ color: "#F5A623" }}>Up</span>
+                Mali<span style={{ color: "#F5A623" }}> Up</span>
               </span>
             </div>
             <p className="text-[#0C1B2E]/60 text-sm leading-relaxed max-w-xs">

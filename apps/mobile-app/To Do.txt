@@ -62,3 +62,5 @@ find the way to fix with the vfd also  but cna cost baout 1M and other yearly co
 
 
 i want to change the pipeline when i push to production i want the app to go to closed testing 
+
+use the Firebase Analyticsto look and find why most user get stuck in any anction and hwy user are always stuck in free plan

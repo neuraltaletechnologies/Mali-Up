@@ -21,7 +21,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             _buildSection(
               title: 'Introduction',
               content:
-                  'MaliUp ("we," "us," or "our") operates the MaliUp mobile and web application. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.',
+                  'Mali Up ("we," "us," or "our") operates the Mali Up mobile and web application. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.',
             ),
             _buildSection(
               title: '1. Information Collection and Use',
@@ -47,7 +47,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             _buildSection(
               title: '4. Use of Data',
               content:
-                  'MaliUp uses the collected data for various purposes:\n\n'
+                  'Mali Up uses the collected data for various purposes:\n\n'
                   '• To provide and maintain our Service\n'
                   '• To notify you about changes to our Service\n'
                   '• To allow you to participate in interactive features of our Service\n'

@@ -1,7 +1,7 @@
 {
   "name": "auth-service",
   "version": "1.0.0",
-  "description": "Microservice responsible for high-security authentication and authorization across the MaliUp ecosystem.",
+  "description": "Microservice responsible for high-security authentication and authorization across the Mali Up ecosystem.",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
