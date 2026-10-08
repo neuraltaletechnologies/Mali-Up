@@ -490,3 +490,57 @@ export interface VersionGateConfig {
   messageEn: string
   messageSw: string
 }
+
+// ─── Beem Africa SMS & Campaign Types ────────────────────────────────────────
+
+export type SmsCampaignType =
+  | 'christmas'
+  | 'new_year'
+  | 'eid'
+  | 'promotion'
+  | 'retention'
+  | 'feature_update'
+  | 'welcome_promo'
+  | 'custom'
+
+export type SmsCampaignAudienceKind =
+  | 'all'
+  | 'business_category'
+  | 'plan_tier'
+  | 'selected_businesses'
+  | 'custom_numbers'
+
+export interface SmsCampaignAudience {
+  kind: SmsCampaignAudienceKind
+  category?: string
+  categoryName?: string
+  planTier?: PlanTier
+  businessIds?: string[]
+  businessNames?: string[]
+  customNumbers?: string[]
+}
+
+export type SmsCampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'partially_failed' | 'failed' | 'cancelled'
+
+export interface BeemSmsCampaign {
+  id: string
+  name: string
+  campaignType: SmsCampaignType
+  senderId: string
+  message: string
+  messageSw?: string
+  audience: SmsCampaignAudience
+  status: SmsCampaignStatus
+  targetCount: number
+  sentCount: number
+  failedCount: number
+  smsPartsCount: number
+  estimatedCredits: number
+  scheduledAt?: string
+  sentAt?: string
+  createdAt: string
+  createdByAdminId: string
+  createdByAdminName: string
+  failedRecipients?: { phone: string; reason: string }[]
+}
+

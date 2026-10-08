@@ -156,11 +156,25 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
+  void retreatToWelcome() {
+    state = state.copyWith(
+      currentStep: OnboardingStep.welcome,
+      clearError: true,
+    );
+  }
+
   // ─── SCREEN 2 — INTRO SLIDES ─────────────────────────────────────────────
 
   void advanceFromIntro() {
     state = state.copyWith(
       currentStep: OnboardingStep.phoneEntry,
+      clearError: true,
+    );
+  }
+
+  void retreatToIntro() {
+    state = state.copyWith(
+      currentStep: OnboardingStep.intro,
       clearError: true,
     );
   }

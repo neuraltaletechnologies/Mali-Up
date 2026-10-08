@@ -255,7 +255,12 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   /// slides during normal onboarding. The "switch account" flow has no
   /// on-screen back button, so drop the user back on the dashboard.
   void _handleSystemBack() {
-    context.go(widget.isSwitchAccount ? AppRoutes.dashboard : AppRoutes.intro);
+    if (widget.isSwitchAccount) {
+      context.go(AppRoutes.dashboard);
+    } else {
+      ref.read(onboardingNotifierProvider.notifier).retreatToIntro();
+      context.go(AppRoutes.intro);
+    }
   }
 
   @override

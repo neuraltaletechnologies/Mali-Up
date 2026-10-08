@@ -33,7 +33,7 @@ export function Nav() {
   const links = [
     { label: "Features",     href: "#features" },
     { label: "How It Works", href: "#how-it-works" },
-    { label: "Modules",      href: "#modules" },
+    { label: "Pricing",      href: "#pricing" },
     { label: "Stats",        href: "#stats" },
   ]
 

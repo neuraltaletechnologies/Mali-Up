@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
-import { Send, Search, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { useCallback, useMemo, useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { Send, Search, AlertCircle, CheckCircle2, Clock, MessageSquare, Bell } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
+import { Tabs } from '@/components/ui/tabs'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { StatusDot } from '@/components/ui/status-dot'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -11,6 +13,7 @@ import { fetchBusinesses, fetchPushBroadcasts, sendPushBroadcast } from '@/lib/a
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { BeemCampaignsSection } from '@/components/beem/beem-campaigns-section'
 import type { Business, BroadcastCategory, PushBroadcast } from '@/types'
 
 const CATEGORY_OPTIONS: { value: BroadcastCategory; label: string }[] = [
@@ -129,7 +132,7 @@ function BroadcastRow({ b }: { b: PushBroadcast }) {
   )
 }
 
-export default function NotificationsPage() {
+function PushNotificationsSection() {
   const { data: broadcastData, loading, revalidating, error, refetch } = useAdminFetch(
     useCallback(() => fetchPushBroadcasts(), []),
     { key: 'push-notifications', pollingInterval: 15_000, minStaleMs: 5_000 },
@@ -202,11 +205,6 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Notifications"
-        description="Send push notifications to the mobile app — reminders, promotions, and updates."
-      />
-
       {/* ── Compose ─────────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5 mb-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -322,5 +320,62 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function NotificationsContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const initialTab = searchParams.get('tab') === 'push' ? 'push' : 'sms'
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'push' || tab === 'sms') {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
+  function handleTabChange(tabId: string) {
+    setActiveTab(tabId)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tabId)
+    router.replace(`${pathname}?${params.toString()}`)
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Notifications & Campaigns"
+        description="Manage Beem Africa SMS broadcasts, holiday campaigns, and in-app push notifications."
+      />
+
+      <div className="mb-6">
+        <Tabs
+          tabs={[
+            { id: 'sms', label: '💬 SMS Campaigns (Beem Africa)' },
+            { id: 'push', label: '🔔 Push Notifications (Mobile App)' },
+          ]}
+          active={activeTab}
+          onChange={handleTabChange}
+        />
+      </div>
+
+      {activeTab === 'sms' ? (
+        <BeemCampaignsSection />
+      ) : (
+        <PushNotificationsSection />
+      )}
+    </div>
+  )
+}
+
+export default function NotificationsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-[13px] text-[var(--ink-faint)]">Loading notifications…</div>}>
+      <NotificationsContent />
+    </Suspense>
   )
 }

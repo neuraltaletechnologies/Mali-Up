@@ -58,9 +58,44 @@ in the admin page the export details of user has no phon number and fix the busi
 
 the app should be able to function also in a pos system when installed also fro a simple one ahdeed on and also the two sreeen pages also 
 
+in theimah=ges userd change and used claudflare r2 dtabse backet fro image tha n using Firestore
+
 find the way to fix with the vfd also  but cna cost baout 1M and other yearly cost  or have another vfd softnewere thta is a dublicated 
 
 
 i want to change the pipeline when i push to production i want the app to go to closed testing 
 
 use the Firebase Analyticsto look and find why most user get stuck in any anction and hwy user are always stuck in free plan
+
+since the table form is the pos verion each product should have an image specially the one pulled in the master gcategory but allow user  add able the 
+
+also i notice the tou start again even if the user change business not every business swithch make the tour start over 
+
+in the receitp of invice not only sharer but print also 
+
+in the add a product in the sale process flow i wanted it change it do not want the user to clcik the ongeza bidha button to add a product the filled should be automaticall one after entering th firts product  also  i am going this for the deisgn of the pos system 
+
+can this be also a pos sytem at full with the ui 
+
+in the admin page have he crm system make this a business step latre i will make account fro each user role pase acces control 
+
+my app has subscription but in google play consile say the app has no subscription Your app doesn't have any subscriptions yet
+Create subscriptions and sell them in different ways. Configure auto-renewing subscriptions, prepaid plans with top-ups and various periods. Add offers to help acquire new subscribers or encourage existing subscribers to upgrade.
+
+in the amdin page the Activity of the user does not hsow the activities done  also in the business page of the amdi page these details do not hsow real data Total Invoices
+0
+Total Customers
+3
+Total Revenue
+—
+Outstanding Receivables
+—
+Total Expenses
+
+also in the admin page hwen i click tema i get this error thata This page couldn’t load
+Reload to try again, or go back.
+
+Reload
+Back also in the Transactions it should also show the name of person and business 
+
+in the admin login page it look lke the website does not show the product or service we are provinding i notice this i gave my url maliup.neuraltale.com to https://labs.google.com/pomelli/bdna/catalogand it says that i have no product at all

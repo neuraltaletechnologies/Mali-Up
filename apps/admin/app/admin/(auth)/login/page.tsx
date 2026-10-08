@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   signInWithEmailAndPassword,
   getIdToken,
@@ -299,9 +300,10 @@ export default function LoginPage() {
             justifyContent: 'space-between',
             padding: '28px 52px',
           }}>
-            <div
+            <Link
+              href="/"
               className={mounted ? 'lu-fade-up d1' : ''}
-              style={{ display: 'flex', alignItems: 'center', gap: 10 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
             >
               <NextImage
                 src="/maliup-logo.png"
@@ -314,21 +316,35 @@ export default function LoginPage() {
               <span style={{ fontSize: 17, fontWeight: 700, color: '#0C1B2E', letterSpacing: '-0.01em' }}>
                 Mali<span style={{ color: '#F5A623' }}> Up</span>
               </span>
-            </div>
-            <div
-              className={mounted ? 'lu-fade-up d1' : ''}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 13, fontWeight: 600,
-                color: '#0C1B2E',
-                background: 'transparent',
-                border: '1.5px solid rgba(12,27,46,0.12)',
-                borderRadius: 999,
-                padding: '8px 18px',
-              }}
-            >
-              <ShieldCheck size={14} style={{ color: '#F5A623' }} />
-              Admin only
+            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Link
+                href="/"
+                className={mounted ? 'lu-fade-up d1' : ''}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'rgba(12,27,46,0.7)',
+                  textDecoration: 'none',
+                }}
+              >
+                Tovuti Kuu
+              </Link>
+              <div
+                className={mounted ? 'lu-fade-up d1' : ''}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontSize: 13, fontWeight: 600,
+                  color: '#0C1B2E',
+                  background: 'transparent',
+                  border: '1.5px solid rgba(12,27,46,0.12)',
+                  borderRadius: 999,
+                  padding: '8px 18px',
+                }}
+              >
+                <ShieldCheck size={14} style={{ color: '#F5A623' }} />
+                Admin only
+              </div>
             </div>
           </div>
 

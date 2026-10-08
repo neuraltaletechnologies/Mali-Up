@@ -6,6 +6,7 @@ import type {
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
   PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
+  BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -506,3 +507,72 @@ export async function postBusinessNote(
     body: JSON.stringify({ content, author }),
   })
 }
+
+// ─── Beem Africa SMS & Campaigns ─────────────────────────────────────────────
+
+export interface BeemStatusResponse {
+  configured: boolean
+  connected?: boolean
+  balance: number | null
+  balanceError?: string
+  senderId: string
+  templates: Array<{ sms_title: string; message: string; sender_name?: string }>
+  message?: string
+}
+
+export async function fetchBeemStatus(): Promise<BeemStatusResponse> {
+  return apiFetch('/api/admin/beem/status')
+}
+
+export async function fetchBeemCampaigns(): Promise<{ campaigns: BeemSmsCampaign[]; total: number }> {
+  return apiFetch('/api/admin/beem/campaigns')
+}
+
+export async function createBeemCampaign(data: {
+  name: string
+  campaignType: SmsCampaignType
+  senderId?: string
+  message: string
+  messageSw?: string
+  audience: SmsCampaignAudience
+  isScheduled?: boolean
+  scheduledAt?: string
+}): Promise<{ id: string; recipientCount: number }> {
+  return apiFetch('/api/admin/beem/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteBeemCampaign(id: string): Promise<void> {
+  await apiFetch(`/api/admin/beem/campaigns/${id}`, { method: 'DELETE' })
+}
+
+export async function sendTestSms(data: {
+  phone: string
+  message: string
+  senderId?: string
+}): Promise<{ success: boolean; message: string }> {
+  return apiFetch('/api/admin/beem/send-test', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function estimateSmsRecipients(data: {
+  audience: SmsCampaignAudience
+  message?: string
+}): Promise<{
+  recipientCount: number
+  sampleRecipients: Array<{ phone: string; name?: string; businessName?: string }>
+  smsParts: number
+  charCount: number
+  isUnicode: boolean
+  estimatedCredits: number
+}> {
+  return apiFetch('/api/admin/beem/recipients-estimate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
