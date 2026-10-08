@@ -51,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _SlideData(
       imagePath: 'assets/Picture/offline2.jpg',
       titleEn: 'LOST IN NUMBERS?',
-      titleSw: 'HUJUI BIASHARA YAKO?',
+      titleSw: 'UNACHANGANYWA NA MAHESABU?',
       bodyEn:
           'See your sales, money, and business performance clearly with real-time insights.',
       bodySw:
@@ -78,7 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _SlideData(
       imagePath: 'assets/Picture/offline5.jpg',
       titleEn: 'WORRIED ABOUT YOUR DATA?',
-      titleSw: 'UNAOGOPA TAARIFA ZAKO?',
+      titleSw: 'VP USALAMA WA DATA ZAKO?',
       bodyEn:
           'Protect your business with a secure PIN, even when someone else has your phone.',
       bodySw:

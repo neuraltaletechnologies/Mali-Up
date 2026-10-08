@@ -36,7 +36,7 @@ also in the admin page if sesion expire it should not only say una utjorized acc
  in the Community Submissions i do not ee the customer created products in which user create in the app that are not in the master catgoglt i want thta i cna a ssign to exstipn catagolo or create one 
 
 also in the admin page i lawys see thtat 
-Firestore
+Firestoref
 99.99%
 1368ms p95
  is degrading  also add the beema System Health)
@@ -97,5 +97,21 @@ Reload to try again, or go back.
 
 Reload
 Back also in the Transactions it should also show the name of person and business 
+
+
+Act as an expert Flutter and Firebase developer. I am converting my mobile application into a web app. Here is the setup and architectural strategy we are implementing:
+
+1. Backend: I am using Firebase (Firestore, Auth, etc.).
+2. Hosting: I am hosting the web app using Cloudflare Pages.
+3. Pipeline: I will be using GitHub Actions to automate compiling `flutter build web` and deploying it straight to Cloudflare Pages via the Wrangler Action.
+
+Architectural Requirement for Offline Support:
+- On mobile (Android/iOS), I want to keep my existing offline features and local cache persistence active.
+- On web, because it is accessed online and browser cache sandboxes can be volatile, I want to completely turn OFF offline capabilities. The web version should fetch data directly from the network.
+
+Please provide:
+1. The exact production-ready code for `main.dart` showing how to initialize Firebase conditionally. Ensure Firestore offline persistence is enabled ONLY on mobile platforms, and explicitly disabled or kept strictly online for the web build.
+2. What precautions or exception handling (e.g., handling connection drops mid-session) I should add to my repository services now that the web version will rely 100% on a live network connection.
+
 
 in the admin login page it look lke the website does not show the product or service we are provinding i notice this i gave my url maliup.neuraltale.com to https://labs.google.com/pomelli/bdna/catalogand it says that i have no product at all
