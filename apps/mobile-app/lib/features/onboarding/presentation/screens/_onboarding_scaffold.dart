@@ -722,7 +722,7 @@ class OtpVerifyBody extends StatefulWidget {
 }
 
 class _OtpVerifyBodyState extends State<OtpVerifyBody> {
-  static const _resendCooldownSeconds = 45;
+  static const _resendCooldownSeconds = 180; // 3 min — Beem allows ~3 per 15 min
 
   final _codeCtrl = TextEditingController();
   final _focus = FocusNode();
@@ -760,9 +760,14 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
   Future<void> _send() async {
     if (!widget.isOnline) return;
     final ok = await widget.onSend();
-    if (!mounted || !ok) return;
-    setState(() => _hasError = false);
+    if (!mounted) return;
+    // Always start the cooldown — even on failure — so a bad send (rate-limit,
+    // provider error) still locks the button and prevents back-to-back retries
+    // that burn Beem send slots before the previous request has a chance to
+    // deliver.
     _startCooldown();
+    if (!ok) return;
+    setState(() => _hasError = false);
   }
 
   void _startCooldown() {
@@ -884,9 +889,13 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
                   onPressed: canResend ? _send : null,
                   child: Text(
                     _cooldown > 0
-                        ? (sw
-                            ? 'Tuma tena baada ya sekunde $_cooldown'
-                            : 'Resend code in ${_cooldown}s')
+                        ? () {
+                            final m = _cooldown ~/ 60;
+                            final s = (_cooldown % 60).toString().padLeft(2, '0');
+                            return sw
+                                ? 'Tuma tena baada ya $m:$s'
+                                : 'Resend code in $m:$s';
+                          }()
                         : (sw ? 'Tuma tena msimbo' : 'Resend code'),
                     style: GoogleFonts.dmSans(
                       color: canResend

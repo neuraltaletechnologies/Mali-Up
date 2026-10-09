@@ -40,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _slides = [
     _SlideData(
-      imagePath: 'assets/Picture/offline1.jpg',
+      imagePath: 'assets/Picture/offline1.webp',
       titleEn: 'NO INTERNET?',
       titleSw: 'HUNA MTANDAO?',
       bodyEn:
@@ -49,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Endelea kuuza, kurekodi mauzo na kusimamia hifadhi bila mtandao. Kila kitu kitasawazishwa mtandao ukirudi.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline2.jpg',
+      imagePath: 'assets/Picture/offline2.webp',
       titleEn: 'LOST IN NUMBERS?',
       titleSw: 'UNACHANGANYWA NA MAHESABU?',
       bodyEn:
@@ -58,7 +58,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Ona mauzo, pesa na mwenendo wa biashara yako kwa urahisi kupitia taarifa za wakati halisi.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline14.jpg',
+      imagePath: 'assets/Picture/offline3.webp',
       titleEn: 'TOO MUCH WRITING?',
       titleSw: 'UNAANDIKA SANA?',
       bodyEn:
@@ -67,16 +67,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Tengeneza ankara, sasisha hifadhi na fuatilia malipo bila kufanya kila kitu kwa mkono.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline4.jpg',
-      titleEn: 'LANGUAGE PROBLEM?',
-      titleSw: 'LUGHA INAKUSUMBUA?',
-      bodyEn:
-          'Use Mali Up in Kiswahili or English. Switch languages anytime to work the way you prefer.',
-      bodySw:
-          'Tumia Mali Up kwa Kiswahili au Kiingereza. Badilisha lugha wakati wowote unapotaka.',
-    ),
+      imagePath: 'assets/Picture/offline4.webp',
+     titleEn: 'LOST IN DEBT?',
+     titleSw: 'POTEZWA NA MADENI?',
+     bodyEn:
+      'Track who owes you, who you owe, and how much is still unpaid. Get a clear picture of your debts and payments in one place.',
+     bodySw:
+      'Fuatilia wanaokudai, unaowadai na kiasi ambacho hakijalipwa. Fahamu hali halisi ya madeni yako na malipo yote sehemu moja.',
+ ),
     _SlideData(
-      imagePath: 'assets/Picture/offline5.jpg',
+      imagePath: 'assets/Picture/offline5.webp',
       titleEn: 'WORRIED ABOUT YOUR DATA?',
       titleSw: 'VP USALAMA WA DATA ZAKO?',
       bodyEn:

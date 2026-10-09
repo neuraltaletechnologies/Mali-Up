@@ -223,9 +223,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// Soft-ask for a Play Store rating, gated by [AppRatingService] so it
   /// only fires after a few happy-path moments and never more than a
   /// handful of times total. See AppRatingService for the full policy.
+  ///
+  /// Also fires once on open for returning users who have never been shown
+  /// the dialog before (e.g. long-term users upgrading to a new build).
   Future<void> _maybeShowRateAppPrompt() async {
     final eligible = await AppRatingService.shouldPrompt();
-    if (!eligible || !mounted) return;
+    final returningUser =
+        eligible ? false : await AppRatingService.shouldPromptReturningUser();
+    if ((!eligible && !returningUser) || !mounted) return;
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
     RateAppDialog.show(context);

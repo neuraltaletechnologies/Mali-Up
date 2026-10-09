@@ -46,7 +46,7 @@ Firestoref
  does the Version Gate
 Block or nudge users on old app builds to update. Build numbers are the +N in the app's version (e.g. 1.1.0+2 → 2). work is ther away instaded of enering i cna see all production version thta re ther i cn a just chekc to make it easy thta enetriung the number 
 
-after one sell foce the app for review sent to playsore with out leaving the ap
+after  just one sell force the app user to review teh aapp in google review sent to playsore with out leaving the app curent is saya after 3 now make it jjust 1 sale 
 
 Done 
 
@@ -113,5 +113,6 @@ Please provide:
 1. The exact production-ready code for `main.dart` showing how to initialize Firebase conditionally. Ensure Firestore offline persistence is enabled ONLY on mobile platforms, and explicitly disabled or kept strictly online for the web build.
 2. What precautions or exception handling (e.g., handling connection drops mid-session) I should add to my repository services now that the web version will rely 100% on a live network connection.
 
+in the setting alow user to change the curenyc money to any current he want andd the dyta will also change but by defalt it will be the curenct of the country he will choose 
 
 in the admin login page it look lke the website does not show the product or service we are provinding i notice this i gave my url maliup.neuraltale.com to https://labs.google.com/pomelli/bdna/catalogand it says that i have no product at all
