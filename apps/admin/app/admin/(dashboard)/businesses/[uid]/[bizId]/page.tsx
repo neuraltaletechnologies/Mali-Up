@@ -1010,6 +1010,7 @@ export default function BusinessDetailPage() {
   )
 
   const business = data?.business
+  const isOnlyBusiness = (business?.ownerBusinessCount ?? 0) <= 1
   const isSuspended = business?.status === 'suspended'
 
   async function handleToggleSuspend() {
@@ -1033,6 +1034,8 @@ export default function BusinessDetailPage() {
       await deleteBusiness(uid, bizId)
       invalidateAdminCache(['analytics', 'businesses', 'users'])
       router.push('/admin/businesses')
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Failed to delete business')
     } finally {
       setDeleting(false)
       setShowDelete(false)
@@ -1122,7 +1125,9 @@ export default function BusinessDetailPage() {
           )}
           <button
             onClick={() => setShowDelete(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-bad)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+            disabled={isOnlyBusiness}
+            title={isOnlyBusiness ? "This is the owner's only business — every user must keep at least one. Delete the user instead." : undefined}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-bad)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Delete

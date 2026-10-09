@@ -1,10 +1,9 @@
 'use client'
 
 import { useCallback, useMemo, useState, useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Send, Search, AlertCircle, CheckCircle2, Clock, MessageSquare, Bell } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
-import { Tabs } from '@/components/ui/tabs'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { StatusDot } from '@/components/ui/status-dot'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -13,7 +12,6 @@ import { fetchBusinesses, fetchPushBroadcasts, sendPushBroadcast } from '@/lib/a
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { BeemCampaignsSection } from '@/components/beem/beem-campaigns-section'
 import type { Business, BroadcastCategory, PushBroadcast } from '@/types'
 
 const CATEGORY_OPTIONS: { value: BroadcastCategory; label: string }[] = [
@@ -326,48 +324,19 @@ function PushNotificationsSection() {
 function NotificationsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const pathname = usePathname()
 
-  const initialTab = searchParams.get('tab') === 'push' ? 'push' : 'sms'
-  const [activeTab, setActiveTab] = useState(initialTab)
-
+  // SMS campaigns moved to their own page; keep old ?tab=sms links working.
   useEffect(() => {
-    const tab = searchParams.get('tab')
-    if (tab === 'push' || tab === 'sms') {
-      setActiveTab(tab)
-    }
-  }, [searchParams])
-
-  function handleTabChange(tabId: string) {
-    setActiveTab(tabId)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', tabId)
-    router.replace(`${pathname}?${params.toString()}`)
-  }
+    if (searchParams.get('tab') === 'sms') router.replace('/admin/sms-campaigns')
+  }, [searchParams, router])
 
   return (
     <div>
       <PageHeader
-        title="Notifications & Campaigns"
-        description="Manage Beem Africa SMS broadcasts, holiday campaigns, and in-app push notifications."
+        title="Push Notifications"
+        description="Send in-app push notifications to Mali Up users. SMS campaigns live under Beem SMS."
       />
-
-      <div className="mb-6">
-        <Tabs
-          tabs={[
-            { id: 'sms', label: '💬 SMS Campaigns (Beem Africa)' },
-            { id: 'push', label: '🔔 Push Notifications (Mobile App)' },
-          ]}
-          active={activeTab}
-          onChange={handleTabChange}
-        />
-      </div>
-
-      {activeTab === 'sms' ? (
-        <BeemCampaignsSection />
-      ) : (
-        <PushNotificationsSection />
-      )}
+      <PushNotificationsSection />
     </div>
   )
 }

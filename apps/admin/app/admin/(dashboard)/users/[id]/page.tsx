@@ -288,6 +288,7 @@ export default function UserDetailPage() {
 
   const user       = data?.user
   const businesses = data?.businesses ?? []
+  const ownedCount = businesses.filter((b) => b.ownerId === id).length
   const isSuspended = user?.status === 'suspended'
 
   async function handleToggleSuspend() {
@@ -438,7 +439,7 @@ export default function UserDetailPage() {
             businesses.map((b) => (
               <Link
                 key={b.id}
-                href={`/admin/businesses/${user.id}/${b.id}`}
+                href={`/admin/businesses/${b.ownerId || user.id}/${b.id}`}
                 className="flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 hover:border-[var(--accent)] transition-colors group"
               >
                 <div className="min-w-0">
@@ -490,7 +491,7 @@ export default function UserDetailPage() {
         onConfirm={handleDelete}
         resourceLabel="user"
         resourceName={user.name}
-        consequence={`This permanently deletes ${user.name}'s account, sign-in, and ${businesses.length} owned business${businesses.length !== 1 ? 'es' : ''} (including all invoices, customers, staff, and other data). This cannot be undone.`}
+        consequence={`This permanently deletes ${user.name}'s account, sign-in, and ${ownedCount} owned business${ownedCount !== 1 ? 'es' : ''} (including all invoices, customers, staff, and other data). This cannot be undone.`}
         loading={deleting}
       />
 

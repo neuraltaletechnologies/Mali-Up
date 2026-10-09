@@ -1,0 +1,110 @@
+name: Deploy Web (Cloudflare Pages)
+
+# Builds the Flutter app for web (`flutter build web`) and deploys it to
+# Cloudflare Pages with Wrangler.
+#
+# Same rule as release-android.yml: `main` is the live branch, so merging a
+# PR into `main` that touches apps/mobile-app/** is the web release.
+#
+# The web build has no offline mode: Drift runs in-memory and Firestore
+# persistence is off (see lib/core/database/connection/web.dart), so every
+# page load reads fresh from Firestore. Nothing here needs a cache-busting
+# step for user data.
+#
+# Required repo config:
+#   secrets.CLOUDFLARE_API_TOKEN   — token with "Cloudflare Pages: Edit"
+#   secrets.CLOUDFLARE_ACCOUNT_ID
+#   vars.CLOUDFLARE_PAGES_PROJECT  — Pages project name (create it once with
+#                                    `wrangler pages project create`, or in the
+#                                    dashboard as a Direct Upload project)
+#   secrets.FIREBASE_* web keys    — same secrets release-android.yml uses
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile-app/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile-app
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('apps/mobile-app/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Drift's web backend needs the sqlite3 WebAssembly binary served next to
+      # index.html, and it must match the locked `sqlite3` package version.
+      # Fetched here rather than committed so a `pub upgrade` can't leave a
+      # stale binary behind.
+      - name: Download sqlite3.wasm
+        run: |
+          version=$(awk '/^  sqlite3:$/{f=1} f && /version:/{gsub(/"/, "", $2); print $2; exit}' pubspec.lock)
+          echo "sqlite3 package version: $version"
+          curl -fsSL -o web/sqlite3.wasm \
+            "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-${version}/sqlite3.wasm"
+
+      # Only the keys the web build reads. Same jq pattern as
+      # release-android.yml so a value with quotes can't break the JSON.
+      - name: Write .env.json from secrets
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_WEB_APP_ID: ${{ secrets.FIREBASE_WEB_APP_ID }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_WEB_MEASUREMENT_ID: ${{ secrets.FIREBASE_WEB_MEASUREMENT_ID }}
+          CSC_API_KEY: ${{ secrets.CSC_API_KEY }}
+        run: |
+          jq -n '{
+            FIREBASE_PROJECT_ID: (env.FIREBASE_PROJECT_ID // ""),
+            FIREBASE_MESSAGING_SENDER_ID: (env.FIREBASE_MESSAGING_SENDER_ID // ""),
+            FIREBASE_STORAGE_BUCKET: (env.FIREBASE_STORAGE_BUCKET // ""),
+            FIREBASE_WEB_API_KEY: (env.FIREBASE_WEB_API_KEY // ""),
+            FIREBASE_WEB_APP_ID: (env.FIREBASE_WEB_APP_ID // ""),
+            FIREBASE_AUTH_DOMAIN: (env.FIREBASE_AUTH_DOMAIN // ""),
+            FIREBASE_WEB_MEASUREMENT_ID: (env.FIREBASE_WEB_MEASUREMENT_ID // ""),
+            CSC_API_KEY: (env.CSC_API_KEY // "")
+          }' > .env.json
+
+      - name: Build web
+        run: flutter build web --release --dart-define-from-file=.env.json
+
+      # Pages serves index.html for unknown paths (no 404.html in the build),
+      # so GoRouter deep links work without a _redirects file.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/mobile-app
+          command: pages deploy build/web --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
