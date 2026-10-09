@@ -1,7 +1,7 @@
 iThe otp si for the coanties thta beam support only Number only 
 then the email is the same but this is done later when user has already login
 the image used should be real not ai
-The skip should work to sjip the whore toor also i want it to be visibale 
+The skip should work to skip the whore tuor also i want it to be visibale 
 on the top part under the status bar i awn the background to have a blury effect thta just a plane to see also the color of the status bar is to be white not black 
 also in the product details page user what to see more details abou the product like sale fro thta product also all re stocks details and date this is an online feature 
 in the app for a new user who has just doeloaded tha app i an i have the details 10 minutes after the user account has been cretaed i want to us on of the beeam sms to send him this Maelezo ya mteja mpya
@@ -63,7 +63,6 @@ in theimah=ges userd change and used claudflare r2 dtabse backet fro image tha n
 find the way to fix with the vfd also  but cna cost baout 1M and other yearly cost  or have another vfd softnewere thta is a dublicated 
 
 
-i want to change the pipeline when i push to production i want the app to go to closed testing 
 
 use the Firebase Analyticsto look and find why most user get stuck in any anction and hwy user are always stuck in free plan
 

@@ -757,14 +757,27 @@ class _ForgotPinSheet extends ConsumerStatefulWidget {
 
 class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   bool _isSending = false;
-  PinResetRequestResult? _result;
+  PinResetCodeRequestResult? _result;
 
   Future<void> _sendRecovery() async {
     setState(() => _isSending = true);
     final result = await ref
         .read(onboardingNotifierProvider.notifier)
-        .requestPinReset();
+        .requestPinResetCode();
     if (!mounted) return;
+    if (result.status == PinResetCodeRequestStatus.sent) {
+      // Code + new PIN + confirmation are all entered on one screen.
+      final router = GoRouter.of(context);
+      Navigator.of(context).pop();
+      router.push(
+        AppRoutes.resetPinCode,
+        extra: {
+          'maskedPhone': result.maskedPhone,
+          'maskedEmail': result.maskedEmail,
+        },
+      );
+      return;
+    }
     setState(() {
       _isSending = false;
       _result = result;
@@ -830,12 +843,11 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   List<Widget> _buildBody(bool sw) {
     switch (_result?.status) {
       case null:
+      case PinResetCodeRequestStatus.sent:
         return _intro(sw);
-      case PinResetRequestStatus.sent:
-        return _sentCard(sw);
-      case PinResetRequestStatus.noEmail:
-        return _noEmailCard(sw);
-      case PinResetRequestStatus.rateLimited:
+      case PinResetCodeRequestStatus.notFound:
+        return _notFoundCard(sw);
+      case PinResetCodeRequestStatus.rateLimited:
         return _messageCard(
           sw,
           title: sw ? 'Subiri kidogo' : 'Please wait',
@@ -848,7 +860,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           border: const Color(0xFFFFD60A),
           fg: const Color(0xFF856404),
         );
-      case PinResetRequestStatus.failed:
+      case PinResetCodeRequestStatus.failed:
         return _failedCard(sw);
     }
   }
@@ -856,10 +868,10 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   List<Widget> _intro(bool sw) => [
     Text(
       sw
-          ? 'Tutakutumia kiungo cha kuweka upya PIN yako kwenye barua pepe '
-                'uliyosajili. Fungua kiungo hicho kwenye simu hii.'
-          : 'We\'ll email a link to reset your PIN to your registered address. '
-                'Open that link on this phone.',
+          ? 'Tutakutumia namba ya siri (OTP) ya kuweka upya PIN kwa SMS kwenye '
+                'namba hii, na kwenye barua pepe yako kama umeisajili.'
+          : "We'll send a PIN reset code by SMS to this number, and to your "
+                'email too if you registered one.',
       style: GoogleFonts.dmSans(
         fontSize: 14,
         color: AppColors.textMuted,
@@ -891,7 +903,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 ),
               )
             : Text(
-                sw ? 'Nitumie Kiungo' : 'Send Recovery Link',
+                sw ? 'Nitumie Namba ya Siri' : 'Send Reset Code',
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -901,49 +913,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
     ),
   ];
 
-  List<Widget> _sentCard(bool sw) => [
-    Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.successBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            sw ? 'Kiungo kimetumwa ✓' : 'Link sent ✓',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.success,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            sw
-                ? 'Tumetuma kiungo kwenda ${_result!.maskedEmail}. Fungua barua '
-                      'pepe yako kwenye simu hii na ubofye kiungo ndani ya '
-                      'dakika 30 ili kuweka PIN mpya.'
-                : 'We sent a link to ${_result!.maskedEmail}. Open your email on '
-                      'this phone and tap the link within 30 minutes to set a '
-                      'new PIN.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.success,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    ),
-    const SizedBox(height: 20),
-    _closeButton(sw ? 'Sawa, nimepokea' : 'Got it, close'),
-  ];
-
-  List<Widget> _noEmailCard(bool sw) => [
+  List<Widget> _notFoundCard(bool sw) => [
     Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -957,7 +927,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
       child: Column(
         children: [
           Text(
-            sw ? 'Barua pepe haijapatikana' : 'No email on file',
+            sw ? 'Akaunti haijapatikana' : 'Account not found',
             style: GoogleFonts.dmSans(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -967,9 +937,9 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           const SizedBox(height: 8),
           Text(
             sw
-                ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. Tafadhali '
-                      'wasiliana na msaada wa Mali Up kupitia WhatsApp.'
-                : 'No email address is registered for this account. Please '
+                ? 'Hatukupata akaunti yenye namba hii. Tafadhali wasiliana na '
+                      'msaada wa Mali Up kupitia WhatsApp.'
+                : "We couldn't find an account with this number. Please "
                       'contact Mali Up support via WhatsApp for help.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
@@ -1011,9 +981,10 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
       sw,
       title: sw ? 'Imeshindikana' : 'Something went wrong',
       body: sw
-          ? 'Hatukuweza kutuma kiungo sasa. Angalia mtandao wako na ujaribu tena.'
-          : 'We couldn\'t send the link right now. Check your connection and try '
-                'again.',
+          ? 'Hatukuweza kutuma namba ya siri sasa. Angalia mtandao wako na '
+                'ujaribu tena.'
+          : "We couldn't send the code right now. Check your connection and "
+                'try again.',
       bg: AppColors.infoBg,
       border: AppColors.tealAccent,
       fg: AppColors.tealAccent,

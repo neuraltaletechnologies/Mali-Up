@@ -12,6 +12,7 @@ import '../features/onboarding/presentation/screens/pin_login_screen.dart';
 import '../features/onboarding/presentation/screens/team_member_setup_screen.dart';
 import '../features/onboarding/presentation/screens/new_user_info_screen.dart';
 import '../features/onboarding/presentation/screens/pin_reset_screen.dart';
+import '../features/onboarding/presentation/screens/pin_reset_code_screen.dart';
 import '../features/onboarding/presentation/screens/business_details_screen.dart';
 import '../features/onboarding/presentation/screens/security_setup_screen.dart';
 import '../features/onboarding/presentation/screens/onboarding_success_screen.dart';
@@ -97,6 +98,7 @@ abstract final class AppRoutes {
   static const security = '/security'; // Screen 6 — PIN setup (new owners)
   static const success = '/success'; // Screen 7 — success
   static const resetPin = '/reset-pin'; // PIN recovery magic-link target
+  static const resetPinCode = '/reset-pin-code'; // PIN recovery SMS/email code
 
   // ── Main app shell ────────────────────────────────────────────────────────
   static const dashboard = '/';
@@ -207,7 +209,9 @@ class _RouterNotifier extends ChangeNotifier {
     // PIN recovery deep link — always reachable, in any auth state. A
     // signed-in user who opens a stale link just gets the "invalid link"
     // screen; a signed-out user gets the reset form.
-    if (path == AppRoutes.resetPin) return null;
+    if (path == AppRoutes.resetPin || path == AppRoutes.resetPinCode) {
+      return null;
+    }
 
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
@@ -448,6 +452,19 @@ List<RouteBase> _buildRoutes() {
         state,
         PinResetScreen(token: state.uri.queryParameters['token']),
       ),
+    ),
+    GoRoute(
+      path: AppRoutes.resetPinCode,
+      pageBuilder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return _authPage(
+          state,
+          PinResetCodeScreen(
+            maskedPhone: extra?['maskedPhone'] as String?,
+            maskedEmail: extra?['maskedEmail'] as String?,
+          ),
+        );
+      },
     ),
 
     // ── Main app shell ────────────────────────────────────────────────────────

@@ -676,6 +676,84 @@ class OnboardingRepository {
     }
   }
 
+  /// Code flow, step 1 — SMS (and, when an email is on file, email) a 6-digit
+  /// reset code. Never throws.
+  Future<PinResetCodeRequestResult> requestPinResetCode({
+    required String phone,
+    required String language,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('requestPinResetOtp');
+      final res = await callable.call<Map<String, dynamic>>({
+        'phone': PhoneNumberUtils.canonical(phone),
+        'language': language,
+      });
+      final data = Map<String, dynamic>.from(res.data as Map);
+      if (data['status'] == 'sent') {
+        return PinResetCodeRequestResult(
+          PinResetCodeRequestStatus.sent,
+          maskedPhone: data['maskedPhone'] as String?,
+          maskedEmail: data['maskedEmail'] as String?,
+        );
+      }
+      return const PinResetCodeRequestResult(
+        PinResetCodeRequestStatus.notFound,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (kDebugMode) debugPrint('[requestPinResetCode] ${e.code} ${e.message}');
+      return PinResetCodeRequestResult(
+        e.code == 'resource-exhausted'
+            ? PinResetCodeRequestStatus.rateLimited
+            : PinResetCodeRequestStatus.failed,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[requestPinResetCode] $e');
+      return const PinResetCodeRequestResult(PinResetCodeRequestStatus.failed);
+    }
+  }
+
+  /// Code flow, step 2 — checks [code] and sets the Auth password to
+  /// `buildAuthPasswordFromPin(phone, newPin)`. Never throws.
+  Future<PinResetCodeConfirmResult> confirmPinResetCode({
+    required String phone,
+    required String code,
+    required String newPin,
+  }) async {
+    final canonical = PhoneNumberUtils.canonical(phone);
+    try {
+      final newPassword = buildAuthPasswordFromPin(
+        phone: canonical,
+        pin: newPin,
+      );
+      final callable = _functions.httpsCallable('confirmPinResetOtp');
+      await callable.call<Map<String, dynamic>>({
+        'phone': canonical,
+        'code': code,
+        'newPassword': newPassword,
+      });
+      return const PinResetCodeConfirmResult(PinResetCodeConfirmStatus.ok);
+    } on FirebaseFunctionsException catch (e) {
+      if (kDebugMode) debugPrint('[confirmPinResetCode] ${e.code} ${e.message}');
+      return switch (e.code) {
+        'permission-denied' => PinResetCodeConfirmResult(
+          PinResetCodeConfirmStatus.wrongCode,
+          remainingAttempts:
+              (e.details is Map ? e.details['remainingAttempts'] : null) as int?,
+        ),
+        'failed-precondition' => const PinResetCodeConfirmResult(
+          PinResetCodeConfirmStatus.expired,
+        ),
+        'resource-exhausted' => const PinResetCodeConfirmResult(
+          PinResetCodeConfirmStatus.tooManyAttempts,
+        ),
+        _ => const PinResetCodeConfirmResult(PinResetCodeConfirmStatus.failed),
+      };
+    } catch (e) {
+      if (kDebugMode) debugPrint('[confirmPinResetCode] $e');
+      return const PinResetCodeConfirmResult(PinResetCodeConfirmStatus.failed);
+    }
+  }
+
   /// Updates the current Firebase Auth user's email to [email].
   ///
   /// Called immediately after [createNewUserAccount] so that Firebase's

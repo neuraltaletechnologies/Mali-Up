@@ -6,7 +6,7 @@ import type {
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
   PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
-  BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType,
+  BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType, BeemAutoCampaign, BeemAutoCampaignInput,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -576,3 +576,27 @@ export async function estimateSmsRecipients(data: {
   })
 }
 
+
+// ─── Beem SMS auto (yearly) campaigns ───────────────────────────────────────
+
+export async function fetchBeemAutoCampaigns(): Promise<{ rules: BeemAutoCampaign[] }> {
+  return apiFetch('/api/admin/beem/auto-campaigns')
+}
+
+export async function createBeemAutoCampaign(data: BeemAutoCampaignInput): Promise<{ id: string }> {
+  return apiFetch('/api/admin/beem/auto-campaigns', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateBeemAutoCampaign(id: string, data: Partial<BeemAutoCampaignInput>): Promise<void> {
+  await apiFetch(`/api/admin/beem/auto-campaigns/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteBeemAutoCampaign(id: string): Promise<void> {
+  await apiFetch(`/api/admin/beem/auto-campaigns/${id}`, { method: 'DELETE' })
+}

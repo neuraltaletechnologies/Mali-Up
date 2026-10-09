@@ -59,6 +59,10 @@ class OfflinePolicyNotifier extends ChangeNotifier {
   }
 
   OfflineLevel get level {
+    // Web keeps no durable sync queue (in-memory DB, see
+    // core/database/connection/web.dart) — a write made offline would be lost
+    // on reload, so the web build goes read-only the moment it drops offline.
+    if (kIsWeb && isOffline) return OfflineLevel.restricted;
     final h = offlineDuration.inHours;
     if (h >= 48) return OfflineLevel.restricted;
     if (h >= 24) return OfflineLevel.warning;

@@ -1,5 +1,27 @@
 {
   "app": {
     "name": "Mali Up"
+  },
+  "pinResetCode": {
+    "title": "Weka upya PIN yako",
+    "sentTo": "Weka namba ya siri ya tarakimu 6 tuliyotuma kwa SMS kwenda $phone.",
+    "sentToBoth": "Weka namba ya siri ya tarakimu 6 tuliyotuma kwa SMS kwenda $phone na kwa barua pepe kwenda $email.",
+    "sentGeneric": "Weka namba ya siri ya kuweka upya PIN tuliyokutumia kwa SMS.",
+    "codeLabel": "Namba ya siri",
+    "codeError": "Weka namba ya siri ya tarakimu 6.",
+    "newPinLabel": "PIN mpya",
+    "confirmPinLabel": "Thibitisha PIN mpya",
+    "pinMismatch": "PIN hazifanani.",
+    "submit": "Weka upya PIN",
+    "resend": "Hukuipata? Tuma namba mpya",
+    "resendIn": "Tuma namba mpya baada ya sekunde $seconds",
+    "resent": "Namba mpya inatumwa.",
+    "wrongCode": "Namba si sahihi. Umebakiza majaribio $count.",
+    "wrongCodeNoCount": "Namba si sahihi.",
+    "expired": "Namba hii imekwisha muda. Tuma namba mpya.",
+    "tooManyAttempts": "Umekosea mara nyingi sana. Tuma namba mpya.",
+    "failed": "Imeshindikana kuweka upya PIN. Angalia mtandao na ujaribu tena.",
+    "sendFailed": "Imeshindikana kutuma namba mpya. Jaribu tena baada ya dakika chache.",
+    "backToLogin": "Rudi kuingia"
   }
 }
