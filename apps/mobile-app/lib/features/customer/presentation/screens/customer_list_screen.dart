@@ -16,6 +16,7 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
+import '../../../../shared/widgets/reminder_share_row.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../debt/data/customer_debt_sync_service.dart';
@@ -24,6 +25,7 @@ import '../../../finance/data/payment_account_service.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
+import '../../data/customer_reminder_service.dart';
 import '../../domain/models/customer.dart';
 import '../widgets/add_customer_dialog.dart';
 import 'customer_detail_screen.dart';
@@ -1552,19 +1554,6 @@ class _CustomerInfoSheet extends ConsumerWidget {
     await launchUrl(Uri(scheme: 'sms', path: phone));
   }
 
-  Future<void> _remind(Customer c) async {
-    final e164 = _e164(c.phone);
-    final balance = _fmtShort(c.balanceAmount);
-    final msg =
-        '${_tr('Dear', 'Ndugu')} ${c.name},\n\n'
-        '${_tr('You have an outstanding balance of TZS $balance.', 'Una deni la TZS $balance kwetu.')}\n\n'
-        '${_tr('Please arrange payment at your earliest convenience. Thank you!', 'Tafadhali panga malipo haraka iwezekanavyo. Asante!')}';
-    await launchUrl(
-      Uri.parse('https://wa.me/$e164?text=${Uri.encodeComponent(msg)}'),
-      mode: LaunchMode.externalApplication,
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final live =
@@ -1809,7 +1798,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                             showAppSheet<void>(
                               context,
                               builder: (_) => CustomerPayDebtSheet(
-                                customerName: live.name,
+                                customer: live,
                                 balance: balance,
                                 onSave: (amount, method, accountId, note) async {
                                   final newBalance = balance - amount;
@@ -1954,19 +1943,32 @@ class _CustomerInfoSheet extends ConsumerWidget {
                             onTap: () => _sms(live.phone),
                           ),
                         ),
-                        if (showFinancials && hasBalance) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _SheetActionBtn(
-                              icon: Icons.alarm_rounded,
-                              label: _tr('Remind', 'Kumbushia'),
-                              color: AppColors.warning,
-                              onTap: () => _remind(live),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
+                    if (showFinancials && hasBalance) ...[
+                      const SizedBox(height: 10),
+                      ReminderShareRow(
+                        onWhatsApp: () =>
+                            CustomerReminderService.sendWhatsApp(
+                              ref,
+                              context,
+                              live,
+                              balance,
+                            ),
+                        onSms: () => CustomerReminderService.sendSms(
+                          ref,
+                          context,
+                          live,
+                          balance,
+                        ),
+                        onPdf: () => CustomerReminderService.sendPdf(
+                          ref,
+                          context,
+                          live,
+                          balance,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     Container(height: 1, color: AppColors.border),
                     const SizedBox(height: 14),

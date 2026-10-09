@@ -68,6 +68,11 @@ NEXT_PUBLIC_FIREBASE_APP_ID              = "1:596683133951:web:1430c6e5bcb28bb5a
 # NextAuth: required on non-Vercel / Cloudflare Workers deployments.
 AUTH_TRUST_HOST = "true"
 
+# Beem Africa SMS Gateway (SMS Campaigns & Notifications)
+BEEM_API_KEY = "b6da48291c406b06"
+BEEM_SECRET_KEY = "OWMxOWI2ZjA5MzAzM2M5NWJhYzE2ODJlYjFjNDQwNTNlNzhlZjRjMmFlMDRmMThjYTQ2NzNhNzNjNDk0N2RjMA=="
+BEEM_SMS_SENDER_ID = "INFO"
+
 # Deployment: Cloudflare's native Git Build integration (Workers & Pages →
 # mali-up → Settings → Build) is the ONLY deployer, and its build report is the
 # single source of truth for deploy readiness. It triggers on pushes to the

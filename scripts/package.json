@@ -10,7 +10,9 @@
     "seed:dry-run": "ts-node seed-master-catalog.ts --dry-run",
     "backfill:barcodes": "ts-node backfill-barcodes.ts",
     "backfill:barcodes:dry": "ts-node backfill-barcodes.ts --dry-run",
-    "backfill:barcodes:count": "ts-node backfill-barcodes.ts --count-only"
+    "backfill:barcodes:count": "ts-node backfill-barcodes.ts --count-only",
+    "sms:welcome": "ts-node send-welcome-sms-existing-users.ts",
+    "sms:welcome:dry": "ts-node send-welcome-sms-existing-users.ts --dry-run"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0"

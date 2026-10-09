@@ -1387,7 +1387,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             child: OnboardingField(
                               controller: _phoneCtrl,
                               label: _tr('Phone Number *', 'Namba ya Simu *'),
-                              hint: '+255 700 000 000',
+                              hint: '+255 700 000 000 / +254...',
                               keyboardType: TextInputType.phone,
                               prefix: const Icon(
                                 Icons.phone_outlined,

@@ -17,8 +17,13 @@ import '../widgets/onboarding_back_handler.dart';
 /// the last slide.
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onOnboardingComplete;
+  final VoidCallback? onBackToWelcome;
 
-  const OnboardingScreen({super.key, required this.onOnboardingComplete});
+  const OnboardingScreen({
+    super.key,
+    required this.onOnboardingComplete,
+    this.onBackToWelcome,
+  });
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -35,44 +40,49 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _slides = [
     _SlideData(
-      titleEn: 'Works perfectly,\neven offline.',
-      titleSw: 'Inafanya kazi vizuri,\nhata bila mtandao.',
+      imagePath: 'assets/Picture/offline1.webp',
+      titleEn: 'NO INTERNET?',
+      titleSw: 'HUNA MTANDAO?',
       bodyEn:
-          'Mali Up saves everything on your phone first. No internet? No problem — your sales, invoices, and stock keep updating, then sync automatically once you\'re back online.',
+          'Keep selling, recording sales, and managing stock offline. Everything syncs automatically when you’re back online.',
       bodySw:
-          'Mali Up huhifadhi kila kitu kwenye simu yako kwanza. Huna mtandao? Si tatizo — mauzo, ankara, na hifadhi yako yanaendelea kusasishwa, kisha yanasawazishwa kiotomatiki mtandao ukirudi.',
+          'Endelea kuuza, kurekodi mauzo na kusimamia hifadhi bila mtandao. Kila kitu kitasawazishwa mtandao ukirudi.',
     ),
     _SlideData(
-      titleEn: 'Make confident\nbusiness decisions.',
-      titleSw: 'Fanya maamuzi ya\nbiashara kwa ujasiri.',
+      imagePath: 'assets/Picture/offline2.webp',
+      titleEn: 'LOST IN NUMBERS?',
+      titleSw: 'UNACHANGANYWA NA MAHESABU?',
       bodyEn:
-          'Understand your money, sales, and business performance clearly with real-time insights.',
+          'See your sales, money, and business performance clearly with real-time insights.',
       bodySw:
-          'Elewa pesa yako, mauzo, na utendaji wa biashara kwa uwazi kwa kutumia taarifa za wakati halisi.',
+          'Ona mauzo, pesa na mwenendo wa biashara yako kwa urahisi kupitia taarifa za wakati halisi.',
     ),
     _SlideData(
-      titleEn: 'Spend less time\nwriting things down.',
-      titleSw: 'Tumia muda mchache\nkuandika mambo.',
+      imagePath: 'assets/Picture/offline3.webp',
+      titleEn: 'TOO MUCH WRITING?',
+      titleSw: 'UNAANDIKA SANA?',
       bodyEn:
-          'Automate your invoices, inventory updates, and payment tracking in one seamless ecosystem.',
+          'Create invoices, update stock, and track payments without doing everything manually.',
       bodySw:
-          'Otomatisha ankara, masasisho ya hifadhi, na ufuatiliaji wa malipo katika mfumo mmoja madhubuti.',
+          'Tengeneza ankara, sasisha hifadhi na fuatilia malipo bila kufanya kila kitu kwa mkono.',
     ),
     _SlideData(
-      titleEn: 'Speaks your language,\nliterally.',
-      titleSw: 'Inaongea lugha yako,\nkihalisi.',
-      bodyEn:
-          'Fully bilingual in Kiswahili and English, switch anytime. Built specifically for the way African businesses actually operate.',
-      bodySw:
-          'Inapatikana kikamilifu kwa Kiswahili na Kiingereza, badilisha wakati wowote. Imeundwa maalum kwa jinsi biashara za Afrika zinavyofanya kazi.',
-    ),
+      imagePath: 'assets/Picture/offline4.webp',
+     titleEn: 'LOST IN DEBT?',
+     titleSw: 'POTEZWA NA MADENI?',
+     bodyEn:
+      'Track who owes you, who you owe, and how much is still unpaid. Get a clear picture of your debts and payments in one place.',
+     bodySw:
+      'Fuatilia wanaokudai, unaowadai na kiasi ambacho hakijalipwa. Fahamu hali halisi ya madeni yako na malipo yote sehemu moja.',
+ ),
     _SlideData(
-      titleEn: 'Your data,\nlocked down.',
-      titleSw: 'Taarifa zako,\nzimelindwa.',
+      imagePath: 'assets/Picture/offline5.webp',
+      titleEn: 'WORRIED ABOUT YOUR DATA?',
+      titleSw: 'VP USALAMA WA DATA ZAKO?',
       bodyEn:
-          'A secure PIN keeps your business safe, even if someone else picks up your phone.',
+          'Protect your business with a secure PIN, even when someone else has your phone.',
       bodySw:
-          'PIN salama inalinda biashara yako, hata kama mtu mwingine akishika simu yako.',
+          'Linda biashara yako kwa PIN salama, hata mtu mwingine akiwa na simu yako.',
     ),
   ];
 
@@ -82,7 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.light,
       ),
     );
 
@@ -119,10 +129,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _goBack() {
-    context.go(AppRoutes.welcome);
+    if (widget.onBackToWelcome != null) {
+      widget.onBackToWelcome!();
+    } else {
+      context.go(AppRoutes.welcome);
+    }
   }
 
-  /// Hardware back: retreat one slide first, then leave the carousel.
+  /// Hardware/UI back: retreat one slide first, then leave the carousel.
   void _handleSystemBack() {
     if (_current > 0) {
       _pageCtrl.previousPage(
@@ -152,128 +166,141 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: _goBack,
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.navyPrimary,
-                      size: 16,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.border.withValues(alpha: 0.3),
-                      padding: const EdgeInsets.all(8),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _openWhatsAppHelp,
-                    icon: const Icon(
-                      Icons.headset_mic_outlined,
-                      color: AppColors.navyPrimary,
-                      size: 13,
-                    ),
-                    label: Text(
-                      _tr('Help', 'Msaada'),
-                      style: GoogleFonts.dmSans(
-                        color: AppColors.navyPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppColors.border.withValues(alpha: 0.3),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const Spacer(flex: 2),
-              
-              // Carousel
-              SizedBox(
-                height: 320,
-                child: PageView.builder(
-                  controller: _pageCtrl,
-                  onPageChanged: _onPageChanged,
-                  itemCount: _slides.length,
-                  itemBuilder: (context, index) {
-                    return _SlidePage(
-                      slide: _slides[index],
-                      isSwahili: _sw,
-                    );
-                  },
-                ),
-              ),
-              
-              const Spacer(flex: 3),
-              
-              // Indicators
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_slides.length, (index) {
-                  final active = index == _current;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 32 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.navyPrimary
-                          : AppColors.border,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  );
-                }),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _onPrimaryAction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navyPrimary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    _isLastSlide
-                        ? _tr("Let's get started", 'Tuanze sasa')
-                        : _tr('Continue', 'Endelea'),
-                    style: GoogleFonts.dmSans(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Full Screen Carousel
+          PageView.builder(
+            controller: _pageCtrl,
+            onPageChanged: _onPageChanged,
+            itemCount: _slides.length,
+            itemBuilder: (context, index) {
+              return _SlidePage(
+                slide: _slides[index],
+                isSwahili: _sw,
+              );
+            },
           ),
-        ),
+
+          // Top Navigation Bar
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: _handleSystemBack,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withValues(alpha: 0.35),
+                        padding: const EdgeInsets.all(8),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _openWhatsAppHelp,
+                      icon: const Icon(
+                        Icons.headset_mic_outlined,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      label: Text(
+                        _tr('Help', 'Msaada'),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.black.withValues(alpha: 0.35),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Bottom Controls (Indicators & Action Button)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Indicators
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_slides.length, (index) {
+                        final active = index == _current;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: active ? 32 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 24),
+                    // Action Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _onPrimaryAction,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.navyPrimary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          _isLastSlide
+                              ? _tr("Let's get started", 'Tuanze sasa')
+                              : _tr('Continue', 'Endelea'),
+                          style: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
     return OnboardingBackHandler(onBack: _handleSystemBack, child: scaffold);
@@ -296,36 +323,70 @@ class _SlidePage extends StatelessWidget {
     final title = isSwahili ? slide.titleSw : slide.titleEn;
     final body = isSwahili ? slide.bodySw : slide.bodyEn;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.dmSans(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-              height: 1.15,
-              letterSpacing: -1.2,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Full screen background image
+        Image.asset(
+          slide.imagePath,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+
+        // Gradient overlay for contrast
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.45),
+                Colors.black.withValues(alpha: 0.15),
+                Colors.black.withValues(alpha: 0.65),
+                Colors.black.withValues(alpha: 0.92),
+              ],
+              stops: const [0.0, 0.35, 0.65, 1.0],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            body,
-            style: GoogleFonts.dmSans(
-              fontSize: 17,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-              height: 1.55,
-              letterSpacing: -0.2,
+        ),
+
+        // Slide text positioned above bottom controls
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Spacer(),
+                Text(
+                  title,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.15,
+                    letterSpacing: -1.0,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  body,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    height: 1.5,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                // Padding to stay above the bottom indicator and action button
+                const SizedBox(height: 130),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -333,12 +394,14 @@ class _SlidePage extends StatelessWidget {
 // ── Slide data model ───────────────────────────────────────────────────────────
 
 class _SlideData {
+  final String imagePath;
   final String titleEn;
   final String titleSw;
   final String bodyEn;
   final String bodySw;
 
   const _SlideData({
+    required this.imagePath,
     required this.titleEn,
     required this.titleSw,
     required this.bodyEn,

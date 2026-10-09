@@ -44,6 +44,7 @@ String _normalizeBusinessType(String businessType) {
     case 'tailoring':
     case 'tailoring & fashion':
     case 'tailoring & textiles':
+    case 'fashion & boutique':
       return 'tailoring';
 
     // ── Beauty / Salon ─────────────────────────────────────────────────────
@@ -150,7 +151,12 @@ String _normalizeBusinessType(String businessType) {
 
     case 'other':
     default:
-      return 'retail';
+      // Unresolved/unrecognised — return empty, never a hardcoded vertical.
+      // Silently bucketing an unmapped business type into 'retail' would show
+      // it another vertical's categories (the same class of bug as a
+      // pharmacy briefly seeing "Unga"). Callers must treat '' as "no catalog
+      // yet" and show nothing rather than guess.
+      return '';
   }
 }
 
@@ -193,9 +199,10 @@ final currentBusinessTypeProvider = StreamProvider<String>((ref) {
   // never emit until connectivity returns — leaving every provider that
   // awaits this one's first value (e.g. masterCategoriesProvider) stuck
   // loading forever, which is what broke the category picker offline.
-  // Falling back to '' resolves to the 'retail' default downstream; the
-  // real value still arrives (and callers rebuild) the moment a snapshot
-  // lands. distinct() avoids re-notifying on repeated timeout fallbacks.
+  // Falling back to '' is treated as "unresolved" downstream (never a
+  // hardcoded vertical like 'retail') — the real value still arrives (and
+  // callers rebuild) the moment a snapshot lands. distinct() avoids
+  // re-notifying on repeated timeout fallbacks.
   return snapshots
       .timeout(const Duration(seconds: 4), onTimeout: (sink) => sink.add(''))
       .distinct();

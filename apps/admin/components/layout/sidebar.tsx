@@ -46,7 +46,7 @@ const nav: NavItem[] = [
       { label: 'Lookups',       href: '/admin/lookups' },
     ]
   },
-  { label: 'Notifications', href: '/admin/notifications', icon: Send },
+  { label: 'SMS & Notifications', href: '/admin/notifications', icon: Send },
   {
     label: 'Operations', icon: ClipboardList,
     children: [

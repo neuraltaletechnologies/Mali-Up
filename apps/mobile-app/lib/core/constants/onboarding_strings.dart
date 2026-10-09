@@ -46,8 +46,8 @@ abstract final class OnboardingStrings {
   // SCREEN 2 — PHONE NUMBER ENTRY
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static const phoneTitleEn = "What's your phone number?";
-  static const phoneTitleSw = 'Namba yako ya simu ni ipi?';
+  static const phoneTitleEn = "Let's start with your number?";
+  static const phoneTitleSw = 'Tuanze na namba yako ya simu?';
 
   static const phoneSubEn = 'Enter your phone number to get started.';
   static const phoneSubSw = 'Weka namba yako ya simu ili uanze.';
@@ -478,9 +478,6 @@ abstract final class OnboardingStrings {
 
   static const cancelEn = 'Cancel';
   static const cancelSw = 'Ghairi';
-
-  static const loadingEn = 'Loading…';
-  static const loadingSw = 'Inapakia…';
 
   static const genericErrorEn = 'Something went wrong. Please try again.';
   static const genericErrorSw = 'Hitilafu imetokea. Tafadhali jaribu tena.';

@@ -3,7 +3,7 @@
   "description": "Mali Up Cloud Functions — Play Integrity token verification.",
   "main": "lib/index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "build": "tsc",
@@ -17,7 +17,7 @@
     "google-auth-library": "^10.5.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.28",
+    "@types/node": "^22.0.0",
     "typescript": "^5.9.3"
   },
   "private": true

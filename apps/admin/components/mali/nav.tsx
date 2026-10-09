@@ -33,7 +33,7 @@ export function Nav() {
   const links = [
     { label: "Features",     href: "#features" },
     { label: "How It Works", href: "#how-it-works" },
-    { label: "Modules",      href: "#modules" },
+    { label: "Pricing",      href: "#pricing" },
     { label: "Stats",        href: "#stats" },
   ]
 
@@ -71,7 +71,7 @@ export function Nav() {
             priority
           />
           <span className="font-heading font-bold text-[#0C1B2E] text-lg tracking-tight">
-            Mali<span style={{ color: "#F5A623" }}>Up</span>
+            Mali<span style={{ color: "#F5A623" }}> Up</span>
           </span>
         </a>
 

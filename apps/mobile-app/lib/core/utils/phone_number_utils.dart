@@ -21,6 +21,18 @@ class PhoneNumberUtils {
     return digits;
   }
 
+  static const List<String> _kAfricanCountryCodes = [
+    // 3-digit African dial codes
+    '255', '254', '256', '250', '257', '211', '251', '252', '253', '291',
+    '265', '260', '263', '258', '261', '267', '264', '268', '266', '234',
+    '233', '221', '225', '237', '243', '242', '244', '249', '218', '216',
+    '213', '212', '222', '223', '226', '227', '235', '241', '230', '229',
+    '228', '248', '269', '238', '240', '224', '245', '231', '232', '220',
+    '236',
+    // 2-digit dial codes
+    '20', '27',
+  ];
+
   /// Exact values that may exist in Firestore across schema generations.
   static List<String> lookupVariants(String input) {
     final raw = digitsOnly(input);
@@ -32,10 +44,13 @@ class PhoneNumberUtils {
       if (raw.isNotEmpty) '+$raw',
     };
 
-    if (canonicalPhone.startsWith('255') && canonicalPhone.length > 3) {
-      final local = canonicalPhone.substring(3);
-      variants.add(local);
-      variants.add('0$local');
+    for (final prefix in _kAfricanCountryCodes) {
+      if (canonicalPhone.startsWith(prefix) && canonicalPhone.length > prefix.length + 5) {
+        final local = canonicalPhone.substring(prefix.length);
+        variants.add(local);
+        variants.add('0$local');
+        break;
+      }
     }
 
     return variants.toList(growable: false);

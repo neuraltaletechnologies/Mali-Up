@@ -209,10 +209,15 @@ abstract final class ReceiptPdfService {
 
     final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? '-')
         .toString();
-    final isQuotation =
-        (sale['type'] ?? '').toString().toLowerCase() == 'quotation';
+    final saleType = (sale['type'] ?? '').toString().toLowerCase();
+    final isQuotation = saleType == 'quotation';
+    // A debt reminder isn't proof of a completed sale — it's a receipt of
+    // what's still owed, so it gets its own title rather than "SALE RECEIPT".
+    final isDebtReceipt = saleType == 'debt';
     final documentTitle = isQuotation
         ? t('QUOTATION', 'NUKUU')
+        : isDebtReceipt
+        ? t('DEBT RECEIPT', 'RISITI YA DENI')
         : t('SALE RECEIPT', 'RISITI YA MAUZO');
     final customerName = (sale['customerName'] ?? '').toString().trim();
     final customer = customerName.isEmpty
@@ -284,7 +289,9 @@ abstract final class ReceiptPdfService {
     final document = pw.Document(
       title: '$documentTitle $invoiceNumber',
       author: businessName,
-      subject: t('Customer sale receipt', 'Risiti ya mauzo ya mteja'),
+      subject: isDebtReceipt
+          ? t('Customer debt receipt', 'Risiti ya deni la mteja')
+          : t('Customer sale receipt', 'Risiti ya mauzo ya mteja'),
     );
     document.addPage(
       pw.Page(

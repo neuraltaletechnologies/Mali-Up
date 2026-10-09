@@ -21,10 +21,8 @@ class AppRatingService {
   static const _kHasRated = 'rating_has_rated';
 
   /// Positive signals required before we even consider asking.
-  static const _minSignals = 3;
-
-  /// Minimum time since first launch before we ask.
-  static const _minAccountAge = Duration(days: 3);
+  /// Set to 1 so the prompt fires after the very first completed sale.
+  static const _minSignals = 1;
 
   /// Minimum time between two prompts.
   static const _cooldown = Duration(days: 60);
@@ -51,6 +49,35 @@ class AppRatingService {
     await prefs.setInt(_kPositiveSignals, current + 1);
   }
 
+  /// Whether to prompt a returning / continuing user on app open.
+  ///
+  /// This fires **once** for any user who has never seen the review dialog
+  /// before — regardless of how many sales they have. It catches people who
+  /// were already using the app before the rating prompt was introduced, or
+  /// who simply haven't made a sale yet on this install but are clearly
+  /// long-term users. After it fires it is subject to the normal cooldown
+  /// and prompt-count cap so they won't be asked again until [_cooldown]
+  /// has elapsed.
+  static Future<bool> shouldPromptReturningUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kHasRated) ?? false) return false;
+
+    final promptCount = prefs.getInt(_kPromptCount) ?? 0;
+    // Only fire this path if they have *never* been prompted at all.
+    if (promptCount > 0) return false;
+
+    // Also skip if the cooldown is still active (belt-and-suspenders).
+    final lastPrompted = prefs.getInt(_kLastPromptedAt);
+    if (lastPrompted != null) {
+      final since = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(lastPrompted),
+      );
+      if (since < _cooldown) return false;
+    }
+
+    return true;
+  }
+
   /// Whether this is a good moment to show the soft-ask dialog.
   static Future<bool> shouldPrompt() async {
     final prefs = await SharedPreferences.getInstance();
@@ -61,13 +88,6 @@ class AppRatingService {
 
     final signals = prefs.getInt(_kPositiveSignals) ?? 0;
     if (signals < _minSignals) return false;
-
-    final firstLaunch = prefs.getInt(_kFirstLaunchAt);
-    if (firstLaunch == null) return false;
-    final age = DateTime.now().difference(
-      DateTime.fromMillisecondsSinceEpoch(firstLaunch),
-    );
-    if (age < _minAccountAge) return false;
 
     final lastPrompted = prefs.getInt(_kLastPromptedAt);
     if (lastPrompted != null) {

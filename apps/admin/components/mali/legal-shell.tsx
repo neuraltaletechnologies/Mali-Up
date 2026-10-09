@@ -14,7 +14,7 @@ export function LegalHeader() {
             className="rounded-xl shadow-lg"
           />
           <span className="font-heading font-bold text-[#0C1B2E] text-lg tracking-tight">
-            Mali<span style={{ color: "#F5A623" }}>Up</span>
+            Mali<span style={{ color: "#F5A623" }}> Up</span>
           </span>
         </a>
       </div>

@@ -18,6 +18,10 @@ class IntroSlidesScreen extends ConsumerWidget {
         ref.read(onboardingNotifierProvider.notifier).advanceFromIntro();
         context.go(AppRoutes.phone);
       },
+      onBackToWelcome: () {
+        ref.read(onboardingNotifierProvider.notifier).retreatToWelcome();
+        context.go(AppRoutes.welcome);
+      },
     );
   }
 }
