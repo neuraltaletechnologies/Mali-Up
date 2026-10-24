@@ -143,7 +143,11 @@ SFor reset password use beem otp but sy  a you reset passowrd opt is and for the
 
 in the admin page the export details of user has no phone number and fix the business each user has one business alsready also the out put cxv fro business does no show the owner and phone number 
 
+in the app notification it says you owe mali 81K
+ overdue by 10 days instead of the real name of user 
 
+
+ the slae todya month customer and product do to have the corrent truck limite 
 
 
 
