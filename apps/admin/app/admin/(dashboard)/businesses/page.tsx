@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
-import { DataTable } from '@/components/ui/data-table'
+import { DataTable, type ExportColumn } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
 import { PlanBadge, PlanSourceBadge } from '@/components/ui/plan-badge'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -14,6 +14,22 @@ import { formatTZS, timeAgo } from '@/lib/format'
 import { AlertCircle, Plus, X, Loader2, ChevronDown, Search } from 'lucide-react'
 import type { Business, BusinessStatus, AdminUser, AppLookups } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
+
+const exportColumns: ExportColumn<Business>[] = [
+  { header: 'Business', value: (b) => b.name },
+  { header: 'Owner', value: (b) => b.ownerName },
+  { header: 'Owner Phone', value: (b) => b.ownerPhone },
+  { header: 'Industry', value: (b) => b.industry },
+  { header: 'Location', value: (b) => b.location },
+  { header: 'Plan', value: (b) => b.plan },
+  { header: 'Status', value: (b) => b.status },
+  { header: 'Staff', value: (b) => b.staffCount },
+  { header: 'MRR (TZS)', value: (b) => b.mrr },
+  { header: 'Last Active', value: (b) => b.lastActive },
+  { header: 'Created', value: (b) => b.createdAt },
+  { header: 'Business ID', value: (b) => b.id },
+  { header: 'Owner ID', value: (b) => b.ownerId },
+]
 
 const columns: ColumnDef<Business, unknown>[] = [
   {
@@ -478,6 +494,7 @@ export default function BusinessesPage() {
             searchPlaceholder="Search businesses…"
             onRowClick={(b) => router.push(`/admin/businesses/${b.ownerId}/${b.id}`)}
             exportFilename="businesses"
+            exportColumns={exportColumns}
             emptyState={
               <div className="text-center py-8">
                 <p className="text-[var(--ink-muted)] text-[13px]">No businesses match this filter</p>

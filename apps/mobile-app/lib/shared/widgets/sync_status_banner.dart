@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,9 +120,13 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner>
         textColor: AppColors.error,
         icon: Icons.wifi_off_rounded,
         spin: false,
-        label: sw
-            ? 'Hakuna mtandao kwa saa 48+. Huwezi kuandika mpaka uunganike.'
-            : 'Offline 48 h+. Read-only until reconnected.',
+        label: kIsWeb
+            ? (sw
+                ? 'Hakuna mtandao. Huwezi kuandika mpaka uunganike.'
+                : 'Offline. Read-only until reconnected.')
+            : (sw
+                ? 'Hakuna mtandao kwa saa 48+. Huwezi kuandika mpaka uunganike.'
+                : 'Offline 48 h+. Read-only until reconnected.'),
       );
     }
 

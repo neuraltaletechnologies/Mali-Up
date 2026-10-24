@@ -79,6 +79,9 @@ dependencies:
   drift: ^2.33.0
   drift_flutter: ^0.3.0
   sqlite3_flutter_libs: ^0.6.0+eol
+  # Direct dep only for the web build: lib/core/database/connection/web.dart
+  # loads sqlite3.wasm into an in-memory DB (see that file for why).
+  sqlite3: ^3.5.2
   uuid: ^4.5.3
   crypto: ^3.0.7
   font_awesome_flutter: ^11.0.0

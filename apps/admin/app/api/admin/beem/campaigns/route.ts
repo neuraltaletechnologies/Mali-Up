@@ -119,6 +119,12 @@ export async function POST(request: Request) {
     const now = FieldValue.serverTimestamp()
 
     const isScheduled = Boolean(body.isScheduled && body.scheduledAt)
+    // Read by the dispatchSmsCampaigns Cloud Function (functions/src/
+    // sms_campaigns.ts), which sends the campaign once this time passes.
+    const scheduledAtMs = isScheduled ? Date.parse(body.scheduledAt!) : NaN
+    if (isScheduled && (Number.isNaN(scheduledAtMs) || scheduledAtMs < Date.now() - 60_000)) {
+      return NextResponse.json({ error: 'Scheduled time must be a valid time in the future' }, { status: 400 })
+    }
 
     // Initial save
     await campaignRef.set({
@@ -134,7 +140,8 @@ export async function POST(request: Request) {
       failedCount: 0,
       smsPartsCount: partsInfo.parts,
       estimatedCredits,
-      scheduledAt: isScheduled ? body.scheduledAt : null,
+      scheduledAt: isScheduled ? new Date(scheduledAtMs).toISOString() : null,
+      scheduledAtMs: isScheduled ? scheduledAtMs : null,
       sentAt: null,
       createdAt: now,
       createdByAdminId: adminId,

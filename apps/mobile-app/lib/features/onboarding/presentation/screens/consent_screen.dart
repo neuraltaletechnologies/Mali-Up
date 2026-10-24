@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
+import '../onboarding_images.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -109,8 +110,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
             top: 0,
             height: topHeight,
             child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.webp',
+              child: Image(
+                image: OnboardingImages.signUpProvider,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

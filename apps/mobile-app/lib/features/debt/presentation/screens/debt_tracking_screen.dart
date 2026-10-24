@@ -332,18 +332,7 @@ class _DebtDarkHeader extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Icon(
-                net >= 0
-                    ? Icons.trending_up_rounded
-                    : Icons.trending_down_rounded,
-                color: net >= 0 ? AppColors.success : AppColors.error,
-                size: 12,
-              ),
-            ],
-          ),
+       
         ],
       ),
       actions: Row(

@@ -69,6 +69,9 @@ Future<void> _startApp() async {
 
   // Drift is the source of truth for offline data — Firestore's own
   // persistence cache is disabled to prevent a dual-cache inconsistency.
+  // On web this also keeps Firestore out of IndexedDB: the web build has no
+  // offline mode at all (Drift is in-memory there, see
+  // core/database/connection/web.dart), so every read comes from the network.
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
@@ -86,16 +89,22 @@ Future<void> _startApp() async {
   // only once this build has rolled out to the great majority of installs.
   // Flipping it earlier locks out every user still on an older app version
   // that never attaches a token.
-  unawaited(
-    FirebaseAppCheck.instance.activate(
-      providerAndroid: kDebugMode
-          ? const AndroidDebugProvider()
-          : const AndroidPlayIntegrityProvider(),
-      providerApple: kDebugMode
-          ? const AppleDebugProvider()
-          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
-    ),
-  );
+  //
+  // Skipped on web: that needs a reCAPTCHA Enterprise site key
+  // (providerWeb), which isn't set up yet. Register one before enforcing App
+  // Check, or enforcement will lock the web app out too.
+  if (!kIsWeb) {
+    unawaited(
+      FirebaseAppCheck.instance.activate(
+        providerAndroid: kDebugMode
+            ? const AndroidDebugProvider()
+            : const AndroidPlayIntegrityProvider(),
+        providerApple: kDebugMode
+            ? const AppleDebugProvider()
+            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+      ),
+    );
+  }
 
   // Fire-and-forget: checks this build against the remote version gate.
   // Never awaited — must not delay startup, and fails open on any error.

@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
-import { DataTable } from '@/components/ui/data-table'
+import { DataTable, type ExportColumn } from '@/components/ui/data-table'
 import { StatusDot } from '@/components/ui/status-dot'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
@@ -77,6 +77,18 @@ const columns: ColumnDef<AdminUser, unknown>[] = [
     header: 'Joined',
     cell: ({ row }) => <span className="text-[var(--ink-muted)]">{formatDate(row.original.joinedAt)}</span>,
   },
+]
+
+const exportColumns: ExportColumn<AdminUser>[] = [
+  { header: 'Name', value: (u) => u.name },
+  { header: 'Phone', value: (u) => u.phone },
+  { header: 'Email', value: (u) => u.email },
+  { header: 'Business', value: (u) => u.businessName },
+  { header: 'Businesses', value: (u) => u.businessCount },
+  { header: 'Status', value: (u) => u.status },
+  { header: 'Last Login', value: (u) => u.lastLogin },
+  { header: 'Joined', value: (u) => u.joinedAt },
+  { header: 'User ID', value: (u) => u.id },
 ]
 
 interface CreateForm {
@@ -492,6 +504,7 @@ export default function UsersPage() {
             searchPlaceholder="Search users…"
             onRowClick={(u) => router.push(`/admin/users/${u.id}`)}
             exportFilename="users"
+            exportColumns={exportColumns}
             emptyState={
               <div className="text-center py-8">
                 <p className="text-[var(--ink-muted)] text-[13px]">No users match this filter</p>

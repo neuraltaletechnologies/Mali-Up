@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -639,6 +640,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           .timeout(const Duration(seconds: 15));
 
       switchSucceeded = true;
+
+      // Land on the new business without any first-visit tours popping up
+      // — see PageTour.disableAutoStart.
+      await PageTour.disableAutoStart();
 
       // DashboardScreen's Hero card (business name/logo/plan) is fetched
       // through its own 24h-TTL-cached profile fetch, not through
@@ -1787,6 +1792,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
+    final locationPath = GoRouterState.of(context).uri.path;
+    final darkHeader = _tabsWithDarkHeader.any(
+      (route) => _isSelected(locationPath, route),
+    );
     final currentUser = _currentUser;
     ref.watch(
       syncServiceProvider,
@@ -1940,8 +1949,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         // Most shell tabs open with a DarkHeaderShell (navy) banner that
         // reaches right up under the status bar, so those need light/white
         // icons to stay visible. The plain white-top tabs (dashboard,
-        // settings, subscription, reports) keep dark icons.
-        value: _tabsWithDarkHeader.contains(location)
+        // settings, subscription, reports) keep dark icons. The frosted
+        // strip in the app bar slot re-asserts the same style (see
+        // _StatusBarBlur) so a page's own nested AppBar can't override it.
+        value: darkHeader
             ? AppTheme.statusBarLightIcons
             : AppTheme.statusBarDarkIcons,
         child: FutureBuilder<Map<String, dynamic>?>(
@@ -1963,7 +1974,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 preferredSize: Size.fromHeight(
                   54 + MediaQuery.of(context).padding.top,
                 ),
-                child: SafeArea(
+                child: Stack(
+                  children: [
+                    _StatusBarBlur(darkHeader: darkHeader),
+                    SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12.0,
@@ -2036,6 +2050,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                       ),
                     ),
                   ),
+                ),
+                  ],
                 ),
               ),
               body: Builder(
@@ -3024,6 +3040,43 @@ class _DrawerSectionLabel extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Frosted strip behind the status bar. The shell's body extends behind the
+/// app bar, so without this whatever scrolls up there shows through crisp
+/// and fights with the clock/battery icons. Wrapped in its own
+/// AnnotatedRegion because it's painted on top of the body — that makes it
+/// the region the system reads for status bar icon brightness, so a page's
+/// own nested AppBar can't flip a navy-header tab's icons back to black.
+class _StatusBarBlur extends StatelessWidget {
+  const _StatusBarBlur({required this.darkHeader});
+
+  final bool darkHeader;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    if (top <= 0) return const SizedBox.shrink();
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: darkHeader
+          ? AppTheme.statusBarLightIcons
+          : AppTheme.statusBarDarkIcons,
+      child: SizedBox(
+        height: top,
+        width: double.infinity,
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: ColoredBox(
+              color: darkHeader
+                  ? AppColors.navyPrimary.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.55),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
-iThe otp si for the coanties thta beam support only Number only 
+iThe otp and smm is for allow contry and number code that  beam support only Number only 
 then the email is the same but this is done later when user has already login
 the image used should be real not ai
-The skip should work to sjip the whore toor also i want it to be visibale 
+The skip should work to skip the whore tuor also i want it to be visibale 
 on the top part under the status bar i awn the background to have a blury effect thta just a plane to see also the color of the status bar is to be white not black 
 also in the product details page user what to see more details abou the product like sale fro thta product also all re stocks details and date this is an online feature 
 in the app for a new user who has just doeloaded tha app i an i have the details 10 minutes after the user account has been cretaed i want to us on of the beeam sms to send him this Maelezo ya mteja mpya
@@ -25,7 +25,7 @@ maure sure you balance the status pill  width
 so the amdin notifictaion has email notification in app anotifictaion and message notifictaion fro each i cna cretae cmapins also the atuo genertae in bem i want it to be available of template 
 implment the email verificaton system add resend also
 for the invited tema member when the oner just creates a tema mbember the htne automatic the message is sen to thta number to notify that user his account is created in the business hwich thta owner has a nd role an d url to dowload it the app
-in all the user who are still in feee plan at the edn of every two month in th e admin page should have a notifictaion that i am reqired to send a reminder to all user thatare still in free plan to upgrade to  get better usage and unclok poten o r having nay problems notify and call but its should not be automatic i go an chskc and choose to whom to send 
+in all the user who are still in fee plan at the edn of every two month in th e admin page should have a notifictaion that i am reqired to send a reminder to all user thatare still in free plan to upgrade to  get better usage and unclok poten o r having nay problems notify and call but its should not be automatic i go an chskc and choose to whom to send 
 in the amdin page the user page when i click it i see business o while each user has it own business also is is impossible fro user to have no businees so user cannot delet busines in the app or even in the admin is attached to a user unless thta user has multiple busine of which he mya still own 
 
 
@@ -63,7 +63,6 @@ in theimah=ges userd change and used claudflare r2 dtabse backet fro image tha n
 find the way to fix with the vfd also  but cna cost baout 1M and other yearly cost  or have another vfd softnewere thta is a dublicated 
 
 
-i want to change the pipeline when i push to production i want the app to go to closed testing 
 
 use the Firebase Analyticsto look and find why most user get stuck in any anction and hwy user are always stuck in free plan
 
@@ -116,3 +115,175 @@ Please provide:
 in the setting alow user to change the curenyc money to any current he want andd the dyta will also change but by defalt it will be the curenct of the country he will choose 
 
 in the admin login page it look lke the website does not show the product or service we are provinding i notice this i gave my url maliup.neuraltale.com to https://labs.google.com/pomelli/bdna/catalogand it says that i have no product at all
+
+
+
+
+Prompt
+
+in the amdin page the Activity of the user does not hsow the activities done  also in the business page of the amdi page these details do not hsow real data Total Invoices
+0
+Total Customers
+3
+Total Revenue
+—
+Outstanding Receivables
+—
+Total Expenses
+
+also in the admin page hwen i click tema i get this error thata This page couldn’t load
+Reload to try again, or go back.
+
+Reload
+Back also in the Transactions it should also show the name of person and business 
+
+
+
+SFor reset password use beem otp but sy  a you reset passowrd opt is and for the ligin sya ot sig  up otp is o t the same page he enter the opt new password and it confirmation pasword also send via email also if possibel                                                                                                       
+
+in the admin page the export details of user has no phone number and fix the business each user has one business alsready also the out put cxv fro business does no show the owner and phone number 
+
+in the app notification it says you owe mali 81K
+ overdue by 10 days instead of the real name of user 
+
+
+ the slae todya month customer and product do to have the corrent truck limite 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+for the invited teama member when the owner just creates a team member the app automatic send the ivitation message  to thta number to notify that user his account is created in the business  by owner has and role and url to dowload it the app
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+the enter number yellow boarder focus should not be inside the number but the whole back boarder add a ver ver small y direction padding on the bottom bav bar also add small short text in the waiting verfication of payment
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+this app test and verilfy we will have to creat the windows app pos app web app and mobile app alo in the horizontal view or tablet view the botom nav bar is gone it shoul have a slide down animatio also i notice the left side bar taking more thna  half of the screen
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+iThe otp and smm is for allow contry and number code that  beam support only
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+the enter number yellow boarder focus should not be inside the number but the whole back boarder add a ver ver small y direction padding on the bottom bav bar also add small short text in the waiting verfication of payment
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+also in the admin page if sesion expire it should not only say una utjorized acces it hsoul d acutan send hime back to the login page 
+ i the Assign Plan to Business i can search by name and business also also show them
+
+ in the Recent Transactions add filter and search and sort function
+ in the Community Submissions i do not ee the customer created products in which user create in the app that are not in the master catgoglt i want thta i cna a ssign to exstipn catagolo or create one 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+in the receitp of invice not only sharer but print also in the add a product in the sale process flow i wanted it change it do not want the user to clcik the ongeza bidha button to add a product the filled should be automaticall one after entering th firts product  also  i am going this for the deisgn of the pos system 

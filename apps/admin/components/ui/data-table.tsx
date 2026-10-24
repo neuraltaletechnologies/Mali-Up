@@ -25,6 +25,19 @@ interface DataTableProps<T> {
   emptyState?: React.ReactNode
   toolbar?: React.ReactNode
   exportFilename?: string
+  /** Columns written to the CSV. Defaults to each column's raw accessor
+   *  value, which misses anything only rendered inside a cell (a phone
+   *  shown under the name, say) — pass this to export exactly what's needed. */
+  exportColumns?: ExportColumn<T>[]
+}
+
+export interface ExportColumn<T> {
+  header: string
+  value: (row: T) => string | number | null | undefined
+}
+
+function csvCell(v: string): string {
+  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 }
 
 export function DataTable<T>({
@@ -37,6 +50,7 @@ export function DataTable<T>({
   emptyState,
   toolbar,
   exportFilename = 'export',
+  exportColumns,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -57,17 +71,29 @@ export function DataTable<T>({
   })
 
   function exportCSV() {
-    const headers = columns
-      .filter((c) => 'accessorKey' in c && c.accessorKey)
-      .map((c) => ('header' in c ? String(c.header) : ''))
-    const rows = table.getFilteredRowModel().rows.map((row) =>
-      row.getVisibleCells().map((cell) => {
-        const v = cell.getValue()
-        return typeof v === 'string' || typeof v === 'number' ? String(v) : ''
-      })
-    )
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const filteredRows = table.getFilteredRowModel().rows
+    let headers: string[]
+    let rows: string[][]
+    if (exportColumns) {
+      headers = exportColumns.map((c) => c.header)
+      rows = filteredRows.map((row) =>
+        exportColumns.map((c) => String(c.value(row.original) ?? '')),
+      )
+    } else {
+      headers = columns
+        .filter((c) => 'accessorKey' in c && c.accessorKey)
+        .map((c) => ('header' in c ? String(c.header) : ''))
+      rows = filteredRows.map((row) =>
+        row.getVisibleCells().map((cell) => {
+          const v = cell.getValue()
+          return typeof v === 'string' || typeof v === 'number' ? String(v) : ''
+        })
+      )
+    }
+    // Quoted cells so a comma in a name/location doesn't shift columns; BOM
+    // so Excel opens it as UTF-8.
+    const csv = [headers, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

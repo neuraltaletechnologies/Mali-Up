@@ -480,6 +480,38 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     return result;
   }
 
+  /// Code flow, step 1 — SMS (+ email) a reset code to [state.phone].
+  Future<PinResetCodeRequestResult> requestPinResetCode() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    final result = await _service.requestPinResetCode(
+      phone: state.phone,
+      language: _sw ? 'sw' : 'en',
+    );
+    state = state.copyWith(isLoading: false);
+    return result;
+  }
+
+  /// Code flow, step 2 — on success behaves like [confirmPinReset]: refreshes
+  /// the returning-user lookup and sets [pinJustReset] for the login toast.
+  Future<PinResetCodeConfirmResult> confirmPinResetCode({
+    required String code,
+    required String newPin,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    final result = await _service.confirmPinResetCode(
+      phone: state.phone,
+      code: code,
+      newPin: newPin,
+    );
+    if (result.status == PinResetCodeConfirmStatus.ok) {
+      state = state.copyWith(isLoading: false, pinJustReset: true);
+      await lookupPhone();
+    } else {
+      state = state.copyWith(isLoading: false);
+    }
+    return result;
+  }
+
   /// Clears the one-shot [OnboardingState.pinJustReset] flag once the PIN login
   /// screen has shown its confirmation.
   void clearPinJustReset() {

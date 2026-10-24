@@ -94,6 +94,8 @@ Drift (SQLite) is the **source of truth**; Firestore's own persistence cache is 
 
 `lib/core/sync/sync_service.dart` drains the queue to Firestore (batched, retry-capped), listens for connectivity changes, and uses `ConflictResolver` for conflicts and `OfflinePolicyNotifier` for offline write policy. Drift tables/DAOs live in `lib/core/database/`; DAO tests in `test/core/database/` use `test_helpers.dart` for an in-memory database.
 
+**Web build has no offline mode.** `lib/core/database/connection/` picks the Drift executor per platform: native keeps the on-disk SQLite file; web uses an in-memory sqlite3.wasm DB (nothing in IndexedDB/OPFS), so each page load does a full pull from Firestore. `OfflinePolicyNotifier` makes web read-only the moment it goes offline (a queued write would die with the tab). `web/sqlite3.wasm` is gitignored — download the release matching the locked `sqlite3` version to run web locally. Deployed to Cloudflare Pages by `.github/workflows/deploy-web.yml` on merges to `main`.
+
 When adding a new synced entity, mirror this whole chain: table + DAO + mapper + the three repositories + wiring into `SyncService`.
 
 ### Localization

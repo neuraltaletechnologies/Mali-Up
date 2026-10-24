@@ -23,7 +23,8 @@ export async function GET(
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
-    const user = mapUser(uid, userDoc.data() as Record<string, unknown>)
+    const userData = userDoc.data() as Record<string, unknown>
+    const user = mapUser(uid, userData)
 
     // Mobile app stores businesses in the top-level `businesses` collection
     // with an `ownerUid` field — not under tenants/{uid}/businesses.
@@ -32,12 +33,35 @@ export async function GET(
       .where('ownerUid', '==', uid)
       .get()
 
+    // Same resolution as the users list (GET /api/admin/users): also include
+    // businesses linked from the user doc (team members carry `businessId`,
+    // older profiles a `businesses` array) that still exist — otherwise the
+    // list showed a business but this detail page showed 0.
+    const bizDocs = new Map<string, { id: string; data: () => Record<string, unknown> | undefined }>(
+      bizSnap.docs.map((d) => [d.id, d]),
+    )
+    const linkedIds = new Set<string>(
+      Array.isArray(userData.businesses) ? (userData.businesses as string[]) : [],
+    )
+    for (const key of ['businessId', 'selectedBusinessId']) {
+      const id = userData[key]
+      if (typeof id === 'string' && id) linkedIds.add(id)
+    }
+    const missing = [...linkedIds].filter((id) => !bizDocs.has(id))
+    if (missing.length > 0) {
+      const extra = await adminFirestore.getAll(
+        ...missing.map((id) => adminFirestore.collection('businesses').doc(id)),
+      )
+      extra.forEach((d) => { if (d.exists) bizDocs.set(d.id, d) })
+    }
+
     // staffCount is denormalized onto the business doc by addTeamMember /
     // deleteTeamMember (mobile app) — no per-business sub-collection read needed.
-    const businesses = bizSnap.docs.map((doc) => {
-      const data = doc.data() as Record<string, unknown>
+    const businesses = [...bizDocs.values()].map((doc) => {
+      const data = (doc.data() ?? {}) as Record<string, unknown>
       const staffCount = typeof data.staffCount === 'number' ? data.staffCount : 0
-      return mapBusiness(uid, doc.id, data, staffCount)
+      // Linked (non-owned) businesses route under their real owner.
+      return mapBusiness((data.ownerUid as string) || uid, doc.id, data, staffCount)
     })
 
     return NextResponse.json({ user, businesses })

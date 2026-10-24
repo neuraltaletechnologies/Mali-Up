@@ -765,6 +765,36 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // PIN RESET CODES  (functions/src/pin_recovery.ts — code flow)
+    // pin_reset_otps/{phone} holds the SHA-256 of the SMS/email reset code.
+    // Admin SDK only; a client must never read the hash or reset `attempts`.
+    // =========================================================================
+    match /pin_reset_otps/{phone} {
+      allow read, write: if false;
+    }
+    match /pin_reset_otp_rate_limits_phone/{keyHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_otp_rate_limits_phone_daily/{keyHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_otp_rate_limits_ip/{keyHash} {
+      allow read, write: if false;
+    }
+    match /pin_reset_otp_confirm_rate_limits_ip/{keyHash} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // BEEM SMS AUTO CAMPAIGNS  (functions/src/sms_campaigns.ts)
+    // Yearly holiday rules managed from the admin console (server-side Admin
+    // SDK) and fired by dispatchSmsCampaigns. Never client-accessible.
+    // =========================================================================
+    match /beem_sms_auto_campaigns/{ruleId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
     // OTHER RATE LIMIT COUNTERS  (functions/src/rate_limit.ts)
     // Written only via the Admin SDK inside a Firestore transaction, which
     // bypasses these rules entirely. Same reasoning as the OTP counters above.

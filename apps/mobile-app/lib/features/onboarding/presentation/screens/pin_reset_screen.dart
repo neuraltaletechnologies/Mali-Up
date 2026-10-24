@@ -247,7 +247,7 @@ class _PinResetScreenState extends ConsumerState<PinResetScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
+          sw ? 'Msaada wa PIN ' : 'PIN Recovery ',
           style: GoogleFonts.dmSans(
             fontSize: 22,
             fontWeight: FontWeight.w800,

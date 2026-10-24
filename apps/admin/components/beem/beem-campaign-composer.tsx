@@ -217,7 +217,8 @@ export function BeemCampaignComposer({
         messageSw: messageSw.trim() || undefined,
         audience: currentAudience,
         isScheduled: sendMode === 'scheduled',
-        scheduledAt: sendMode === 'scheduled' ? scheduledDateTime : undefined,
+        // datetime-local has no zone; resolve it in the admin's browser zone.
+        scheduledAt: sendMode === 'scheduled' ? new Date(scheduledDateTime).toISOString() : undefined,
       })
 
       setSuccessNotice(
@@ -336,7 +337,7 @@ export function BeemCampaignComposer({
                 className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
               />
               <p className="text-[11px] text-[var(--ink-faint)] mt-1">
-                e.g. Dec 25 at 08:00 AM for Christmas greetings.
+                e.g. Dec 25 at 08:00 AM for Christmas greetings. Sent automatically within ~5 minutes of this time.
               </p>
             </div>
           )}
@@ -612,7 +613,7 @@ export function BeemCampaignComposer({
         onClose={() => !sending && setConfirmOpen(false)}
         onConfirm={handleDispatchCampaign}
         loading={sending}
-        variant={sendMode === 'immediate' ? 'warning' : 'default'}
+        variant={sendMode === 'immediate' ? 'warning' : undefined}
         title={
           sendMode === 'immediate'
             ? `Send "${campaignName}" now?`
