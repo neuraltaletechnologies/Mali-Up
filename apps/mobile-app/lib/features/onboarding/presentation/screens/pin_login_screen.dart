@@ -20,6 +20,7 @@ import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
+import 'pin_reset_code_screen.dart';
 
 /// Screen 4A — shown when an existing owner/activated team member
 /// enters their phone and the account is found. They sign in with their PIN.
@@ -98,7 +99,9 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     if (!launched && mounted) {
       AppNotification.error(
         context,
-        sw ? 'Hatukuweza kufungua WhatsApp sasa.' : 'We could not open WhatsApp right now.',
+        sw
+            ? 'Hatukuweza kufungua WhatsApp sasa.'
+            : 'We could not open WhatsApp right now.',
       );
     }
   }
@@ -282,7 +285,9 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                       child: child,
                                     ),
                                   ),
-                              child: state.otpRequiredForLogin && !state.otpVerified
+                              child:
+                                  state.otpRequiredForLogin &&
+                                      !state.otpVerified
                                   ? OtpVerifyBody(
                                       key: const ValueKey('otp'),
                                       sw: sw,
@@ -291,222 +296,257 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                       isOnline: isOnline,
                                       errorMessage: state.errorMessage,
                                       onSend: () => ref
-                                          .read(onboardingNotifierProvider.notifier)
+                                          .read(
+                                            onboardingNotifierProvider.notifier,
+                                          )
                                           .sendOtp(),
                                       // Just verifies — loginWithPin (still
                                       // ahead of us, see the PIN step below)
                                       // is what actually completes sign-in.
                                       onVerify: (code) => ref
-                                          .read(onboardingNotifierProvider.notifier)
+                                          .read(
+                                            onboardingNotifierProvider.notifier,
+                                          )
                                           .verifyOtp(code),
                                     )
                                   : Column(
-                            key: const ValueKey('pin'),
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                            // Greeting heading
-                            Center(
-                              child: Text(
-                                name.isNotEmpty
-                                    ? (sw
-                                          ? 'Karibu tena, $name 👋'
-                                          : 'Welcome back, $name 👋')
-                                    : (sw
-                                          ? 'Karibu tena 👋'
-                                          : 'Welcome back 👋'),
-                                textAlign: TextAlign.center,
-                                style: headingStyle,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Center(
-                              child: Text(
-                                sw
-                                    ? 'Biashara yako inakungoja.'
-                                    : 'Your business is waiting for you.',
-                                textAlign: TextAlign.center,
-                                style: subtitleStyle,
-                              ),
-                            ),
-
-                            // Business card — a picker when the owner has more
-                            // than one business, otherwise a single info card.
-                            if (state.ownedBusinesses.length > 1) ...[
-                              const SizedBox(height: 24),
-                              Text(
-                                sw
-                                    ? 'Chagua biashara ya kufungua'
-                                    : 'Choose a business to open',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textMuted,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              for (final biz in state.ownedBusinesses) ...[
-                                _BusinessCard(
-                                  businessName: biz.name,
-                                  businessType: biz.type,
-                                  logoUrl: biz.logoUrl ?? '',
-                                  role: state.role,
-                                  isSwahili: sw,
-                                  plan: biz.plan,
-                                  planExpiresAt: biz.planExpiresAt,
-                                  selected: biz.id == state.businessId,
-                                  onTap: isLoading
-                                      ? null
-                                      : () => ref
-                                            .read(
-                                              onboardingNotifierProvider
-                                                  .notifier,
-                                            )
-                                            .selectLoginBusiness(biz.id),
-                                ),
-                                const SizedBox(height: 10),
-                              ],
-                            ] else if (state.businessName.isNotEmpty) ...[
-                              const SizedBox(height: 24),
-                              _BusinessCard(
-                                businessName: state.businessName,
-                                businessType: state.businessType,
-                                logoUrl: state.businessLogo,
-                                role: state.role,
-                                isSwahili: sw,
-                                plan: state.ownedBusinesses.isNotEmpty
-                                    ? state.ownedBusinesses.first.plan
-                                    : '',
-                                planExpiresAt: state.ownedBusinesses.isNotEmpty
-                                    ? state.ownedBusinesses.first.planExpiresAt
-                                    : null,
-                              ),
-                            ],
-
-                            const SizedBox(height: 36),
-
-                            // PIN dots
-                            Center(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    sw ? 'Ingiza PIN yako' : 'Enter your PIN',
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textMuted,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  PinDotsInput(
-                                    controller: _pinCtrl,
-                                    hasError: _hasError,
-                                    enabled: !isLoading,
-                                    onComplete: _submit,
-                                    onChanged: (_) {
-                                      if (_hasError) {
-                                        setState(() => _hasError = false);
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // Error
-                            if (state.errorMessage != null) ...[
-                              OnboardingErrorBanner(
-                                message: state.errorMessage!,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            // Offline banner
-                            if (!isOnline) ...[
-                              OnboardingOfflineBanner(
-                                message: sw
-                                    ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
-                                    : 'Signing in requires internet. Please connect and try again.',
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            // CTA button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.navyPrimary,
-                                  elevation: 4,
-                                  shadowColor: AppColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  minimumSize: const Size.fromHeight(52),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: isLoading ? null : _submit,
-                                child: isLoading
-                                    ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: AppColors.navyPrimary,
+                                      key: const ValueKey('pin'),
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Greeting heading
+                                        Center(
+                                          child: Text(
+                                            name.isNotEmpty
+                                                ? (sw
+                                                      ? 'Karibu tena, $name 👋'
+                                                      : 'Welcome back, $name 👋')
+                                                : (sw
+                                                      ? 'Karibu tena 👋'
+                                                      : 'Welcome back 👋'),
+                                            textAlign: TextAlign.center,
+                                            style: headingStyle,
+                                          ),
                                         ),
-                                      )
-                                    : Text(
-                                        sw ? 'Ingia' : 'Sign in',
-                                        style: GoogleFonts.dmSans(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
+                                        const SizedBox(height: 6),
+                                        Center(
+                                          child: Text(
+                                            sw
+                                                ? 'Biashara yako inakungoja.'
+                                                : 'Your business is waiting for you.',
+                                            textAlign: TextAlign.center,
+                                            style: subtitleStyle,
+                                          ),
                                         ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
 
-                            // Loading status label
-                            if (isLoading)
-                              Center(
-                                child: Text(
-                                  sw
-                                      ? 'Inakuingia, subiri kidogo…'
-                                      : 'Signing you in, please wait…',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
+                                        // Business card — a picker when the owner has more
+                                        // than one business, otherwise a single info card.
+                                        if (state.ownedBusinesses.length >
+                                            1) ...[
+                                          const SizedBox(height: 24),
+                                          Text(
+                                            sw
+                                                ? 'Chagua biashara ya kufungua'
+                                                : 'Choose a business to open',
+                                            style: GoogleFonts.dmSans(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.3,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          for (final biz
+                                              in state.ownedBusinesses) ...[
+                                            _BusinessCard(
+                                              businessName: biz.name,
+                                              businessType: biz.type,
+                                              logoUrl: biz.logoUrl ?? '',
+                                              role: state.role,
+                                              isSwahili: sw,
+                                              plan: biz.plan,
+                                              planExpiresAt: biz.planExpiresAt,
+                                              selected:
+                                                  biz.id == state.businessId,
+                                              onTap: isLoading
+                                                  ? null
+                                                  : () => ref
+                                                        .read(
+                                                          onboardingNotifierProvider
+                                                              .notifier,
+                                                        )
+                                                        .selectLoginBusiness(
+                                                          biz.id,
+                                                        ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                        ] else if (state
+                                            .businessName
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 24),
+                                          _BusinessCard(
+                                            businessName: state.businessName,
+                                            businessType: state.businessType,
+                                            logoUrl: state.businessLogo,
+                                            role: state.role,
+                                            isSwahili: sw,
+                                            plan:
+                                                state.ownedBusinesses.isNotEmpty
+                                                ? state
+                                                      .ownedBusinesses
+                                                      .first
+                                                      .plan
+                                                : '',
+                                            planExpiresAt:
+                                                state.ownedBusinesses.isNotEmpty
+                                                ? state
+                                                      .ownedBusinesses
+                                                      .first
+                                                      .planExpiresAt
+                                                : null,
+                                          ),
+                                        ],
 
-                            // Forgot PIN
-                            Center(
-                              child: TextButton(
-                                onPressed: isLoading
-                                    ? null
-                                    : () => _showForgotPin(context, sw),
-                                child: Text(
-                                  sw
-                                      ? 'Umesahau PIN yako?'
-                                      : 'Forgot your PIN?',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.navySecondary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ],
+                                        const SizedBox(height: 36),
+
+                                        // PIN dots
+                                        Center(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                sw
+                                                    ? 'Ingiza PIN yako'
+                                                    : 'Enter your PIN',
+                                                style: GoogleFonts.dmSans(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.textMuted,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 18),
+                                              PinDotsInput(
+                                                controller: _pinCtrl,
+                                                hasError: _hasError,
+                                                enabled: !isLoading,
+                                                onComplete: _submit,
+                                                onChanged: (_) {
+                                                  if (_hasError) {
+                                                    setState(
+                                                      () => _hasError = false,
+                                                    );
+                                                  }
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 32),
+
+                                        // Error
+                                        if (state.errorMessage != null) ...[
+                                          OnboardingErrorBanner(
+                                            message: state.errorMessage!,
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+
+                                        // Offline banner
+                                        if (!isOnline) ...[
+                                          OnboardingOfflineBanner(
+                                            message: sw
+                                                ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
+                                                : 'Signing in requires internet. Please connect and try again.',
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+
+                                        // CTA button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 52,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppColors.primary,
+                                              foregroundColor:
+                                                  AppColors.navyPrimary,
+                                              elevation: 4,
+                                              shadowColor: AppColors.primary
+                                                  .withValues(alpha: 0.3),
+                                              minimumSize:
+                                                  const Size.fromHeight(52),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                            onPressed: isLoading
+                                                ? null
+                                                : _submit,
+                                            child: isLoading
+                                                ? const SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2.5,
+                                                          color: AppColors
+                                                              .navyPrimary,
+                                                        ),
+                                                  )
+                                                : Text(
+                                                    sw ? 'Ingia' : 'Sign in',
+                                                    style: GoogleFonts.dmSans(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        // Loading status label
+                                        if (isLoading)
+                                          Center(
+                                            child: Text(
+                                              sw
+                                                  ? 'Inakuingia, subiri kidogo…'
+                                                  : 'Signing you in, please wait…',
+                                              style: GoogleFonts.dmSans(
+                                                fontSize: 12,
+                                                color: AppColors.textMuted,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+
+                                        // Forgot PIN
+                                        Center(
+                                          child: TextButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : () => _showForgotPin(
+                                                    context,
+                                                    sw,
+                                                  ),
+                                            child: Text(
+                                              sw
+                                                  ? 'Umesahau PIN yako?'
+                                                  : 'Forgot your PIN?',
+                                              style: GoogleFonts.dmSans(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.navySecondary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                      ],
                                     ),
                             ),
                           ],
@@ -767,16 +807,12 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
         .requestPinResetCode();
     if (!mounted) return;
     if (result.status == PinResetCodeRequestStatus.sent) {
-      // Code + new PIN + confirmation are all entered on one screen.
-      final router = GoRouter.of(context);
-      Navigator.of(context).pop();
-      router.push(
-        AppRoutes.resetPinCode,
-        extra: {
-          'maskedPhone': result.maskedPhone,
-          'maskedEmail': result.maskedEmail,
-        },
-      );
+      // Keep the OTP and new-PIN steps in the sheet instead of pushing a
+      // separate full-screen route.
+      setState(() {
+        _isSending = false;
+        _result = result;
+      });
       return;
     }
     setState(() {
@@ -804,41 +840,71 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        20,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 40,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SheetHandle(),
-          const SizedBox(height: 12),
-
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                sw ? 'Msaada wa PIN' : 'PIN Recovery',
-                style: GoogleFonts.dmSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                  letterSpacing: -0.3,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 40,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SheetHandle(),
+            const SizedBox(height: 12),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.06, 0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
               ),
-              const SizedBox(width: 8),
-              const Text('🔐', style: TextStyle(fontSize: 20)),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          ..._buildBody(sw),
-        ],
+              child: _result?.status == PinResetCodeRequestStatus.sent
+                  ? PinResetCodeScreen(
+                      key: const ValueKey('pin-reset-form'),
+                      maskedPhone: _result?.maskedPhone,
+                      maskedEmail: _result?.maskedEmail,
+                      embeddedInSheet: true,
+                      onBack: () => setState(() => _result = null),
+                      onSuccess: _finishRecovery,
+                    )
+                  : Column(
+                      key: const ValueKey('pin-reset-intro'),
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sw ? 'Msaada wa PIN' : 'PIN Recovery',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ..._buildBody(sw),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _finishRecovery() {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.go(AppRoutes.pinLogin);
   }
 
   List<Widget> _buildBody(bool sw) {

@@ -24,10 +24,20 @@ import '_onboarding_scaffold.dart';
 /// `confirmPinResetOtp` then sets the new PIN-derived password and the user
 /// lands back on the PIN login screen. The phone comes from onboarding state.
 class PinResetCodeScreen extends ConsumerStatefulWidget {
-  const PinResetCodeScreen({super.key, this.maskedPhone, this.maskedEmail});
+  const PinResetCodeScreen({
+    super.key,
+    this.maskedPhone,
+    this.maskedEmail,
+    this.embeddedInSheet = false,
+    this.onBack,
+    this.onSuccess,
+  });
 
   final String? maskedPhone;
   final String? maskedEmail;
+  final bool embeddedInSheet;
+  final VoidCallback? onBack;
+  final VoidCallback? onSuccess;
 
   @override
   ConsumerState<PinResetCodeScreen> createState() => _PinResetCodeScreenState();
@@ -78,7 +88,14 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
     });
   }
 
-  void _backToLogin() => context.go(AppRoutes.pinLogin);
+  void _backToLogin() {
+    final onBack = widget.onBack;
+    if (onBack != null) {
+      onBack();
+      return;
+    }
+    context.go(AppRoutes.pinLogin);
+  }
 
   Future<void> _resend() async {
     setState(() => _resending = true);
@@ -122,7 +139,12 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
 
     if (result.status == PinResetCodeConfirmStatus.ok) {
       // confirmPinResetCode set pinJustReset, so /pin-login shows the toast.
-      context.go(AppRoutes.pinLogin);
+      final onSuccess = widget.onSuccess;
+      if (onSuccess != null) {
+        onSuccess();
+      } else {
+        context.go(AppRoutes.pinLogin);
+      }
       return;
     }
 
@@ -148,6 +170,9 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
   @override
   Widget build(BuildContext context) {
     final phone = ref.watch(onboardingNotifierProvider.select((s) => s.phone));
+    if (widget.embeddedInSheet) {
+      return phone.isEmpty ? _missingPhone() : _form();
+    }
     return OnboardingBackHandler(
       onBack: _backToLogin,
       child: Scaffold(
@@ -173,7 +198,10 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
     children: [
       Text(t.pinResetCode.title, style: _titleStyle),
       const SizedBox(height: 24),
-      _primaryButton(label: t.pinResetCode.backToLogin, onPressed: _backToLogin),
+      _primaryButton(
+        label: t.pinResetCode.backToLogin,
+        onPressed: _backToLogin,
+      ),
     ],
   );
 
@@ -223,9 +251,7 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
             errorText: _codeError,
             filled: true,
             fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
           onChanged: (value) {
             if (_codeError != null) setState(() => _codeError = null);
@@ -357,7 +383,10 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
             )
           : Text(
               label,
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 16),
+              style: GoogleFonts.dmSans(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
             ),
     ),
   );

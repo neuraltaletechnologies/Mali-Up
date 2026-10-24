@@ -387,7 +387,7 @@ class _SetPinBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          sw ? 'Linda akaunti yako 🔐' : 'Secure your account 🔐',
+          sw ? 'Linda akaunti yako ' : 'Secure your account ',
           style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,

@@ -745,7 +745,7 @@ class _PinSetupBody extends StatelessWidget {
         Text(
           isConfirm
               ? (sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓')
-              : (sw ? 'Weka PIN yako 🔐' : 'Set your PIN 🔐'),
+              : (sw ? 'Weka PIN yako ' : 'Set your PIN '),
           style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,
