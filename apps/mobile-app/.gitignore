@@ -85,3 +85,5 @@ functions/pnpm-lock.yaml
 # Drift web backend binary — downloaded by deploy-web.yml to match the
 # locked sqlite3 version (see lib/core/database/connection/web.dart).
 /web/sqlite3.wasm
+# Widget Preview related
+.widget_preview/

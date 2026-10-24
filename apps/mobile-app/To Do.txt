@@ -139,9 +139,9 @@ Back also in the Transactions it should also show the name of person and busines
 
 
 
-For reset password use beem otp but sy  a you reset passowrd opt is and for the ligin sya ot sig  up otp is o t the same page he enter the opt new password and it confirmation pasword also send via email also if possibel                                                                                                       
+SFor reset password use beem otp but sy  a you reset passowrd opt is and for the ligin sya ot sig  up otp is o t the same page he enter the opt new password and it confirmation pasword also send via email also if possibel                                                                                                       
 
-in the admin page the export details of user has no phon number and fix the business each user has one business alsready also the out put cxv fro business does no show the owner and phone number 
+in the admin page the export details of user has no phone number and fix the business each user has one business alsready also the out put cxv fro business does no show the owner and phone number 
 
 
 

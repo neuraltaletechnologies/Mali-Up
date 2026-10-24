@@ -1,0 +1,28 @@
+[debug] [2026-10-24T08:16:25.192Z] ----------------------------------------------------------------------
+[debug] [2026-10-24T08:16:25.195Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Am_jhey\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:list --project neuraltale-mali-up
+[debug] [2026-10-24T08:16:25.195Z] CLI Version:   15.31.0
+[debug] [2026-10-24T08:16:25.195Z] Platform:      win32
+[debug] [2026-10-24T08:16:25.196Z] Node Version:  v24.21.0
+[debug] [2026-10-24T08:16:25.196Z] Detected Agent: codex_cli
+[debug] [2026-10-24T08:16:25.196Z] Time:          Sat Oct 24 2026 11:16:25 GMT+0300 (East Africa Time)
+[debug] [2026-10-24T08:16:25.196Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-24T08:16:25.220Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-24T08:16:25.221Z] > authorizing via signed-in user (juliusntale30@gmail.com)
+[debug] [2026-10-24T08:16:25.221Z] [iam] checking project neuraltale-mali-up for permissions ["cloudfunctions.functions.list","firebase.projects.get","run.services.list"]
+[debug] [2026-10-24T08:16:25.237Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:25.237Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:25.238Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/neuraltale-mali-up:testIamPermissions [none]
+[debug] [2026-10-24T08:16:25.239Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/neuraltale-mali-up:testIamPermissions  x-goog-user-project=neuraltale-mali-up
+[debug] [2026-10-24T08:16:25.239Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/neuraltale-mali-up:testIamPermissions {"permissions":["cloudfunctions.functions.list","firebase.projects.get","run.services.list"]}
+[debug] [2026-10-24T08:16:26.659Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/neuraltale-mali-up:testIamPermissions 200
+[debug] [2026-10-24T08:16:26.660Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/neuraltale-mali-up:testIamPermissions {"permissions":["cloudfunctions.functions.list","firebase.projects.get","run.services.list"]}
+[debug] [2026-10-24T08:16:26.660Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:26.660Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:26.661Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/projects/neuraltale-mali-up/locations/-/functions [none]
+[debug] [2026-10-24T08:16:27.872Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/projects/neuraltale-mali-up/locations/-/functions 200
+[debug] [2026-10-24T08:16:27.872Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/projects/neuraltale-mali-up/locations/-/functions {}
+[debug] [2026-10-24T08:16:27.873Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:27.873Z] Checked if tokens are valid: true, expires at: 1792833183538
+[debug] [2026-10-24T08:16:27.873Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/neuraltale-mali-up/locations/-/functions filter=environment%3D%22GEN_2%22
+[debug] [2026-10-24T08:16:29.390Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/neuraltale-mali-up/locations/-/functions 200

@@ -8,6 +8,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/onboarding_strings.dart';
+import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 
 /// Premium onboarding carousel highlighting Mali Up's flagship features
@@ -40,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _slides = [
     _SlideData(
-      imagePath: 'assets/Picture/offline1.webp',
+      imagePath: OnboardingImages.introOfflinePath,
       titleEn: 'NO INTERNET?',
       titleSw: 'HUNA MTANDAO?',
       bodyEn:
@@ -49,7 +50,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Endelea kuuza, kurekodi mauzo na kusimamia hifadhi bila mtandao. Kila kitu kitasawazishwa mtandao ukirudi.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline2.webp',
+      imagePath: OnboardingImages.introInsightsPath,
       titleEn: 'LOST IN NUMBERS?',
       titleSw: 'UNACHANGANYWA NA MAHESABU?',
       bodyEn:
@@ -58,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Ona mauzo, pesa na mwenendo wa biashara yako kwa urahisi kupitia taarifa za wakati halisi.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline3.webp',
+      imagePath: OnboardingImages.introAutomationPath,
       titleEn: 'TOO MUCH WRITING?',
       titleSw: 'UNAANDIKA SANA?',
       bodyEn:
@@ -67,7 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Tengeneza ankara, sasisha hifadhi na fuatilia malipo bila kufanya kila kitu kwa mkono.',
     ),
     _SlideData(
-      imagePath: 'assets/Picture/offline4.webp',
+      imagePath: OnboardingImages.introDebtPath,
      titleEn: 'LOST IN DEBT?',
      titleSw: 'POTEZWA NA MADENI?',
      bodyEn:
@@ -76,7 +77,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       'Fuatilia wanaokudai, unaowadai na kiasi ambacho hakijalipwa. Fahamu hali halisi ya madeni yako na malipo yote sehemu moja.',
  ),
     _SlideData(
-      imagePath: 'assets/Picture/offline5.webp',
+      imagePath: OnboardingImages.introSecurityPath,
       titleEn: 'WORRIED ABOUT YOUR DATA?',
       titleSw: 'VP USALAMA WA DATA ZAKO?',
       bodyEn:
@@ -327,8 +328,8 @@ class _SlidePage extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         // Full screen background image
-        Image.asset(
-          slide.imagePath,
+        Image(
+          image: OnboardingImages.provider(slide.imagePath),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,

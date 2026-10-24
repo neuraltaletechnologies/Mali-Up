@@ -11,6 +11,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '../../providers/onboarding_notifier.dart';
+import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 
 class OnboardingSuccessScreen extends ConsumerStatefulWidget {
@@ -127,8 +128,8 @@ class _OnboardingSuccessScreenState
             top: 0,
             height: topHeight,
             child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.webp',
+              child: Image(
+                image: OnboardingImages.signUpProvider,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

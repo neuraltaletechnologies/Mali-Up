@@ -17,6 +17,7 @@ import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
+import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
@@ -163,8 +164,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
             top: 0,
             height: topHeight,
             child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.webp',
+              child: Image(
+                image: OnboardingImages.signUpProvider,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
