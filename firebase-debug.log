@@ -26,3 +26,23 @@
 [debug] [2026-10-24T08:16:27.873Z] Checked if tokens are valid: true, expires at: 1792833183538
 [debug] [2026-10-24T08:16:27.873Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/neuraltale-mali-up/locations/-/functions filter=environment%3D%22GEN_2%22
 [debug] [2026-10-24T08:16:29.390Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/neuraltale-mali-up/locations/-/functions 200
+[debug] [2026-10-24T08:29:17.424Z] ----------------------------------------------------------------------
+[debug] [2026-10-24T08:29:17.427Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Am_jhey\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:log --only requestPinResetOtp confirmPinResetOtp --lines 20
+[debug] [2026-10-24T08:29:17.427Z] CLI Version:   15.31.0
+[debug] [2026-10-24T08:29:17.427Z] Platform:      win32
+[debug] [2026-10-24T08:29:17.428Z] Node Version:  v24.21.0
+[debug] [2026-10-24T08:29:17.428Z] Detected Agent: codex_cli
+[debug] [2026-10-24T08:29:17.428Z] Time:          Sat Oct 24 2026 11:29:17 GMT+0300 (East Africa Time)
+[debug] [2026-10-24T08:29:17.428Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-24T08:29:17.440Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-24T08:29:17.440Z] > authorizing via signed-in user (juliusntale30@gmail.com)
+[error] 
+[error] Error: Failed to list log entries No currently active project.
+To run this command, you need to specify a project. You have two options:
+- Run this command with --project <alias_or_project_id>.
+- Set an active project by running firebase use --add, then rerun this command.
+To list all the Firebase projects to which you have access, run firebase projects:list.
+To learn about active projects for the CLI, visit https://firebase.google.com/docs/cli#project_aliases
+
+

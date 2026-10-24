@@ -70,6 +70,38 @@ interface SendOtpResponse {
   expiresInSeconds: number;
 }
 
+/** Provider-only request shared by onboarding and PIN recovery. */
+export async function requestBeemOtpCode(phone: string): Promise<SendOtpResponse> {
+  const appId = process.env.BEEM_OTP_APP_ID;
+  if (!appId) {
+    console.error("[BeemOtp] BEEM_OTP_APP_ID is not configured");
+    throw new HttpsError("internal", "OTP is not configured.");
+  }
+
+  const response = await fetch(`${BEEM_OTP_BASE_URL}/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": beemAuthHeader(),
+    },
+    body: JSON.stringify({appId, msisdn: phone}),
+  });
+  if (!response.ok) {
+    console.error("[BeemOtp] request failed", response.status, await response.text());
+    throw new HttpsError("internal", "Could not send the verification code. Please try again.");
+  }
+
+  const body = (await response.json()) as {
+    data?: {pinId?: string; message?: {code?: number; message?: string}; expiresInSeconds?: number};
+  };
+  const pinId = body.data?.pinId;
+  if (!pinId) {
+    console.error("[BeemOtp] request succeeded with no pinId", body);
+    throw new HttpsError("internal", "Could not send the verification code. Please try again.");
+  }
+  return {pinId, expiresInSeconds: body.data?.expiresInSeconds ?? 5 * 60};
+}
+
 /**
  * Requests a Beem OTP be sent to `phone`. Callable without auth — this runs
  * pre-sign-in, before the Firebase Auth account exists, mirroring the
@@ -83,12 +115,6 @@ export const sendBeemOtp = onCall<SendOtpRequest>(
       throw new HttpsError("invalid-argument", "A valid phone number is required.");
     }
     await assertOwnPhoneIfAuthenticated(request.auth?.uid, phone);
-
-    const appId = process.env.BEEM_OTP_APP_ID;
-    if (!appId) {
-      console.error("[BeemOtp] BEEM_OTP_APP_ID is not configured");
-      throw new HttpsError("internal", "OTP is not configured.");
-    }
 
     // Every send costs real Beem SMS credit — same cost concern as the old
     // Firebase-phone-auth OTP gate (see otp_rate_limit.ts, now unused). Two
@@ -117,33 +143,7 @@ export const sendBeemOtp = onCall<SendOtpRequest>(
       message: "Too many verification code requests. Please wait before trying again.",
     });
 
-    const response = await fetch(`${BEEM_OTP_BASE_URL}/request`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": beemAuthHeader(),
-      },
-      body: JSON.stringify({appId, msisdn: phone}),
-    });
-
-    if (!response.ok) {
-      console.error("[BeemOtp] request failed", response.status, await response.text());
-      throw new HttpsError("internal", "Could not send the verification code. Please try again.");
-    }
-
-    const body = (await response.json()) as {
-      data?: {pinId?: string; message?: {code?: number; message?: string}; expiresInSeconds?: number};
-    };
-    const pinId = body.data?.pinId;
-    if (!pinId) {
-      console.error("[BeemOtp] request succeeded with no pinId", body);
-      throw new HttpsError("internal", "Could not send the verification code. Please try again.");
-    }
-
-    return {
-      pinId,
-      expiresInSeconds: body.data?.expiresInSeconds ?? 5 * 60,
-    };
+    return requestBeemOtpCode(phone);
   },
 );
 
@@ -155,6 +155,24 @@ interface VerifyOtpRequest {
 
 interface VerifyOtpResponse {
   verified: boolean;
+}
+
+/** Provider-only verification shared by onboarding and PIN recovery. */
+export async function verifyBeemOtpCode(pinId: string, pin: string): Promise<boolean> {
+  const response = await fetch(`${BEEM_OTP_BASE_URL}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": beemAuthHeader(),
+    },
+    body: JSON.stringify({pinId, pin}),
+  });
+  if (!response.ok && response.status !== 403) {
+    console.error("[BeemOtp] verify failed", response.status, await response.text());
+    throw new HttpsError("internal", "Could not verify the code. Please try again.");
+  }
+  const body = (await response.json()) as {data?: {message?: {code?: number; message?: string}}};
+  return response.ok && body.data?.message?.code === BEEM_VERIFIED_SUCCESS_CODE;
 }
 
 /**
@@ -194,26 +212,7 @@ export const verifyBeemOtp = onCall<VerifyOtpRequest>(
       message: "Too many attempts. Please request a new code and try again.",
     });
 
-    const response = await fetch(`${BEEM_OTP_BASE_URL}/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": beemAuthHeader(),
-      },
-      body: JSON.stringify({pinId, pin}),
-    });
-
-    // Beem responds 200 for a verified pin and (per its OpenAPI spec) 403 for
-    // a rejected one — both share the same { data: { message: { code } } }
-    // shape. Anything else (5xx, network failure) is a real transport error,
-    // not a "wrong code", so it must not be reported to the user as one.
-    if (!response.ok && response.status !== 403) {
-      console.error("[BeemOtp] verify failed", response.status, await response.text());
-      throw new HttpsError("internal", "Could not verify the code. Please try again.");
-    }
-
-    const body = (await response.json()) as {data?: {message?: {code?: number; message?: string}}};
-    const verified = response.ok && body.data?.message?.code === BEEM_VERIFIED_SUCCESS_CODE;
+    const verified = await verifyBeemOtpCode(pinId, pin);
 
     if (verified) {
       // Both callers (new registration, and an already-registered account

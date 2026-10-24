@@ -19,7 +19,7 @@ import '_onboarding_scaffold.dart';
 
 /// Code-based PIN recovery (`AppRoutes.resetPinCode`), opened from the
 /// "Forgot PIN" sheet on the PIN login screen once `requestPinResetOtp` has
-/// sent a 6-digit code by SMS (and email, when one is on file). The reset
+/// sent a 6-digit code by SMS. The reset
 /// code, the new PIN and its confirmation are all entered on this one page;
 /// `confirmPinResetOtp` then sets the new PIN-derived password and the user
 /// lands back on the PIN login screen. The phone comes from onboarding state.

@@ -870,9 +870,8 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
     Text(
       sw
           ? 'Tutakutumia namba ya siri (OTP) ya kuweka upya PIN kwa SMS kwenye '
-                'namba hii, na kwenye barua pepe yako kama umeisajili.'
-          : "We'll send a PIN reset code by SMS to this number, and to your "
-                'email too if you registered one.',
+                'namba hii.'
+          : "We'll send a PIN reset code by SMS to this number.",
       style: GoogleFonts.dmSans(
         fontSize: 14,
         color: AppColors.textMuted,

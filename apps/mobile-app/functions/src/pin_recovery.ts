@@ -3,7 +3,7 @@ import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import {enforceRateLimit} from "./rate_limit";
-import {sendBeemSms} from "./welcome_sms";
+import {requestBeemOtpCode, verifyBeemOtpCode} from "./beem_otp";
 
 /**
  * PIN recovery — the one flow that lets a user who forgot their login PIN
@@ -49,13 +49,9 @@ import {sendBeemSms} from "./welcome_sms";
  * Code-based flow (current app builds) — `requestPinResetOtp` /
  * `confirmPinResetOtp` at the bottom of this file. Same end state (Auth
  * password = `buildAuthPasswordFromPin(phone, newPin)`), but instead of a
- * magic link we mint our own 6-digit code and deliver it by Beem SMS (with
- * reset-specific wording, distinct from the sign-up OTP) AND by email when a
- * real address is on file. The user types code + new PIN + confirmation on
- * one screen. We generate the code ourselves rather than use Beem's OTP
- * product (beem_otp.ts) because Beem never reveals its code, so it couldn't
- * also be emailed. The link callables above stay for older builds and links
- * already in flight.
+ * magic link, Beem's OTP product generates, sends, and verifies the code. The
+ * user types code + new PIN + confirmation on one screen. The link callables
+ * above stay for older builds and links already in flight.
  */
 
 const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
@@ -71,8 +67,6 @@ const EMAIL_FROM =
 
 const TOKEN_TTL_MS = 30 * 60 * 1000;
 const MAX_CONFIRM_ATTEMPTS = 5;
-const OTP_TTL_MS = 10 * 60 * 1000;
-const OTP_TTL_MINUTES = OTP_TTL_MS / 60000;
 
 // ─── Phone helpers — mirror lib/core/utils/phone_number_utils.dart ────────────
 
@@ -234,68 +228,6 @@ async function postResendEmail(
     return false;
   }
   return true;
-}
-
-/** The SMS body — reset-specific wording so it can't be mistaken for the
- * sign-up code (that one comes from the Beem OTP app template). */
-function resetCodeSms(code: string, language: "sw" | "en"): string {
-  return language === "sw"
-    ? `Mali Up: Namba yako ya kuweka upya PIN ni ${code}. ` +
-        `Inaisha baada ya dakika ${OTP_TTL_MINUTES}. Usimpe mtu yeyote.`
-    : `Mali Up: Your PIN reset code is ${code}. ` +
-        `It expires in ${OTP_TTL_MINUTES} minutes. Do not share it with anyone.`;
-}
-
-async function sendResetCodeEmail(
-  to: string,
-  firstName: string,
-  code: string,
-  language: "sw" | "en",
-): Promise<boolean> {
-  const sw = language === "sw";
-  const hi = firstName
-    ? sw
-      ? `Habari ${firstName},`
-      : `Hi ${firstName},`
-    : sw
-      ? "Habari,"
-      : "Hi,";
-  const subject = sw
-    ? `${code} ni namba yako ya kuweka upya PIN ya Mali Up`
-    : `${code} is your Mali Up PIN reset code`;
-  const intro = sw
-    ? "Tumepokea ombi la kuweka upya PIN yako ya Mali Up. Weka namba hii " +
-      "kwenye programu pamoja na PIN yako mpya:"
-    : "We received a request to reset your Mali Up PIN. Enter this code in " +
-      "the app together with your new PIN:";
-  const expiry = sw
-    ? `Namba hii itakoma kufanya kazi baada ya dakika ${OTP_TTL_MINUTES}. ` +
-      "Tumeituma pia kwa SMS."
-    : `This code expires in ${OTP_TTL_MINUTES} minutes. We also sent it by SMS.`;
-  const ignore = sw
-    ? "Kama hukuomba hili, puuza barua pepe hii — PIN yako haitabadilika. " +
-      "Usimpe mtu yeyote namba hii."
-    : "If you didn't request this, ignore this email — your PIN won't change. " +
-      "Never share this code with anyone.";
-
-  const html =
-    `<!doctype html><html><body style="margin:0;background:#f4f5f7;padding:24px;` +
-    `font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0D1B3E">` +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">` +
-    `<table role="presentation" width="440" cellpadding="0" cellspacing="0" ` +
-    `style="background:#ffffff;border-radius:16px;padding:32px">` +
-    `<tr><td style="font-size:20px;font-weight:800;padding-bottom:16px">Mali Up</td></tr>` +
-    `<tr><td style="font-size:15px;line-height:1.6;padding-bottom:8px">${hi}</td></tr>` +
-    `<tr><td style="font-size:15px;line-height:1.6;padding-bottom:20px">${intro}</td></tr>` +
-    `<tr><td align="center" style="padding-bottom:24px">` +
-    `<div style="display:inline-block;background:#f4f5f7;border-radius:12px;padding:14px 28px;` +
-    `font-size:32px;font-weight:800;letter-spacing:8px;color:#0D1B3E">${code}</div></td></tr>` +
-    `<tr><td style="font-size:13px;line-height:1.6;color:#6b7280;padding-bottom:8px">${expiry}</td></tr>` +
-    `<tr><td style="font-size:13px;line-height:1.6;color:#6b7280">${ignore}</td></tr>` +
-    `</table></td></tr></table></body></html>`;
-
-  const text = `${hi}\n\n${intro}\n\n${code}\n\n${expiry}\n${ignore}`;
-  return postResendEmail(to, subject, html, text);
 }
 
 // ─── Callables ───────────────────────────────────────────────────────────────
@@ -505,21 +437,19 @@ export const confirmPinReset = onCall<{token?: string; newPassword?: string}>(
   },
 );
 
-// ─── Code-based recovery (SMS + email OTP) ───────────────────────────────────
+// ─── Code-based recovery (Beem OTP) ──────────────────────────────────────────
 
 type RequestPinResetOtpResponse =
   | {status: "not_found"}
-  | {status: "sent"; maskedPhone: string; maskedEmail: string | null};
+  | {status: "sent"; maskedPhone: string; maskedEmail: null};
 
 /**
- * Step 1 (code flow) — mints a 6-digit code, stores its hash at
- * `pin_reset_otps/{canonicalPhone}` (Admin-SDK-only, one live code per phone —
- * a new request replaces the old one) and sends it by Beem SMS plus, when a
- * real address is on file, by email. Succeeds if at least one channel
- * delivered. `not_found` reveals no more than the onboarding phone lookup.
+ * Step 1 (code flow) — asks Beem OTP to generate and send a code, then stores
+ * its provider pinId at `pin_reset_otps/{canonicalPhone}` (Admin-SDK-only, one
+ * live request per phone). `not_found` reveals no more than phone lookup.
  */
 export const requestPinResetOtp = onCall<RequestPinResetData>(
-  {region: "us-central1", secrets: [RESEND_API_KEY, BEEM_API_KEY, BEEM_SECRET_KEY]},
+  {region: "us-central1", secrets: [BEEM_API_KEY, BEEM_SECRET_KEY]},
   async (request): Promise<RequestPinResetOtpResponse> => {
     const rawPhone = request.data?.phone;
     if (
@@ -531,8 +461,6 @@ export const requestPinResetOtp = onCall<RequestPinResetData>(
       throw new HttpsError("invalid-argument", "A valid phone number is required.");
     }
     const phone = canonicalPhone(rawPhone);
-    const language: "sw" | "en" = request.data?.language === "en" ? "en" : "sw";
-
     // Each success costs a real SMS — guard before any work.
     await enforceRateLimit({
       collection: "pin_reset_otp_rate_limits_phone",
@@ -559,59 +487,39 @@ export const requestPinResetOtp = onCall<RequestPinResetData>(
     const userDoc = await findUserByPhone(rawPhone);
     if (!userDoc) return {status: "not_found"};
 
-    const data = userDoc.data() ?? {};
-    const rawEmail = (data.email as string | undefined)?.trim().toLowerCase() ?? "";
-    const email = rawEmail && !rawEmail.endsWith("@mali.up") ? rawEmail : "";
-    const firstName =
-      (data.firstName as string | undefined)?.trim() ||
-      (data.name as string | undefined)?.trim()?.split(/\s+/)[0] ||
-      "";
-
-    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const otp = await requestBeemOtpCode(phone);
     await admin
       .firestore()
       .collection("pin_reset_otps")
       .doc(phone)
       .set({
         uid: userDoc.id,
-        codeHash: sha256(`${phone}:${code}`),
+        pinId: otp.pinId,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + OTP_TTL_MS),
+        expiresAt: admin.firestore.Timestamp.fromMillis(
+          Date.now() + otp.expiresInSeconds * 1000,
+        ),
         used: false,
         attempts: 0,
       });
 
-    const [sms, emailSent] = await Promise.all([
-      sendBeemSms(phone, resetCodeSms(code, language)),
-      email
-        ? sendResetCodeEmail(email, firstName, code, language).catch((e) => {
-          console.error("[pin_recovery] reset code email failed", e);
-          return false;
-        })
-        : Promise.resolve(false),
-    ]);
-
-    if (!sms.success && !emailSent) {
-      console.error("[pin_recovery] reset code delivery failed", sms.error);
-      throw new HttpsError("internal", "Could not send the reset code. Please try again.");
-    }
-
     return {
       status: "sent",
       maskedPhone: maskPhone(phone),
-      maskedEmail: emailSent ? maskEmail(email) : null,
+      maskedEmail: null,
     };
   },
 );
 
 /**
- * Step 2 (code flow) — checks the code and sets the new PIN-derived password.
+ * Step 2 (code flow) — asks Beem to verify the code and sets the new
+ * PIN-derived password.
  * `newPassword` is `buildAuthPasswordFromPin(phone, newPin)` computed on the
  * client, exactly like `confirmPinReset`. A wrong code burns one of
  * MAX_CONFIRM_ATTEMPTS; the code is single-use.
  */
 export const confirmPinResetOtp = onCall<{phone?: string; code?: string; newPassword?: string}>(
-  {region: "us-central1"},
+  {region: "us-central1", secrets: [BEEM_API_KEY, BEEM_SECRET_KEY]},
   async (request): Promise<{ok: true}> => {
     const rawPhone = request.data?.phone;
     if (!rawPhone || typeof rawPhone !== "string") {
@@ -637,17 +545,43 @@ export const confirmPinResetOtp = onCall<{phone?: string; code?: string; newPass
     const db = admin.firestore();
     const ref = db.collection("pin_reset_otps").doc(phone);
 
-    // Throwing inside the transaction would roll back the attempts bump, so
-    // the outcome is returned and turned into an error afterwards.
+    const pending = (await ref.get()).data();
+    if (
+      !pending ||
+      pending.used === true ||
+      !pending.pinId ||
+      (pending.expiresAt as admin.firestore.Timestamp).toMillis() < Date.now()
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This code has expired. Please request a new one.",
+      );
+    }
+    if (((pending.attempts ?? 0) as number) >= MAX_CONFIRM_ATTEMPTS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many attempts. Please request a new code.",
+      );
+    }
+
+    const verified = await verifyBeemOtpCode(String(pending.pinId), code);
+
+    // Claim the provider request transactionally after verification. This
+    // prevents concurrent successful submissions and rejects a stale code if
+    // a resend replaced its pinId while Beem verification was in flight.
     const outcome = await db.runTransaction(async (tx) => {
       const data = (await tx.get(ref)).data();
-      if (!data || data.used === true) return {kind: "expired" as const};
-      if ((data.expiresAt as admin.firestore.Timestamp).toMillis() < Date.now()) {
+      if (
+        !data ||
+        data.used === true ||
+        data.pinId !== pending.pinId ||
+        (data.expiresAt as admin.firestore.Timestamp).toMillis() < Date.now()
+      ) {
         return {kind: "expired" as const};
       }
       const attempts = (data.attempts ?? 0) as number;
       if (attempts >= MAX_CONFIRM_ATTEMPTS) return {kind: "locked" as const};
-      if (data.codeHash !== sha256(`${phone}:${code}`)) {
+      if (!verified) {
         tx.update(ref, {attempts: attempts + 1});
         return {kind: "wrong" as const, remaining: MAX_CONFIRM_ATTEMPTS - attempts - 1};
       }
