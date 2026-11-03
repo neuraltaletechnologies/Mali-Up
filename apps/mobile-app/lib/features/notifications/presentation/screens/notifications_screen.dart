@@ -94,11 +94,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(notificationLogListProvider);
-    final allItems =
-        itemsAsync.valueOrNull ?? const <NotificationLogTableData>[];
-    final unread = _filter(allItems.where((n) => n.isRead == 0).toList());
-    final read = _filter(allItems.where((n) => n.isRead == 1).toList());
-    final hasAnyUnread = allItems.any((n) => n.isRead == 0);
+    // Only unread alerts are listed: tapping one marks it read and it leaves
+    // the panel. The read row stays in the log so a still-true condition
+    // doesn't re-alert; it is deleted once the condition clears, so it can
+    // alert again if it recurs.
+    final allItems = (itemsAsync.valueOrNull ?? const <NotificationLogTableData>[])
+        .where((n) => n.isRead == 0)
+        .toList();
+    final unread = _filter(allItems);
+    final hasAnyUnread = allItems.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -151,38 +155,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 ? const NotificationsPageSkeleton()
                 : allItems.isEmpty
                     ? _Empty(query: _query)
-                    : (unread.isEmpty && read.isEmpty && _query.isNotEmpty)
+                    : unread.isEmpty
                         ? _Empty(query: _query)
                         : CustomScrollView(
                             slivers: [
-                              if (unread.isNotEmpty) ...[
-                                _SliverSectionLabel(label: _tr('Unread', 'Mapya')),
-                                SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) => _NotificationItem(
-                                      item: unread[index],
-                                      tr: _tr,
-                                      isLast: index == unread.length - 1,
-                                      onTap: () => _onTapItem(unread[index]),
-                                    ),
-                                    childCount: unread.length,
+                              _SliverSectionLabel(label: _tr('Unread', 'Mapya')),
+                              SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) => _NotificationItem(
+                                    item: unread[index],
+                                    tr: _tr,
+                                    isLast: index == unread.length - 1,
+                                    onTap: () => _onTapItem(unread[index]),
                                   ),
+                                  childCount: unread.length,
                                 ),
-                              ],
-                              if (read.isNotEmpty) ...[
-                                _SliverSectionLabel(label: _tr('Earlier', 'Zamani')),
-                                SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) => _NotificationItem(
-                                      item: read[index],
-                                      tr: _tr,
-                                      isLast: index == read.length - 1,
-                                      onTap: () => _onTapItem(read[index]),
-                                    ),
-                                    childCount: read.length,
-                                  ),
-                                ),
-                              ],
+                              ),
                               const SliverToBoxAdapter(child: SizedBox(height: 24)),
                             ],
                           ),
@@ -219,24 +207,27 @@ class _NotificationsDarkHeader extends StatelessWidget {
   });
 
   List<HeaderPillStat> _stats() {
+    // [items] holds unread alerts only (read ones leave the panel).
     final total = items.length;
-    final unread = items.where((n) => n.isRead == 0).length;
-    final read = total - unread;
+    final debts = items
+        .where((n) => n.type == 'overdue_debt' || n.type == 'overdue_invoice')
+        .length;
+    final stock = items.where((n) => n.type == 'low_stock').length;
 
     return [
       HeaderPillStat(
-        label: _tr('Jumla', 'Jumla'),
+        label: _tr('New', 'Mapya'),
         value: '$total',
+        color: total > 0 ? AppColors.warning : AppColors.success,
+      ),
+      HeaderPillStat(
+        label: _tr('Debts', 'Madeni'),
+        value: '$debts',
         color: AppColors.tealAccent,
       ),
       HeaderPillStat(
-        label: _tr('Mapya', 'Mapya'),
-        value: '$unread',
-        color: unread > 0 ? AppColors.warning : AppColors.success,
-      ),
-      HeaderPillStat(
-        label: _tr('Zamani', 'Zamani'),
-        value: '$read',
+        label: _tr('Stock', 'Bidhaa'),
+        value: '$stock',
         color: AppColors.navyPrimary,
       ),
     ];

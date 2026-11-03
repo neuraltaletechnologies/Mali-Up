@@ -3069,11 +3069,11 @@ class _StatusBarBlur extends StatelessWidget {
         width: double.infinity,
         child: ClipRect(
           child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: ColoredBox(
               color: darkHeader
-                  ? AppColors.navyPrimary.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.55),
+                  ? AppColors.navyPrimary.withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.25),
             ),
           ),
         ),
