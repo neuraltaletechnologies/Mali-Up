@@ -10,6 +10,9 @@ import 'auth_provider.dart';
 final pushTokenRegistrarProvider = Provider<void>((ref) {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return;
+  // firebase_messaging has no Windows/Linux implementation — the desktop
+  // build gets only the on-device alerts from NotificationService.
+  if (!PushNotificationService.isSupported) return;
 
   // ignore: unawaited_futures — fire-and-forget registration, never blocks UI.
   PushNotificationService.initialize(uid);

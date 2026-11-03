@@ -18,6 +18,8 @@ import '../../../../config/routing.dart';
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
+import '../../../../shared/widgets/flag_icon.dart';
+import '../widgets/onboarding_layout.dart';
 
 // ─── Country data ─────────────────────────────────────────────────────────────
 
@@ -269,8 +271,6 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
     final isOnline = ref.watch(isOnlineProvider);
-    final mediaQuery = MediaQuery.of(context);
-    final topHeight = mediaQuery.size.height * 0.35;
 
     final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
@@ -292,11 +292,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -358,10 +354,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
           ),
 
           // Main content sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,
@@ -657,10 +650,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            widget.country.flag,
-                            style: GoogleFonts.dmSans(fontSize: 20),
-                          ),
+                          FlagIcon(widget.country.code, size: 16),
                           const SizedBox(width: 6),
                           Text(
                             widget.country.dial,
@@ -920,7 +910,7 @@ class _CountryTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
         child: Row(
           children: [
-            Text(country.flag, style: GoogleFonts.dmSans(fontSize: 22)),
+            FlagIcon(country.code),
             const SizedBox(width: 14),
             Expanded(
               child: Text(

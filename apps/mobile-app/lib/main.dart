@@ -15,6 +15,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
+import 'package:mali_up/core/theme/app_scroll_behavior.dart';
+import 'package:mali_up/core/services/desktop_window_service.dart';
 import 'package:mali_up/core/services/app_rating_service.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
@@ -48,6 +50,8 @@ Future<void> _startApp() async {
 
   // SharedPreferences and Firebase init are independent — kick both off now.
   final prefsFuture = SharedPreferences.getInstance();
+  // Windows desktop: open in full screen; F11 toggles it.
+  await DesktopWindowService.initialize();
   // Guard: if env vars weren't injected (e.g. --dart-define-from-file missing),
   // the options will have empty strings, which causes a native NSException crash on
   // iOS rather than a catchable Dart error. Fail fast with a readable message.
@@ -93,7 +97,14 @@ Future<void> _startApp() async {
   // Skipped on web: that needs a reCAPTCHA Enterprise site key
   // (providerWeb), which isn't set up yet. Register one before enforcing App
   // Check, or enforcement will lock the web app out too.
-  if (!kIsWeb) {
+  //
+  // Also skipped on desktop (Windows): firebase_app_check has no Windows
+  // implementation, so enforcing App Check would lock the desktop app out —
+  // keep that in mind before flipping enforcement.
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS)) {
     unawaited(
       FirebaseAppCheck.instance.activate(
         providerAndroid: kDebugMode
@@ -288,6 +299,7 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
         if (versionGateStatus.tier == VersionGateTier.hardBlock) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
+            scrollBehavior: const AppScrollBehavior(),
             theme: AppTheme.lightTheme,
             home: UpdateRequiredScreen(status: versionGateStatus),
           );
@@ -307,6 +319,7 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
         if (isLocked) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
+            scrollBehavior: const AppScrollBehavior(),
             theme: AppTheme.lightTheme,
             home: const PinLockScreen(),
           );
@@ -321,6 +334,7 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                 return MaterialApp.router(
                   title: 'Mali Up',
                   debugShowCheckedModeBanner: false,
+                  scrollBehavior: const AppScrollBehavior(),
                   theme: AppTheme.lightTheme,
                   locale: Locale(language.code),
                   supportedLocales: const [Locale('en'), Locale('sw')],

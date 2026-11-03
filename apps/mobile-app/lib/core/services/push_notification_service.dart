@@ -18,6 +18,13 @@ import 'notification_service.dart';
 /// this is a one-way registry the Cloud Function reads via the Admin SDK,
 /// nothing here is ever read back by the client.
 class PushNotificationService {
+  /// FCM runs on Android, iOS, macOS and web only — not Windows/Linux.
+  static bool get isSupported =>
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static StreamSubscription<String>? _tokenRefreshSub;
   static bool _listenersAttached = false;

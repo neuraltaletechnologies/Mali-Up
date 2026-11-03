@@ -20,6 +20,7 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
@@ -53,6 +54,7 @@ import '../../data/sales_providers.dart';
 import '../../domain/recurring_billing_calculator.dart';
 import '../../services/receipt_pdf_service.dart';
 import '../../services/invoice_number_generator.dart';
+import '../widgets/pos_catalog.dart';
 import 'invoice_detail_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -151,6 +153,14 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   _SalesFilter _filter = _SalesFilter.all;
   bool _searchExpanded = false;
   String _query = '';
+
+  // Point-of-sale ("Sell") mode is the default; "History" shows past sales.
+  bool _historyMode = false;
+  String? _category;
+  // Wide screens: the cart is the sale form docked on the right.
+  final _saleKey = GlobalKey<_NewSaleSheetState>();
+  // Phones: products picked from the list, checked out in the sale sheet.
+  final List<PosCartLine> _cart = [];
 
   int get _activeFilters => _filter != _SalesFilter.all ? 1 : 0;
 
@@ -290,9 +300,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     }
   }
 
-  Future<void> _showNewSaleSheet(BuildContext ctx) async {
+  /// Plan limits for recording a sale (monthly invoices, free-plan daily
+  /// cap). Shows the upgrade sheet and returns false when blocked.
+  Future<bool> _checkCanSell(BuildContext ctx) async {
     final plan = await ref.read(planStatusProvider.future);
-    if (!ctx.mounted) return;
+    if (!ctx.mounted) return false;
     if (!plan.canCreateInvoice) {
       await showUpgradeSheet(
         ctx,
@@ -302,14 +314,14 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           'Umefika kikomo cha ankara ${plan.limits.monthlyInvoices} kwa mwezi.',
         ),
       );
-      return;
+      return false;
     }
     // Free-plan daily sales cap — separate from the monthly one above, and
     // counted from the offline-first Drift list so it stays correct with no
     // connection.
     final salesToday = ref.read(planUsageProvider).salesToday;
     if (!plan.allowsSaleToday(salesToday)) {
-      if (!ctx.mounted) return;
+      if (!ctx.mounted) return false;
       await showUpgradeSheet(
         ctx,
         currentStatus: plan,
@@ -319,15 +331,32 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           'Umefika kikomo cha mauzo ${plan.limits.maxSalesPerDay} kwa siku kwenye mpango wa bure. Boresha mpango kupata zaidi.',
         ),
       );
-      return;
+      return false;
     }
-    if (!ctx.mounted) return;
+    return true;
+  }
+
+  /// Opens the sale form as a sheet (side panel on wide screens). [lines]
+  /// pre-fills it from the phone POS cart, which is emptied once the sale
+  /// is saved.
+  Future<void> _showNewSaleSheet(
+    BuildContext ctx, {
+    List<PosCartLine> lines = const [],
+  }) async {
+    if (!await _checkCanSell(ctx) || !ctx.mounted) return;
     final saleReceipt = await showAppSheet<Map<String, dynamic>>(
       ctx,
-      builder: (_) => const _NewSaleSheet(),
+      builder: (_) => _NewSaleSheet(initialLines: lines),
     );
     if (saleReceipt == null || !ctx.mounted) return;
+    if (lines.isNotEmpty) setState(_cart.clear);
+    await _presentSaleReceipt(ctx, saleReceipt);
+  }
 
+  Future<void> _presentSaleReceipt(
+    BuildContext ctx,
+    Map<String, dynamic> saleReceipt,
+  ) async {
     unawaited(HapticFeedback.heavyImpact());
     await showGeneralDialog<void>(
       context: ctx,
@@ -351,13 +380,154 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     );
   }
 
+  void _cartAdd(Map<String, dynamic> product) {
+    if (product.posOutOfStock) return;
+    final id = (product['id'] ?? '').toString();
+    final line = _cart.where((l) => l.id == id).firstOrNull;
+    if (line != null) {
+      if (!product.posIsService && line.qty >= product.posStock) {
+        AppNotification.info(
+          context,
+          _tr(
+            'Only ${product.posStock} of ${product.posName} in stock.',
+            'Kuna ${product.posStock} tu za ${product.posName} stokuni.',
+          ),
+        );
+        return;
+      }
+      setState(() => line.qty++);
+    } else {
+      setState(() => _cart.add(PosCartLine(product)));
+    }
+    unawaited(HapticFeedback.selectionClick());
+  }
+
+  void _cartRemove(Map<String, dynamic> product) {
+    final id = (product['id'] ?? '').toString();
+    final line = _cart.where((l) => l.id == id).firstOrNull;
+    if (line == null) return;
+    setState(() {
+      if (line.qty > 1) {
+        line.qty--;
+      } else {
+        _cart.remove(line);
+      }
+    });
+  }
+
+  /// "Sell" mode: products to sell. Wide screens show an image-card grid
+  /// with the cart (the sale form) docked on the right; phones show a list
+  /// with round images and a cart bar that opens checkout.
+  Widget _buildSellView(bool wide) {
+    final all = ref.watch(inventoryItemListProvider).valueOrNull ??
+        const <Map<String, dynamic>>[];
+    final categories = posCategories(all);
+    final category = categories.contains(_category) ? _category : null;
+    final products =
+        filterPosProducts(all, query: _query, category: category);
+    final navLift = NavBarLift.of(context);
+    final categoryBar = PosCategoryBar(
+      categories: categories,
+      selected: category,
+      onSelected: (c) => setState(() => _category = c),
+    );
+
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Column(
+              children: [
+                categoryBar,
+                Expanded(
+                  child: PosProductGrid(
+                    products: products,
+                    onTap: (p) => _saleKey.currentState?.addProduct(p),
+                    padding: EdgeInsets.fromLTRB(16, 12, 16, navLift + 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 400,
+            margin: EdgeInsets.fromLTRB(0, 0, 16, navLift + 16),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x140D1B3E),
+                  blurRadius: 18,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: _NewSaleSheet(
+              key: _saleKey,
+              embedded: true,
+              beforeSave: () => _checkCanSell(context),
+              onCompleted: (receipt) => _presentSaleReceipt(context, receipt),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final cartQty = {for (final l in _cart) l.id: l.qty};
+    final count = _cart.fold<int>(0, (s, l) => s + l.qty);
+    final total = _cart.fold<double>(0, (s, l) => s + l.total);
+    return Stack(
+      children: [
+        Column(
+          children: [
+            categoryBar,
+            const SizedBox(height: 4),
+            Expanded(
+              child: PosProductList(
+                products: products,
+                cartQty: cartQty,
+                onAdd: _cartAdd,
+                onRemove: _cartRemove,
+                padding: EdgeInsets.only(top: 4, bottom: navLift + 96),
+              ),
+            ),
+          ],
+        ),
+        if (_cart.isNotEmpty)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: navLift + 12,
+            child: PosCartBar(
+              itemCount: count,
+              total: total,
+              onCheckout: () =>
+                  _showNewSaleSheet(context, lines: List.of(_cart)),
+              onClear: () => setState(_cart.clear),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final salesAsync = ref.watch(salesInvoiceListProvider);
     final ps = ref.watch(permissionServiceProvider);
+    final wide = Responsive.isWide(context);
+    // Without permission to create sales, only the history is shown.
+    final selling = ps.canCreateSale && !_historyMode;
+    // The "Add Sale" button opens a blank sale form. In Sell mode the cart
+    // takes its place: always on wide screens (docked cart), and on phones
+    // once something is in the cart (the cart bar).
+    final showFab = ps.canCreateSale && (!selling || (!wide && _cart.isEmpty));
 
     return Scaffold(
-      floatingActionButton: !ps.canCreateSale
+      floatingActionButton: !showFab
           ? null
           : NavAwareFab(
               child: KeyedSubtree(
@@ -438,22 +608,41 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   if (!_searchExpanded) _query = '';
                 }),
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
-                onFilterTap: () => showAppSheet<void>(
-                  context,
-                  builder: (_) => _SalesFilterSheet(
-                    selected: _filter,
-                    onApply: (f) => setState(() => _filter = f),
-                  ),
-                ),
+                searchHint: selling
+                    ? _tr('Product name, SKU or barcode…',
+                        'Jina la bidhaa, SKU au barcode…')
+                    : null,
+                onFilterTap: selling
+                    ? null
+                    : () => showAppSheet<void>(
+                          context,
+                          builder: (_) => _SalesFilterSheet(
+                            selected: _filter,
+                            onApply: (f) => setState(() => _filter = f),
+                          ),
+                        ),
               ),
               const SizedBox(height: HeaderStatsPill.pillHalf + 8),
-              if (_filter != _SalesFilter.all)
+              if (ps.canCreateSale)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: PosModeToggle(
+                    historyMode: _historyMode,
+                    onChanged: (v) => setState(() {
+                      if (_historyMode == v) return;
+                      _historyMode = v;
+                      _searchExpanded = false;
+                      _query = '';
+                    }),
+                  ),
+                ),
+              if (!selling && _filter != _SalesFilter.all)
                 _ActiveSalesFilterChip(
                   filter: _filter,
                   onRemove: () => setState(() => _filter = _SalesFilter.all),
                 ),
               Expanded(
-                child: SilentRefresh(
+                child: selling ? _buildSellView(wide) : SilentRefresh(
                   onRefresh: () => triggerSilentSync(context, ref),
                   child: filtered.isEmpty
                       ? SingleChildScrollView(
@@ -814,7 +1003,10 @@ class _SalesDarkHeader extends StatefulWidget {
   final int activeFilters;
   final VoidCallback onSearchToggle;
   final ValueChanged<String> onSearchChanged;
-  final VoidCallback onFilterTap;
+
+  /// Null hides the filter button (Sell mode has no sales filters).
+  final VoidCallback? onFilterTap;
+  final String? searchHint;
 
   const _SalesDarkHeader({
     required this.todayRevenue,
@@ -825,6 +1017,7 @@ class _SalesDarkHeader extends StatefulWidget {
     required this.onSearchToggle,
     required this.onSearchChanged,
     required this.onFilterTap,
+    this.searchHint,
   });
 
   @override
@@ -886,23 +1079,26 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
             active: widget.searchExpanded,
             onTap: widget.onSearchToggle,
           ),
-          const SizedBox(width: 10),
-          HeaderIconButton(
-            icon: Icons.tune_rounded,
-            active: widget.activeFilters > 0,
-            onTap: widget.onFilterTap,
-            dotColor: dotColor != Colors.transparent ? dotColor : null,
-          ),
+          if (widget.onFilterTap != null) ...[
+            const SizedBox(width: 10),
+            HeaderIconButton(
+              icon: Icons.tune_rounded,
+              active: widget.activeFilters > 0,
+              onTap: widget.onFilterTap!,
+              dotColor: dotColor != Colors.transparent ? dotColor : null,
+            ),
+          ],
         ],
       ),
       expandable: HeaderSearchField(
         controller: _ctrl,
         focusNode: _focus,
         onChanged: widget.onSearchChanged,
-        hintText: _tr(
-          'Customer name or invoice #…',
-          'Jina la mteja au namba ya ankara…',
-        ),
+        hintText: widget.searchHint ??
+            _tr(
+              'Customer name or invoice #…',
+              'Jina la mteja au namba ya ankara…',
+            ),
         showClear: _ctrl.text.isNotEmpty,
       ),
       expanded: widget.searchExpanded,
@@ -1681,7 +1877,27 @@ class _ItemEntry {
 enum _ErrorField { items, customer, payment, general }
 
 class _NewSaleSheet extends ConsumerStatefulWidget {
-  const _NewSaleSheet();
+  /// Docked on the right of the wide-screen POS instead of shown as a
+  /// sheet: saving resets the form (via [onCompleted]) instead of closing.
+  final bool embedded;
+
+  /// Products to start with (phone POS cart checkout).
+  final List<PosCartLine> initialLines;
+
+  /// Embedded mode: called with the receipt data after a successful save.
+  final ValueChanged<Map<String, dynamic>>? onCompleted;
+
+  /// Embedded mode: plan-limit check run before saving (the sheet version
+  /// is checked before it opens).
+  final Future<bool> Function()? beforeSave;
+
+  const _NewSaleSheet({
+    super.key,
+    this.embedded = false,
+    this.initialLines = const [],
+    this.onCompleted,
+    this.beforeSave,
+  });
 
   @override
   ConsumerState<_NewSaleSheet> createState() => _NewSaleSheetState();
@@ -1762,8 +1978,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   @override
   void initState() {
     super.initState();
-    _addItem();
+    if (widget.initialLines.isEmpty) {
+      _addItem();
+    } else {
+      for (final line in widget.initialLines) {
+        final entry = _newEntry();
+        _selectProduct(entry, line.item);
+        final cap = entry.maxStock > 0 ? entry.maxStock : 1;
+        entry.qty = line.qty.clamp(1, cap);
+        _items.add(entry);
+      }
+    }
     _customerCtrl.addListener(_onCustomerChanged);
+    if (widget.embedded) return;
     PageTour.maybeAutoStart(
       context: context,
       seenKey: 'page_tour_seen_sales_sheet_v3',
@@ -1813,10 +2040,82 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     super.dispose();
   }
 
-  void _addItem() {
+  _ItemEntry _newEntry() {
     final entry = _ItemEntry();
     entry.nameCtrl.addListener(() => _onItemNameChanged(entry));
+    return entry;
+  }
+
+  void _addItem() {
+    final entry = _newEntry();
     setState(() => _items.add(entry));
+  }
+
+  /// POS product tap: adds [product] to the ticket, or bumps its qty if it
+  /// is already there (never past the stock on hand). Fills an empty row
+  /// first so the ticket doesn't keep a blank line on top.
+  void addProduct(Map<String, dynamic> product) {
+    final id = (product['id'] ?? '').toString();
+    final existing = _items
+        .where((e) => id.isNotEmpty && e.selectedItem?['id']?.toString() == id)
+        .firstOrNull;
+    if (existing != null) {
+      if (existing.qty >= existing.maxStock) {
+        _snack(
+          _tr(
+            'Only ${existing.maxStock} of ${product.posName} in stock.',
+            'Kuna ${existing.maxStock} tu za ${product.posName} stokuni.',
+          ),
+        );
+        return;
+      }
+      setState(() => existing.qty = existing.qty + 1);
+      return;
+    }
+    final blank = _items
+        .where((e) => e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .firstOrNull;
+    final entry = blank ?? _newEntry();
+    _selectProduct(entry, product);
+    if (entry.isOutOfStock) {
+      _snack(_tr('${product.posName} is out of stock.',
+          '${product.posName} imekwisha stokuni.'));
+    }
+    if (blank == null) setState(() => _items.add(entry));
+    if (_errorField == _ErrorField.items) setState(() => _errorMsg = null);
+  }
+
+  /// Embedded mode: clears the ticket for the next customer after a sale.
+  void _resetForNextSale() {
+    for (final e in _items) {
+      e.dispose();
+    }
+    _items.clear();
+    _customerCtrl.clear();
+    _amtPaidCtrl.clear();
+    _notesCtrl.clear();
+    _discountCtrl.clear();
+    _mpesaRefCtrl.clear();
+    setState(() {
+      _selectedCustomer = null;
+      _customerSuggs = [];
+      _showCustomerSuggs = false;
+      _payStatus = _PayStatus.paid;
+      _dueDate = null;
+      _vatEnabled = false;
+      _adjustmentsExpanded = false;
+      _detailsExpanded = false;
+      _isSaving = false;
+      _errorMsg = null;
+      _errorField = _ErrorField.general;
+    });
+    _addItem();
+  }
+
+  /// Embedded mode header action: empty the ticket.
+  void _clearTicket() {
+    if (_isSaving) return;
+    _resetForNextSale();
   }
 
   void _removeItem(int index) {
@@ -2090,6 +2389,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Future<void> _save() async {
     if (_errorMsg != null) setState(() => _errorMsg = null);
+    final beforeSave = widget.beforeSave;
+    if (beforeSave != null && !await beforeSave()) return;
+    if (!mounted) return;
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
@@ -2615,6 +2917,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     };
 
     if (!mounted) return;
+    if (widget.embedded) {
+      widget.onCompleted?.call(saleReceipt);
+      _resetForNextSale();
+      return;
+    }
     Navigator.of(context).pop(saleReceipt);
   }
 
@@ -2646,11 +2953,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      borderRadius: widget.embedded
+          ? null
+          : const BorderRadius.vertical(top: Radius.circular(28)),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          _buildHandle(),
+          if (widget.embedded)
+            const SizedBox(height: 14)
+          else
+            _buildHandle(),
           _buildHeader(),
           const Divider(height: 1, color: AppColors.border),
           Expanded(
@@ -2703,7 +3015,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         children: [
           Expanded(
             child: Text(
-              _tr('Add Sale', 'Ongeza Mauzo'),
+              widget.embedded
+                  ? _tr('Current Sale', 'Mauzo ya Sasa')
+                  : _tr('Add Sale', 'Ongeza Mauzo'),
               style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -2711,13 +3025,22 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               ),
             ),
           ),
-          IconButton(
-            onPressed: _isSaving ? null : () => Navigator.pop(context),
-            tooltip: _tr('Close', 'Funga'),
-            icon: const Icon(Icons.close_rounded, size: 20),
-            color: AppColors.textMuted,
-            visualDensity: VisualDensity.compact,
-          ),
+          if (widget.embedded)
+            IconButton(
+              onPressed: _isSaving ? null : _clearTicket,
+              tooltip: _tr('Clear sale', 'Futa mauzo'),
+              icon: const Icon(Icons.delete_sweep_outlined, size: 20),
+              color: AppColors.textMuted,
+              visualDensity: VisualDensity.compact,
+            )
+          else
+            IconButton(
+              onPressed: _isSaving ? null : () => Navigator.pop(context),
+              tooltip: _tr('Close', 'Funga'),
+              icon: const Icon(Icons.close_rounded, size: 20),
+              color: AppColors.textMuted,
+              visualDensity: VisualDensity.compact,
+            ),
         ],
       ),
     );
@@ -2913,7 +3236,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         16,
         8,
         16,
-        MediaQuery.paddingOf(context).bottom + 8,
+        // Docked POS cart: its card already sits clear of the screen edge.
+        (widget.embedded ? 0 : MediaQuery.paddingOf(context).bottom) + 8,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,

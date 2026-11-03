@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../onboarding_images.dart';
+import '../../../../shared/widgets/flag_icon.dart';
+import '../widgets/onboarding_layout.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   final VoidCallback onLanguageSelected;
@@ -98,7 +100,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
@@ -122,11 +123,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
         body: Stack(
           children: [
             // Header image
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: topHeight,
+            OnboardingHero(
               child: ClipRect(
                 child: Image(
                   image: OnboardingImages.signUpProvider,
@@ -174,10 +171,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
             ),
 
             // Main content sheet
-            DraggableScrollableSheet(
-              initialChildSize: 0.68,
-              minChildSize: 0.68,
-              maxChildSize: 0.8,
+            OnboardingSheet(
               builder: (context, scrollController) {
                 return Container(
                   clipBehavior: Clip.hardEdge,
@@ -269,7 +263,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
                               // Language cards
                               _LanguageCard(
-                                flag: '🇬🇧',
+                                flag: 'GB',
                                 name: 'English',
                                 nativeName: 'Continue in English',
                                 selected: _language == AppLanguage.english,
@@ -279,7 +273,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                               ),
                               const SizedBox(height: 12),
                               _LanguageCard(
-                                flag: '🇹🇿',
+                                flag: 'TZ',
                                 name: 'Kiswahili',
                                 nativeName: 'Endelea kwa Kiswahili',
                                 selected: _language == AppLanguage.swahili,
@@ -344,6 +338,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 // ─── Language Card ────────────────────────────────────────────────────────────
 
 class _LanguageCard extends StatefulWidget {
+  /// ISO country code of the flag to show (e.g. `TZ`).
   final String flag;
   final String name;
   final String nativeName;
@@ -421,7 +416,7 @@ class _LanguageCardState extends State<_LanguageCard>
           ),
           child: Row(
             children: [
-              Text(widget.flag, style: GoogleFonts.dmSans(fontSize: 26)),
+              FlagIcon(widget.flag, size: 22),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

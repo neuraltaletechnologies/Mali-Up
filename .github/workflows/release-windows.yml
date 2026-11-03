@@ -1,0 +1,176 @@
+name: Release Windows (Installer + Microsoft Store)
+
+# Builds the Windows desktop app and publishes two packages to a GitHub
+# Release tagged `windows-v<version>`:
+#
+#   MaliUp-Setup-<version>.exe  direct-download installer (Inno Setup,
+#                               windows/installer/mali_up.iss) for the website
+#   MaliUp-<version>.msix       Microsoft Store package — upload it by hand in
+#                               Partner Center (Product -> Packages)
+#
+# Like release-android.yml, merging into `main` does not ship on its own: only
+# a merged PR carrying the `release:windows` label does (add it by hand; the
+# auto-opened dev -> main PR does not get it). Can also be run from the
+# Actions tab.
+#
+# Version: pubspec `version` (e.g. 1.2.5+6) -> installer 1.2.5, MSIX
+# 1.2.5.0 (the Store requires the 4th MSIX segment to be 0). This workflow
+# does not bump the version; release-android.yml does that after each Android
+# release, so ship Android and Windows together or bump pubspec yourself —
+# the Store rejects an MSIX whose version isn't higher than the last one.
+#
+# Optional code signing of the installer (avoids the SmartScreen "unknown
+# publisher" warning): set repo secrets WINDOWS_CERT_PFX_BASE64 (base64 of
+# the .pfx) and WINDOWS_CERT_PASSWORD. Without them the installer ships
+# unsigned. The MSIX needs no certificate — the Store signs it.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-windows
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # creates the GitHub Release
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged &&
+       contains(github.event.pull_request.labels.*.name, 'release:windows'))
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/mobile-app
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Read version
+        id: version
+        run: |
+          full=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:\s*//' | tr -d '\r')
+          name=${full%%+*}
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "msix=$name.0" >> "$GITHUB_OUTPUT"
+          echo "Version: $name (MSIX $name.0)"
+
+      # Same keys as release-android.yml; the Windows build reads the
+      # FIREBASE_WINDOWS_* ones plus the shared project/sender/bucket values.
+      - name: Write .env.json from secrets
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_WINDOWS_API_KEY: ${{ secrets.FIREBASE_WINDOWS_API_KEY }}
+          FIREBASE_WINDOWS_APP_ID: ${{ secrets.FIREBASE_WINDOWS_APP_ID }}
+          FIREBASE_WINDOWS_MEASUREMENT_ID: ${{ secrets.FIREBASE_WINDOWS_MEASUREMENT_ID }}
+          CSC_API_KEY: ${{ secrets.CSC_API_KEY }}
+        run: |
+          jq -n '{
+            FIREBASE_PROJECT_ID: (env.FIREBASE_PROJECT_ID // ""),
+            FIREBASE_MESSAGING_SENDER_ID: (env.FIREBASE_MESSAGING_SENDER_ID // ""),
+            FIREBASE_STORAGE_BUCKET: (env.FIREBASE_STORAGE_BUCKET // ""),
+            FIREBASE_AUTH_DOMAIN: (env.FIREBASE_AUTH_DOMAIN // ""),
+            FIREBASE_WINDOWS_API_KEY: (env.FIREBASE_WINDOWS_API_KEY // ""),
+            FIREBASE_WINDOWS_APP_ID: (env.FIREBASE_WINDOWS_APP_ID // ""),
+            FIREBASE_WINDOWS_MEASUREMENT_ID: (env.FIREBASE_WINDOWS_MEASUREMENT_ID // ""),
+            CSC_API_KEY: (env.CSC_API_KEY // "")
+          }' > .env.json
+          for k in FIREBASE_WINDOWS_API_KEY FIREBASE_WINDOWS_APP_ID FIREBASE_PROJECT_ID; do
+            [ -n "$(jq -r ".$k" .env.json)" ] || { echo "::error::secret $k is not set"; exit 1; }
+          done
+
+      - name: Build Windows release
+        run: flutter build windows --release --dart-define-from-file=.env.json
+
+      - name: Import signing certificate
+        id: cert
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+        run: |
+          if [ -z "$PFX_BASE64" ]; then
+            echo "No WINDOWS_CERT_PFX_BASE64 secret — installer will be unsigned."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$PFX_BASE64" | base64 -d > "$RUNNER_TEMP/cert.pfx"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Sign app executable
+        if: steps.cert.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p "$env:CERT_PASSWORD" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 build\windows\x64\runner\Release\mali_up.exe
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=${{ steps.version.outputs.name }}" windows\installer\mali_up.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Sign installer
+        if: steps.cert.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p "$env:CERT_PASSWORD" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "build\windows\installer\MaliUp-Setup-${{ steps.version.outputs.name }}.exe"
+
+      # --store: unsigned package with the Partner Center identity from
+      # pubspec msix_config; the Store signs it on ingestion.
+      - name: Build MSIX (Microsoft Store)
+        run: |
+          dart run msix:create --store --build-windows false \
+            --version ${{ steps.version.outputs.msix }} \
+            --output-path build/windows/msix \
+            --output-name "MaliUp-${{ steps.version.outputs.name }}"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          tag="windows-v$VERSION"
+          files=(
+            "build/windows/installer/MaliUp-Setup-$VERSION.exe"
+            "build/windows/msix/MaliUp-$VERSION.msix"
+          )
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" "${files[@]}" \
+              --target "${{ github.event.pull_request.merge_commit_sha || github.sha }}" \
+              --title "Mali Up for Windows $VERSION" \
+              --notes "Windows desktop release $VERSION.
+
+          - **MaliUp-Setup-$VERSION.exe** — installer for direct download.
+          - **MaliUp-$VERSION.msix** — Microsoft Store package (upload in Partner Center)."
+          fi

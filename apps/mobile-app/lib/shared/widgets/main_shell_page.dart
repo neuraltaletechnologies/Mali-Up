@@ -21,6 +21,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_motion.dart';
 import '../../core/utils/online_guard.dart';
+import '../../core/utils/responsive.dart';
 import '../../config/routing.dart';
 import '../../core/providers/business_id_provider.dart';
 import '../../core/providers/connectivity_provider.dart';
@@ -930,11 +931,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        // Laptop/tablet: a floating full-height card inset from the screen
+        // edges, rounded on all four corners (there is no bottom nav there).
+        // Phones: flush to the left edge, rounded on the right only.
+        final wide = Responsive.isWide(dialogContext);
+        final panelRadius = wide
+            ? BorderRadius.circular(24)
+            : const BorderRadius.only(
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              );
         return Stack(
           children: [
             Align(
               alignment: Alignment.centerLeft,
               child: SafeArea(
+                minimum: wide ? const EdgeInsets.all(12) : EdgeInsets.zero,
                 left: false,
                 // Bottom is NOT excluded here (unlike the header SafeArea
                 // below) — on devices with on-screen nav buttons or a tall
@@ -942,21 +954,20 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                 // (Settings, Team, …) sit underneath those system buttons,
                 // making them hard to tap.
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
+                  borderRadius: panelRadius,
                   child: RepaintBoundary(
                     child: Container(
-                      width: MediaQuery.of(dialogContext).size.width * 0.72,
+                      // 72 % of a phone; capped so it stays a sidebar on a
+                      // laptop or tablet instead of covering most of it.
+                      width: math.min(
+                        MediaQuery.of(dialogContext).size.width * 0.72,
+                        300,
+                      ),
                       decoration: BoxDecoration(
                         // Same blue as the top header card on the invoice
                         // (sales) and customer list screens (DarkHeaderShell).
                         color: AppColors.navyPrimary,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(24),
-                          bottomRight: Radius.circular(24),
-                        ),
+                        borderRadius: panelRadius,
                         // No border here on purpose: it used to trace the
                         // panel's entire outline, including its right edge —
                         // exactly where the active pill's flush run is
@@ -2063,7 +2074,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                   child: widget.child,
                 ),
               ),
-              bottomNavigationBar: ValueListenableBuilder<int>(
+              // Laptop/tablet: no bottom nav — the menu button opens the
+              // navigation panel instead.
+              bottomNavigationBar: Responsive.isWide(context)
+                  ? null
+                  : ValueListenableBuilder<int>(
                 valueListenable: sheetOpenNotifier,
                 builder: (_, sheetCount, child) => ClipRect(
                   child: AnimatedAlign(

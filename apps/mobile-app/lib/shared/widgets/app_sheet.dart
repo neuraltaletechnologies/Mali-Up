@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_motion.dart';
+import '../../core/utils/responsive.dart';
+
 /// Counts currently-open modal bottom sheets.
 /// The shell's bottom nav bar collapses to zero height while this is > 0.
 final sheetOpenNotifier = ValueNotifier<int>(0);
@@ -10,8 +13,40 @@ final sheetOpenNotifier = ValueNotifier<int>(0);
 /// sheet stops at the same line regardless of who opens it.
 const double kAppSheetMaxHeightFactor = 0.8;
 
-/// Shows a bottom sheet capped at [kAppSheetMaxHeightFactor] of the screen
-/// height. Use this everywhere instead of [showModalBottomSheet] directly.
+/// Width of the right-hand side panel that replaces slide-up sheets on wide
+/// screens (see [showAppSheet]).
+const double kAppSidePanelWidth = 460;
+
+/// Tells sheet content how it is being presented, so the few sheets that
+/// care (drag handle, bottom alignment, drag-to-resize) can adapt.
+class AppSheetScope extends InheritedWidget {
+  /// True when shown as the wide-screen side panel rather than a bottom sheet.
+  final bool isSidePanel;
+
+  const AppSheetScope({
+    super.key,
+    required this.isSidePanel,
+    required super.child,
+  });
+
+  static bool isSidePanelOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppSheetScope>()?.isSidePanel ??
+      false;
+
+  @override
+  bool updateShouldNotify(AppSheetScope oldWidget) =>
+      isSidePanel != oldWidget.isSidePanel;
+}
+
+/// Shows a sheet. Use this everywhere instead of [showModalBottomSheet].
+///
+/// - Phones: a bottom sheet capped at [kAppSheetMaxHeightFactor] of the
+///   screen height.
+/// - Wide screens (laptop, desktop, tablet in landscape —
+///   [Responsive.isWide]): the same content slides in from the right as a
+///   full-height side panel next to the page, instead of rising from the
+///   bottom. Closing works the same (`Navigator.pop(context, result)`), and
+///   clicking the page beside it closes it.
 Future<T?> showAppSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -20,6 +55,13 @@ Future<T?> showAppSheet<T>(
   bool showDragHandle = false,
   ShapeBorder? shape,
 }) {
+  if (Responsive.isWide(context)) {
+    return _showSidePanel<T>(
+      context,
+      builder: builder,
+      backgroundColor: backgroundColor,
+    );
+  }
   return showModalBottomSheet<T>(
     context: context,
     // Attach to the root Navigator, not the nearest one. Screens like
@@ -39,6 +81,87 @@ Future<T?> showAppSheet<T>(
           MediaQuery.sizeOf(context).height * kAppSheetMaxHeightFactor,
     ),
     builder: builder,
+  );
+}
+
+Future<T?> _showSidePanel<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+  required Color backgroundColor,
+}) {
+  final reduceMotion = AppMotion.reduceMotion(context);
+  return showGeneralDialog<T>(
+    context: context,
+    // showGeneralDialog already uses the root navigator, as the bottom sheet
+    // above does on purpose.
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    // A faint tint only: the page stays readable beside the panel so it
+    // reads as part of the same screen, not a popup over it.
+    barrierColor: const Color(0x140D1B3E),
+    transitionDuration:
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 260),
+    transitionBuilder: (context, animation, _, child) {
+      if (reduceMotion) return child;
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
+    pageBuilder: (dialogContext, _, _) {
+      final mq = MediaQuery.of(dialogContext);
+      const inset = 12.0;
+      final width = math.min(kAppSidePanelWidth, mq.size.width * 0.9);
+      final height = mq.size.height - mq.padding.vertical - inset * 2;
+      final panelColor = backgroundColor == Colors.transparent
+          ? Colors.white
+          : backgroundColor;
+      return Align(
+        alignment: Alignment.centerRight,
+        child: SafeArea(
+          left: false,
+          minimum: const EdgeInsets.all(inset),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Material(
+              color: panelColor,
+              clipBehavior: Clip.antiAlias,
+              elevation: 12,
+              shadowColor: const Color(0x330D1B3E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: MediaQuery(
+                // Sheet content sizes itself from MediaQuery (e.g. "80 % of
+                // the screen height", "full screen width"). Report the
+                // panel's own size so those maths land inside the panel.
+                data: mq.copyWith(
+                  size: Size(width, height),
+                  padding: EdgeInsets.zero,
+                  viewPadding: EdgeInsets.zero,
+                ),
+                child: AppSheetScope(
+                  isSidePanel: true,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Builder(builder: builder),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
 

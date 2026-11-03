@@ -19,6 +19,8 @@ import '../../../../config/routing.dart';
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
+import '../../../../shared/widgets/flag_icon.dart';
+import '../widgets/onboarding_layout.dart';
 
 // ─── Business type data ───────────────────────────────────────────────────────
 
@@ -427,7 +429,6 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     final firstName = state.firstName.isNotEmpty
         ? state.firstName
         : (sw ? 'wewe' : 'there');
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final selectedType = _selectedTypeKey != null
         ? _kBizTypes.firstWhere((t) => t.key == _selectedTypeKey,
@@ -454,11 +455,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -517,10 +514,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
           ),
 
           // Main content sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,
@@ -664,7 +658,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                 icon: Icons.public_rounded,
                                 label: sw ? 'Nchi' : 'Country',
                                 value: _countryObj.name,
-                                flag: _countryObj.flag,
+                                flag: _countryObj.code,
                                 onTap: () => _pickCountry(sw),
                               ),
                               const SizedBox(height: 10),
@@ -1007,6 +1001,7 @@ class _LocationRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? value;
+  /// ISO country code of the flag to show (e.g. `TZ`).
   final String? flag;
   final String? placeholder;
   final bool disabled;
@@ -1062,7 +1057,7 @@ class _LocationRow extends StatelessWidget {
                   Row(
                     children: [
                       if (flag != null && hasValue) ...[
-                        Text(flag!, style: const TextStyle(fontSize: 15)),
+                        FlagIcon(flag!, size: 12),
                         const SizedBox(width: 6),
                       ],
                       Flexible(
@@ -1689,8 +1684,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                         horizontal: 8, vertical: 11),
                     child: Row(
                       children: [
-                        Text(c.flag,
-                            style: GoogleFonts.dmSans(fontSize: 22)),
+                        FlagIcon(c.code),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
