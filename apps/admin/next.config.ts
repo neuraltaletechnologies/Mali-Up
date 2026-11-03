@@ -18,7 +18,9 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://cloudflareinsights.com",
+      // *.cloudfunctions.net: the public /pay checkout calls the Beem OTP and
+      // ClickPesa callables (functions/src/beem_otp.ts, clickpesa.ts).
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://*.cloudfunctions.net https://cloudflareinsights.com",
       "frame-ancestors 'none'",
     ].join('; '),
   },

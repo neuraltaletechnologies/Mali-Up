@@ -104,6 +104,12 @@ export function Nav() {
         {/* CTA with ripple */}
         <div className="hidden md:flex items-center gap-3">
           <a
+            href="/pay"
+            className="text-sm font-semibold text-[#0C1B2E] px-4 py-2.5 rounded-xl border border-[#0C1B2E]/15 hover:border-[#F5A623] transition-colors"
+          >
+            Lipia
+          </a>
+          <a
             ref={ctaRef}
             href={PLAY_STORE_URL}
             target="_blank"
@@ -158,6 +164,13 @@ export function Nav() {
             {link.label}
           </a>
         ))}
+        <a
+          href="/pay"
+          onClick={() => setMenuOpen(false)}
+          className="text-center text-[#0C1B2E] font-semibold text-sm px-5 py-2.5 rounded-xl border border-[#0C1B2E]/15 mt-1"
+        >
+          Lipia Kifurushi
+        </a>
         <a
           href={PLAY_STORE_URL}
           target="_blank"

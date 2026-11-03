@@ -26,13 +26,15 @@ class ClickPesaService {
       FirebaseFunctions.instanceFor(region: 'us-central1');
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Pushes a payment prompt to [phoneNumber] for [tier], activating it on
+  /// Pushes a payment prompt to [phoneNumber] for [tier] billed per
+  /// [billingCycle] (one month or one year), activating it on
   /// [businessId] specifically — plans are independent per business, so the
   /// server verifies the caller owns that business before charging anything.
   /// Accepts common Tanzanian phone formats (0712345678, +255712345678,
   /// 255712345678) — the server normalizes and validates it.
   static Future<ClickPesaInitiateResult> initiatePayment({
     required PlanTier tier,
+    required BillingCycle billingCycle,
     required String phoneNumber,
     required String businessId,
   }) async {
@@ -43,10 +45,11 @@ class ClickPesaService {
       throw ArgumentError.value(businessId, 'businessId', 'Must not be empty.');
     }
     try {
-      debugPrint('[ClickPesa] Initiating USSD push for ${tier.name}');
+      debugPrint('[ClickPesa] Initiating USSD push for ${tier.name} (${billingCycle.name})');
       final callable = _functions.httpsCallable('initiateClickPesaPayment');
       final result = await callable.call<Map<String, dynamic>>({
         'tier': tier.name,
+        'billingCycle': billingCycle.name,
         'phoneNumber': phoneNumber,
         'businessId': businessId,
       });

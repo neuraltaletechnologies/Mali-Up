@@ -34,11 +34,27 @@ const CLICKPESA_BASE_URL = "https://api.clickpesa.com/third-parties";
 
 type PayableTier = "growth" | "business";
 
-// Mirrors lib/core/services/plan_service.dart's `_fallbackLimits` — used only
-// when platform_config/plans is unreachable or missing a field.
-const FALLBACK_PRICING: Record<PayableTier, {pricePerCycle: number; cycleMonths: number}> = {
-  growth: {pricePerCycle: 30000, cycleMonths: 6},
-  business: {pricePerCycle: 40000, cycleMonths: 6},
+/**
+ * Billing cycle the payer picked. `monthly`/`yearly` are what the app's
+ * upgrade sheet and the website's /pay page offer; `legacy` is the original
+ * multi-month cycle (`pricePerCycle` over `cycleMonths`), still charged when
+ * an older app build calls without a `billingCycle` at all.
+ */
+type BillingCycle = "monthly" | "yearly" | "legacy";
+
+interface TierPricing {
+  pricePerCycle: number;
+  cycleMonths: number;
+  priceMonthly: number;
+  priceYearly: number;
+}
+
+// Mirrors lib/core/services/plan_service.dart's `_fallbackLimits` and the
+// admin app's DEFAULT_PLANS — used only when platform_config/plans is
+// unreachable or missing a field.
+const FALLBACK_PRICING: Record<PayableTier, TierPricing> = {
+  growth: {pricePerCycle: 30000, cycleMonths: 6, priceMonthly: 6000, priceYearly: 60000},
+  business: {pricePerCycle: 40000, cycleMonths: 6, priceMonthly: 8000, priceYearly: 80000},
 };
 
 interface PlanPricing {
@@ -46,30 +62,55 @@ interface PlanPricing {
   cycleMonths: number;
 }
 
+function positiveNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && value > 0 ? value : fallback;
+}
+
 /**
- * Reads the *current* admin-configured price for a tier from
- * platform_config/plans (the same doc the app's paywall reads to display
- * pricing), falling back to the hardcoded defaults if the doc/field is
- * missing. The price actually charged always comes from here — never from
- * a client-supplied amount — so a user cannot ask ClickPesa to charge less
- * than the real price by tampering with the app.
+ * Reads the *current* admin-configured price for a tier and billing cycle
+ * from platform_config/plans (the same doc the app's paywall and the
+ * website's pricing section read to display pricing), falling back to the
+ * hardcoded defaults if the doc/field is missing. The price actually charged
+ * always comes from here — never from a client-supplied amount — so a user
+ * cannot ask ClickPesa to charge less than the real price by tampering with
+ * the app or the website.
  */
-async function getPlanPricing(tier: PayableTier): Promise<PlanPricing> {
-  const fallback = FALLBACK_PRICING[tier];
+async function getPlanPricing(tier: PayableTier, cycle: BillingCycle): Promise<PlanPricing> {
+  let pricing = FALLBACK_PRICING[tier];
   try {
     const snap = await admin.firestore().collection("platform_config").doc("plans").get();
     const raw = snap.data()?.[tier];
     if (raw && typeof raw === "object") {
-      const pricePerCycle =
-        typeof raw.pricePerCycle === "number" ? raw.pricePerCycle : fallback.pricePerCycle;
-      const cycleMonths =
-        typeof raw.cycleMonths === "number" ? raw.cycleMonths : fallback.cycleMonths;
-      if (pricePerCycle > 0 && cycleMonths > 0) return {pricePerCycle, cycleMonths};
+      pricing = {
+        pricePerCycle: positiveNumber(raw.pricePerCycle, pricing.pricePerCycle),
+        cycleMonths: positiveNumber(raw.cycleMonths, pricing.cycleMonths),
+        priceMonthly: positiveNumber(raw.priceMonthly, pricing.priceMonthly),
+        priceYearly: positiveNumber(raw.priceYearly, pricing.priceYearly),
+      };
     }
   } catch (err) {
     console.error("[ClickPesa] Failed to load plan pricing, using fallback", err);
   }
-  return fallback;
+  switch (cycle) {
+  case "monthly":
+    return {pricePerCycle: pricing.priceMonthly, cycleMonths: 1};
+  case "yearly":
+    return {pricePerCycle: pricing.priceYearly, cycleMonths: 12};
+  default:
+    return {pricePerCycle: pricing.pricePerCycle, cycleMonths: pricing.cycleMonths};
+  }
+}
+
+/** Adds whole calendar months, clamping to the last day of a shorter month
+ * (31 Jan + 1 month = 28/29 Feb, not 3 Mar). */
+function addMonths(from: Date, months: number): Date {
+  const result = new Date(from.getTime());
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
 }
 
 // ── ClickPesa auth token (module-level cache, reused across warm Cloud
@@ -166,6 +207,8 @@ interface InitiatePaymentRequest {
   tier: PayableTier;
   phoneNumber: string;
   businessId: string;
+  /** Omitted by app builds older than the monthly/yearly paywall. */
+  billingCycle?: "monthly" | "yearly";
 }
 
 interface InitiatePaymentResponse {
@@ -203,6 +246,11 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
     if (!businessId) {
       throw new HttpsError("invalid-argument", "businessId is required.");
     }
+    const rawCycle = request.data?.billingCycle;
+    if (rawCycle != null && rawCycle !== "monthly" && rawCycle !== "yearly") {
+      throw new HttpsError("invalid-argument", "billingCycle must be 'monthly' or 'yearly'.");
+    }
+    const billingCycle: BillingCycle = rawCycle ?? "legacy";
 
     // Each call here pushes a real USSD prompt to a phone — the same
     // real-money-adjacent cost concern as OTP sends (see otp_rate_limit.ts).
@@ -232,13 +280,15 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
       throw new HttpsError("permission-denied", "You do not own this business.");
     }
 
-    const {pricePerCycle, cycleMonths} = await getPlanPricing(tier);
+    const {pricePerCycle, cycleMonths} = await getPlanPricing(tier, billingCycle);
 
     // Alphanumeric only, and ClickPesa caps this at 20 characters — base36
-    // the timestamp to keep it compact: "MP" + tier initial (1) + ms epoch
-    // in base36 (~8) + a slice of the uid (4) = ~15 chars, comfortably under
-    // the limit while staying unique and still traceable back to the user.
-    const orderReference = `MP${tier === "growth" ? "G" : "B"}${Date.now()
+    // the timestamp to keep it compact: "MP" + tier initial (1) + cycle
+    // initial (1) + ms epoch in base36 (~8) + a slice of the uid (4) = ~16
+    // chars, comfortably under the limit while staying unique and still
+    // traceable back to the user.
+    const cycleCode = billingCycle === "monthly" ? "M" : billingCycle === "yearly" ? "Y" : "";
+    const orderReference = `MP${tier === "growth" ? "G" : "B"}${cycleCode}${Date.now()
       .toString(36)}${uid.slice(0, 4)}`
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
@@ -303,6 +353,7 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
         uid,
         businessId,
         tier,
+        billingCycle,
         cycleMonths,
         amount: pricePerCycle,
         currency: "TZS",
@@ -420,9 +471,7 @@ async function checkAndFinalizePayment(
   const uid = paymentDoc.uid as string;
   const tier = paymentDoc.tier as PayableTier;
   const cycleMonths = paymentDoc.cycleMonths as number;
-  const expiresAt = new Date(Date.now() + 30 * cycleMonths * 24 * 60 * 60 * 1000);
-  const expiresAtIso = expiresAt.toISOString();
-  const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
+  let expiresAtIso = "";
 
   const businessId = paymentDoc.businessId as string | undefined;
   if (!businessId) {
@@ -437,7 +486,26 @@ async function checkAndFinalizePayment(
   await db.runTransaction(async (tx) => {
     // All reads must happen before any writes in a Firestore transaction.
     const freshSnap = await tx.get(paymentRef);
-    if (freshSnap.data()?.status === "completed") return; // concurrent call already activated it
+    if (freshSnap.data()?.status === "completed") {
+      // Concurrent call already activated it.
+      expiresAtIso = (freshSnap.data()?.planExpiresAt as string | undefined) ?? "";
+      return;
+    }
+    const bizSnap = await tx.get(bizRef);
+
+    // Paying again for the same tier before it runs out (an early renewal —
+    // e.g. from the website's /pay page) extends from the current expiry
+    // instead of throwing away the days already paid for. A different tier
+    // (upgrade/downgrade) starts fresh from today.
+    const now = new Date();
+    const currentExpiry = bizSnap.data()?.planExpiresAt as FirebaseFirestore.Timestamp | undefined;
+    const renewFrom =
+      bizSnap.data()?.plan === tier && currentExpiry && currentExpiry.toDate() > now ?
+        currentExpiry.toDate() :
+        now;
+    const expiresAt = addMonths(renewFrom, cycleMonths);
+    expiresAtIso = expiresAt.toISOString();
+    const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
     // Plans are independent per business — this activates only the specific
     // business the payment was initiated for (verified against ownerUid in

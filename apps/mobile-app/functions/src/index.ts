@@ -29,7 +29,8 @@ export {initiateClickPesaPayment, verifyClickPesaPayment, clickpesaWebhook} from
 export {sendAdminBroadcast} from "./notifications";
 export {requestOtpAllowance} from "./otp_rate_limit";
 export {sendBeemOtp, verifyBeemOtp, consumeOtpVerification} from "./beem_otp";
-export {processPendingWelcomeSms, triggerWelcomeSmsBatch} from "./welcome_sms";
+export {onUserCreatedWelcomeSms, sendWelcomeSms, processPendingWelcomeSms} from "./welcome_sms";
+export {onPendingInviteCreatedSms} from "./invite_sms";
 export {
   requestPinReset,
   validatePinResetToken,

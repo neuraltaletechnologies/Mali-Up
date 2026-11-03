@@ -72,7 +72,7 @@ const TIER_META: Record<PlanTier, {
   },
 }
 
-const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay' | 'maxAccounts'>, string> = {
+const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'priceMonthly' | 'priceYearly' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay' | 'maxAccounts'>, string> = {
   cashFlow:             'Cash flow tracking',
   expenseTracking:      'Expense tracking',
   manualDebt:           'Manual debt entry',
@@ -100,6 +100,7 @@ function FeatureCheck({ ok }: { ok: boolean }) {
 }
 
 function planPrice(plan: PlanDefinition) {
+  if (plan.priceMonthly > 0) return `${formatTZS(plan.priceMonthly)}/mo`
   if (plan.pricePerCycle === 0) return 'Free'
   const perMonth = Math.round(plan.pricePerCycle / plan.cycleMonths)
   return `${formatTZS(perMonth)}/mo`
@@ -149,9 +150,14 @@ function TierCard({
           <div className="text-[22px] font-black tracking-tight" style={{ color: meta.color }}>
             {planPrice(plan)}
           </div>
+          {plan.priceYearly > 0 && (
+            <div className="text-[11px] text-[var(--ink-faint)]">
+              or {formatTZS(plan.priceYearly)}/year
+            </div>
+          )}
           {plan.pricePerCycle > 0 && (
             <div className="text-[11px] text-[var(--ink-faint)]">
-              {formatTZS(plan.pricePerCycle)} billed every {plan.cycleMonths} months
+              Older app builds: {formatTZS(plan.pricePerCycle)} every {plan.cycleMonths} months
             </div>
           )}
           {tier === 'enterprise' && (
@@ -262,9 +268,34 @@ function EditPlanDrawer({
     <DetailDrawer open={open} onClose={onClose} title={`Edit ${meta.label} Plan`} description="Update pricing, limits and features" width="w-[520px]">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
+        {/* Monthly / yearly — what the current app and the website's /pay page charge */}
+        {(tier === 'growth' || tier === 'business') && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Monthly & yearly plans</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>Monthly plan price (TZS)</label>
+                <input type="number" min="0" value={form.priceMonthly} onChange={num('priceMonthly')} className={inputCls} />
+                <p className="text-[11px] text-[var(--ink-faint)]">Charged once, unlocks 1 month</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>Yearly plan price (TZS)</label>
+                <input type="number" min="0" value={form.priceYearly} onChange={num('priceYearly')} className={inputCls} />
+                {form.priceMonthly > 0 && form.priceYearly > 0 && form.priceYearly < form.priceMonthly * 12 && (
+                  <p className="text-[11px] text-[var(--status-good)]">
+                    Saves {formatTZS(form.priceMonthly * 12 - form.priceYearly)} vs. 12 monthly payments
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Pricing */}
         <div>
-          <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Pricing</div>
+          <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">
+            {tier === 'growth' || tier === 'business' ? 'Legacy cycle (older app builds)' : 'Pricing'}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Price per month (TZS)</label>

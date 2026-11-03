@@ -23,7 +23,7 @@ enum TeamRole {
         TeamRole.owner => 'Mmiliki',
         TeamRole.manager => 'Meneja',
         TeamRole.accountant => 'Mhasibu',
-        TeamRole.cashier => 'Kasna',
+        TeamRole.cashier => 'Keshia',
         TeamRole.stockClerk => 'Msimamizi wa Bidhaa',
         TeamRole.custom => 'Maalum',
       };

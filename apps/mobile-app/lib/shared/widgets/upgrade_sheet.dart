@@ -137,6 +137,7 @@ Future<PlanTier?> showUpgradeSheet(
     context,
     builder: (_) => _ClickPesaPaymentSheet(
       tier: result.tier,
+      billingCycle: result.billingCycle,
       phoneNumber: result.phoneNumber,
     ),
   );
@@ -159,9 +160,14 @@ Future<PlanTier?> showUpgradeSheet(
 /// second, payment-processing sheet. See [showUpgradeSheet].
 class _PaymentHandoff {
   final PlanTier tier;
+  final BillingCycle billingCycle;
   final String phoneNumber;
 
-  const _PaymentHandoff({required this.tier, required this.phoneNumber});
+  const _PaymentHandoff({
+    required this.tier,
+    required this.billingCycle,
+    required this.phoneNumber,
+  });
 }
 
 /// Returned by [_ClickPesaPaymentSheet] once ClickPesa confirms the payment
@@ -385,6 +391,7 @@ class _UpgradeSheet extends StatefulWidget {
 
 class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
+  BillingCycle _cycle = BillingCycle.monthly;
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
   String? _prefillPhone;
@@ -435,8 +442,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   }
 
   PlanLimits get _selLimits => limitsFor(_selected, widget.defs);
-  int get _priceMonthly => _selLimits.pricePerMonth;
-  int get _priceCycle => _selLimits.pricePerCycle;
+  int get _price => _selLimits.priceFor(_cycle);
+  String get _perCycle =>
+      _cycle == BillingCycle.yearly ? _t('/yr', '/mwaka') : _t('/mo', '/mwezi');
 
   /// The phone form only collects a number here — actually sending the USSD
   /// push and watching for confirmation happens in a separate sheet (see
@@ -449,7 +457,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
     if (!mounted) return;
     Navigator.pop(
       context,
-      _PaymentHandoff(tier: _selected, phoneNumber: phoneNumber),
+      _PaymentHandoff(
+        tier: _selected,
+        billingCycle: _cycle,
+        phoneNumber: phoneNumber,
+      ),
     );
   }
 
@@ -518,10 +530,19 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               ),
               const SizedBox(height: 16),
 
+              // ── Billing cycle ────────────────────────────────────────────
+              _CycleToggle(
+                cycle: _cycle,
+                yearlySaving: _selLimits.yearlySaving,
+                onChanged: (c) => setState(() => _cycle = c),
+              ),
+              const SizedBox(height: 10),
+
               // ── Plan cards ───────────────────────────────────────────────
               if (!_isMultiBusiness) ...[
                 _TierCard(
                   tier: PlanTier.growth,
+                  cycle: _cycle,
                   limits: limitsFor(PlanTier.growth, widget.defs),
                   isSelected: !_showEnterprise && _selected == PlanTier.growth,
                   isCurrent: widget.currentStatus?.tier == PlanTier.growth,
@@ -535,6 +556,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               ],
               _TierCard(
                 tier: PlanTier.business,
+                cycle: _cycle,
                 limits: limitsFor(PlanTier.business, widget.defs),
                 isSelected: !_showEnterprise && _selected == PlanTier.business,
                 isCurrent: widget.currentStatus?.tier == PlanTier.business,
@@ -598,7 +620,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                             child: Text(
                               '${_t("Upgrade to", "Panda")} '
                               '${_selected == PlanTier.growth ? "Growth" : "Business"}'
-                              ' — ${_fmtPrice(_priceMonthly)}${_t("/mo", "/mwezi")}',
+                              ' — ${_fmtPrice(_price)}$_perCycle',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.dmSans(
                                 fontSize: 14,
@@ -614,7 +636,12 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 const SizedBox(height: 6),
                 Center(
                   child: Text(
-                    '${_fmtPrice(_priceCycle)} ${_t("billed every ${_selLimits.cycleMonths} months upfront", "ulipwa kwa miezi ${_selLimits.cycleMonths} mbele")}',
+                    _cycle == BillingCycle.yearly
+                        ? _t('Paid once for 12 months', 'Unalipa mara moja kwa miezi 12')
+                        : _t(
+                            'Paid once for 1 month — renew anytime',
+                            'Unalipa mara moja kwa mwezi 1 — ongeza muda wakati wowote',
+                          ),
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,
@@ -667,11 +694,101 @@ class _PremiumTag extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Billing-cycle toggle — Monthly / Yearly, above the tier cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CycleToggle extends StatelessWidget {
+  final BillingCycle cycle;
+  final int yearlySaving;
+  final ValueChanged<BillingCycle> onChanged;
+
+  const _CycleToggle({
+    required this.cycle,
+    required this.yearlySaving,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option(BillingCycle value, String label, {String? tag}) {
+      final selected = cycle == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => onChanged(value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: selected ? Colors.white : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.navyPrimary.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? AppColors.navyPrimary
+                        : AppColors.textMuted,
+                  ),
+                ),
+                if (tag != null) ...[
+                  const SizedBox(width: 5),
+                  Text(
+                    tag,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          option(BillingCycle.monthly, _t('Monthly', 'Kila mwezi')),
+          option(
+            BillingCycle.yearly,
+            _t('Yearly', 'Kila mwaka'),
+            tag: yearlySaving > 0 ? _t('Save', 'Okoa') : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tier card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TierCard extends StatelessWidget {
   final PlanTier tier;
+  final BillingCycle cycle;
   final PlanLimits limits;
   final bool isSelected;
   final bool isCurrent;
@@ -679,6 +796,7 @@ class _TierCard extends StatelessWidget {
 
   const _TierCard({
     required this.tier,
+    required this.cycle,
     required this.limits,
     required this.isSelected,
     this.isCurrent = false,
@@ -785,8 +903,11 @@ class _TierCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_fmtPrice(limits.pricePerCycle)} / '
-                    '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
+                    cycle == BillingCycle.yearly
+                        ? (limits.yearlySaving > 0
+                              ? '${_t("Save", "Okoa")} ${_fmtPrice(limits.yearlySaving)}'
+                              : _t('12 months', 'Miezi 12'))
+                        : '${_t("or", "au")} ${_fmtPrice(limits.priceYearly)}${_t("/yr", "/mwaka")}',
                     style: GoogleFonts.dmSans(
                       fontSize: 10,
                       color: isSelected
@@ -806,7 +927,7 @@ class _TierCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _fmtPrice(limits.pricePerMonth),
+                    _fmtPrice(limits.priceFor(cycle)),
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
@@ -817,7 +938,9 @@ class _TierCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _t('/mo', '/mwezi'),
+                    cycle == BillingCycle.yearly
+                        ? _t('/yr', '/mwaka')
+                        : _t('/mo', '/mwezi'),
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
                       fontSize: 9,
@@ -1418,9 +1541,14 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
 
 class _ClickPesaPaymentSheet extends ConsumerStatefulWidget {
   final PlanTier tier;
+  final BillingCycle billingCycle;
   final String phoneNumber;
 
-  const _ClickPesaPaymentSheet({required this.tier, required this.phoneNumber});
+  const _ClickPesaPaymentSheet({
+    required this.tier,
+    required this.billingCycle,
+    required this.phoneNumber,
+  });
 
   @override
   ConsumerState<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
@@ -1492,6 +1620,7 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
       // businessId specifically — plans are independent per business now.
       final initiated = await ClickPesaService.initiatePayment(
         tier: widget.tier,
+        billingCycle: widget.billingCycle,
         phoneNumber: widget.phoneNumber,
         businessId: businessId,
       );

@@ -764,7 +764,7 @@ function CatalogAttachPanel({
 
 // ─── Enterprise Deal Terms Panel ───────────────────────────────────────────────
 
-const OVERRIDE_FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay' | 'maxAccounts'>, string> = {
+const OVERRIDE_FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'priceMonthly' | 'priceYearly' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers' | 'maxProducts' | 'maxServiceProducts' | 'maxSalesPerDay' | 'maxAccounts'>, string> = {
   cashFlow:            'Cash flow tracking',
   expenseTracking:     'Expense tracking',
   manualDebt:          'Manual debt entry',

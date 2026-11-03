@@ -372,8 +372,14 @@ export interface CommunitySubmission {
 }
 
 export interface PlanDefinition {
+  // Legacy multi-month cycle — still what app builds older than the
+  // monthly/yearly paywall charge (see functions/src/clickpesa.ts).
   pricePerCycle: number
   cycleMonths: number
+  // Monthly / yearly plans offered by the current app and the website's
+  // /pay page. 0 = not offered (free or custom-priced tiers).
+  priceMonthly: number
+  priceYearly: number
   maxUsers: number       // -1 = unlimited
   monthlyInvoices: number // -1 = unlimited
   maxBusinesses: number  // -1 = unlimited

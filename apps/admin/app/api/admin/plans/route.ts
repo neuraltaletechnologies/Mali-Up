@@ -10,6 +10,8 @@ const DEFAULT_PLANS: PlanDefinitions = {
   starter: {
     pricePerCycle: 0,
     cycleMonths: 6,
+    priceMonthly: 0,
+    priceYearly: 0,
     maxUsers: 1,
     monthlyInvoices: 50,
     maxBusinesses: 1,
@@ -35,6 +37,8 @@ const DEFAULT_PLANS: PlanDefinitions = {
   growth: {
     pricePerCycle: 30000,
     cycleMonths: 6,
+    priceMonthly: 6000,
+    priceYearly: 60000,
     maxUsers: 3,
     monthlyInvoices: -1,
     maxBusinesses: -1,
@@ -60,6 +64,8 @@ const DEFAULT_PLANS: PlanDefinitions = {
   business: {
     pricePerCycle: 40000,
     cycleMonths: 6,
+    priceMonthly: 8000,
+    priceYearly: 80000,
     maxUsers: 10,
     monthlyInvoices: -1,
     maxBusinesses: -1,
@@ -85,6 +91,8 @@ const DEFAULT_PLANS: PlanDefinitions = {
   enterprise: {
     pricePerCycle: 0,
     cycleMonths: 6,
+    priceMonthly: 0,
+    priceYearly: 0,
     maxUsers: -1,
     monthlyInvoices: -1,
     maxBusinesses: -1,
@@ -110,6 +118,8 @@ const DEFAULT_PLANS: PlanDefinitions = {
   lifetime: {
     pricePerCycle: 0,
     cycleMonths: 0,
+    priceMonthly: 0,
+    priceYearly: 0,
     maxUsers: -1,
     monthlyInvoices: -1,
     maxBusinesses: -1,

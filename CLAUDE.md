@@ -57,16 +57,19 @@ npm run prisma:generate / prisma:migrate
 - `dev` is the integration branch: feature branches merge here first for
   testing. Release by opening a PR `dev → main` (or merge a feature branch
   straight into `main` for an isolated web-only or mobile-only change).
-- **Merging a reviewed PR into `main` is the release.** There is no
-  separate promotion step, no "approve don't merge" rule — merge means ship.
+- **Merging a reviewed PR into `main` is the release.**
   - `apps/admin/**` changed → Cloudflare rebuilds the `mali-up` Worker
     (it watches the `main` branch; scoped to `apps/admin/**` once
     `.github/scripts/set-cloudflare-build-watch-paths.sh` has run).
-  - `apps/mobile-app/**` changed → `.github/workflows/release-android.yml`
-    ships a Play Store **Open Testing** release (not the production track;
-    promote Open Testing → Production manually in Play Console).
-  - A web-only merge never triggers the Android release, and vice versa
-    (both are path-filtered).
+  - Android ships only if the merged PR has the `release:android` label →
+    `.github/workflows/release-android.yml` ships a Play Store **Closed
+    Testing** release (promote → Production manually in Play Console). The
+    auto-opened `dev → main` PR gets that label by default; remove it to
+    merge without an Android release. A feature-branch PR straight into
+    `main` needs the label added by hand. It can also be run manually from
+    the Actions tab.
+  - The Flutter **web** build (`deploy-web.yml`) is not label-gated: it
+    deploys on any `main` push touching `apps/mobile-app/**`.
 - After a `dev → main` release, sync `dev` back up (`git merge main` into
   `dev`, or rebase) so it doesn't drift far behind.
 - There is **no `production` branch** — it was removed when `main` became
