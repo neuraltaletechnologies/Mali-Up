@@ -298,27 +298,34 @@ export type PaymentOutcome =
   | { status: 'timeout' }
 
 /**
- * Waits for a payment to resolve by asking checkWebPayment every few
- * seconds. That callable mostly returns the stored status (updated by the
- * ClickPesa webhook the moment the payment resolves) and only re-asks
- * ClickPesa itself every 30s as a fallback, so this short interval is cheap.
+ * Waits for the ClickPesa webhook (clickpesaWebhook) to confirm the payment.
+ * checkWebPayment only reads the status the webhook writes — the website
+ * never asks ClickPesa directly while waiting. If the wait runs out with no
+ * webhook (lost delivery), one `finalCheck` asks ClickPesa once.
  */
 export function waitForPayment(orderReference: string, timeoutMs = 3 * 60_000): Promise<PaymentOutcome> {
-  const check = httpsCallable<{ orderReference: string }, { status: string; planExpiresAt?: string }>(
-    fns(), 'checkWebPayment',
-  )
+  const check = httpsCallable<
+    { orderReference: string; finalCheck?: boolean },
+    { status: string; planExpiresAt?: string }
+  >(fns(), 'checkWebPayment')
+  const settled = (data: { status: string; planExpiresAt?: string }): PaymentOutcome | null =>
+    data.status === 'completed'
+      ? { status: 'completed', planExpiresAt: data.planExpiresAt ?? null }
+      : data.status === 'failed'
+        ? { status: 'failed' }
+        : null
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs
     const tick = async () => {
+      const final = Date.now() >= deadline
       try {
-        const { data } = await check({ orderReference })
-        if (data.status === 'completed') return resolve({ status: 'completed', planExpiresAt: data.planExpiresAt ?? null })
-        if (data.status === 'failed') return resolve({ status: 'failed' })
+        const outcome = settled((await check({ orderReference, finalCheck: final })).data)
+        if (outcome) return resolve(outcome)
       } catch { /* transient — keep waiting */ }
-      if (Date.now() >= deadline) return resolve({ status: 'timeout' })
-      setTimeout(tick, 5_000)
+      if (final) return resolve({ status: 'timeout' })
+      setTimeout(tick, 4_000)
     }
-    setTimeout(tick, 5_000)
+    setTimeout(tick, 4_000)
   })
 }
 

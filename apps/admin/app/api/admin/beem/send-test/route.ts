@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/api-guard'
 import { normalizePhone, sendBeemSmsBatch } from '@/lib/beem'
+import { resolveRecipientByPhone } from '@/lib/sms-recipients'
 
 export async function POST(request: Request) {
   const denied = await requireAdminSession()
@@ -19,8 +20,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Message content cannot be empty' }, { status: 400 })
     }
 
+    // Resolve {name}/{businessName} from the user registered on this number, if any.
+    const recipient = await resolveRecipientByPhone(phone)
     const result = await sendBeemSmsBatch({
-      recipients: [{ recipientId: 1, phone, name: 'Admin Test' }],
+      recipients: [recipient],
       message,
       senderId,
     })

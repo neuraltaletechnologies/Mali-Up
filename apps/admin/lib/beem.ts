@@ -27,10 +27,11 @@ const BEEM_BALANCE_URL = 'https://apisms.beem.africa/public/v1/vendors/balance'
  * E.g. "+255 712 345 678" -> "255712345678", "0712345678" -> "255712345678"
  */
 export function normalizePhone(raw: string): string {
+  // Mirrors PhoneNumberUtils.canonical in the mobile app, so numbers match users.phone.
   let digits = String(raw ?? '').replace(/\D/g, '')
-  if (digits.startsWith('0') && digits.length === 10) {
-    digits = '255' + digits.slice(1)
-  }
+  if (digits.startsWith('00')) digits = digits.slice(2)
+  if (digits.startsWith('0') && digits.length === 10) return '255' + digits.slice(1)
+  if (digits.length === 9) return '255' + digits
   return digits
 }
 
@@ -73,6 +74,27 @@ export async function getBeemCredentials(): Promise<BeemConfig> {
   }
 }
 
+/**
+ * Turns a Beem error body into a short readable reason, e.g.
+ * {"data":{"error_code":"API_INVALID_PARAMETER","message":"..."}} -> "Beem 400 API_INVALID_PARAMETER: ..."
+ */
+async function describeBeemError(res: Response): Promise<string> {
+  const text = await res.text()
+  try {
+    const body = JSON.parse(text) as {
+      code?: number | string
+      message?: string
+      data?: { error_code?: string; code?: number | string; message?: string }
+    }
+    const code = body.data?.error_code ?? body.data?.code ?? body.code
+    const message = body.data?.message ?? body.message
+    if (code || message) return `Beem ${res.status}${code ? ` ${code}` : ''}: ${message ?? text}`
+  } catch {
+    // not JSON — fall through
+  }
+  return `Beem HTTP ${res.status}: ${text}`
+}
+
 function getAuthHeader(apiKey: string, secretKey: string): string {
   return 'Basic ' + Buffer.from(`${apiKey}:${secretKey}`).toString('base64')
 }
@@ -100,9 +122,12 @@ export async function fetchBeemBalance(): Promise<{ success: boolean; balance?: 
       return { success: false, error: `Beem HTTP ${res.status}: ${text}` }
     }
 
-    const data = (await res.json()) as { data?: { credit_bal?: number }; credit_bal?: number }
-    const credit = data.data?.credit_bal ?? data.credit_bal ?? 0
-    return { success: true, balance: Number(credit), raw: data }
+    // Beem returns { data: { credit_balance: "1234.00" } }; older docs show credit_bal.
+    type BalanceBody = { credit_balance?: number | string; credit_bal?: number | string }
+    const data = (await res.json()) as BalanceBody & { data?: BalanceBody }
+    const credit =
+      data.data?.credit_balance ?? data.data?.credit_bal ?? data.credit_balance ?? data.credit_bal ?? 0
+    return { success: true, balance: Number(credit) || 0, raw: data }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
@@ -277,8 +302,8 @@ export async function sendBeemSmsBatch(options: SendSmsBatchOptions): Promise<Se
         if (res.ok) {
           successfulNumbers.push(normalizedPhone)
         } else {
-          const errText = await res.text()
-          failedNumbers.push({ phone: normalizedPhone, reason: `Beem HTTP ${res.status}: ${errText}` })
+          const reason = await describeBeemError(res)
+          failedNumbers.push({ phone: normalizedPhone, reason })
         }
       } catch (err) {
         failedNumbers.push({ phone: normalizedPhone, reason: err instanceof Error ? err.message : String(err) })
@@ -327,8 +352,8 @@ export async function sendBeemSmsBatch(options: SendSmsBatchOptions): Promise<Se
         if (res.ok) {
           validRecipients.forEach((vr) => successfulNumbers.push(vr.dest_addr))
         } else {
-          const errText = await res.text()
-          validRecipients.forEach((vr) => failedNumbers.push({ phone: vr.dest_addr, reason: `Beem HTTP ${res.status}: ${errText}` }))
+          const reason = await describeBeemError(res)
+          validRecipients.forEach((vr) => failedNumbers.push({ phone: vr.dest_addr, reason }))
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

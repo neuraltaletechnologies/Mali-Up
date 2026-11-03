@@ -48,10 +48,12 @@ function beemAuthHeader(): string {
   return "Basic " + Buffer.from(`${BEEM_API_KEY.value()}:${BEEM_SECRET_KEY.value()}`).toString("base64");
 }
 
-/** Mirrors normalizePhone in apps/admin/lib/beem.ts. */
+/** Mirrors normalizePhone in apps/admin/lib/beem.ts (and PhoneNumberUtils.canonical in the app). */
 function normalizePhone(raw: unknown): string {
   let digits = String(raw ?? "").replace(/\D/g, "");
-  if (digits.startsWith("0") && digits.length === 10) digits = "255" + digits.slice(1);
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 10) return "255" + digits.slice(1);
+  if (digits.length === 9) return "255" + digits;
   return digits;
 }
 
@@ -71,74 +73,118 @@ function personalize(template: string, r: Recipient): string {
 }
 
 // ─── Recipients — mirrors apps/admin/lib/sms-recipients.ts ───────────────────
+// users/{uid}: phone, name, firstName, selectedBusinessId (owners) / businessId (staff).
+// businesses/{id}: ownerUid, ownerName, businessName, businessCategory, plan — no phone;
+// the owner's phone lives on users/{ownerUid}.
 
-function businessRecipient(data: FirebaseFirestore.DocumentData): Recipient | null {
-  const phone = normalizePhone(data.ownerPhone || data.phone);
+const MAX_DOCS = 2000;
+
+type Data = FirebaseFirestore.DocumentData;
+
+interface Directory {
+  usersById: Map<string, Data>;
+  usersByPhone: Map<string, Data>;
+  businessesById: Map<string, Data>;
+}
+
+async function loadDirectory(): Promise<Directory> {
+  const db = admin.firestore();
+  const [usersSnap, bizSnap] = await Promise.all([
+    db.collection("users").limit(MAX_DOCS).get(),
+    db.collection("businesses").limit(MAX_DOCS).get(),
+  ]);
+  const usersById = new Map<string, Data>();
+  const usersByPhone = new Map<string, Data>();
+  for (const doc of usersSnap.docs) {
+    const d = doc.data();
+    usersById.set(doc.id, d);
+    const phone = normalizePhone(d.phone || d.phoneNumber);
+    // Prefer the owner account when an owner and a staff record share a phone.
+    if (phone && (!usersByPhone.has(phone) || d.isTeamMember !== true)) usersByPhone.set(phone, d);
+  }
+  const businessesById = new Map<string, Data>();
+  for (const doc of bizSnap.docs) businessesById.set(doc.id, doc.data());
+  return {usersById, usersByPhone, businessesById};
+}
+
+function firstNameOf(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    const s = typeof c === "string" ? c.trim() : "";
+    if (s) return s.split(/\s+/)[0];
+  }
+  return "Mteja";
+}
+
+function businessNameOf(biz: Data | undefined): string {
+  return String(biz?.businessName || biz?.name || "").trim();
+}
+
+function userRecipient(dir: Directory, user: Data, phone: string): Recipient {
+  const bizId = String(user.selectedBusinessId || user.businessId || "");
+  return {
+    phone,
+    name: firstNameOf(user.firstName, user.name),
+    businessName: businessNameOf(dir.businessesById.get(bizId)),
+  };
+}
+
+function businessRecipient(dir: Directory, biz: Data): Recipient | null {
+  const owner = dir.usersById.get(String(biz.ownerUid || ""));
+  const phone = normalizePhone(biz.ownerPhone || biz.phone || owner?.phone);
   if (!validPhone(phone)) return null;
   return {
     phone,
-    name: (data.ownerName as string) || (data.name as string) || "Mteja",
-    businessName: (data.name as string) || "",
+    name: firstNameOf(owner?.firstName, biz.ownerName, owner?.name),
+    businessName: businessNameOf(biz),
   };
 }
 
 async function resolveRecipients(audience: Audience): Promise<Recipient[]> {
-  const db = admin.firestore();
+  const dir = await loadDirectory();
   const byPhone = new Map<string, Recipient>();
   const add = (r: Recipient | null) => {
-    if (r) byPhone.set(r.phone, r);
+    if (r && !byPhone.has(r.phone)) byPhone.set(r.phone, r);
   };
 
   switch (audience.kind) {
   case "custom_numbers":
     for (const raw of audience.customNumbers ?? []) {
       const phone = normalizePhone(raw);
-      if (validPhone(phone)) add({phone, name: "Mteja", businessName: ""});
+      if (!validPhone(phone)) continue;
+      const user = dir.usersByPhone.get(phone);
+      add(user ? userRecipient(dir, user, phone) : {phone, name: "Mteja", businessName: ""});
     }
     break;
 
-  case "selected_businesses": {
-    const snaps = await Promise.all(
-      (audience.businessIds ?? []).map((id) => db.collection("businesses").doc(id).get()),
-    );
-    for (const s of snaps) if (s.exists) add(businessRecipient(s.data()!));
+  case "selected_businesses":
+    for (const id of audience.businessIds ?? []) {
+      const biz = dir.businessesById.get(id);
+      if (biz) add(businessRecipient(dir, biz));
+    }
     break;
-  }
 
   case "business_category": {
     const target = (audience.category ?? "").toLowerCase().trim();
-    const snap = await db.collection("businesses").limit(500).get();
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      const cat = String(d.category || d.businessCategory || d.industry || "").toLowerCase().trim();
-      if (cat === target || cat.includes(target)) add(businessRecipient(d));
+    for (const biz of dir.businessesById.values()) {
+      const cat = String(biz.businessCategory || biz.category || biz.industry || "").toLowerCase().trim();
+      if (cat === target || cat.includes(target)) add(businessRecipient(dir, biz));
     }
     break;
   }
 
   case "plan_tier": {
     const target = (audience.planTier ?? "").toLowerCase().trim();
-    const snap = await db.collection("businesses").limit(500).get();
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      if (String(d.plan || "starter").toLowerCase().trim() === target) add(businessRecipient(d));
+    for (const biz of dir.businessesById.values()) {
+      if (String(biz.plan || "starter").toLowerCase().trim() === target) add(businessRecipient(dir, biz));
     }
     break;
   }
 
-  default: {
-    const snap = await db.collection("users").limit(1000).get();
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      const phone = normalizePhone(d.phone || d.phoneNumber);
-      if (!validPhone(phone)) continue;
-      add({
-        phone,
-        name: (d.firstName as string)?.trim() || (d.name as string)?.trim() || "Mteja",
-        businessName: (d.businessName as string) || "",
-      });
+  default:
+    for (const user of dir.usersById.values()) {
+      const phone = normalizePhone(user.phone || user.phoneNumber);
+      if (validPhone(phone)) add(userRecipient(dir, user, phone));
     }
-  }
   }
 
   return [...byPhone.values()];

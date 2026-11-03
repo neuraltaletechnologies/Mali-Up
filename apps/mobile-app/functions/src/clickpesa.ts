@@ -121,16 +121,31 @@ async function getClickPesaToken(): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now) return cachedToken.token;
 
+  // Trimmed: a secret set via `echo … | firebase functions:secrets:set` or a
+  // pasted value often carries a trailing newline/space, which ClickPesa
+  // rejects as invalid credentials.
   const response = await fetch(`${CLICKPESA_BASE_URL}/generate-token`, {
     method: "POST",
     headers: {
-      "client-id": CLICKPESA_CLIENT_ID.value(),
-      "api-key": CLICKPESA_API_KEY.value(),
+      "client-id": CLICKPESA_CLIENT_ID.value().trim(),
+      "api-key": CLICKPESA_API_KEY.value().trim(),
     },
   });
   if (!response.ok) {
-    console.error("[ClickPesa] generate-token failed", response.status, await response.text());
-    throw new HttpsError("internal", "Failed to authenticate with payment provider.");
+    const text = await response.text();
+    console.error("[ClickPesa] generate-token failed", response.status, text);
+    let providerMessage: string | undefined;
+    try {
+      providerMessage = (JSON.parse(text) as {message?: string}).message;
+    } catch {
+      // Non-JSON body.
+    }
+    // Status + ClickPesa's own reason (no secrets in either) so the cause —
+    // wrong keys, unapproved application, etc. — is visible from the client.
+    throw new HttpsError(
+      "internal",
+      `Failed to authenticate with payment provider (${response.status}${providerMessage ? `: ${providerMessage}` : ""}).`,
+    );
   }
   const data = (await response.json()) as {success?: boolean; token?: string};
   if (!data.token) {
@@ -472,12 +487,15 @@ export const initiateWebPayment = onCall<InitiateWebPaymentRequest>(
   },
 );
 
-// How often a website status check may cost a real ClickPesa API call — the
-// page asks every few seconds, but between real checks it just gets the
-// stored status (which the webhook updates the moment the payment resolves).
-const WEB_PROVIDER_CHECK_INTERVAL_MS = 30_000;
-
-export const checkWebPayment = onCall<{orderReference?: string}>(
+/**
+ * Website status check. Confirmation is webhook-driven: ClickPesa calls
+ * clickpesaWebhook the moment the payment resolves, which verifies it and
+ * activates the plan; this callable only reads the status that wrote — it
+ * never asks ClickPesa itself. The single exception is `finalCheck`: when
+ * the page has waited its full time without a webhook (lost delivery), it
+ * may ask ClickPesa directly ONCE per payment, as a safety net.
+ */
+export const checkWebPayment = onCall<{orderReference?: string; finalCheck?: boolean}>(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
   async (request): Promise<VerifyPaymentResponse> => {
     await enforceRateLimit({
@@ -500,8 +518,10 @@ export const checkWebPayment = onCall<{orderReference?: string}>(
       return {status: "completed", tier: doc.tier, planExpiresAt: doc.planExpiresAt};
     }
     if (doc.status === "failed") return {status: "failed"};
-    const last = (doc.lastCheckedAtMs as number | undefined) ?? 0;
-    if (Date.now() - last < WEB_PROVIDER_CHECK_INTERVAL_MS) return {status: "pending"};
+    if (request.data?.finalCheck !== true || doc.webFinalCheckDone === true) {
+      return {status: "pending"};
+    }
+    await paymentRef.set({webFinalCheckDone: true}, {merge: true});
     return checkAndFinalizePayment(orderReference, paymentRef, doc);
   },
 );

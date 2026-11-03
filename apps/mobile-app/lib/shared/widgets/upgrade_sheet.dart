@@ -770,14 +770,8 @@ class _CycleToggle extends StatelessWidget {
       ),
       child: Row(
         children: [
-          option(BillingCycle.monthly, _t('Monthly', 'Kila mwezi')),
-          option(
-            BillingCycle.yearly,
-            _t('Yearly', 'Kila mwaka'),
-            tag: discountPercent > 0
-                ? '${_t("Save", "Okoa")} $discountPercent%'
-                : null,
-          ),
+          option(BillingCycle.monthly, _t('Monthly', 'Mwezi')),
+          option(BillingCycle.yearly, _t('Yearly', 'Mwaka')),
         ],
       ),
     );
