@@ -31,7 +31,7 @@ const plans: PlanStyle[] = [
 ]
 
 export function Pricing() {
-  const [cycle, setCycle] = useState<BillingCycle>("monthly")
+  const [cycle, setCycle] = useState<BillingCycle>("yearly")
   const [prices, setPrices] = useState<PublicPlanPrices>(DEFAULT_PUBLIC_PRICES)
   const sectionRef = useRef<HTMLDivElement>(null)
   const isAnnual = cycle === "yearly"
@@ -56,6 +56,10 @@ export function Pricing() {
   // the default 6,000/mo vs 60,000/yr that's "2 months free".
   const monthsFree = prices.growth.priceMonthly > 0
     ? Math.floor(yearlySaving(prices, "growth") / prices.growth.priceMonthly)
+    : 0
+  // Yearly discount vs. paying monthly for 12 months — "Okoa 17%" on the toggle.
+  const discountPct = prices.growth.priceMonthly > 0
+    ? Math.round((yearlySaving(prices, "growth") / (prices.growth.priceMonthly * 12)) * 100)
     : 0
 
   return (
@@ -99,46 +103,46 @@ export function Pricing() {
             huhitaji kupakua programu kwanza.
           </p>
 
-          {/* Billing Cycle Toggle */}
-          <div className="reveal inline-flex items-center justify-center gap-3 mt-4">
-            <span
-              className={`text-sm font-semibold cursor-pointer transition-colors ${
-                !isAnnual ? "text-[#0C1B2E]" : "text-[#0C1B2E]/50"
-              }`}
-              onClick={() => setCycle("monthly")}
+          {/* Billing Cycle Toggle — labels live inside the two buttons */}
+          <div className="reveal flex justify-center mt-4">
+            <div
+              role="radiogroup"
+              aria-label="Muda wa malipo"
+              className="inline-flex items-center gap-1 rounded-full bg-[#0C1B2E]/[0.06] p-1.5"
             >
-              Kila Mwezi (Monthly)
-            </span>
-
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isAnnual}
-              aria-label="Badilisha malipo ya kila mwezi au mwaka"
-              onClick={() => setCycle(isAnnual ? "monthly" : "yearly")}
-              className="w-14 h-8 rounded-full p-1 transition-colors duration-300 relative focus:outline-none"
-              style={{ backgroundColor: isAnnual ? "#F5A623" : "#0C1B2E" }}
-            >
-              <div
-                className="w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300"
-                style={{ transform: isAnnual ? "translateX(24px)" : "translateX(0px)" }}
-              />
-            </button>
-
-            <span
-              className={`text-sm font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-                isAnnual ? "text-[#0C1B2E]" : "text-[#0C1B2E]/50"
-              }`}
-              onClick={() => setCycle("yearly")}
-            >
-              Kila Mwaka (Yearly)
-              {monthsFree > 0 && (
-                <span className="text-[11px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded-full">
-                  {monthsFree === 1 ? "Mwezi 1 bure" : `Miezi ${monthsFree} bure`}
-                </span>
-              )}
-            </span>
+              {(["monthly", "yearly"] as const).map((c) => {
+                const active = cycle === c
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setCycle(c)}
+                    className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
+                      active ? "bg-[#0C1B2E] text-white shadow-md" : "text-[#0C1B2E]/60 hover:text-[#0C1B2E]"
+                    }`}
+                  >
+                    {c === "monthly" ? "Kila Mwezi" : "Kila Mwaka"}
+                    {c === "yearly" && discountPct > 0 && (
+                      <span
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          active ? "bg-[#F5A623] text-[#0C1B2E]" : "bg-[#22C55E]/15 text-[#16A34A]"
+                        }`}
+                      >
+                        Okoa {discountPct}%
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
+          {monthsFree > 0 && (
+            <p className="reveal text-xs font-semibold text-[#16A34A] -mt-1">
+              Lipa kwa mwaka upate {monthsFree === 1 ? "mwezi 1" : `miezi ${monthsFree}`} bure
+            </p>
+          )}
         </div>
 
         {/* Pricing Cards Grid */}
@@ -148,6 +152,9 @@ export function Pricing() {
             const copy = PLAN_COPY[plan.tier]
             const price = plan.tier === "starter" ? 0 : priceFor(prices, plan.tier, cycle)
             const saving = yearlySaving(prices, plan.tier)
+            // Headline is always a per-month figure (yearly ÷ 12 when billed
+            // yearly), with what's actually charged on the line beneath it.
+            const perMonth = isAnnual ? Math.round(price / 12) : price
             const href = `/pay?plan=${plan.tier}&cycle=${cycle}`
 
             return (
@@ -195,30 +202,37 @@ export function Pricing() {
                     {copy.tagline}
                   </p>
 
-                  {/* Price */}
+                  {/* Price — per-month headline, billed total underneath */}
                   <div className="mb-6 pb-6 border-b border-current/10">
-                    <div className="flex items-baseline gap-1">
-                      <span
-                        className="font-heading font-black text-4xl tracking-tight"
-                        itemProp="price"
-                        content={price.toString()}
-                      >
-                        {price === 0 ? "Bure" : formatTZS(price)}
+                    <meta itemProp="price" content={price.toString()} />
+                    <meta itemProp="priceCurrency" content="TZS" />
+                    <meta itemProp="availability" content="https://schema.org/InStock" />
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-heading font-black text-4xl tracking-tight">
+                        {price === 0 ? "Bure" : formatTZS(perMonth)}
                       </span>
-                      <meta itemProp="priceCurrency" content="TZS" />
-                      <meta itemProp="availability" content="https://schema.org/InStock" />
                       {price > 0 && (
                         <span className={`text-sm ${plan.popular ? "text-white/60" : "text-[#0C1B2E]/50"}`}>
-                          /{isAnnual ? "mwaka" : "mwezi"}
+                          / mwezi
                         </span>
                       )}
                     </div>
-                    <div className={`text-xs font-medium mt-1.5 min-h-[18px] ${plan.popular ? "text-white/60" : "text-[#0C1B2E]/50"}`}>
-                      {price === 0
-                        ? "Milele — hakuna kadi wala malipo"
-                        : isAnnual
-                          ? saving > 0 && <span className="text-[#22C55E]">Unaokoa {formatTZS(saving)} kwa mwaka</span>
-                          : `au ${formatTZS(prices[plan.tier].priceYearly)} kwa mwaka`}
+                    <div className={`text-xs mt-2 min-h-[34px] leading-relaxed ${plan.popular ? "text-white/60" : "text-[#0C1B2E]/55"}`}>
+                      {price === 0 ? (
+                        "Milele — hakuna malipo"
+                      ) : isAnnual ? (
+                        <>
+                          {formatTZS(price)} kwa mwaka, unalipa mara moja
+                          {saving > 0 && (
+                            <span className="block font-semibold text-[#22C55E]">Unaokoa {formatTZS(saving)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          Inalipwa kila mwezi
+                          <span className="block">{formatTZS(price * 12)} kwa mwaka</span>
+                        </>
+                      )}
                     </div>
                   </div>
 

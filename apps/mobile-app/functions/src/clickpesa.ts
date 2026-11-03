@@ -231,26 +231,7 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
     }
     const uid = request.auth.uid;
 
-    const tier = request.data?.tier;
-    if (tier !== "growth" && tier !== "business") {
-      throw new HttpsError("invalid-argument", "tier must be 'growth' or 'business'.");
-    }
-    const phoneNumber = normalizeTzPhone(String(request.data?.phoneNumber ?? ""));
-    if (!phoneNumber) {
-      throw new HttpsError(
-        "invalid-argument",
-        "A valid Tanzanian mobile money number (M-Pesa/Tigo Pesa/Airtel Money/HaloPesa) is required.",
-      );
-    }
-    const businessId = String(request.data?.businessId ?? "").trim();
-    if (!businessId) {
-      throw new HttpsError("invalid-argument", "businessId is required.");
-    }
-    const rawCycle = request.data?.billingCycle;
-    if (rawCycle != null && rawCycle !== "monthly" && rawCycle !== "yearly") {
-      throw new HttpsError("invalid-argument", "billingCycle must be 'monthly' or 'yearly'.");
-    }
-    const billingCycle: BillingCycle = rawCycle ?? "legacy";
+    const args = parsePaymentArgs(request.data);
 
     // Each call here pushes a real USSD prompt to a phone — the same
     // real-money-adjacent cost concern as OTP sends (see otp_rate_limit.ts).
@@ -266,7 +247,7 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
     });
     await enforceRateLimit({
       collection: "clickpesa_initiate_rate_limits_phone",
-      key: phoneNumber,
+      key: args.phoneNumber,
       windowMs: 15 * 60 * 1000,
       max: 5,
       message: "Too many payment attempts for this phone number. Please wait a few minutes and try again.",
@@ -275,99 +256,253 @@ export const initiateClickPesaPayment = onCall<InitiatePaymentRequest>(
     // Plans are independent per business — verify the caller actually owns
     // the business they're paying to upgrade, so one account can never use
     // its own payment to activate a plan on a business it doesn't own.
-    const bizSnap = await admin.firestore().collection("businesses").doc(businessId).get();
+    const bizSnap = await admin.firestore().collection("businesses").doc(args.businessId).get();
     if (!bizSnap.exists || bizSnap.data()?.ownerUid !== uid) {
       throw new HttpsError("permission-denied", "You do not own this business.");
     }
 
-    const {pricePerCycle, cycleMonths} = await getPlanPricing(tier, billingCycle);
+    return createUssdPayment({...args, uid, source: "app"});
+  },
+);
 
-    // Alphanumeric only, and ClickPesa caps this at 20 characters — base36
-    // the timestamp to keep it compact: "MP" + tier initial (1) + cycle
-    // initial (1) + ms epoch in base36 (~8) + a slice of the uid (4) = ~16
-    // chars, comfortably under the limit while staying unique and still
-    // traceable back to the user.
-    const cycleCode = billingCycle === "monthly" ? "M" : billingCycle === "yearly" ? "Y" : "";
-    const orderReference = `MP${tier === "growth" ? "G" : "B"}${cycleCode}${Date.now()
-      .toString(36)}${uid.slice(0, 4)}`
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 20);
+interface PaymentArgs {
+  tier: PayableTier;
+  billingCycle: BillingCycle;
+  phoneNumber: string; // normalized 255XXXXXXXXX
+  businessId: string;
+}
 
-    const token = await getClickPesaToken();
-    const body: Record<string, unknown> = {
-      amount: String(pricePerCycle),
+/** Validates the fields shared by the app and website payment callables. */
+function parsePaymentArgs(data: Partial<InitiatePaymentRequest> | undefined): PaymentArgs {
+  const tier = data?.tier;
+  if (tier !== "growth" && tier !== "business") {
+    throw new HttpsError("invalid-argument", "tier must be 'growth' or 'business'.");
+  }
+  const phoneNumber = normalizeTzPhone(String(data?.phoneNumber ?? ""));
+  if (!phoneNumber) {
+    throw new HttpsError(
+      "invalid-argument",
+      "A valid Tanzanian mobile money number (M-Pesa/Tigo Pesa/Airtel Money/HaloPesa) is required.",
+    );
+  }
+  const businessId = String(data?.businessId ?? "").trim();
+  if (!businessId) {
+    throw new HttpsError("invalid-argument", "businessId is required.");
+  }
+  const rawCycle = data?.billingCycle;
+  if (rawCycle != null && rawCycle !== "monthly" && rawCycle !== "yearly") {
+    throw new HttpsError("invalid-argument", "billingCycle must be 'monthly' or 'yearly'.");
+  }
+  return {tier, phoneNumber, businessId, billingCycle: rawCycle ?? "legacy"};
+}
+
+/**
+ * Prices the plan server-side, pushes the USSD prompt and records what the
+ * payment is for. Callers must already have verified that `uid` owns
+ * `businessId` — this function trusts both.
+ */
+async function createUssdPayment(
+  args: PaymentArgs & {uid: string; source: "app" | "website"},
+): Promise<InitiatePaymentResponse> {
+  const {uid, businessId, tier, billingCycle, phoneNumber, source} = args;
+  const {pricePerCycle, cycleMonths} = await getPlanPricing(tier, billingCycle);
+
+  // Alphanumeric only, and ClickPesa caps this at 20 characters — base36
+  // the timestamp to keep it compact: "MP" + tier initial (1) + cycle
+  // initial (1) + ms epoch in base36 (~8) + a slice of the uid (4) = ~16
+  // chars, comfortably under the limit while staying unique and still
+  // traceable back to the user.
+  const cycleCode = billingCycle === "monthly" ? "M" : billingCycle === "yearly" ? "Y" : "";
+  const orderReference = `MP${tier === "growth" ? "G" : "B"}${cycleCode}${Date.now()
+    .toString(36)}${uid.slice(0, 4)}`
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 20);
+
+  const token = await getClickPesaToken();
+  const body: Record<string, unknown> = {
+    amount: String(pricePerCycle),
+    currency: "TZS",
+    orderReference,
+    phoneNumber,
+  };
+  const checksum = checksumFor(body);
+  if (checksum) body.checksum = checksum;
+
+  const response = await fetch(`${CLICKPESA_BASE_URL}/payments/initiate-ussd-push-request`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("[ClickPesa] initiate-ussd-push failed", response.status, text);
+    if (response.status === 409) {
+      throw new HttpsError("already-exists", "A payment with this reference already exists.");
+    }
+    let providerMessage: string | undefined;
+    try {
+      providerMessage = (JSON.parse(text) as {message?: string}).message;
+    } catch {
+      // Non-JSON body — generic messages below.
+    }
+    if (response.status === 400) {
+      // ClickPesa's 400s cover several unrelated cases (bad phone number,
+      // a payment method not enabled on this application, etc.) — surface
+      // its actual message instead of guessing, so this doesn't keep
+      // sending users to check their phone number for a merchant-account
+      // configuration problem that has nothing to do with them.
+      throw new HttpsError(
+        "invalid-argument",
+        providerMessage
+          ? `Payment could not be started: ${providerMessage}`
+          : "ClickPesa rejected the request — check the phone number.",
+      );
+    }
+    // Anything else (401/403 = wrong or unapproved ClickPesa credentials /
+    // payment collection not enabled, 5xx = ClickPesa down) — pass the
+    // provider's own reason through so it's diagnosable from the client.
+    throw new HttpsError(
+      "internal",
+      providerMessage ?
+        `Payment provider error (${response.status}): ${providerMessage}` :
+        `Failed to start payment (provider status ${response.status}).`,
+    );
+  }
+  const data = (await response.json()) as {id?: string; status?: string; channel?: string};
+
+  // Server-side record of what this payment is *supposed* to be for —
+  // verifyClickPesaPayment checks the real ClickPesa status against this,
+  // not against anything the client claims.
+  await admin
+    .firestore()
+    .collection("clickpesa_payments")
+    .doc(orderReference)
+    .set({
+      uid,
+      businessId,
+      tier,
+      billingCycle,
+      cycleMonths,
+      amount: pricePerCycle,
       currency: "TZS",
-      orderReference,
       phoneNumber,
-    };
-    const checksum = checksumFor(body);
-    if (checksum) body.checksum = checksum;
-
-    const response = await fetch(`${CLICKPESA_BASE_URL}/payments/initiate-ussd-push-request`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      source,
+      clickPesaId: data.id ?? null,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("[ClickPesa] initiate-ussd-push failed", response.status, text);
-      if (response.status === 409) {
-        throw new HttpsError("already-exists", "A payment with this reference already exists.");
-      }
-      if (response.status === 400) {
-        // ClickPesa's 400s cover several unrelated cases (bad phone number,
-        // a payment method not enabled on this application, etc.) — surface
-        // its actual message instead of guessing, so this doesn't keep
-        // sending users to check their phone number for a merchant-account
-        // configuration problem that has nothing to do with them.
-        let providerMessage: string | undefined;
-        try {
-          providerMessage = (JSON.parse(text) as {message?: string}).message;
-        } catch {
-          // Non-JSON body — fall through to the generic message below.
-        }
-        throw new HttpsError(
-          "invalid-argument",
-          providerMessage
-            ? `Payment could not be started: ${providerMessage}`
-            : "ClickPesa rejected the request — check the phone number.",
-        );
-      }
-      throw new HttpsError("internal", "Failed to start payment.");
+  return {
+    orderReference,
+    status: data.status ?? "PROCESSING",
+    channel: data.channel,
+  };
+}
+
+// ── Website checkout (maliup.neuraltale.com/pay) ─────────────────────────────
+//
+// The website lets an existing owner pay with just their phone number — no
+// PIN, no sign-in — so these two callables are unauthenticated. What keeps
+// that safe:
+//  - The business must belong to the account registered to `ownerPhone`
+//    (checked here against users/{ownerUid}.phone), so the site can only
+//    ever upgrade a business for its own owner's number.
+//  - No money moves without the payer entering their own mobile-money PIN on
+//    their phone; the worst a stranger can do is send a prompt someone
+//    ignores — capped by the per-IP / per-phone limits below.
+//  - The amount is still priced server-side, and activation still happens
+//    only after ClickPesa independently confirms the charge.
+
+/** Digits-only Mali Up phone form — mirrors PhoneNumberUtils.canonical. */
+function canonicalPhone(raw: unknown): string {
+  let digits = String(raw ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0")) return `255${digits.slice(1)}`;
+  if (digits.length === 9) return `255${digits}`;
+  return digits;
+}
+
+interface InitiateWebPaymentRequest extends InitiatePaymentRequest {
+  /** The owner's registered Mali Up phone number (what they typed on the site). */
+  ownerPhone: string;
+}
+
+export const initiateWebPayment = onCall<InitiateWebPaymentRequest>(
+  {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
+  async (request): Promise<InitiatePaymentResponse> => {
+    const args = parsePaymentArgs(request.data);
+    const ownerPhone = canonicalPhone(request.data?.ownerPhone);
+    if (ownerPhone.length < 10) {
+      throw new HttpsError("invalid-argument", "ownerPhone is required.");
     }
-    const data = (await response.json()) as {id?: string; status?: string; channel?: string};
 
-    // Server-side record of what this payment is *supposed* to be for —
-    // verifyClickPesaPayment checks the real ClickPesa status against this,
-    // not against anything the client claims.
-    await admin
-      .firestore()
-      .collection("clickpesa_payments")
-      .doc(orderReference)
-      .set({
-        uid,
-        businessId,
-        tier,
-        billingCycle,
-        cycleMonths,
-        amount: pricePerCycle,
-        currency: "TZS",
-        phoneNumber,
-        clickPesaId: data.id ?? null,
-        status: "pending",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await enforceRateLimit({
+      collection: "clickpesa_web_rate_limits_ip",
+      key: request.rawRequest.ip ?? "unknown",
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      message: "Too many payment attempts. Please wait a few minutes and try again.",
+    });
+    await enforceRateLimit({
+      collection: "clickpesa_initiate_rate_limits_phone",
+      key: args.phoneNumber,
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      message: "Too many payment attempts for this phone number. Please wait a few minutes and try again.",
+    });
 
-    return {
-      orderReference,
-      status: data.status ?? "PROCESSING",
-      channel: data.channel,
-    };
+    const db = admin.firestore();
+    const bizSnap = await db.collection("businesses").doc(args.businessId).get();
+    const ownerUid = bizSnap.data()?.ownerUid as string | undefined;
+    if (!bizSnap.exists || !ownerUid) {
+      throw new HttpsError("permission-denied", "This business does not belong to that phone number.");
+    }
+    const ownerSnap = await db.collection("users").doc(ownerUid).get();
+    const registered = ownerSnap.data()?.phone ?? ownerSnap.data()?.phoneNumber;
+    if (!registered || canonicalPhone(registered) !== ownerPhone) {
+      throw new HttpsError("permission-denied", "This business does not belong to that phone number.");
+    }
+
+    return createUssdPayment({...args, uid: ownerUid, source: "website"});
+  },
+);
+
+// How often a website status check may cost a real ClickPesa API call — the
+// page asks every few seconds, but between real checks it just gets the
+// stored status (which the webhook updates the moment the payment resolves).
+const WEB_PROVIDER_CHECK_INTERVAL_MS = 30_000;
+
+export const checkWebPayment = onCall<{orderReference?: string}>(
+  {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
+  async (request): Promise<VerifyPaymentResponse> => {
+    await enforceRateLimit({
+      collection: "clickpesa_web_check_rate_limits_ip",
+      key: request.rawRequest.ip ?? "unknown",
+      windowMs: 5 * 60 * 1000,
+      max: 120,
+    });
+    const orderReference = String(request.data?.orderReference ?? "").trim();
+    if (!orderReference) {
+      throw new HttpsError("invalid-argument", "orderReference is required.");
+    }
+    const paymentRef = admin.firestore().collection("clickpesa_payments").doc(orderReference);
+    const snap = await paymentRef.get();
+    const doc = snap.data();
+    if (!snap.exists || !doc || doc.source !== "website") {
+      throw new HttpsError("not-found", "Unknown payment.");
+    }
+    if (doc.status === "completed") {
+      return {status: "completed", tier: doc.tier, planExpiresAt: doc.planExpiresAt};
+    }
+    if (doc.status === "failed") return {status: "failed"};
+    const last = (doc.lastCheckedAtMs as number | undefined) ?? 0;
+    if (Date.now() - last < WEB_PROVIDER_CHECK_INTERVAL_MS) return {status: "pending"};
+    return checkAndFinalizePayment(orderReference, paymentRef, doc);
   },
 );
 

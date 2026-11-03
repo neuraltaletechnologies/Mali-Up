@@ -192,6 +192,18 @@ class PlanLimits {
     final saving = pricePerMonth * 12 - priceYearly;
     return priceYearly > 0 && saving > 0 ? saving : 0;
   }
+
+  /// Yearly discount vs. twelve monthly payments, as a whole percent
+  /// (6,000/mo vs 60,000/yr → 17).
+  int get yearlyDiscountPercent => pricePerMonth > 0
+      ? (yearlySaving * 100 / (pricePerMonth * 12)).round()
+      : 0;
+
+  /// Per-month figure shown as the headline price: the monthly price, or
+  /// the yearly price spread over 12 months when billed yearly.
+  int perMonthFor(BillingCycle cycle) => cycle == BillingCycle.yearly
+      ? (priceYearly / 12).round()
+      : pricePerMonth;
 }
 
 // Hardcoded fallbacks — used when Firestore is unreachable

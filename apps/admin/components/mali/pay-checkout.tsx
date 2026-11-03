@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, CheckCircle2, Loader2, Phone, ShieldCheck, Smartphone, XCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Loader2, Phone, ShieldCheck, Smartphone, XCircle } from "lucide-react"
 import {
   DEFAULT_PUBLIC_PRICES,
   PLAN_COPY,
   formatTZS,
   priceFor,
-  yearlySaving,
   type BillingCycle,
   type PublicPlanPrices,
   type PublicTier,
@@ -20,7 +19,6 @@ import {
   friendlyError,
   isTzMobile,
   listOwnedBusinesses,
-  loginWithPin,
   logout,
   sendOtp,
   startPayment,
@@ -35,15 +33,12 @@ const SUPPORT_URL = "https://neuraltale.com/#contact"
 
 type Step =
   | "phone"     // 1. who are you?
-  | "pin"       // 2a. existing owner: PIN
   | "otp"       // 2b. new owner: SMS code
   | "details"   // 2b. new owner: name, business, PIN
   | "checkout"  // 3. plan + cycle + pay
   | "waiting"   // 3. USSD prompt sent
   | "done"      // paid (or free account created)
   | "failed"    // payment failed / timed out
-
-const TIERS: PublicTier[] = ["starter", "growth", "business"]
 
 // ─── Small building blocks ───────────────────────────────────────────────────
 
@@ -92,7 +87,7 @@ function ErrorNote({ message }: { message: string }) {
 }
 
 function Progress({ step }: { step: Step }) {
-  const index = step === "phone" ? 0 : step === "pin" || step === "otp" || step === "details" ? 1 : 2
+  const index = step === "phone" ? 0 : step === "otp" || step === "details" ? 1 : 2
   const labels = ["Namba ya simu", "Akaunti", "Lipa"]
   return (
     <ol className="flex items-center gap-2 mb-8" aria-label="Hatua">
@@ -108,36 +103,12 @@ function Progress({ step }: { step: Step }) {
   )
 }
 
-function CycleToggle({ cycle, onChange, saving }: { cycle: BillingCycle; onChange: (c: BillingCycle) => void; saving: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#0C1B2E]/5 p-1" role="radiogroup" aria-label="Muda wa malipo">
-      {(["monthly", "yearly"] as const).map((c) => (
-        <button
-          key={c}
-          type="button"
-          role="radio"
-          aria-checked={cycle === c}
-          onClick={() => onChange(c)}
-          className={`rounded-lg py-2.5 text-[13px] font-bold transition-colors ${
-            cycle === c ? "bg-white text-[#0C1B2E] shadow-sm" : "text-[#0C1B2E]/55"
-          }`}
-        >
-          {c === "monthly" ? "Kila mwezi" : "Kila mwaka"}
-          {c === "yearly" && saving > 0 && (
-            <span className="ml-1.5 text-[10px] font-bold text-[#16A34A]">Okoa</span>
-          )}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // ─── Checkout ────────────────────────────────────────────────────────────────
 
 export function PayCheckout({ initialTier, initialCycle }: { initialTier: PublicTier; initialCycle: BillingCycle }) {
   const [prices, setPrices] = useState<PublicPlanPrices>(DEFAULT_PUBLIC_PRICES)
-  const [tier, setTier] = useState<PublicTier>(initialTier)
-  const [cycle, setCycle] = useState<BillingCycle>(initialCycle)
+  const [tier] = useState<PublicTier>(initialTier)
+  const [cycle] = useState<BillingCycle>(initialCycle)
 
   const [step, setStep] = useState<Step>("phone")
   const [busy, setBusy] = useState(false)
@@ -145,7 +116,6 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
 
   const [phone, setPhone] = useState("")
   const [account, setAccount] = useState<FoundAccount | null>(null)
-  const [pin, setPin] = useState("")
 
   const [pinId, setPinId] = useState("")
   const [code, setCode] = useState("")
@@ -172,6 +142,7 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
 
   const amount = tier === "starter" ? 0 : priceFor(prices, tier, cycle)
   const selectedBusiness = businesses.find((b) => b.id === businessId)
+  const firstName = ((isNewAccount ? fullName : account?.name) ?? "").trim().split(/\s+/)[0] ?? ""
 
   function go(next: Step) {
     setError("")
@@ -193,8 +164,8 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
   async function enterCheckout(uid: string) {
     const owned = await listOwnedBusinesses(uid)
     if (owned.length === 0) {
-      await logout()
-      throw Object.assign(new Error("no business"), { code: "functions/permission-denied" })
+      setError("Hatukupata biashara iliyosajiliwa kwa namba hii. Mmiliki wa biashara pekee ndiye anaweza kulipia kifurushi.")
+      return
     }
     setBusinesses(owned)
     setBusinessId(owned[0].id)
@@ -216,20 +187,15 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
       }
       setAccount(found)
       if (found) {
+        // Existing owner: no PIN on the website — the phone number alone
+        // identifies them, and the server re-checks it owns the business.
         setIsNewAccount(false)
-        go("pin")
+        await enterCheckout(found.uid)
       } else {
         setIsNewAccount(true)
         setPinId(await sendOtp(phone))
         go("otp")
       }
-    })
-
-  // Step 2a — existing owner PIN
-  const submitPin = () =>
-    run(async () => {
-      const uid = await loginWithPin(phone, pin, account)
-      await enterCheckout(uid)
     })
 
   // Step 2b — new owner OTP
@@ -279,7 +245,7 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
         setError("Weka namba ya M-Pesa, Tigo Pesa, Airtel Money au HaloPesa (mfano 0712 345 678).")
         return
       }
-      const ref = await startPayment({ tier, billingCycle: cycle, businessId, phoneNumber: payPhone })
+      const ref = await startPayment({ ownerPhone: phone, tier, billingCycle: cycle, businessId, phoneNumber: payPhone })
       go("waiting")
       const outcome = await waitForPayment(ref)
       if (outcome.status === "completed") {
@@ -317,8 +283,8 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
             <div>
               <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">Lipia kifurushi chako</h1>
               <p className="text-[14px] text-[#0C1B2E]/60 leading-relaxed">
-                Huhitaji kupakua programu. Weka namba yako ya simu — kama una akaunti tutakuomba PIN,
-                kama ni mpya tutakufungulia akaunti sasa hivi.
+                Huhitaji kupakua programu. Weka namba yako ya simu — kama una akaunti tutakutambua
+                mara moja, kama ni mpya tutakufungulia akaunti sasa hivi.
               </p>
               <p className="text-[12px] text-[#0C1B2E]/40 mt-1">Pay without the app. New or existing users.</p>
             </div>
@@ -343,50 +309,17 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
           </form>
         )}
 
-        {/* ── 2a. PIN ────────────────────────────────────────────────── */}
-        {step === "pin" && (
-          <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); submitPin() }}>
-            <div>
-              <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">
-                Karibu tena{account?.name ? `, ${account.name.split(" ")[0]}` : ""}!
-              </h1>
-              <p className="text-[14px] text-[#0C1B2E]/60">
-                Weka PIN yako ya tarakimu 4 ya Mali Up — ile ile ya kwenye programu.
-              </p>
-            </div>
-            <Field label="PIN">
-              <input
-                className={`${inputCls} tracking-[0.6em] text-center text-xl`}
-                type="password"
-                inputMode="numeric"
-                autoComplete="current-password"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                autoFocus
-              />
-            </Field>
-            <ErrorNote message={error} />
-            <PrimaryButton type="submit" loading={busy} disabled={pin.length !== 4}>Ingia</PrimaryButton>
-            <div className="flex items-center justify-between text-[13px]">
-              <button type="button" onClick={() => { setPin(""); go("phone") }} className="text-[#0C1B2E]/55 hover:text-[#0C1B2E]">
-                Badilisha namba
-              </button>
-              <a href={SUPPORT_URL} target="_blank" rel="noreferrer" className="text-[#0C1B2E]/55 hover:text-[#0C1B2E]">
-                Umesahau PIN? Tuandikie
-              </a>
-            </div>
-          </form>
-        )}
-
         {/* ── 2b. OTP ────────────────────────────────────────────────── */}
         {step === "otp" && (
           <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); submitOtp() }}>
             <div>
-              <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">Karibu Mali Up!</h1>
+              <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">Karibu Mali Up! 👋</h1>
+              <div className="rounded-xl bg-[#F5A623]/10 border border-[#F5A623]/30 px-4 py-3 text-[13px] text-[#0C1B2E]/80 mb-3">
+                Hatukupata akaunti yenye namba <strong>+{canonicalPhone(phone)}</strong> — kwa hiyo
+                tunakufungulia akaunti mpya sasa hivi. Ni bure na inachukua dakika moja.
+              </div>
               <p className="text-[14px] text-[#0C1B2E]/60">
-                Hii ni namba mpya. Tumetuma msimbo kwa SMS kwenda <strong>+{canonicalPhone(phone)}</strong> —
-                uweke hapa kuthibitisha ni yako.
+                Tumekutumia msimbo kwa SMS. Uweke hapa kuthibitisha kuwa namba ni yako.
               </p>
             </div>
             <Field label="Msimbo wa SMS">
@@ -432,7 +365,7 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Chagua PIN (tarakimu 4)">
+              <Field label="PIN mpya ya Mali Up">
                 <input
                   className={`${inputCls} tracking-[0.4em] text-center`}
                   type="password" inputMode="numeric" autoComplete="new-password" maxLength={4}
@@ -448,7 +381,8 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
               </Field>
             </div>
             <p className="text-[12px] text-[#0C1B2E]/50 -mt-1">
-              Utatumia namba hii na PIN hii kuingia kwenye programu ya Mali Up baadaye.
+              Tarakimu 4 utakazotumia kuingia kwenye programu ya Mali Up. Usiweke PIN yako ya M-Pesa
+              au benki hapa.
             </p>
             <ErrorNote message={error} />
             <PrimaryButton type="submit" loading={busy}>Fungua akaunti</PrimaryButton>
@@ -459,8 +393,35 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
         {step === "checkout" && (
           <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); submitPayment() }}>
             <div>
-              <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">Chagua kifurushi</h1>
-              <p className="text-[14px] text-[#0C1B2E]/60">Lipa kwa simu yako — utapokea ujumbe wa kuweka PIN ya pesa ya simu.</p>
+              <h1 className="font-heading font-bold text-[#0C1B2E] text-2xl mb-1">
+                {firstName
+                  ? isNewAccount ? `Hongera ${firstName}! 🎉` : `Karibu tena, ${firstName}! 👋`
+                  : isNewAccount ? "Hongera! 🎉" : "Karibu tena! 👋"}
+              </h1>
+              <p className="text-[14px] text-[#0C1B2E]/60">
+                {isNewAccount
+                  ? tier === "starter"
+                    ? "Akaunti yako iko tayari."
+                    : "Akaunti yako iko tayari. Weka namba ya kulipia, kisha bofya Lipa."
+                  : tier === "starter"
+                    ? "Uko tayari kuendelea na kifurushi cha Bure."
+                    : "Tumekutambua. Weka namba ya kulipia, kisha bofya Lipa."}
+              </p>
+            </div>
+
+            {/* What they picked on the pricing page — no re-choosing here */}
+            <div className="rounded-2xl bg-[#0C1B2E] text-white px-5 py-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="font-bold text-[16px]">{PLAN_COPY[tier].name}</div>
+                <div className="text-[12px] text-white/60">
+                  {tier === "starter" ? "Bure milele" : cycle === "yearly" ? "Kila mwaka · miezi 12" : "Kila mwezi · mwezi 1"}
+                  {selectedBusiness && businesses.length === 1 && <> · {selectedBusiness.name}</>}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-black text-[20px] text-[#F5A623]">{tier === "starter" ? "Bure" : formatTZS(amount)}</div>
+                <a href="/#pricing" className="text-[11px] text-white/50 underline hover:text-white">Badilisha</a>
+              </div>
             </div>
 
             {businesses.length > 1 && (
@@ -471,53 +432,6 @@ export function PayCheckout({ initialTier, initialCycle }: { initialTier: Public
               </Field>
             )}
             {selectedBusiness && <CurrentPlanNote business={selectedBusiness} />}
-
-            <CycleToggle cycle={cycle} onChange={setCycle} saving={Math.max(yearlySaving(prices, "growth"), yearlySaving(prices, "business"))} />
-
-            <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Kifurushi">
-              {TIERS.map((t) => {
-                const p = t === "starter" ? 0 : priceFor(prices, t, cycle)
-                const selected = tier === t
-                const saving = yearlySaving(prices, t)
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setTier(t)}
-                    className={`text-left rounded-2xl border-2 px-4 py-3.5 transition-colors ${
-                      selected ? "border-[#F5A623] bg-[#F5A623]/5" : "border-[#0C1B2E]/10 hover:border-[#0C1B2E]/25"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          selected ? "border-[#F5A623] bg-[#F5A623]" : "border-[#0C1B2E]/25"
-                        }`}>
-                          {selected && <Check size={12} className="text-white" strokeWidth={3} />}
-                        </span>
-                        <div>
-                          <div className="font-bold text-[15px] text-[#0C1B2E]">{PLAN_COPY[t].name}</div>
-                          <div className="text-[12px] text-[#0C1B2E]/55">{PLAN_COPY[t].tagline}</div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-black text-[15px] text-[#0C1B2E]">{p === 0 ? "Bure" : formatTZS(p)}</div>
-                        {p > 0 && (
-                          <div className="text-[11px] text-[#0C1B2E]/50">
-                            /{cycle === "yearly" ? "mwaka" : "mwezi"}
-                          </div>
-                        )}
-                        {cycle === "yearly" && saving > 0 && (
-                          <div className="text-[11px] font-semibold text-[#16A34A]">Okoa {formatTZS(saving)}</div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
 
             {tier !== "starter" && (
               <Field label="Namba ya kulipia" hint="M-Pesa, Tigo Pesa (Mixx), Airtel Money au HaloPesa">

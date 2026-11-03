@@ -391,7 +391,7 @@ class _UpgradeSheet extends StatefulWidget {
 
 class _UpgradeSheetState extends State<_UpgradeSheet> {
   late PlanTier _selected;
-  BillingCycle _cycle = BillingCycle.monthly;
+  BillingCycle _cycle = BillingCycle.yearly;
   bool _showEnterprise = false;
   bool _showPhoneConfirm = false;
   String? _prefillPhone;
@@ -533,7 +533,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               // ── Billing cycle ────────────────────────────────────────────
               _CycleToggle(
                 cycle: _cycle,
-                yearlySaving: _selLimits.yearlySaving,
+                discountPercent: _selLimits.yearlyDiscountPercent,
                 onChanged: (c) => setState(() => _cycle = c),
               ),
               const SizedBox(height: 10),
@@ -699,12 +699,12 @@ class _PremiumTag extends StatelessWidget {
 
 class _CycleToggle extends StatelessWidget {
   final BillingCycle cycle;
-  final int yearlySaving;
+  final int discountPercent;
   final ValueChanged<BillingCycle> onChanged;
 
   const _CycleToggle({
     required this.cycle,
-    required this.yearlySaving,
+    required this.discountPercent,
     required this.onChanged,
   });
 
@@ -774,7 +774,9 @@ class _CycleToggle extends StatelessWidget {
           option(
             BillingCycle.yearly,
             _t('Yearly', 'Kila mwaka'),
-            tag: yearlySaving > 0 ? _t('Save', 'Okoa') : null,
+            tag: discountPercent > 0
+                ? '${_t("Save", "Okoa")} $discountPercent%'
+                : null,
           ),
         ],
       ),
@@ -903,11 +905,11 @@ class _TierCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
+                    // What's actually charged, under the per-month headline.
                     cycle == BillingCycle.yearly
-                        ? (limits.yearlySaving > 0
-                              ? '${_t("Save", "Okoa")} ${_fmtPrice(limits.yearlySaving)}'
-                              : _t('12 months', 'Miezi 12'))
-                        : '${_t("or", "au")} ${_fmtPrice(limits.priceYearly)}${_t("/yr", "/mwaka")}',
+                        ? '${_fmtPrice(limits.priceYearly)}${_t("/yr", "/mwaka")}'
+                              '${limits.yearlySaving > 0 ? ' · ${_t("save", "okoa")} ${_fmtPrice(limits.yearlySaving)}' : ''}'
+                        : _t('Billed monthly', 'Inalipwa kila mwezi'),
                     style: GoogleFonts.dmSans(
                       fontSize: 10,
                       color: isSelected
@@ -927,7 +929,7 @@ class _TierCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _fmtPrice(limits.priceFor(cycle)),
+                    _fmtPrice(limits.perMonthFor(cycle)),
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
@@ -938,9 +940,7 @@ class _TierCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    cycle == BillingCycle.yearly
-                        ? _t('/yr', '/mwaka')
-                        : _t('/mo', '/mwezi'),
+                    _t('/mo', '/mwezi'),
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
                       fontSize: 9,
