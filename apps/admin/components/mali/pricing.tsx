@@ -103,44 +103,42 @@ export function Pricing() {
             huhitaji kupakua programu kwanza.
           </p>
 
-          {/* Billing Cycle Toggle — labels live inside the two buttons */}
+          {/* Billing Cycle Toggle — one switch, both words inside the track */}
           <div className="reveal flex justify-center mt-4">
-            <div
-              role="radiogroup"
-              aria-label="Muda wa malipo"
-              className="inline-flex items-center gap-1 rounded-full bg-[#0C1B2E]/[0.06] p-1.5"
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isAnnual}
+              aria-label="Badilisha malipo: mwezi au mwaka"
+              onClick={() => setCycle(isAnnual ? "monthly" : "yearly")}
+              className="relative grid grid-cols-2 w-52 h-12 rounded-full bg-[#0C1B2E] p-1 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623]"
             >
-              {(["monthly", "yearly"] as const).map((c) => {
-                const active = cycle === c
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setCycle(c)}
-                    className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
-                      active ? "bg-[#0C1B2E] text-white shadow-md" : "text-[#0C1B2E]/60 hover:text-[#0C1B2E]"
-                    }`}
-                  >
-                    {c === "monthly" ? "Kila Mwezi" : "Kila Mwaka"}
-                    {c === "yearly" && discountPct > 0 && (
-                      <span
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          active ? "bg-[#F5A623] text-[#0C1B2E]" : "bg-[#22C55E]/15 text-[#16A34A]"
-                        }`}
-                      >
-                        Okoa {discountPct}%
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+              {/* Sliding knob */}
+              <span
+                aria-hidden="true"
+                className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#F5A623] shadow-md transition-transform duration-300 ease-out"
+                style={{ transform: isAnnual ? "translateX(100%)" : "translateX(0)" }}
+              />
+              <span
+                className={`relative z-10 flex items-center justify-center text-sm font-bold transition-colors duration-300 ${
+                  !isAnnual ? "text-[#0C1B2E]" : "text-white/60"
+                }`}
+              >
+                Mwezi
+              </span>
+              <span
+                className={`relative z-10 flex items-center justify-center text-sm font-bold transition-colors duration-300 ${
+                  isAnnual ? "text-[#0C1B2E]" : "text-white/60"
+                }`}
+              >
+                Mwaka
+              </span>
+            </button>
           </div>
           {monthsFree > 0 && (
             <p className="reveal text-xs font-semibold text-[#16A34A] -mt-1">
               Lipa kwa mwaka upate {monthsFree === 1 ? "mwezi 1" : `miezi ${monthsFree}`} bure
+              {discountPct > 0 && <> (okoa {discountPct}%)</>}
             </p>
           )}
         </div>

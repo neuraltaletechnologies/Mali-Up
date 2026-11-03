@@ -142,7 +142,7 @@ export function BeemCampaignDetailsDrawer({
               {campaign.failedRecipients.map((f, i) => (
                 <div key={i} className="py-1 text-[11.5px] flex justify-between gap-2">
                   <span className="font-mono text-[var(--ink)]">{f.phone}</span>
-                  <span className="text-[var(--status-bad)] truncate">{f.reason}</span>
+                  <span className="text-[var(--status-bad)] break-words text-right">{f.reason}</span>
                 </div>
               ))}
             </div>

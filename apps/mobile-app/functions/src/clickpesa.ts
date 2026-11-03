@@ -121,16 +121,31 @@ async function getClickPesaToken(): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now) return cachedToken.token;
 
+  // Trimmed: a secret set via `echo … | firebase functions:secrets:set` or a
+  // pasted value often carries a trailing newline/space, which ClickPesa
+  // rejects as invalid credentials.
   const response = await fetch(`${CLICKPESA_BASE_URL}/generate-token`, {
     method: "POST",
     headers: {
-      "client-id": CLICKPESA_CLIENT_ID.value(),
-      "api-key": CLICKPESA_API_KEY.value(),
+      "client-id": CLICKPESA_CLIENT_ID.value().trim(),
+      "api-key": CLICKPESA_API_KEY.value().trim(),
     },
   });
   if (!response.ok) {
-    console.error("[ClickPesa] generate-token failed", response.status, await response.text());
-    throw new HttpsError("internal", "Failed to authenticate with payment provider.");
+    const text = await response.text();
+    console.error("[ClickPesa] generate-token failed", response.status, text);
+    let providerMessage: string | undefined;
+    try {
+      providerMessage = (JSON.parse(text) as {message?: string}).message;
+    } catch {
+      // Non-JSON body.
+    }
+    // Status + ClickPesa's own reason (no secrets in either) so the cause —
+    // wrong keys, unapproved application, etc. — is visible from the client.
+    throw new HttpsError(
+      "internal",
+      `Failed to authenticate with payment provider (${response.status}${providerMessage ? `: ${providerMessage}` : ""}).`,
+    );
   }
   const data = (await response.json()) as {success?: boolean; token?: string};
   if (!data.token) {
