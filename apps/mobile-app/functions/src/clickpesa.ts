@@ -487,12 +487,15 @@ export const initiateWebPayment = onCall<InitiateWebPaymentRequest>(
   },
 );
 
-// How often a website status check may cost a real ClickPesa API call — the
-// page asks every few seconds, but between real checks it just gets the
-// stored status (which the webhook updates the moment the payment resolves).
-const WEB_PROVIDER_CHECK_INTERVAL_MS = 30_000;
-
-export const checkWebPayment = onCall<{orderReference?: string}>(
+/**
+ * Website status check. Confirmation is webhook-driven: ClickPesa calls
+ * clickpesaWebhook the moment the payment resolves, which verifies it and
+ * activates the plan; this callable only reads the status that wrote — it
+ * never asks ClickPesa itself. The single exception is `finalCheck`: when
+ * the page has waited its full time without a webhook (lost delivery), it
+ * may ask ClickPesa directly ONCE per payment, as a safety net.
+ */
+export const checkWebPayment = onCall<{orderReference?: string; finalCheck?: boolean}>(
   {region: "us-central1", secrets: [CLICKPESA_CLIENT_ID, CLICKPESA_API_KEY]},
   async (request): Promise<VerifyPaymentResponse> => {
     await enforceRateLimit({
@@ -515,8 +518,10 @@ export const checkWebPayment = onCall<{orderReference?: string}>(
       return {status: "completed", tier: doc.tier, planExpiresAt: doc.planExpiresAt};
     }
     if (doc.status === "failed") return {status: "failed"};
-    const last = (doc.lastCheckedAtMs as number | undefined) ?? 0;
-    if (Date.now() - last < WEB_PROVIDER_CHECK_INTERVAL_MS) return {status: "pending"};
+    if (request.data?.finalCheck !== true || doc.webFinalCheckDone === true) {
+      return {status: "pending"};
+    }
+    await paymentRef.set({webFinalCheckDone: true}, {merge: true});
     return checkAndFinalizePayment(orderReference, paymentRef, doc);
   },
 );

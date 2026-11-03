@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { BeemStatusBar } from './beem-status-bar'
@@ -21,9 +21,14 @@ export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.Reac
     loading: statusLoading,
     refetch: refetchStatus,
   } = useAdminFetch(useCallback(() => fetchBeemStatus(), []), {
+    // No polling: balance/templates hit Beem's API. Refreshed after a send
+    // and via the status bar's refresh button.
     key: 'beem-status',
-    pollingInterval: 30_000,
   })
+
+  // Poll history only while a campaign is mid-send, so the table isn't
+  // reloading every few seconds when nothing can change.
+  const [hasActiveCampaign, setHasActiveCampaign] = useState(false)
 
   const {
     data: campaignsData,
@@ -33,8 +38,12 @@ export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.Reac
     refetch: refetchCampaigns,
   } = useAdminFetch(useCallback(() => fetchBeemCampaigns(), []), {
     key: 'beem-sms-campaigns',
-    pollingInterval: 15_000,
+    pollingInterval: hasActiveCampaign ? 10_000 : undefined,
   })
+
+  useEffect(() => {
+    setHasActiveCampaign((campaignsData?.campaigns ?? []).some((c) => c.status === 'sending'))
+  }, [campaignsData])
 
   const { data: businessData } = useAdminFetch(
     useCallback(() => fetchBusinesses(), []),

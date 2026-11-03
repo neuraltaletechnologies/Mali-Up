@@ -27,10 +27,11 @@ const BEEM_BALANCE_URL = 'https://apisms.beem.africa/public/v1/vendors/balance'
  * E.g. "+255 712 345 678" -> "255712345678", "0712345678" -> "255712345678"
  */
 export function normalizePhone(raw: string): string {
+  // Mirrors PhoneNumberUtils.canonical in the mobile app, so numbers match users.phone.
   let digits = String(raw ?? '').replace(/\D/g, '')
-  if (digits.startsWith('0') && digits.length === 10) {
-    digits = '255' + digits.slice(1)
-  }
+  if (digits.startsWith('00')) digits = digits.slice(2)
+  if (digits.startsWith('0') && digits.length === 10) return '255' + digits.slice(1)
+  if (digits.length === 9) return '255' + digits
   return digits
 }
 

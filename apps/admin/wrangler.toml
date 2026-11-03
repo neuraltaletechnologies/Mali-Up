@@ -69,7 +69,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID              = "1:596683133951:web:1430c6e5bcb28bb5a
 AUTH_TRUST_HOST = "true"
 
 # Beem Africa SMS Gateway (SMS Campaigns & Notifications)
-BEEM_SMS_SENDER_ID = "INFO"
+BEEM_SMS_SENDER_ID = "Mali Up"
 
 # Deployment: Cloudflare's native Git Build integration (Workers & Pages →
 # mali-up → Settings → Build) is the ONLY deployer, and its build report is the
