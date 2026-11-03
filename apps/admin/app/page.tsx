@@ -17,7 +17,7 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.neural
 export const metadata: Metadata = {
   title: 'Mali Up — Programu ya Biashara Tanzania | Mauzo, Ankara, Bidhaa na Bei',
   description:
-    'Simamia biashara yako yote kutoka simu moja. Mali Up ni mfumo wa ERP wa simu Tanzania — mauzo na POS, ankara, stoo ya bidhaa, fedha, wateja na ripoti. Inafanya kazi 3G na offline. Imetengenezwa Dar es Salaam na Neuraltale Technology.',
+    'Simamia biashara yako yote kutoka simu, mashine ya POS au kompyuta. Mali Up ni mfumo wa ERP Tanzania — mauzo na POS, ankara, stoo ya bidhaa, fedha, wateja na ripoti. Inapatikana kwa Android, mashine za POS, Windows na Mac. Inafanya kazi 3G na offline. Imetengenezwa Dar es Salaam na Neuraltale Technology.',
   alternates: { canonical: BASE_URL },
 }
 
@@ -59,9 +59,9 @@ const jsonLd = {
       name: 'Mali Up Business Management App',
       alternateName: ['Mali Up ERP', 'Programu ya Biashara Mali Up'],
       description:
-        'Mfumo kamili wa ERP na POS wa simu kwa biashara ndogo na za kati Tanzania. Simamia mauzo, ankara, udhibiti wa bidhaa, rekodi za fedha na wateja.',
+        'Mfumo kamili wa ERP na POS kwa biashara ndogo na za kati Tanzania — kwenye simu za Android, mashine za POS za mkononi, na kompyuta za Windows na Mac. Simamia mauzo, ankara, udhibiti wa bidhaa, rekodi za fedha na wateja.',
       applicationCategory: 'BusinessApplication, FinanceApplication, PointOfSale',
-      operatingSystem: ['Android', 'iOS', 'Web'],
+      operatingSystem: ['Android', 'Windows', 'macOS'],
       brand: { '@id': `${BASE_URL}/#org` },
       url: BASE_URL,
       image: `${BASE_URL}/app-dashboard.jpg`,
@@ -122,6 +122,7 @@ const jsonLd = {
         'Upatanisho wa M-Pesa na Benki',
         'Usimamizi wa Matawi Mengi (Multi-Location)',
         'Inafanya kazi bila Intaneti (Offline 3G)',
+        'Simu, Mashine za POS za Mkononi, Windows na Mac',
       ],
     },
     {
@@ -173,7 +174,7 @@ const jsonLd = {
       isPartOf: { '@id': `${BASE_URL}/#website` },
       about: { '@id': `${BASE_URL}/#product` },
       description:
-        'Simamia biashara yako yote kutoka simu moja. Mauzo, ankara, bidhaa, fedha — katika programu moja.',
+        'Simamia biashara yako yote kutoka simu, mashine ya POS au kompyuta. Mauzo, ankara, bidhaa, fedha — katika programu moja.',
       inLanguage: 'sw',
       speakable: {
         '@type': 'SpeakableSpecification',

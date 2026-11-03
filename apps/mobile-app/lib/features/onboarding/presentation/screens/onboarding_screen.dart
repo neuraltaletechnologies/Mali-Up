@@ -77,13 +77,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       'Fuatilia wanaokudai, unaowadai na kiasi ambacho hakijalipwa. Fahamu hali halisi ya madeni yako na malipo yote sehemu moja.',
  ),
     _SlideData(
-      imagePath: OnboardingImages.introSecurityPath,
-      titleEn: 'WORRIED ABOUT YOUR DATA?',
-      titleSw: 'VP USALAMA WA DATA ZAKO?',
+      imagePath: OnboardingImages.introDevicesPath,
+      titleEn: 'STUCK ON ONE PHONE?',
+      titleSw: 'UNATUMIA SIMU MOJA TU?',
       bodyEn:
-          'Protect your business with a secure PIN, even when someone else has your phone.',
+          'Use Mali Up on your phone, a POS handheld with a receipt printer, or a Windows or Mac computer. One account — everything stays in sync.',
       bodySw:
-          'Linda biashara yako kwa PIN salama, hata mtu mwingine akiwa na simu yako.',
+          'Tumia Mali Up kwenye simu, mashine ya POS ya mkononi yenye printa ya risiti, au kompyuta ya Windows au Mac. Akaunti moja — kila kitu kinasawazishwa.',
     ),
   ];
 

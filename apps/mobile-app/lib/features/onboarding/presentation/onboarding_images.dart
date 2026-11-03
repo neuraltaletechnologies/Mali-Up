@@ -16,14 +16,14 @@ abstract final class OnboardingImages {
   static const introInsightsPath = 'assets/Picture/offline2.webp';
   static const introAutomationPath = 'assets/Picture/offline3.webp';
   static const introDebtPath = 'assets/Picture/offline4.webp';
-  static const introSecurityPath = 'assets/Picture/offline5.webp';
+  static const introDevicesPath = 'assets/Picture/offline5.webp';
 
   static const introPaths = <String>[
     introOfflinePath,
     introInsightsPath,
     introAutomationPath,
     introDebtPath,
-    introSecurityPath,
+    introDevicesPath,
   ];
 
   // Large enough for a crisp full-screen image on common phones while keeping

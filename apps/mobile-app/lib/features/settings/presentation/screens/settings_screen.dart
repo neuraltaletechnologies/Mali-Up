@@ -38,6 +38,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const String _appWebsiteUrl = 'https://neuraltale.com/';
+  static const String _devicesUrl = 'https://maliup.neuraltale.com/#download';
   static const Map<String, String> _socialLinks = {
     'Facebook': 'https://www.facebook.com/profile.php?id=61574633183770#',
     'Instagram': 'https://www.instagram.com/neuraltaletechnologiestz/',
@@ -408,6 +409,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ],
+          const SizedBox(height: 20),
+
+          // ── Other devices ─────────────────────────────────────
+          // Both rows open the website's download section, which holds the
+          // current Play Store / Windows / Mac links and the "buy or rent a
+          // POS" contact — so links can change without an app release.
+          _SectionHeader(label: _tr('Use on other devices', 'Tumia kwenye vifaa vingine')),
+          const SizedBox(height: 8),
+          _SettingCard(
+            children: [
+              _SettingTile(
+                icon: Icons.point_of_sale_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.06),
+                iconColor: AppColors.secondary,
+                title: _tr('POS handheld', 'Mashine ya POS ya mkononi'),
+                subtitle: _tr(
+                  'Android POS with receipt printer — install, or buy/rent one',
+                  'POS ya Android yenye printa ya risiti — sakinisha, au nunua/kodi',
+                ),
+                onTap: () => _openExternalLink(_devicesUrl),
+                trailing: const Icon(
+                  Icons.open_in_new_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.computer_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.06),
+                iconColor: AppColors.secondary,
+                title: _tr('Windows & Mac computer', 'Kompyuta ya Windows na Mac'),
+                subtitle: _tr(
+                  'Sign in with this same phone number and PIN',
+                  'Ingia kwa namba hii hii ya simu na PIN yako',
+                ),
+                onTap: () => _openExternalLink(_devicesUrl),
+                trailing: const Icon(
+                  Icons.open_in_new_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
           // ── Legal & Compliance ────────────────────────────────

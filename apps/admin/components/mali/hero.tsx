@@ -5,7 +5,6 @@ import { ArrowRight, Play, TrendingUp, Zap } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import NextImage from "next/image"
 
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
 
 /* Floating metric card that pulses in on mount */
 function FloatCard({
@@ -175,7 +174,8 @@ export function Hero() {
             {/* Sub */}
             <p data-hero-item className="text-[#0C1B2E]/70 leading-relaxed text-lg max-w-md hero-desc">
               Mali Up is the pocket ERP built for Tanzanian SMBs — manage sales, invoices,
-              inventory, finance, customers, and analytics from your phone.{" "}
+              inventory, finance, customers, and analytics from your phone, a POS handheld
+              or your Windows and Mac computer — all in sync.{" "}
               <span className="text-[#0C1B2E]/85">Fast on 3G. Ready for tomorrow.</span>
             </p>
 
@@ -187,12 +187,10 @@ export function Hero() {
             {/* CTAs */}
             <div data-hero-item className="flex flex-wrap gap-4 items-center">
               <a
-                href={PLAY_STORE_URL}
-                target="_blank"
-                rel="noreferrer"
+                href="#pricing"
                 className="shimmer-btn text-[#0C1B2E] font-bold px-7 py-3.5 rounded-2xl text-base shadow-2xl flex items-center gap-2 group transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.4)] active:scale-[0.97]"
               >
-                Download Now
+                Jisajili Sasa
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
@@ -219,7 +217,7 @@ export function Hero() {
                 ))}
               </div>
               <p className="text-[#0C1B2E]/55 text-sm">
-                <span className="text-[#0C1B2E] font-semibold">2,400+</span> businesses already using Mali Up
+                <span className="text-[#0C1B2E] font-semibold">500+</span> businesses already using Mali Up
               </p>
             </div>
           </div>
