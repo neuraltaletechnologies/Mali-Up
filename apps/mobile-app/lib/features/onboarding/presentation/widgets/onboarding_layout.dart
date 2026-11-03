@@ -91,27 +91,48 @@ class _OnboardingSheetState extends State<OnboardingSheet> {
     }
     final mq = MediaQuery.of(context);
     const inset = OnboardingLayout._wideInset;
-    return Positioned(
-      left: inset,
-      // Leave room above the card for the screen's back / help buttons.
-      top: mq.padding.top + 72,
-      bottom: inset + mq.padding.bottom,
-      width: OnboardingLayout._wideCardWidth(mq.size),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1F0D1B3E),
-              blurRadius: 30,
-              offset: Offset(0, 10),
-            ),
-          ],
+    // Deliberately NOT a Positioned: a Stack takes its size from its
+    // non-positioned children, and on phones the DraggableScrollableSheet
+    // is what made it fill the screen. With the image positioned too, a
+    // positioned card would shrink the Stack to the top button row (image
+    // squashed into a strip, card zero height). SizedBox.expand keeps the
+    // Stack full-screen; the card is then placed inside it.
+    return SizedBox.expand(
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            // Leave room above the card for the screen's back / help buttons.
+            mq.padding.top + 72,
+            0,
+            inset + mq.padding.bottom,
+          ),
+          child: SizedBox(
+            width: OnboardingLayout._wideCardWidth(mq.size),
+            height: double.infinity,
+            child: _card(),
+          ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: widget.builder(context, _wideScroll),
-        ),
+      ),
+    );
+  }
+
+  Widget _card() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1F0D1B3E),
+            blurRadius: 30,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: widget.builder(context, _wideScroll),
       ),
     );
   }
