@@ -25,7 +25,13 @@ admin.initializeApp();
 // version, since their build never sends a token at all.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export {initiateClickPesaPayment, verifyClickPesaPayment, clickpesaWebhook} from "./clickpesa";
+export {
+  initiateClickPesaPayment,
+  verifyClickPesaPayment,
+  clickpesaWebhook,
+  initiateWebPayment,
+  checkWebPayment,
+} from "./clickpesa";
 export {sendAdminBroadcast} from "./notifications";
 export {requestOtpAllowance} from "./otp_rate_limit";
 export {sendBeemOtp, verifyBeemOtp, consumeOtpVerification} from "./beem_otp";

@@ -104,7 +104,7 @@ export function Nav() {
         {/* CTA with ripple */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="/pay"
+            href="/#pricing"
             className="text-sm font-semibold text-[#0C1B2E] px-4 py-2.5 rounded-xl border border-[#0C1B2E]/15 hover:border-[#F5A623] transition-colors"
           >
             Lipia
@@ -165,7 +165,7 @@ export function Nav() {
           </a>
         ))}
         <a
-          href="/pay"
+          href="/#pricing"
           onClick={() => setMenuOpen(false)}
           className="text-center text-[#0C1B2E] font-semibold text-sm px-5 py-2.5 rounded-xl border border-[#0C1B2E]/15 mt-1"
         >

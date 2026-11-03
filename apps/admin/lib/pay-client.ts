@@ -21,7 +21,6 @@ import {
   where,
   limit,
   setDoc,
-  onSnapshot,
   serverTimestamp,
   type Firestore,
   type Timestamp,
@@ -135,26 +134,6 @@ export async function findAccount(phone: string): Promise<FoundAccount | null> {
     }
   }
   return null
-}
-
-/** Signs in with phone + PIN exactly like OnboardingRepository.loginWithPin. */
-export async function loginWithPin(phone: string, pin: string, account: FoundAccount | null): Promise<string> {
-  const password = await passwordFromPin(phone, pin)
-  const candidates = [...new Set([authEmail(phone), ...(account?.authEmails ?? [])])]
-  let lastError: unknown
-  for (const email of candidates) {
-    try {
-      const cred = await signInWithEmailAndPassword(auth(), email, password)
-      return cred.user.uid
-    } catch (e) {
-      lastError = e
-      const code = (e as { code?: string }).code ?? ''
-      if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/wrong-password', 'auth/invalid-login-credentials'].includes(code)) {
-        throw e
-      }
-    }
-  }
-  throw lastError
 }
 
 export async function logout(): Promise<void> {
@@ -289,17 +268,27 @@ export async function listOwnedBusinesses(uid: string): Promise<OwnedBusiness[]>
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// ─── Payment ─────────────────────────────────────────────────────────────────
+/// ─── Payment ─────────────────────────────────────────────────────────────────
+//
+// Goes through the website-only callables (initiateWebPayment /
+// checkWebPayment in functions/src/clickpesa.ts), which need no sign-in:
+// an existing owner pays with just their phone number. The server checks
+// that `ownerPhone` really is the registered owner of `businessId`.
 
 export async function startPayment(args: {
+  ownerPhone: string
   tier: PaidTier
   billingCycle: BillingCycle
   businessId: string
   phoneNumber: string
 }): Promise<string> {
   const res = await httpsCallable<typeof args, { orderReference: string }>(
-    fns(), 'initiateClickPesaPayment',
-  )({ ...args, phoneNumber: canonicalPhone(args.phoneNumber) })
+    fns(), 'initiateWebPayment',
+  )({
+    ...args,
+    ownerPhone: canonicalPhone(args.ownerPhone),
+    phoneNumber: canonicalPhone(args.phoneNumber),
+  })
   return res.data.orderReference
 }
 
@@ -309,38 +298,27 @@ export type PaymentOutcome =
   | { status: 'timeout' }
 
 /**
- * Waits for a payment to resolve: watches clickpesa_payments/{ref} (written
- * by the webhook — instant, free) and falls back to a sparse
- * verifyClickPesaPayment poll in case the webhook delivery is lost. Same
- * strategy as ClickPesaService.waitForPayment in the app.
+ * Waits for a payment to resolve by asking checkWebPayment every few
+ * seconds. That callable mostly returns the stored status (updated by the
+ * ClickPesa webhook the moment the payment resolves) and only re-asks
+ * ClickPesa itself every 30s as a fallback, so this short interval is cheap.
  */
 export function waitForPayment(orderReference: string, timeoutMs = 3 * 60_000): Promise<PaymentOutcome> {
+  const check = httpsCallable<{ orderReference: string }, { status: string; planExpiresAt?: string }>(
+    fns(), 'checkWebPayment',
+  )
   return new Promise((resolve) => {
-    let done = false
-    const finish = (o: PaymentOutcome) => {
-      if (done) return
-      done = true
-      unsub()
-      clearInterval(poll)
-      clearTimeout(timer)
-      resolve(o)
+    const deadline = Date.now() + timeoutMs
+    const tick = async () => {
+      try {
+        const { data } = await check({ orderReference })
+        if (data.status === 'completed') return resolve({ status: 'completed', planExpiresAt: data.planExpiresAt ?? null })
+        if (data.status === 'failed') return resolve({ status: 'failed' })
+      } catch { /* transient — keep waiting */ }
+      if (Date.now() >= deadline) return resolve({ status: 'timeout' })
+      setTimeout(tick, 5_000)
     }
-    const handle = (data: { status?: string; planExpiresAt?: string } | undefined) => {
-      if (data?.status === 'completed') finish({ status: 'completed', planExpiresAt: data.planExpiresAt ?? null })
-      else if (data?.status === 'failed') finish({ status: 'failed' })
-    }
-    const unsub = onSnapshot(
-      doc(db(), 'clickpesa_payments', orderReference),
-      (snap) => handle(snap.data() as { status?: string; planExpiresAt?: string } | undefined),
-      () => { /* listener errors fall back to polling */ },
-    )
-    const verify = httpsCallable<{ orderReference: string }, { status: string; planExpiresAt?: string }>(
-      fns(), 'verifyClickPesaPayment',
-    )
-    const poll = setInterval(async () => {
-      try { handle((await verify({ orderReference })).data) } catch { /* keep waiting */ }
-    }, 20_000)
-    const timer = setTimeout(() => finish({ status: 'timeout' }), timeoutMs)
+    setTimeout(tick, 5_000)
   })
 }
 
@@ -349,17 +327,20 @@ export function friendlyError(e: unknown): string {
   const code = (e as { code?: string }).code ?? ''
   const message = (e as { message?: string }).message ?? ''
   if (code === 'functions/resource-exhausted') return 'Majaribio mengi sana. Subiri dakika chache kisha ujaribu tena.'
-  if (['auth/invalid-credential', 'auth/wrong-password', 'auth/invalid-login-credentials'].includes(code)) {
-    return 'PIN si sahihi. Jaribu tena.'
-  }
   if (code === 'auth/too-many-requests') return 'Umejaribu mara nyingi. Subiri kidogo kisha ujaribu tena.'
   if (code === 'auth/network-request-failed' || code === 'functions/unavailable') {
     return 'Hakuna mtandao. Angalia intaneti yako na ujaribu tena.'
   }
-  if (code === 'functions/permission-denied') return 'Mmiliki wa biashara pekee ndiye anaweza kulipia kifurushi.'
+  if (code === 'functions/permission-denied') return 'Biashara hii si ya namba hii. Mmiliki wa biashara pekee ndiye anaweza kulipia kifurushi.'
   if (code === 'functions/failed-precondition' && message.toLowerCase().includes('verif')) {
     return 'Uthibitisho wa namba umeisha muda. Omba msimbo mpya.'
   }
   if (code === 'functions/invalid-argument' && message) return message
+  // Server-side failures (HttpsError 'internal' from clickpesa.ts etc.)
+  // carry a short, safe reason — show it so a payment-provider problem is
+  // distinguishable from a network one instead of a blank "try again".
+  if (code === 'functions/internal' && message && message.toLowerCase() !== 'internal') {
+    return `Kuna tatizo limetokea: ${message} Tafadhali jaribu tena.`
+  }
   return 'Kuna tatizo limetokea. Tafadhali jaribu tena.'
 }

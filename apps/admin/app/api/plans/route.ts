@@ -34,10 +34,10 @@ async function fetchPrices(): Promise<PublicPlanPrices> {
 
 export async function GET() {
   try {
-    const prices = await withCache('public-plan-prices', 5 * 60_000, fetchPrices)
+    const prices = await withCache('public-plan-prices', 60_000, fetchPrices)
     return NextResponse.json(
       { prices },
-      { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } },
+      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=120' } },
     )
   } catch (err) {
     console.error('[GET /api/plans]', err)
