@@ -4,22 +4,22 @@ name: Release Android (Closed Testing)
 # Play Developer API calls this track id "alpha"; Play Console's UI
 # label is "Closed testing").
 #
-# `main` is the live branch. Merging a PR into `main` that touches
-# apps/mobile-app/** ships a Closed Testing release; the PR review is the
-# checkpoint. A web-only merge never triggers this (paths filter). Direct
-# work belongs on feature branches or `dev` -- see CLAUDE.md "Branching".
+# `main` is the live branch, but merging into it does NOT ship Android on its
+# own: only a merged PR carrying the `release:android` label does. That lets
+# a `dev -> main` PR merge without an Android release. dev-integration.yml
+# opens that PR with the label already on; remove it to skip. No label -> no
+# release, even if apps/mobile-app/** changed. Direct work belongs on feature branches
+# or `dev` -- see CLAUDE.md "Branching".
 #
 # To ship to the Play Store *production* track, promote a build from Closed
 # Testing to Production manually in Play Console once testers have verified
 # it. There is no automated production-track release in this repo.
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches: [main]
-    paths:
-      - 'apps/mobile-app/**'
-      - '.github/workflows/release-android.yml'
-  # Manual re-run from the Actions tab if a release needs to go out without
-  # a fresh apps/mobile-app change (e.g. a failed upload to retry).
+  # Manual run from the Actions tab: retry a failed upload, or ship a mobile
+  # change that was merged without the label.
   workflow_dispatch:
 
 # One release at a time. Two overlapping runs race on the same Play version
@@ -34,6 +34,11 @@ permissions:
 
 jobs:
   release:
+    # Closed-but-not-merged PRs and unlabelled merges skip the whole job.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged &&
+       contains(github.event.pull_request.labels.*.name, 'release:android'))
     runs-on: ubuntu-latest
     # Explicit ceiling so a stuck/oversized build fails with a clear
     # "timeout" verdict instead of an ambiguous runner shutdown/cancellation
@@ -47,6 +52,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # A pull_request run would otherwise check out the PR's synthetic
+          # merge ref; build exactly what landed on main instead.
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
           # Full history, not the default shallow clone -- the release-notes
           # step below walks arbitrarily far back to find the last release
           # marker commit.

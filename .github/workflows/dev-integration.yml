@@ -7,9 +7,10 @@ name: Dev integration
 #    during the release run on `main`.
 # 2. `open-release-pr` — opens a `dev -> main` pull request if one isn't
 #    already open. An existing PR needs no action: GitHub keeps it in sync
-#    with new `dev` commits. Merging that PR is the release (see CLAUDE.md
-#    "Branching & releases"); a mobile change then ships to Play Open
-#    Testing via release-android.yml.
+#    with new `dev` commits. The PR is opened with the `release:android`
+#    label, so merging it ships to Play by default; remove the label to
+#    merge without an Android release (see CLAUDE.md "Branching & releases").
+#    Only set on creation -- a label you removed is never re-added.
 #
 # Pushing to `dev` never triggers a release directly — only a merge into
 # `main` does.
@@ -21,6 +22,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write   # create the release:android label if it doesn't exist yet
 
 # A burst of pushes to `dev` only needs the latest checked and one PR.
 concurrency:
@@ -96,10 +98,13 @@ jobs:
           cat > /tmp/pr-body.md <<'EOF'
           Automated integration PR opened by `dev-integration.yml`.
 
-          Merging this ships whatever is on `dev`:
-          - a mobile change -> Play Store Open Testing (release-android.yml)
-          - a web/admin change -> Cloudflare Worker rebuild
+          Merging ships:
+          - admin/web changes -> Cloudflare Worker rebuild (always)
+          - mobile -> Play Store Closed Testing **only while this PR has the
+            `release:android` label**. It's added by default; remove it before
+            merging to skip the Android release.
 
           Review the diff before merging. After merging, sync `dev` back up with `main`.
           EOF
-          gh pr create --base main --head dev --title "Release: dev -> main" --body-file /tmp/pr-body.md
+          gh label create release:android --color 3DDC84             --description 'Merging this PR ships Android to Play Closed Testing' 2>/dev/null || true
+          gh pr create --base main --head dev --title "Release: dev -> main" --body-file /tmp/pr-body.md --label release:android

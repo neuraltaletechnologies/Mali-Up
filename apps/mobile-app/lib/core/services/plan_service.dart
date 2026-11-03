@@ -37,6 +37,11 @@ extension PlanTierX on PlanTier {
   }
 }
 
+/// How often a paid plan is billed. Sent to `initiateClickPesaPayment` as
+/// `billingCycle` — the server picks the matching admin-configured price
+/// (`priceMonthly` / `priceYearly` on platform_config/plans).
+enum BillingCycle { monthly, yearly }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PlanLimits — runtime limits for a tier, sourced from Firestore or hardcoded
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,8 +55,10 @@ class PlanLimits {
   final int maxServiceProducts; // -1 = unlimited; sub-cap on 'service'-type products, within maxProducts
   final int maxSalesPerDay;     // -1 = unlimited; daily cap on sales (invoices) created, separate from monthlyInvoices
   final int maxAccounts;     // -1 = unlimited; caps total active Cash Flow accounts (activated payment channels + custom accounts combined)
-  final int pricePerCycle;   // TZS total for the billing cycle
+  final int pricePerCycle;   // TZS total for the legacy multi-month cycle (pre monthly/yearly builds)
   final int cycleMonths;
+  final int priceMonthly;    // TZS for one month (BillingCycle.monthly); 0 = not offered
+  final int priceYearly;     // TZS for twelve months (BillingCycle.yearly); 0 = not offered
   final bool fullReports;
   final bool mpesaImport;
   final bool smsReminders;
@@ -77,6 +84,8 @@ class PlanLimits {
     this.maxAccounts = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
+    this.priceMonthly = 0,
+    this.priceYearly = 0,
     required this.fullReports,
     required this.mpesaImport,
     required this.smsReminders,
@@ -99,6 +108,13 @@ class PlanLimits {
       if (v is num) return v.toInt();
       return def;
     }
+    // A missing or zero price falls back like the server does
+    // (getPlanPricing in functions/src/clickpesa.ts), so what's shown is
+    // always what gets charged.
+    int asPrice(String k, int def) {
+      final v = asInt(k, def);
+      return v > 0 ? v : def;
+    }
     bool asBool(String k, bool def) {
       final v = data[k];
       if (v is bool) return v;
@@ -115,6 +131,8 @@ class PlanLimits {
       maxAccounts:         asInt('maxAccounts',         fallback.maxAccounts),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
+      priceMonthly:        asPrice('priceMonthly',      fallback.priceMonthly),
+      priceYearly:         asPrice('priceYearly',       fallback.priceYearly),
       fullReports:         asBool('fullReports',        fallback.fullReports),
       mpesaImport:         asBool('mpesaImport',        fallback.mpesaImport),
       smsReminders:        asBool('smsReminders',       fallback.smsReminders),
@@ -142,6 +160,8 @@ class PlanLimits {
         'maxAccounts': maxAccounts,
         'pricePerCycle': pricePerCycle,
         'cycleMonths': cycleMonths,
+        'priceMonthly': priceMonthly,
+        'priceYearly': priceYearly,
         'fullReports': fullReports,
         'mpesaImport': mpesaImport,
         'smsReminders': smsReminders,
@@ -157,10 +177,21 @@ class PlanLimits {
         'manualDebt': manualDebt,
       };
 
-  int get pricePerMonth =>
-      pricePerCycle > 0 && cycleMonths > 0
+  int get pricePerMonth => priceMonthly > 0
+      ? priceMonthly
+      : pricePerCycle > 0 && cycleMonths > 0
           ? (pricePerCycle / cycleMonths).round()
           : 0;
+
+  /// What one payment costs for [cycle].
+  int priceFor(BillingCycle cycle) =>
+      cycle == BillingCycle.yearly ? priceYearly : pricePerMonth;
+
+  /// TZS saved by paying yearly instead of twelve monthly payments.
+  int get yearlySaving {
+    final saving = pricePerMonth * 12 - priceYearly;
+    return priceYearly > 0 && saving > 0 ? saving : 0;
+  }
 }
 
 // Hardcoded fallbacks — used when Firestore is unreachable
@@ -187,6 +218,8 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     maxUsers: 3,
     maxBusinesses: 1,
     pricePerCycle: 30000,
+    priceMonthly: 6000,
+    priceYearly: 60000,
     fullReports: true,
     mpesaImport: true,
     smsReminders: true,
@@ -202,6 +235,8 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     monthlyInvoices: -1,
     maxUsers: 10,
     pricePerCycle: 40000,
+    priceMonthly: 8000,
+    priceYearly: 80000,
     fullReports: true,
     mpesaImport: true,
     smsReminders: true,

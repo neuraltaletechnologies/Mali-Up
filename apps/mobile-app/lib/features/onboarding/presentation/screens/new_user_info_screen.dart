@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
@@ -114,8 +115,8 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
             top: 0,
             height: topHeight,
             child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.webp',
+              child: Image(
+                image: OnboardingImages.signUpProvider,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

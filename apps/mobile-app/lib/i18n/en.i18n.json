@@ -1,5 +1,27 @@
 {
   "app": {
     "name": "Mali Up"
+  },
+  "pinResetCode": {
+    "title": "Reset your PIN",
+    "sentTo": "Enter the 6-digit code we sent by SMS to $phone.",
+    "sentToBoth": "Enter the 6-digit code we sent by SMS to $phone and by email to $email.",
+    "sentGeneric": "Enter the 6-digit reset code we sent you by SMS.",
+    "codeLabel": "Reset code",
+    "codeError": "Enter the 6-digit code.",
+    "newPinLabel": "New PIN",
+    "confirmPinLabel": "Confirm new PIN",
+    "pinMismatch": "The PINs don't match.",
+    "submit": "Reset PIN",
+    "resend": "Didn't get it? Send a new code",
+    "resendIn": "Send a new code in ${seconds}s",
+    "resent": "A new code is on its way.",
+    "wrongCode": "That code is incorrect. $count attempts left.",
+    "wrongCodeNoCount": "That code is incorrect.",
+    "expired": "This code has expired. Send a new code.",
+    "tooManyAttempts": "Too many wrong codes. Send a new code.",
+    "failed": "Could not reset your PIN. Check your connection and try again.",
+    "sendFailed": "Could not send a new code. Try again in a few minutes.",
+    "backToLogin": "Back to login"
   }
 }

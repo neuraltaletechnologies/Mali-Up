@@ -221,6 +221,27 @@ class OnboardingService {
     );
   }
 
+  /// Code flow, step 1 — SMS (+ email) a 6-digit reset code.
+  Future<PinResetCodeRequestResult> requestPinResetCode({
+    required String phone,
+    required String language,
+  }) {
+    return _repository.requestPinResetCode(phone: phone, language: language);
+  }
+
+  /// Code flow, step 2 — verify the code and set the new PIN.
+  Future<PinResetCodeConfirmResult> confirmPinResetCode({
+    required String phone,
+    required String code,
+    required String newPin,
+  }) {
+    return _repository.confirmPinResetCode(
+      phone: phone,
+      code: code,
+      newPin: newPin,
+    );
+  }
+
   // ─── SCREEN 6 — NEW OWNER ACCOUNT CREATION ───────────────────────────────
 
   /// Creates a Firebase Auth account (email = phone@mali.up, password derived

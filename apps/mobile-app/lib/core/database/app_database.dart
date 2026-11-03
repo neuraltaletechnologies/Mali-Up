@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
+import 'connection/connection.dart' as connection;
 
 import 'daos/cash_flow_dao.dart';
 import 'daos/customer_dao.dart';
@@ -401,7 +401,5 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'mali_up_db');
-  }
+  static QueryExecutor _openConnection() => connection.openConnection();
 }

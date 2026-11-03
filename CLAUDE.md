@@ -57,16 +57,19 @@ npm run prisma:generate / prisma:migrate
 - `dev` is the integration branch: feature branches merge here first for
   testing. Release by opening a PR `dev → main` (or merge a feature branch
   straight into `main` for an isolated web-only or mobile-only change).
-- **Merging a reviewed PR into `main` is the release.** There is no
-  separate promotion step, no "approve don't merge" rule — merge means ship.
+- **Merging a reviewed PR into `main` is the release.**
   - `apps/admin/**` changed → Cloudflare rebuilds the `mali-up` Worker
     (it watches the `main` branch; scoped to `apps/admin/**` once
     `.github/scripts/set-cloudflare-build-watch-paths.sh` has run).
-  - `apps/mobile-app/**` changed → `.github/workflows/release-android.yml`
-    ships a Play Store **Open Testing** release (not the production track;
-    promote Open Testing → Production manually in Play Console).
-  - A web-only merge never triggers the Android release, and vice versa
-    (both are path-filtered).
+  - Android ships only if the merged PR has the `release:android` label →
+    `.github/workflows/release-android.yml` ships a Play Store **Closed
+    Testing** release (promote → Production manually in Play Console). The
+    auto-opened `dev → main` PR gets that label by default; remove it to
+    merge without an Android release. A feature-branch PR straight into
+    `main` needs the label added by hand. It can also be run manually from
+    the Actions tab.
+  - The Flutter **web** build (`deploy-web.yml`) is not label-gated: it
+    deploys on any `main` push touching `apps/mobile-app/**`.
 - After a `dev → main` release, sync `dev` back up (`git merge main` into
   `dev`, or rebase) so it doesn't drift far behind.
 - There is **no `production` branch** — it was removed when `main` became
@@ -93,6 +96,8 @@ Drift (SQLite) is the **source of truth**; Firestore's own persistence cache is 
 - `sync_<entity>_repository.dart` — the only implementation the UI uses. Reads always come from Drift; writes commit the entity **and** a sync-queue entry in a single SQLite transaction.
 
 `lib/core/sync/sync_service.dart` drains the queue to Firestore (batched, retry-capped), listens for connectivity changes, and uses `ConflictResolver` for conflicts and `OfflinePolicyNotifier` for offline write policy. Drift tables/DAOs live in `lib/core/database/`; DAO tests in `test/core/database/` use `test_helpers.dart` for an in-memory database.
+
+**Web build has no offline mode.** `lib/core/database/connection/` picks the Drift executor per platform: native keeps the on-disk SQLite file; web uses an in-memory sqlite3.wasm DB (nothing in IndexedDB/OPFS), so each page load does a full pull from Firestore. `OfflinePolicyNotifier` makes web read-only the moment it goes offline (a queued write would die with the tab). `web/sqlite3.wasm` is gitignored — download the release matching the locked `sqlite3` version to run web locally. Deployed to Cloudflare Pages by `.github/workflows/deploy-web.yml` on merges to `main`.
 
 When adding a new synced entity, mirror this whole chain: table + DAO + mapper + the three repositories + wiring into `SyncService`.
 

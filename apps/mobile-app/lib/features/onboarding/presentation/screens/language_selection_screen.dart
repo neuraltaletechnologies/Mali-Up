@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/onboarding_strings.dart';
+import '../onboarding_images.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   final VoidCallback onLanguageSelected;
@@ -127,8 +128,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
               top: 0,
               height: topHeight,
               child: ClipRect(
-                child: Image.asset(
-                  'assets/Picture/sign_up.webp',
+                child: Image(
+                  image: OnboardingImages.signUpProvider,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,

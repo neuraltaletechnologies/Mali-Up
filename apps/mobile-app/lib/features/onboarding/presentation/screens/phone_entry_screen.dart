@@ -15,6 +15,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 
@@ -297,8 +298,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
             top: 0,
             height: topHeight,
             child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.webp',
+              child: Image(
+                image: OnboardingImages.signUpProvider,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
@@ -637,7 +638,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                   color: _error != null
                       ? AppColors.error
                       : _focused
-                      ? AppColors.navyPrimary
+                      ? AppColors.primary
                       : AppColors.border,
                   width: _focused || _error != null ? 1.5 : 1.0,
                 ),
@@ -648,19 +649,10 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                   GestureDetector(
                     onTap: widget.enabled ? widget.onCountryTap : null,
                     behavior: HitTestBehavior.opaque,
-                    child: Container(
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 15,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(
-                            color: _focused
-                                ? AppColors.navyPrimary.withValues(alpha: 0.15)
-                                : AppColors.border,
-                          ),
-                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -673,15 +665,15 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                           Text(
                             widget.country.dial,
                             style: GoogleFonts.dmSans(
-                              fontSize: 12,
+                              fontSize: 16,
                               fontWeight: FontWeight.w500,
                               color: AppColors.navyPrimary,
                             ),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 2),
                           const Icon(
                             Icons.keyboard_arrow_down_rounded,
-                            size: 18,
+                            size: 16,
                             color: AppColors.textMuted,
                           ),
                         ],
@@ -721,10 +713,12 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                           color: AppColors.textDisabled,
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 15,
-                        ),
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.fromLTRB(0, 15, 14, 15),
                       ),
                     ),
                   ),

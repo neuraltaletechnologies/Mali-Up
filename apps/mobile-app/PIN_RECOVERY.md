@@ -2,12 +2,11 @@
 
 ## Overview
 
-A user who forgot their login PIN taps **"Umesahau PIN?" → "Nitumie Kiungo"**
-on the PIN login screen. The backend emails a magic link to the address on
-file; opening it on the phone launches the app straight to a "set a new PIN"
-screen (Android App Link). On confirmation the new PIN's derived password is
-written to the Firebase Auth account and the user is dropped back on the PIN
-login screen to sign in.
+A user who forgot their login PIN taps **"Umesahau PIN?" → "Nitumie Namba ya
+Siri"** on the PIN login screen. Beem sends an OTP to the registered phone;
+the user enters that code and chooses a new PIN. After Beem verifies the code,
+the new PIN's derived password is written to Firebase Auth and the user is
+returned to the PIN login screen.
 
 ### Why this isn't Firebase's built-in password reset
 
@@ -23,6 +22,21 @@ login screen to sign in.
   `buildAuthPasswordFromPin(phone, newPin)`.
 
 ## Architecture
+
+### Current app — Beem OTP code recovery
+
+The current mobile flow calls `requestPinResetOtp`, which verifies that the
+phone belongs to an account and asks the configured Beem OTP application to
+generate and send the code. The backend stores only Beem's `pinId`, expiry,
+attempt count, and account UID in `pin_reset_otps/{canonicalPhone}`. The app
+then calls `confirmPinResetOtp` with the code and new PIN-derived password;
+Beem verifies the code before Firebase Auth is updated. Requests are limited
+per phone and IP, codes are single-use, and resending invalidates the previous
+request.
+
+The Resend magic-link flow below remains for backward compatibility with old
+links/builds, but the current Forgot PIN screen does not depend on Resend or a
+general Beem SMS sender ID.
 
 ### Cloud Functions — `functions/src/pin_recovery.ts`
 

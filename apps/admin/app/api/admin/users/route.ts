@@ -36,25 +36,61 @@ async function fetchUsers(limitParam: number) {
     mapUser(doc.id, doc.data() as Record<string, unknown>)
   )
 
-  // Batch-fetch primary business name for each user
-  const primaryBizIds = rawDocs.map((doc) => {
+  // The `businesses` array on the user doc isn't kept up to date by the app
+  // (onboarding only writes ownerUid on the business doc, and team members
+  // carry a single `businessId`), so it under-counted — users showed 0
+  // businesses and no name. The businesses collection's ownerUid is the
+  // source of truth; query it for these users ('in' caps at 30 values).
+  const uids = rawDocs.map((doc) => doc.id)
+  const ownedByUser = new Map<string, Map<string, string>>()
+  for (let i = 0; i < uids.length; i += 30) {
+    const snap = await adminFirestore
+      .collection('businesses')
+      .where('ownerUid', 'in', uids.slice(i, i + 30))
+      .get()
+    snap.docs.forEach((d) => {
+      const data = d.data()
+      const owner = data.ownerUid as string
+      if (!ownedByUser.has(owner)) ownedByUser.set(owner, new Map())
+      ownedByUser.get(owner)!.set(d.id, (data.businessName as string) || '')
+    })
+  }
+
+  // Businesses a user is linked to without owning (team members, or ids
+  // only listed on the user doc) — names fetched in one batch, and only
+  // ones that still exist are counted.
+  const linkedIds = rawDocs.map((doc) => {
     const d = doc.data()
-    return (d.selectedBusinessId as string | undefined)
-      ?? (Array.isArray(d.businesses) ? (d.businesses[0] as string | undefined) : undefined)
+    const ids = new Set<string>(Array.isArray(d.businesses) ? (d.businesses as string[]) : [])
+    if (typeof d.businessId === 'string' && d.businessId) ids.add(d.businessId)
+    if (typeof d.selectedBusinessId === 'string' && d.selectedBusinessId) ids.add(d.selectedBusinessId)
+    return ids
   })
-  const uniqueBizIds = [...new Set(primaryBizIds.filter((id): id is string => !!id))]
-  const bizNameMap = new Map<string, string>()
-  if (uniqueBizIds.length > 0) {
-    const refs = uniqueBizIds.map((id) => adminFirestore.collection('businesses').doc(id))
-    const bizDocs = await adminFirestore.getAll(...refs)
+  const bizNames = new Map<string, string>()
+  ownedByUser.forEach((m) => m.forEach((name, id) => bizNames.set(id, name)))
+  const unknownIds = [...new Set(linkedIds.flatMap((s) => [...s]))].filter((id) => !bizNames.has(id))
+  if (unknownIds.length > 0) {
+    const bizDocs = await adminFirestore.getAll(
+      ...unknownIds.map((id) => adminFirestore.collection('businesses').doc(id)),
+    )
     bizDocs.forEach((d) => {
-      if (d.exists) bizNameMap.set(d.id, (d.data()?.businessName as string) || '')
+      if (d.exists) bizNames.set(d.id, (d.data()?.businessName as string) || '')
     })
   }
 
   return users.map((u, i) => {
-    const bizId = primaryBizIds[i]
-    return bizId ? { ...u, businessName: bizNameMap.get(bizId) || '' } : u
+    const d = rawDocs[i].data()
+    const ids = new Set<string>(ownedByUser.get(u.id)?.keys() ?? [])
+    linkedIds[i].forEach((id) => { if (bizNames.has(id)) ids.add(id) })
+    const preferred = [d.selectedBusinessId, d.businessId].find(
+      (id): id is string => typeof id === 'string' && ids.has(id),
+    )
+    const primary = preferred ?? [...ids][0]
+    return {
+      ...u,
+      businessCount: ids.size,
+      businessName: primary ? bizNames.get(primary) || '' : '',
+    }
   })
 }
 

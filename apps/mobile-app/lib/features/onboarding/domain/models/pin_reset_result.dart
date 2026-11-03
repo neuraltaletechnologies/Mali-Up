@@ -66,3 +66,59 @@ enum PinResetConfirmResult {
   /// Network or server error.
   failed,
 }
+
+// ── Code-based recovery (requestPinResetOtp / confirmPinResetOtp) ────────────
+
+/// Outcome of asking the backend to SMS (and email) a PIN reset code.
+enum PinResetCodeRequestStatus {
+  /// A code went out by SMS and/or email.
+  sent,
+
+  /// No account is registered with this number.
+  notFound,
+
+  /// Too many codes requested for this phone / device. Try again later.
+  rateLimited,
+
+  /// Network or server error.
+  failed,
+}
+
+class PinResetCodeRequestResult {
+  const PinResetCodeRequestResult(
+    this.status, {
+    this.maskedPhone,
+    this.maskedEmail,
+  });
+
+  final PinResetCodeRequestStatus status;
+
+  /// e.g. `+255 *** *** 678` — present when [status] is `sent`.
+  final String? maskedPhone;
+
+  /// Present only when the code was also emailed.
+  final String? maskedEmail;
+}
+
+enum PinResetCodeConfirmStatus {
+  ok,
+
+  /// The code didn't match — [PinResetCodeConfirmResult.remainingAttempts] left.
+  wrongCode,
+
+  /// Code expired, already used, or never requested — request a new one.
+  expired,
+
+  /// Too many wrong codes — request a new one.
+  tooManyAttempts,
+
+  /// Network or server error.
+  failed,
+}
+
+class PinResetCodeConfirmResult {
+  const PinResetCodeConfirmResult(this.status, {this.remainingAttempts});
+
+  final PinResetCodeConfirmStatus status;
+  final int? remainingAttempts;
+}

@@ -92,6 +92,23 @@ class PageTour {
   /// it waits for a later, separate visit instead.
   static bool get isActive => _entry != null;
 
+  /// Set once the user taps Skip on any tour, or switches business (see
+  /// [disableAutoStart]). Every later [maybeAutoStart] bails on it — only
+  /// an explicit [replay] can show a tour after that.
+  static const _autoStartDisabledKey = 'page_tour_auto_start_disabled';
+
+  /// Stops every not-yet-seen tour from auto-starting from now on, and ends
+  /// any [OnboardingJourney] in progress. Called by Skip, and by a business
+  /// switch — a user switching businesses isn't new, and without this the
+  /// switch landed them on screens whose tours had never been marked seen
+  /// (their first target didn't exist under the old business), which read
+  /// as the whole walkthrough starting over.
+  static Future<void> disableAutoStart() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoStartDisabledKey, true);
+    await OnboardingJourney.end();
+  }
+
   /// Starts [steps] in order, once ever, the first time this device reaches
   /// a screen on its own (not mid-way through another tour) — [seenKey] is
   /// a unique SharedPreferences flag per tour (e.g.
@@ -106,11 +123,10 @@ class PageTour {
   /// another tour was running), nothing is marked and it's retried on the
   /// next visit instead of being silently lost forever.
   ///
-  /// [onFullyComplete], if given, fires once the user reaches the end of
-  /// [steps] — whether by genuinely finishing every step or by tapping Skip
-  /// enough times to pass the last one. It does *not* fire on Skip alone
-  /// (Skip only advances one step at a time now, it doesn't end the tour) —
-  /// see [OnboardingJourney] for how screens chain onto one another with it.
+  /// [onFullyComplete], if given, fires once the user genuinely finishes
+  /// every step. It does *not* fire on Skip — Skip ends the whole tour,
+  /// including any [OnboardingJourney] in progress, so there's nothing to
+  /// chain onto.
   static Future<void> maybeAutoStart({
     required BuildContext context,
     required String seenKey,
@@ -122,6 +138,7 @@ class PageTour {
     if (steps.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(seenKey) ?? false) return;
+    if (prefs.getBool(_autoStartDisabledKey) ?? false) return;
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       if (isActive) return;
@@ -166,14 +183,27 @@ class PageTour {
 
     _entry?.remove();
     late final OverlayEntry entry;
-    void close() {
+    void dismiss() {
       entry.remove();
       if (_entry == entry) _entry = null;
+    }
+
+    void close() {
+      dismiss();
       onFullyComplete?.call();
     }
 
+    void skipAll() {
+      dismiss();
+      disableAutoStart();
+    }
+
     entry = OverlayEntry(
-      builder: (_) => _TourOverlay(steps: validSteps, onClose: close),
+      builder: (_) => _TourOverlay(
+        steps: validSteps,
+        onClose: close,
+        onSkipAll: skipAll,
+      ),
     );
     _entry = entry;
     Overlay.of(context, rootOverlay: true).insert(entry);
@@ -232,6 +262,13 @@ class OnboardingJourney {
     return prefs.getString(_currentStopKey) == stop;
   }
 
+  /// Drops whatever stop the journey is at, so no screen's [advanceFrom]
+  /// hops anywhere anymore — used when the user skips the tour.
+  static Future<void> end() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_currentStopKey);
+  }
+
   static Future<void> prime(String firstStop) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_currentStopKey, firstStop);
@@ -272,10 +309,15 @@ class OnboardingJourney {
 }
 
 class _TourOverlay extends StatefulWidget {
-  const _TourOverlay({required this.steps, required this.onClose});
+  const _TourOverlay({
+    required this.steps,
+    required this.onClose,
+    required this.onSkipAll,
+  });
 
   final List<TourStep> steps;
   final VoidCallback onClose;
+  final VoidCallback onSkipAll;
 
   @override
   State<_TourOverlay> createState() => _TourOverlayState();
@@ -492,6 +534,11 @@ class _TourOverlayState extends State<_TourOverlay>
   void _advance() => _goTo(_index + 1);
   void _goBack() => _goTo(_index - 1);
 
+  void _skipAll() {
+    _detachInputListener();
+    widget.onSkipAll();
+  }
+
   // For a button/icon step: the only way to move the tour forward is
   // tapping the highlighted widget itself. The tap also reaches the real
   // widget underneath (translucent hole, below), so this just needs to
@@ -606,11 +653,9 @@ class _TourOverlayState extends State<_TourOverlay>
               _TourControls(
                 total: widget.steps.length,
                 current: _index,
-                // Skip only steps past this one — it isn't an exit anymore.
-                // On the last step there's nothing left to skip *to*, so
-                // _advance naturally finishes the tour the same as
-                // completing it for real would.
-                onSkip: _advance,
+                // Skip exits the whole tour — this one, the onboarding
+                // journey, and every per-page tour not yet seen.
+                onSkip: _skipAll,
               ),
             ],
           ),
@@ -934,8 +979,7 @@ class _TourText extends StatelessWidget {
   }
 }
 
-// ── Back: plain underlined text, matching Skip's own styling exactly (not
-// a pill/chip button) ───────────────────────────────────────────────────────
+// ── Back: plain underlined text, kept low-key next to the Skip pill ───────────────────────────────────────────────────────
 
 class _BackButton extends StatelessWidget {
   const _BackButton({required this.onTap});
@@ -965,9 +1009,8 @@ class _BackButton extends StatelessWidget {
 
 // ── Controls: Skip · progress dots ──────────────────────────────────────────
 // No Next button on purpose — the highlighted widget itself is the button.
-// Tapping it performs its real action and moves the tour on. Skip moves on
-// too, one step at a time, for whoever doesn't want to engage with what's
-// currently highlighted — it's no longer a way to exit the whole tour.
+// Tapping it performs its real action and moves the tour on. Skip ends the
+// whole tour; it's a filled pill so it stands out against the dim overlay.
 
 class _TourControls extends StatelessWidget {
   const _TourControls({
@@ -987,17 +1030,37 @@ class _TourControls extends StatelessWidget {
       children: [
         GestureDetector(
           onTap: onSkip,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: Text(
-              LocalizationService.tr(en: 'Skip', sw: 'Ruka'),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline,
-                decorationColor: Colors.white38,
-              ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  LocalizationService.tr(en: 'Skip tour', sw: 'Ruka mwongozo'),
+                  style: const TextStyle(
+                    color: AppColors.navyPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppColors.navyPrimary,
+                ),
+              ],
             ),
           ),
         ),

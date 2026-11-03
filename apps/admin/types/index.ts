@@ -54,6 +54,8 @@ export interface Business {
   expenseTotal?: number
   notes?: AdminNote[]
   staffMembers?: StaffMember[]
+  /** Businesses the owner has in total — Delete is blocked when this is 1. */
+  ownerBusinessCount?: number
   enterpriseOverrides?: EnterpriseOverride
   planSource?: PlanSource
   planExpiresAt?: string
@@ -370,8 +372,14 @@ export interface CommunitySubmission {
 }
 
 export interface PlanDefinition {
+  // Legacy multi-month cycle — still what app builds older than the
+  // monthly/yearly paywall charge (see functions/src/clickpesa.ts).
   pricePerCycle: number
   cycleMonths: number
+  // Monthly / yearly plans offered by the current app and the website's
+  // /pay page. 0 = not offered (free or custom-priced tiers).
+  priceMonthly: number
+  priceYearly: number
   maxUsers: number       // -1 = unlimited
   monthlyInvoices: number // -1 = unlimited
   maxBusinesses: number  // -1 = unlimited
@@ -544,3 +552,26 @@ export interface BeemSmsCampaign {
   failedRecipients?: { phone: string; reason: string }[]
 }
 
+
+/**
+ * Yearly SMS rule (`beem_sms_auto_campaigns/{id}`). The dispatchSmsCampaigns
+ * Cloud Function fires it once per year on `month`/`day` at `hour`
+ * (Tanzania time, EAT) by creating a normal BeemSmsCampaign.
+ */
+export interface BeemAutoCampaign {
+  id: string
+  name: string
+  campaignType: SmsCampaignType
+  enabled: boolean
+  month: number // 1-12
+  day: number // 1-31
+  hour: number // 0-23, EAT
+  message: string
+  senderId?: string
+  audience: SmsCampaignAudience
+  lastRunYear?: number
+  lastCampaignId?: string
+  updatedAt?: string
+}
+
+export type BeemAutoCampaignInput = Omit<BeemAutoCampaign, 'id' | 'lastRunYear' | 'lastCampaignId' | 'updatedAt'>

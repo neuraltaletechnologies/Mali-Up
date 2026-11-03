@@ -8,6 +8,7 @@ import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../config/routing.dart';
+import '../onboarding_images.dart';
 
 class SplashScreen extends StatefulWidget {
   final bool showLanguageSelection;
@@ -42,6 +43,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<Offset> _taglineSlide;
 
   bool _hasNavigated = false;
+  bool _didWarmImageCache = false;
 
   static const _bg         = Color(0xFF0D1B3E);
   static const _bgMid      = Color(0xFF0F2048);
@@ -64,6 +66,14 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _initAnimations();
     _scheduleNavigation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didWarmImageCache || FirebaseAuth.instance.currentUser != null) return;
+    _didWarmImageCache = true;
+    OnboardingImages.warmCache(context);
   }
 
   void _initAnimations() {

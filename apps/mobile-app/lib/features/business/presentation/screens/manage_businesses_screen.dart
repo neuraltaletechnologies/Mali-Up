@@ -364,10 +364,27 @@ class _ManageBusinessesScreenState
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
+  /// Every user must keep at least one business — the app has no
+  /// business-less state — so only a spare business can be deleted. Shows
+  /// why and returns false when [profile] holds the user's only business.
+  /// The admin portal enforces the same rule server-side.
+  bool _ensureCanDeleteBusiness(Map<String, dynamic>? profile) {
+    if (_businessesFromProfile(profile).length > 1) return true;
+    AppNotification.error(
+      context,
+      _tr(
+        'You cannot delete your only business. Add another business first.',
+        'Huwezi kufuta biashara yako pekee. Ongeza biashara nyingine kwanza.',
+      ),
+    );
+    return false;
+  }
+
   Future<void> _deleteBusiness(
     Map<String, dynamic>? profile,
     Map<String, dynamic> business,
   ) async {
+    if (!_ensureCanDeleteBusiness(profile)) return;
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
     final user = FirebaseAuth.instance.currentUser;
@@ -943,6 +960,7 @@ class _ManageBusinessesScreenState
                               ),
                             ),
                             onPressed: () async {
+                              if (!_ensureCanDeleteBusiness(profile)) return;
                               final nameConfirmCtrl = TextEditingController();
                               final bizName =
                                   (business['name'] as String?)?.trim() ?? '';

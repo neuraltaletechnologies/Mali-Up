@@ -48,6 +48,8 @@ export async function GET(
 
     const staffCount = staffMembers.length
     const business = mapBusiness(uid || (raw.ownerUid as string) || '', businessId, raw, staffCount)
+    // Lets the UI disable Delete on an owner's only business (see DELETE).
+    business.ownerBusinessCount = await countOwnedBusinesses((raw.ownerUid as string) || uid)
 
     const notes: AdminNote[] = notesSnap.docs.map((doc) => ({
       id:        doc.id,
@@ -225,6 +227,15 @@ export async function DELETE(
     const bizName = (before.businessName as string) || businessId
     const ownerUid = (before.ownerUid as string) || uid
 
+    // Every user must keep at least one business — the app has no
+    // business-less state. Only allow deleting one the owner has a spare of.
+    if (await countOwnedBusinesses(ownerUid) <= 1) {
+      return NextResponse.json(
+        { error: "This is the owner's only business and cannot be deleted. Delete the user instead, or add another business first." },
+        { status: 409 },
+      )
+    }
+
     await deleteBusinessCascade(businessId, ownerUid)
     invalidateCache('businesses:300')
     invalidateCache('businesses:500')
@@ -243,6 +254,12 @@ export async function DELETE(
     console.error(`[DELETE /api/admin/businesses/${uid}/${businessId}]`, err)
     return NextResponse.json({ error: 'Failed to delete business' }, { status: 500 })
   }
+}
+
+async function countOwnedBusinesses(ownerUid: string): Promise<number> {
+  if (!ownerUid) return 0
+  const snap = await adminFirestore.collection('businesses').where('ownerUid', '==', ownerUid).get()
+  return snap.docs.length
 }
 
 function toIso(value: unknown): string {

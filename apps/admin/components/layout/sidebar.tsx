@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard, Users, Building2, CreditCard, Star, RefreshCcw, DollarSign,
   Package, LifeBuoy, ClipboardList, Activity, ToggleLeft, Settings, UserCircle,
-  ChevronDown, ChevronRight, LogOut, Send
+  ChevronDown, ChevronRight, LogOut, Send, MessageSquare
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -46,7 +46,8 @@ const nav: NavItem[] = [
       { label: 'Lookups',       href: '/admin/lookups' },
     ]
   },
-  { label: 'SMS & Notifications', href: '/admin/notifications', icon: Send },
+  { label: 'Beem SMS', href: '/admin/sms-campaigns', icon: MessageSquare },
+  { label: 'Push Notifications', href: '/admin/notifications', icon: Send },
   {
     label: 'Operations', icon: ClipboardList,
     children: [

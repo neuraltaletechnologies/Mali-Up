@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
 import { requireAdminSession } from '@/lib/api-guard'
-import { mapBusiness } from '@/lib/firestore-mappers'
+import { mapBusiness, mapUser } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
 import { withCache, invalidateCache } from '@/lib/api-cache'
 import { FieldValue } from '@/lib/firestore-rest'
@@ -41,6 +41,34 @@ async function fetchBusinesses(limitParam: number) {
     const staffCount = typeof data.staffCount === 'number' ? data.staffCount : 0
     return mapBusiness(uid, doc.id, data, staffCount)
   })
+
+  // The app writes ownerUid + ownerName on the business doc but never
+  // ownerPhone (and older docs lack ownerName too) — fill both from the
+  // owner's user profile so the table and CSV export show who owns it.
+  const missingOwnerIds = [
+    ...new Set(
+      businesses
+        .filter((b) => b.ownerId && (!b.ownerName || !b.ownerPhone))
+        .map((b) => b.ownerId),
+    ),
+  ]
+  if (missingOwnerIds.length > 0) {
+    const ownerDocs = await adminFirestore.getAll(
+      ...missingOwnerIds.map((id) => adminFirestore.collection('users').doc(id)),
+    )
+    const owners = new Map<string, { name: string; phone: string }>()
+    ownerDocs.forEach((d) => {
+      if (!d.exists) return
+      const u = mapUser(d.id, d.data() as Record<string, unknown>)
+      owners.set(d.id, { name: u.name === 'Unknown' ? '' : u.name, phone: u.phone })
+    })
+    for (const b of businesses) {
+      const owner = owners.get(b.ownerId)
+      if (!owner) continue
+      if (!b.ownerName) b.ownerName = owner.name
+      if (!b.ownerPhone) b.ownerPhone = owner.phone
+    }
+  }
 
   businesses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 

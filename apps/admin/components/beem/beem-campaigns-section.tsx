@@ -15,7 +15,7 @@ import {
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { AlertCircle } from 'lucide-react'
 
-export function BeemCampaignsSection() {
+export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.ReactNode } = {}) {
   const {
     data: statusData,
     loading: statusLoading,
@@ -64,6 +64,8 @@ export function BeemCampaignsSection() {
           refetchCampaigns()
         }}
       />
+
+      {afterStatus}
 
       {/* ── Campaign Composer ── */}
       <BeemCampaignComposer
