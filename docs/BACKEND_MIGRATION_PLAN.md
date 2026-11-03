@@ -329,7 +329,7 @@ erDiagram
   FILES }o--|| BUSINESSES : "stored for"
 
   USERS {
-    uuid id PK
+    text id PK
     text phone UK
     text email
     text pin_hash
@@ -337,25 +337,25 @@ erDiagram
     timestamptz created_at
   }
   BUSINESSES {
-    uuid id PK
-    uuid owner_user_id FK
+    text id PK
+    text owner_user_id FK
     text name
     text plan_id FK
     timestamptz plan_expires_at
   }
   BUSINESS_MEMBERS {
-    uuid id PK
-    uuid business_id FK
-    uuid user_id FK
+    text id PK
+    text business_id FK
+    text user_id FK
     text role
     jsonb custom_permissions
     text data_scope
     text status
   }
   INVOICES {
-    uuid id PK
-    uuid business_id FK
-    uuid customer_id FK
+    text id PK
+    text business_id FK
+    text customer_id FK
     text invoice_number
     text doc_type
     text status
@@ -366,8 +366,8 @@ erDiagram
     timestamptz updated_at
   }
   INVENTORY_ITEMS {
-    uuid id PK
-    uuid business_id FK
+    text id PK
+    text business_id FK
     text sku
     numeric quantity
     numeric unit_price
@@ -376,20 +376,20 @@ erDiagram
   }
   CHANGE_LOG {
     bigserial seq PK
-    uuid business_id
+    text business_id
     text entity_type
-    uuid entity_id
+    text entity_id
     text op
     timestamptz at
   }
   PROCESSED_OPERATIONS {
-    uuid operation_id PK
-    uuid business_id
+    text operation_id PK
+    text business_id
     jsonb result
   }
   FILES {
-    uuid id PK
-    uuid business_id
+    text id PK
+    text business_id
     text r2_key
     text kind "logo|receipt|return_proof"
     text content_type
@@ -397,7 +397,7 @@ erDiagram
 ```
 
 Design rules:
-- **Same UUIDs as the app.** The app generates IDs offline; Postgres uses them as primary keys, which keeps the backfill and sync simple.
+- **Same IDs as the app, stored as `text`.** Existing IDs are a mix of Firestore auto-IDs (20 chars), Firebase UIDs (28 chars) and app-generated UUIDs, so they are not all valid `uuid` values. Postgres uses them unchanged as primary keys, which keeps the backfill and sync simple. Full DDL: [services/database/schema.sql](../services/database/schema.sql).
 - **Money as `numeric(14,2)`**, never float.
 - **`processed_operations`**: the app's `sync_queue.operationId` becomes an idempotency key, so a retried push never double-applies a sale.
 - **`change_log` with a `bigserial` cursor** replaces `fetchUpdatedSince(timestamp)`. Clocks can lie; sequence numbers can't.

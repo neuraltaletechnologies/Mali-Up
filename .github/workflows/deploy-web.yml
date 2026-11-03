@@ -107,4 +107,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/mobile-app
+          # apps/mobile-app has a pnpm-lock.yaml, which makes the action try
+          # to install Wrangler with pnpm -- not on the runner. npm always is.
+          packageManager: npm
           command: pages deploy build/web --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
