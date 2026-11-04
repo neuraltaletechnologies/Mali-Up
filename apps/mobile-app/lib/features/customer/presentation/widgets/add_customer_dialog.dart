@@ -11,6 +11,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_capabilities.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/customer_providers.dart';
 import '../../data/repositories/customer_repository.dart';
@@ -201,6 +202,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     const SizedBox(height: 16),
 
                     // ── Import from Contacts ─────────────────────────────────
+                    // Phones only: the Windows desktop build has no address
+                    // book, so the button and its "or" divider are hidden.
+                    if (PlatformCapabilities.hasPhoneContacts) ...[
                     GestureDetector(
                       onTap: (_isLoading || _isImportingContact)
                           ? null
@@ -271,6 +275,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    ],
 
                     // ── Fields ───────────────────────────────────────────────
                     KeyedSubtree(

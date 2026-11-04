@@ -20,6 +20,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../onboarding/presentation/widgets/onboarding_layout.dart';
 
 // Notification helper for success/error messages
 class _NotificationHelper {
@@ -461,8 +462,6 @@ class _LoginScreenState extends State<LoginScreen> {
     const textPrimary = AppColors.textPrimary;
     const textSecondary = AppColors.textSecondary;
     const fieldBg = AppColors.surface;
-    final mediaQuery = MediaQuery.of(context);
-    final topHeight = mediaQuery.size.height * 0.35;
 
     InputDecoration fieldDecoration({
       required String hint,
@@ -534,11 +533,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image.asset(
                 'assets/Picture/sign_up.webp',
@@ -596,10 +591,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           // Main content sheet — "bottom content panel"
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,

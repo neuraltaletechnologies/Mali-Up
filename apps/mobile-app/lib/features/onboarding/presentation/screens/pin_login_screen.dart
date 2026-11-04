@@ -21,6 +21,7 @@ import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
 import 'pin_reset_code_screen.dart';
+import '../widgets/onboarding_layout.dart';
 
 /// Screen 4A — shown when an existing owner/activated team member
 /// enters their phone and the account is found. They sign in with their PIN.
@@ -123,7 +124,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     final isOnline = ref.watch(isOnlineProvider);
     final sw = state.isSwahili;
     final name = state.firstName.isNotEmpty ? state.firstName : '';
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     // One-off confirmation after a successful PIN recovery (PinResetScreen
     // routes here with OnboardingState.pinJustReset set).
@@ -161,11 +161,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -224,10 +220,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
           ),
 
           // Main content sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,

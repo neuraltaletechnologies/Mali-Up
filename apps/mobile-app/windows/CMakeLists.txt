@@ -32,6 +32,13 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# MSVC 14.5x (Visual Studio 2026) turns <experimental/coroutine> into a hard
+# error (STL1011). Several plugins (local_auth_windows, permission_handler_windows,
+# flutter_local_notifications_windows) still compile C++/WinRT with /await, which
+# pulls that header in. Silence it for every target, plugins included, until
+# those plugins move to C++20 <coroutine>.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by

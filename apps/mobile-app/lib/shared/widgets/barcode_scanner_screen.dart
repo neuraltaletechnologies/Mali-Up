@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_motion.dart';
 import '../../core/services/sentry_metrics_service.dart';
 import '../../core/services/localization_service.dart';
+import '../../core/utils/platform_capabilities.dart';
 import 'app_notification.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -53,9 +54,11 @@ class BarcodeScannerScreen extends StatefulWidget {
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     with SingleTickerProviderStateMixin {
-  final MobileScannerController _ctrl = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-  );
+  // Null on desktop (Windows): no camera scanning there — the screen takes
+  // input from a USB barcode scanner instead (see _ScannerDeviceInput).
+  final MobileScannerController? _ctrl = PlatformCapabilities.hasCameraScanner
+      ? MobileScannerController(detectionSpeed: DetectionSpeed.noDuplicates)
+      : null;
   bool _scanned = false;
   bool _scannerErrorHandled = false;
   late final AnimationController _flashAnim;
@@ -78,15 +81,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _ctrl?.dispose();
     _flashAnim.dispose();
     super.dispose();
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_scanned) return;
     final value = capture.barcodes.firstOrNull?.rawValue;
-    if (value == null || value.isEmpty) return;
+    if (value != null) _accept(value);
+  }
+
+  void _accept(String value) {
+    if (_scanned || value.isEmpty) return;
     _scanned = true;
     HapticFeedback.mediumImpact();
     SystemSound.play(SystemSoundType.click);
@@ -96,6 +102,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = _ctrl;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -103,48 +110,59 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
         foregroundColor: Colors.white,
         title: Text(widget.title ?? _t('Scan Barcode', 'Skani Nambari')),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.flash_on),
-            onPressed: () => _ctrl.toggleTorch(),
-            tooltip: _t('Toggle flashlight', 'Washa/Zima taa'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.flip_camera_ios),
-            onPressed: () => _ctrl.switchCamera(),
-            tooltip: _t('Switch camera', 'Badilisha kamera'),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: _ctrl,
-            onDetect: _onDetect,
-            onDetectError: _onScannerError,
-          ),
-          const _ScanOverlay(),
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Text(
-                  _t('Point camera at barcode or QR code',
-                      'Elekeza kamera kwenye barcode au QR code'),
-                  style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
-                ),
-              ),
+          if (ctrl != null) ...[
+            IconButton(
+              icon: const Icon(Icons.flash_on),
+              onPressed: () => ctrl.toggleTorch(),
+              tooltip: _t('Toggle flashlight', 'Washa/Zima taa'),
             ),
-          ),
+            IconButton(
+              icon: const Icon(Icons.flip_camera_ios),
+              onPressed: () => ctrl.switchCamera(),
+              tooltip: _t('Switch camera', 'Badilisha kamera'),
+            ),
+          ],
         ],
       ),
+      body: ctrl == null
+          ? Center(child: _ScannerDeviceInput(onCode: _accept))
+          : Stack(
+              children: [
+                MobileScanner(
+                  controller: ctrl,
+                  onDetect: _onDetect,
+                  onDetectError: _onScannerError,
+                ),
+                const _ScanOverlay(),
+                Positioned(
+                  bottom: 40,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Text(
+                        _t(
+                          'Point camera at barcode or QR code',
+                          'Elekeza kamera kwenye barcode au QR code',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -211,7 +229,10 @@ class _PosScannerScreenState extends State<PosScannerScreen>
   // Default DetectionSpeed.normal allows re-detection of the same barcode in
   // successive frames — required for consecutive identical products.
   // Accidental double-reads are filtered by the software cooldown below.
-  final MobileScannerController _ctrl = MobileScannerController();
+  // Null on desktop (Windows) — input comes from a USB barcode scanner.
+  final MobileScannerController? _ctrl = PlatformCapabilities.hasCameraScanner
+      ? MobileScannerController()
+      : null;
 
   final List<PosCartEntry> _cart = [];
   final Map<String, DateTime> _lastScanTime = {};
@@ -251,27 +272,29 @@ class _PosScannerScreenState extends State<PosScannerScreen>
   @override
   void dispose() {
     _labelClearTimer?.cancel();
-    _ctrl.dispose();
+    _ctrl?.dispose();
     _successAnim.dispose();
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) async {
-    if (_processing) return;
+  void _onDetect(BarcodeCapture capture) {
     final value = capture.barcodes.firstOrNull?.rawValue;
-    if (value == null || value.isEmpty) return;
+    if (value != null) _handleCode(value);
+  }
+
+  Future<void> _handleCode(String value) async {
+    if (_processing || value.isEmpty) return;
 
     // Cooldown check — prevents scanning the same barcode twice in quick succession.
     final now = DateTime.now();
     final lastTime = _lastScanTime[value];
-    if (lastTime != null &&
-        now.difference(lastTime) < widget.scanCooldown) {
+    if (lastTime != null && now.difference(lastTime) < widget.scanCooldown) {
       return;
     }
 
     _processing = true;
     _lastScanTime[value] = now;
-  final scanTimer = Stopwatch()..start();
+    final scanTimer = Stopwatch()..start();
 
     HapticFeedback.mediumImpact();
 
@@ -321,16 +344,23 @@ class _PosScannerScreenState extends State<PosScannerScreen>
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = _ctrl;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _ctrl,
-            onDetect: _onDetect,
-            onDetectError: _onScannerError,
-          ),
-          const _ScanOverlay(),
+          if (ctrl != null) ...[
+            MobileScanner(
+              controller: ctrl,
+              onDetect: _onDetect,
+              onDetectError: _onScannerError,
+            ),
+            const _ScanOverlay(),
+          ] else
+            Align(
+              alignment: const Alignment(0, -0.35),
+              child: _ScannerDeviceInput(onCode: _handleCode),
+            ),
 
           // ── Top bar ──────────────────────────────────────────────────────
           Positioned(
@@ -339,8 +369,10 @@ class _PosScannerScreenState extends State<PosScannerScreen>
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Material(
@@ -350,7 +382,9 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                         borderRadius: BorderRadius.circular(99),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 9),
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(99),
@@ -359,15 +393,19 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.arrow_back_ios_new_rounded,
-                                  color: Colors.white, size: 14),
+                              const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 widget.title,
                                 style: GoogleFonts.dmSans(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ),
@@ -376,13 +414,17 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                     ),
                     const Spacer(),
                     // Torch + camera flip
-                    _IconBtn(
+                    if (ctrl != null) ...[
+                      _IconBtn(
                         icon: Icons.flash_on,
-                        onTap: () => _ctrl.toggleTorch()),
-                    const SizedBox(width: 6),
-                    _IconBtn(
+                        onTap: () => ctrl.toggleTorch(),
+                      ),
+                      const SizedBox(width: 6),
+                      _IconBtn(
                         icon: Icons.flip_camera_ios,
-                        onTap: () => _ctrl.switchCamera()),
+                        onTap: () => ctrl.switchCamera(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -397,7 +439,9 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 40),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 14),
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success,
                     borderRadius: BorderRadius.circular(18),
@@ -412,8 +456,11 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
@@ -444,15 +491,19 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
                   transitionBuilder: (child, anim) => SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 1),
-                      end: Offset.zero,
-                    ).animate(
-                        CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                    position:
+                        Tween<Offset>(
+                          begin: const Offset(0, 1),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(parent: anim, curve: Curves.easeOut),
+                        ),
                     child: FadeTransition(opacity: anim, child: child),
                   ),
                   child: _cart.isEmpty
-                      ? const _ScanHint(key: ValueKey('hint'))
+                      ? (ctrl != null
+                            ? const _ScanHint(key: ValueKey('hint'))
+                            : const SizedBox.shrink(key: ValueKey('hint')))
                       : _MiniCart(
                           key: const ValueKey('cart'),
                           itemCount: _totalItems,
@@ -471,6 +522,128 @@ class _PosScannerScreenState extends State<PosScannerScreen>
 
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
+/// Desktop (Windows) replacement for the camera view. A USB/Bluetooth
+/// barcode scanner acts as a keyboard: it types the code and presses Enter,
+/// which submits this always-focused field. Typing a code by hand works too.
+class _ScannerDeviceInput extends StatefulWidget {
+  final ValueChanged<String> onCode;
+
+  const _ScannerDeviceInput({required this.onCode});
+
+  @override
+  State<_ScannerDeviceInput> createState() => _ScannerDeviceInputState();
+}
+
+class _ScannerDeviceInputState extends State<_ScannerDeviceInput> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit(String raw) {
+    final code = raw.trim();
+    _ctrl.clear();
+    // Keep focus so the next scan lands here without a click.
+    _focus.requestFocus();
+    if (code.isNotEmpty) widget.onCode(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white10,
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: Colors.white,
+                size: 42,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              _t(
+                'Scan with your barcode scanner',
+                'Skani kwa kifaa chako cha barcode',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _t(
+                'Or type the code and press Enter',
+                'Au andika nambari kisha bonyeza Enter',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _ctrl,
+              focusNode: _focus,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _submit,
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 16,
+                letterSpacing: 1.2,
+              ),
+              cursorColor: AppColors.yellowBrand,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white12,
+                hintText: _t('Barcode', 'Nambari ya barcode'),
+                hintStyle: GoogleFonts.dmSans(color: Colors.white38),
+                prefixIcon: const Icon(
+                  Icons.keyboard_rounded,
+                  color: Colors.white54,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(
+                    Icons.keyboard_return_rounded,
+                    color: Colors.white70,
+                  ),
+                  tooltip: _t('Add', 'Ongeza'),
+                  onPressed: () => _submit(_ctrl.text),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.yellowBrand),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ScanHint extends StatelessWidget {
   const _ScanHint({super.key});
 
@@ -478,8 +651,7 @@ class _ScanHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         decoration: BoxDecoration(
           color: Colors.black54,
           borderRadius: BorderRadius.circular(24),
@@ -519,7 +691,9 @@ class _MiniCart extends StatelessWidget {
         color: AppColors.navyPrimary,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: Colors.white.withValues(alpha: 0.12), width: 1.5),
+          color: Colors.white.withValues(alpha: 0.12),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -537,7 +711,8 @@ class _MiniCart extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
               border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.4)),
+                color: AppColors.primary.withValues(alpha: 0.4),
+              ),
             ),
             child: Center(
               child: Text(
@@ -558,8 +733,9 @@ class _MiniCart extends StatelessWidget {
               children: [
                 Text(
                   _t(
-                      '$itemCount ${itemCount == 1 ? "item" : "items"} added',
-                      '$itemCount ${itemCount == 1 ? "bidhaa" : "bidhaa"} zimeongezwa'),
+                    '$itemCount ${itemCount == 1 ? "item" : "items"} added',
+                    '$itemCount ${itemCount == 1 ? "bidhaa" : "bidhaa"} zimeongezwa',
+                  ),
                   style: GoogleFonts.dmSans(
                     color: Colors.white70,
                     fontSize: 11,
@@ -581,8 +757,7 @@ class _MiniCart extends StatelessWidget {
           GestureDetector(
             onTap: onDone,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 18, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(12),
@@ -641,7 +816,9 @@ class _ScanOverlay extends StatelessWidget {
       children: [
         ColorFiltered(
           colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.55), BlendMode.srcOut),
+            Colors.black.withValues(alpha: 0.55),
+            BlendMode.srcOut,
+          ),
           child: Stack(
             children: [
               Container(color: Colors.transparent),
@@ -678,20 +855,22 @@ class _ScanOverlay extends StatelessWidget {
           Offset(left + boxSize - 24, top),
           Offset(left, top + boxSize - 24),
           Offset(left + boxSize - 24, top + boxSize - 24),
-        ].map((pos) => Positioned(
-              left: pos.dx,
-              top: pos.dy,
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: AppColors.primary, width: 3),
-                    left: BorderSide(color: AppColors.primary, width: 3),
-                  ),
+        ].map(
+          (pos) => Positioned(
+            left: pos.dx,
+            top: pos.dy,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: AppColors.primary, width: 3),
+                  left: BorderSide(color: AppColors.primary, width: 3),
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }

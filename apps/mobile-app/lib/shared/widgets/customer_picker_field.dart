@@ -276,11 +276,12 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      // Side panel (wide screens): fill the panel's full height.
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.65,
-        maxChildSize: 0.8,
-        minChildSize: 0.4,
+        initialChildSize: AppSheetScope.isSidePanelOf(context) ? 1.0 : 0.65,
+        maxChildSize: AppSheetScope.isSidePanelOf(context) ? 1.0 : 0.8,
+        minChildSize: AppSheetScope.isSidePanelOf(context) ? 1.0 : 0.4,
         builder: (_, ctrl) => Column(
           children: [
             const SheetHandle(),

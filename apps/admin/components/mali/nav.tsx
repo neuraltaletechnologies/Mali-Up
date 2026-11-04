@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react"
 import { Menu, X } from "lucide-react"
 import NextImage from "next/image"
 
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
 
 export function Nav() {
   const [scrolled, setScrolled]   = useState(false)
@@ -103,21 +102,14 @@ export function Nav() {
 
         {/* CTA with ripple */}
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="/#pricing"
-            className="text-sm font-semibold text-[#0C1B2E] px-4 py-2.5 rounded-xl border border-[#0C1B2E]/15 hover:border-[#F5A623] transition-colors"
-          >
-            Lipia
-          </a>
+          {/* Single CTA — the goal is a paid signup, so it goes to the plans */}
           <a
             ref={ctaRef}
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noreferrer"
+            href="/#pricing"
             onClick={handleCtaClick}
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:scale-105 hover:shadow-[0_6px_24px_rgba(245,166,35,0.4)] active:scale-[0.97] transition-all duration-200"
           >
-            Download
+            Jisajili
           </a>
         </div>
 
@@ -167,18 +159,9 @@ export function Nav() {
         <a
           href="/#pricing"
           onClick={() => setMenuOpen(false)}
-          className="text-center text-[#0C1B2E] font-semibold text-sm px-5 py-2.5 rounded-xl border border-[#0C1B2E]/15 mt-1"
-        >
-          Lipia Kifurushi
-        </a>
-        <a
-          href={PLAY_STORE_URL}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => setMenuOpen(false)}
           className="shimmer-btn text-center text-[#0C1B2E] font-bold text-sm px-5 py-2.5 rounded-xl mt-1"
         >
-          Download
+          Jisajili
         </a>
       </div>
     </header>

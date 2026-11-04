@@ -4677,7 +4677,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           ? _bomBatchYield.toStringAsFixed(0)
           : _bomBatchYield.toStringAsFixed(2);
       return Align(
-        alignment: Alignment.bottomCenter,
+        alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
         child: Material(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -4817,7 +4817,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final categories = categoriesAsync.valueOrNull ?? const <MasterCategory>[];
 
     return Align(
-      alignment: Alignment.bottomCenter,
+      alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
       child: SizedBox(
         width: sheetWidth,
         child: Material(
@@ -7857,7 +7857,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     // reveal silently never paints. Wrapping in Align > SizedBox(width:)
     // (same shape as _ProductFormSheet's root) keeps that pass bounded.
     return Align(
-      alignment: Alignment.bottomCenter,
+      alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
       child: SizedBox(
         width: MediaQuery.sizeOf(context).width,
         child: ConstrainedBox(

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Check, Zap, Sparkles, Crown, ArrowRight, Smartphone } from "lucide-react"
+import { Check, ArrowRight, Smartphone } from "lucide-react"
 import {
   DEFAULT_PUBLIC_PRICES,
   PLAN_COPY,
@@ -15,8 +15,6 @@ import {
 
 interface PlanStyle {
   tier: PublicTier
-  icon: typeof Zap
-  color: string
   badge?: string
   popular?: boolean
   ctaText: string
@@ -25,9 +23,9 @@ interface PlanStyle {
 // Copy and prices live in lib/public-plans.ts (prices are fetched live from
 // /api/plans — the same platform_config/plans doc ClickPesa charges from).
 const plans: PlanStyle[] = [
-  { tier: "starter",  icon: Sparkles, color: "#94A3B8", badge: "Bure Kabisa", ctaText: "Anza Bure" },
-  { tier: "growth",   icon: Zap,      color: "#F5A623", badge: "Inayopendwa Zaidi", popular: true, ctaText: "Lipia Growth" },
-  { tier: "business", icon: Crown,    color: "#22C55E", ctaText: "Lipia Business" },
+  { tier: "starter",  badge: "Bure Kabisa", ctaText: "Anza Bure" },
+  { tier: "growth",   badge: "Inayopendwa Zaidi", popular: true, ctaText: "Lipia Growth" },
+  { tier: "business", ctaText: "Lipia Business" },
 ]
 
 export function Pricing() {
@@ -146,7 +144,6 @@ export function Pricing() {
         {/* Pricing Cards Grid */}
         <div className="grid md:grid-cols-3 gap-6 items-stretch">
           {plans.map((plan, i) => {
-            const Icon = plan.icon
             const copy = PLAN_COPY[plan.tier]
             const price = plan.tier === "starter" ? 0 : priceFor(prices, plan.tier, cycle)
             const saving = yearlySaving(prices, plan.tier)
@@ -181,17 +178,9 @@ export function Pricing() {
                 )}
 
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: plan.popular ? "rgba(245,166,35,0.2)" : `${plan.color}15` }}
-                    >
-                      <Icon size={22} style={{ color: plan.popular ? "#F5A623" : plan.color }} />
-                    </div>
-                    <h3 itemProp="name" className="font-heading font-bold text-xl">
-                      {copy.name}
-                    </h3>
-                  </div>
+                  <h3 itemProp="name" className="font-heading font-bold text-xl mb-2">
+                    {copy.name}
+                  </h3>
 
                   <p
                     itemProp="description"

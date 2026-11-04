@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/localization_service.dart';
+import 'app_sheet.dart';
 import 'shimmer.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1652,6 +1653,11 @@ class SheetHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The wide-screen side panel can't be dragged, so it has no grip; keep
+    // a little top spacing so headers don't touch the panel edge.
+    if (AppSheetScope.isSidePanelOf(context)) {
+      return const SizedBox(height: 12);
+    }
     return Center(
       child: Container(
         margin: const EdgeInsets.only(top: 12, bottom: 4),

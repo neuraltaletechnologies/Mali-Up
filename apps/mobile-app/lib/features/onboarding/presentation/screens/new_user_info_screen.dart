@@ -13,6 +13,7 @@ import '../../../../config/routing.dart';
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
+import '../widgets/onboarding_layout.dart';
 
 class NewUserInfoScreen extends ConsumerStatefulWidget {
   const NewUserInfoScreen({super.key});
@@ -87,7 +88,6 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw    = state.isSwahili;
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
@@ -109,11 +109,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -172,10 +168,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
           ),
 
           // Main content sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,

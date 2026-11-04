@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: '%s | Mali Up',
   },
   description:
-    'Mali Up ni mfumo wa ERP wa simu kwa biashara ndogo za Tanzania. Simamia mauzo, ankara, bidhaa, fedha na wateja wako kutoka simu moja. Imeundwa na Neuraltale Technology, Dar es Salaam.',
+    'Mali Up ni mfumo wa biashara kwa biashara ndogo za Tanzania. Simamia mauzo, ankara, bidhaa, fedha na wateja wako kutoka simu, mashine ya POS au kompyuta (Windows na Mac). Imeundwa na Neuraltale Technology, Dar es Salaam.',
   keywords: [
     'biashara Tanzania',
     'software biashara ndogo Tanzania',
@@ -36,6 +36,11 @@ export const metadata: Metadata = {
     'invoice Tanzania',
     'inventory Tanzania',
     'POS Tanzania',
+    'mashine ya POS Tanzania',
+    'POS handheld Tanzania',
+    'Mali Up Windows',
+    'Mali Up Mac',
+    'programu ya biashara kompyuta',
     'business app Tanzania',
     'SME software Tanzania',
     'Dar es Salaam business app',

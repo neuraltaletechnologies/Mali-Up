@@ -15,6 +15,7 @@ import '../../../../config/routing.dart';
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
 import '_onboarding_scaffold.dart';
+import '../widgets/onboarding_layout.dart';
 
 /// Screen 6 — PIN creation for new owner accounts.
 /// Three-step: verify phone (OTP) → set PIN → confirm PIN → save & complete.
@@ -156,7 +157,6 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
     final isOnline = ref.watch(isOnlineProvider);
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final scaffold = Scaffold(
       resizeToAvoidBottomInset: true,
@@ -164,11 +164,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
       body: Stack(
         children: [
           // Header image
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -227,10 +223,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
           ),
 
           // Main content sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,

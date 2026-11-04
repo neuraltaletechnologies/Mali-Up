@@ -1,16 +1,59 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, ArrowRight } from "lucide-react"
 import NextImage from "next/image"
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
+const CONTACT_URL = "https://neuraltale.com/#contact"
+// Desktop installers — set these in the deployment env once the builds are
+// hosted. Until then the Windows/Mac cards send people to the team instead
+// of a dead link.
+// Windows has its own download page (app/download/windows) with the installer button.
+const WINDOWS_PAGE = "/download/windows"
+const MAC_URL = process.env.NEXT_PUBLIC_MAC_DOWNLOAD_URL || ""
 
 const perks = [
   "Free to start, no credit card",
   "Works offline — syncs automatically",
+  "One account on every device",
   "Swahili & English, side by side",
-  "Bank-grade data security",
+]
+
+interface Device {
+  name: string
+  detail: string
+  cta: string
+  href: string
+  secondary?: { label: string; href: string }
+}
+
+const devices: Device[] = [
+  {
+    name: "Android phone",
+    detail: "Run your shop from your pocket.",
+    cta: "Get it on Google Play",
+    href: PLAY_STORE_URL,
+  },
+  {
+    name: "POS handheld",
+    detail: "Android POS terminals with a built-in receipt printer.",
+    cta: "Install from Google Play",
+    href: PLAY_STORE_URL,
+    secondary: { label: "Need a POS device? Buy or rent one from us", href: CONTACT_URL },
+  },
+  {
+    name: "Windows computer",
+    detail: "Install on your shop or office desktop and laptop.",
+    cta: "Download for Windows",
+    href: WINDOWS_PAGE,
+  },
+  {
+    name: "Mac",
+    detail: "Install on your MacBook or iMac.",
+    cta: MAC_URL ? "Download for Mac" : "Get it for Mac",
+    href: MAC_URL || CONTACT_URL,
+  },
 ]
 
 export function Download() {
@@ -40,12 +83,12 @@ export function Download() {
         aria-hidden="true"
       />
 
-      <div className="max-w-3xl mx-auto px-6 text-center relative z-10">
+      <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
 
         {/* Badge */}
         <div className="reveal inline-flex justify-center mb-6">
           <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-            Available Now on Google Play
+            Phone · POS · Windows · Mac
           </span>
         </div>
 
@@ -79,11 +122,12 @@ export function Download() {
         </h2>
 
         <p className="reveal text-[#0C1B2E]/65 leading-relaxed mb-10 max-w-xl mx-auto">
-          Join thousands of Tanzanian entrepreneurs already running their business from their phone. Free to download, ready in minutes.
+          On your phone at the market, a POS handheld at the counter, or a computer in the office —
+          one account, everything synced. Free to start, ready in minutes.
         </p>
 
         {/* Perks */}
-        <ul className="reveal flex flex-wrap justify-center gap-x-8 gap-y-3 mb-10">
+        <ul className="reveal flex flex-wrap justify-center gap-x-8 gap-y-3 mb-12">
           {perks.map((perk, i) => (
             <li
               key={perk}
@@ -96,24 +140,44 @@ export function Download() {
           ))}
         </ul>
 
-        {/* Download CTA */}
-        <div className="reveal flex justify-center">
-          <a
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Download Mali Up on Google Play"
-            className="shimmer-btn text-[#0C1B2E] font-bold px-8 py-4 rounded-2xl text-base shadow-xl transition-all duration-200 inline-flex items-center gap-2.5 hover:scale-105 hover:shadow-[0_8px_30px_rgba(245,166,35,0.4)] active:scale-[0.97]"
-          >
-            <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
-              <path fill="currentColor" d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0c-4.5 2.3-7 7.2-7 13.6v484.8c0 6.4 2.5 11.3 7 13.6l280.7-256L47 0zm401.4 235.1l-59.3-34.3-63.2 62.3 63.2 62.3 60.4-34.3c17.5-10.3 17.5-45.7-1.1-56zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
-            </svg>
-            Get it on Google Play
-          </a>
+        {/* Devices */}
+        <div className="reveal grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+          {devices.map((d) => (
+            <div
+              key={d.name}
+              className="rounded-2xl bg-white border border-[#0C1B2E]/[0.08] p-5 flex flex-col justify-between gap-4 shadow-sm"
+            >
+              <div>
+                <h3 className="font-heading font-bold text-[#0C1B2E] text-base">{d.name}</h3>
+                <p className="text-[#0C1B2E]/60 text-sm mt-1 leading-relaxed">{d.detail}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <a
+                  href={d.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full rounded-xl bg-[#0C1B2E] text-white font-bold text-sm px-4 py-3 flex items-center justify-center gap-2 hover:bg-[#142038] transition-colors"
+                >
+                  {d.cta}
+                  <ArrowRight size={14} />
+                </a>
+                {d.secondary && (
+                  <a
+                    href={d.secondary.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] text-[#0C1B2E]/55 hover:text-[#0C1B2E] text-center underline-offset-2 hover:underline"
+                  >
+                    {d.secondary.label}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <p className="reveal text-[#0C1B2E]/35 text-xs mt-6">
-          Available for Android. iOS is on the way.
+        <p className="reveal text-[#0C1B2E]/35 text-xs mt-8">
+          Sign in on any device with the same phone number and PIN. iPhone is on the way.
         </p>
       </div>
     </section>

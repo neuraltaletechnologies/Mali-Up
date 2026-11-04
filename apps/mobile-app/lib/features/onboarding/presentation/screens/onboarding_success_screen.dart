@@ -13,6 +13,7 @@ import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '../../providers/onboarding_notifier.dart';
 import '../onboarding_images.dart';
 import '../widgets/onboarding_back_handler.dart';
+import '../widgets/onboarding_layout.dart';
 
 class OnboardingSuccessScreen extends ConsumerStatefulWidget {
   const OnboardingSuccessScreen({super.key});
@@ -101,7 +102,6 @@ class _OnboardingSuccessScreenState
     }
     final firstName = state.firstName;
     final bizName = state.businessName;
-    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
@@ -122,11 +122,7 @@ class _OnboardingSuccessScreenState
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
+          OnboardingHero(
             child: ClipRect(
               child: Image(
                 image: OnboardingImages.signUpProvider,
@@ -181,10 +177,7 @@ class _OnboardingSuccessScreenState
               ),
             ),
           ),
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.8,
+          OnboardingSheet(
             builder: (context, scrollController) {
               return Container(
                 clipBehavior: Clip.hardEdge,

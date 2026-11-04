@@ -143,13 +143,15 @@ export function AppGallery() {
               className="rounded-xl"
             />
             <p className="text-[#0C1B2E]/45 text-sm uppercase tracking-widest font-semibold">
-              Coming to
+              Available on
             </p>
           </div>
           <div className="flex gap-4 flex-wrap justify-center">
             {[
-              { name: "Google Play", badge: "Android · Primary" },
-              { name: "App Store",   badge: "iOS · Secondary" },
+              { name: "Google Play", badge: "Android phones & POS" },
+              { name: "Windows",     badge: "Desktop & laptop" },
+              { name: "macOS",       badge: "MacBook & iMac" },
+              { name: "App Store",   badge: "iPhone · Coming soon" },
             ].map((store) => (
               <div
                 key={store.name}

@@ -34,11 +34,20 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
+    // Windows desktop build: toast notifications need an app identity. Keep
+    // appUserModelId/guid stable across releases or Windows treats each
+    // version as a different app.
+    const windowsInit = WindowsInitializationSettings(
+      appName: 'Mali Up',
+      appUserModelId: 'Neuraltale.MaliUp',
+      guid: '3f6c2b8e-9a41-4d7e-b5c2-8e1f0a6d4c97',
+    );
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(
           android: androidInit,
           iOS: iosInit,
+          windows: windowsInit,
         ),
       );
       await _plugin

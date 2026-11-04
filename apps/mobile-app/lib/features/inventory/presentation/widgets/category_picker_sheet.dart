@@ -108,7 +108,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     final filtered = _filtered;
 
     return Align(
-      alignment: Alignment.bottomCenter,
+      alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
       child: SizedBox(
         width: MediaQuery.sizeOf(context).width,
         child: ConstrainedBox(
