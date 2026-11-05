@@ -203,23 +203,24 @@ jobs:
           [ "${#AWS_SECRET_ACCESS_KEY}" -eq 64 ] || { echo "::error::R2_SECRET_ACCESS_KEY should be 64 characters (got ${#AWS_SECRET_ACCESS_KEY})"; exit 1; }
           endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
           aws --version
-          if ! aws s3 ls "s3://$R2_BUCKET" --endpoint-url "$endpoint" >/dev/null 2>err.txt; then
-            echo "::error::Cannot access R2 bucket '$R2_BUCKET': $(tr '\r\n' '  ' < err.txt)"
-            exit 1
-          fi
+          # Upload only — the token needs Object Write, not List. Errors are
+          # surfaced as annotations so they're readable without the raw log.
+          put() {
+            if ! aws s3 cp "$1" "s3://$R2_BUCKET/$2" --endpoint-url "$endpoint" "${@:3}" 2>err.txt; then
+              echo "::error::R2 upload of $2 failed: $(tr '\r\n' '  ' < err.txt)"
+              exit 1
+            fi
+          }
           src="build/windows/installer/MaliUp-Setup-$VERSION.exe"
           # Versioned copy: never overwritten, safe to link to long-term.
-          aws s3 cp "$src" "s3://$R2_BUCKET/windows/$VERSION/MaliUp-Setup-$VERSION.exe" \
-            --endpoint-url "$endpoint" \
+          put "$src" "windows/$VERSION/MaliUp-Setup-$VERSION.exe" \
             --content-type application/octet-stream \
             --cache-control "public, max-age=31536000, immutable"
           # Fixed name for the website button; always the newest build.
-          aws s3 cp "$src" "s3://$R2_BUCKET/windows/MaliUp-Setup.exe" \
-            --endpoint-url "$endpoint" \
+          put "$src" "windows/MaliUp-Setup.exe" \
             --content-type application/octet-stream \
             --cache-control "public, max-age=300"
           printf '{"version":"%s","file":"windows/%s/MaliUp-Setup-%s.exe"}\n' "$VERSION" "$VERSION" "$VERSION" > latest.json
-          aws s3 cp latest.json "s3://$R2_BUCKET/windows/latest.json" \
-            --endpoint-url "$endpoint" \
+          put latest.json "windows/latest.json" \
             --content-type application/json \
             --cache-control "public, max-age=60"
