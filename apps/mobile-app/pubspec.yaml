@@ -150,7 +150,7 @@ msix_config:
   identity_name: NeuraltaleTechnologies.MaliUp # Partner Center -> Product identity
   publisher: CN=05B40B51-180F-4A3C-9903-4FBEECE2456E # Partner Center -> Product identity
   logo_path: assets/branding/mali_up_wordmark.png
-  languages: sw-TZ, en-US
+  languages: en-US
   capabilities: internetClient
   # Start with Windows (POS till). Windows activates it after the first
   # manual launch; users can switch it off in Settings -> Apps -> Startup.
