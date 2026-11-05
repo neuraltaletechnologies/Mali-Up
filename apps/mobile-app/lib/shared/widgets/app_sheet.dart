@@ -30,7 +30,9 @@ class AppSheetScope extends InheritedWidget {
   });
 
   static bool isSidePanelOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppSheetScope>()?.isSidePanel ??
+      context
+          .dependOnInheritedWidgetOfExactType<AppSheetScope>()
+          ?.isSidePanel ??
       false;
 
   @override
@@ -77,8 +79,7 @@ Future<T?> showAppSheet<T>(
     showDragHandle: showDragHandle,
     shape: shape,
     constraints: BoxConstraints(
-      maxHeight:
-          MediaQuery.sizeOf(context).height * kAppSheetMaxHeightFactor,
+      maxHeight: MediaQuery.sizeOf(context).height * kAppSheetMaxHeightFactor,
     ),
     builder: builder,
   );
@@ -99,8 +100,9 @@ Future<T?> _showSidePanel<T>(
     // A faint tint only: the page stays readable beside the panel so it
     // reads as part of the same screen, not a popup over it.
     barrierColor: const Color(0x140D1B3E),
-    transitionDuration:
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 260),
+    transitionDuration: reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 260),
     transitionBuilder: (context, animation, _, child) {
       if (reduceMotion) return child;
       final curved = CurvedAnimation(
@@ -118,34 +120,42 @@ Future<T?> _showSidePanel<T>(
     },
     pageBuilder: (dialogContext, _, _) {
       final mq = MediaQuery.of(dialogContext);
-      const inset = 12.0;
+      // Flush to the right edge and full height — a real side sheet, not a
+      // floating card — rounded only on its inner (left) corners.
       final width = math.min(kAppSidePanelWidth, mq.size.width * 0.9);
-      final height = mq.size.height - mq.padding.vertical - inset * 2;
+      final contentHeight = mq.size.height - mq.padding.vertical;
       final panelColor = backgroundColor == Colors.transparent
           ? Colors.white
           : backgroundColor;
       return Align(
         alignment: Alignment.centerRight,
-        child: SafeArea(
-          left: false,
-          minimum: const EdgeInsets.all(inset),
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: Material(
-              color: panelColor,
-              clipBehavior: Clip.antiAlias,
-              elevation: 12,
-              shadowColor: const Color(0x330D1B3E),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+        child: SizedBox(
+          width: width,
+          height: mq.size.height,
+          child: Material(
+            color: panelColor,
+            clipBehavior: Clip.antiAlias,
+            elevation: 12,
+            shadowColor: const Color(0x330D1B3E),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                bottomLeft: Radius.circular(24),
+              ),
+            ),
+            child: Padding(
+              // Keep content clear of the status bar / system nav while the
+              // panel's surface itself runs edge to edge.
+              padding: EdgeInsets.only(
+                top: mq.padding.top,
+                bottom: mq.padding.bottom,
               ),
               child: MediaQuery(
                 // Sheet content sizes itself from MediaQuery (e.g. "80 % of
                 // the screen height", "full screen width"). Report the
                 // panel's own size so those maths land inside the panel.
                 data: mq.copyWith(
-                  size: Size(width, height),
+                  size: Size(width, contentHeight),
                   padding: EdgeInsets.zero,
                   viewPadding: EdgeInsets.zero,
                 ),

@@ -39,6 +39,14 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
+/// Content width at which the hero card stops stacking above the revenue
+/// snapshot / insights and sits beside them instead (tablets, desktop).
+const double _heroSideBySideMinWidth = 720;
+
+/// Width of the hero card's slot in that side-by-side layout — a real card
+/// size (the card itself caps at 440 incl. its 12px side padding).
+const double _heroCardWideWidth = 424;
+
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   static const _firstRewardSeenKey = 'dashboard_first_reward_seen';
 
@@ -228,8 +236,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// the dialog before (e.g. long-term users upgrading to a new build).
   Future<void> _maybeShowRateAppPrompt() async {
     final eligible = await AppRatingService.shouldPrompt();
-    final returningUser =
-        eligible ? false : await AppRatingService.shouldPromptReturningUser();
+    final returningUser = eligible
+        ? false
+        : await AppRatingService.shouldPromptReturningUser();
     if ((!eligible && !returningUser) || !mounted) return;
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
@@ -554,7 +563,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                const Text('👋', style: TextStyle(fontSize: 20)),
+                                const Text(
+                                  '👋',
+                                  style: TextStyle(fontSize: 20),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -582,40 +594,83 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 const SizedBox(height: 20),
 
-                // ── Hero card ────────────────────────────────────────
-                if (_showHeavyContent)
-                  _UnifiedHeroCard(
-                    totalCash: totalCash,
-                    monthRevenue: monthRevenue,
-                    monthExpenses: allTimeExpenses,
-                    netProfit: allTimeRevenue - allTimeCogs - allTimeExpenses,
-                    customerCount: customerCount,
-                    businessName: _getBusinessName(_profile),
-                    logoUrl: _getBusinessLogoUrl(_profile),
-                    plan: _getBusinessPlan(_profile),
-                  )
-                else
-                  const _DashboardHeroSkeleton(),
-
-                const SizedBox(height: 24),
-
-                // ── Revenue snapshot + period switcher ───────────────
-                if (permissions.canViewSales || permissions.isOwner) ...[
-                  _RevenueSnapshotCard(
-                    selectedPeriod: _selectedPeriod,
-                    revenue: selectedRevenue,
-                    comparisonRevenue: comparisonRevenue,
-                    periodChange: periodChange,
-                    onPeriodChanged: (p) => setState(() => _selectedPeriod = p),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── Business insights ────────────────────────────────
-                if (insights.isNotEmpty) ...[
-                  _BusinessInsightsCard(insights: insights),
-                  const SizedBox(height: 24),
-                ],
+                // ── Hero card + revenue snapshot + insights ──────────
+                // Phones: stacked. Wide content areas: the card keeps real
+                // card proportions on the left and the snapshot/insights
+                // sit beside it, instead of the card floating in a band of
+                // empty space or being stretched to the full width.
+                Builder(
+                  builder: (context) {
+                    final hero = _showHeavyContent
+                        ? _UnifiedHeroCard(
+                            totalCash: totalCash,
+                            monthRevenue: monthRevenue,
+                            monthExpenses: allTimeExpenses,
+                            netProfit:
+                                allTimeRevenue - allTimeCogs - allTimeExpenses,
+                            customerCount: customerCount,
+                            businessName: _getBusinessName(_profile),
+                            logoUrl: _getBusinessLogoUrl(_profile),
+                            plan: _getBusinessPlan(_profile),
+                          )
+                        : const _DashboardHeroSkeleton();
+                    final side = <Widget>[
+                      if (permissions.canViewSales || permissions.isOwner)
+                        _RevenueSnapshotCard(
+                          selectedPeriod: _selectedPeriod,
+                          revenue: selectedRevenue,
+                          comparisonRevenue: comparisonRevenue,
+                          periodChange: periodChange,
+                          onPeriodChanged: (p) =>
+                              setState(() => _selectedPeriod = p),
+                        ),
+                      if (insights.isNotEmpty)
+                        _BusinessInsightsCard(insights: insights),
+                    ];
+                    return LayoutBuilder(
+                      builder: (context, c) {
+                        if (c.maxWidth < _heroSideBySideMinWidth ||
+                            side.isEmpty) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              hero,
+                              const SizedBox(height: 24),
+                              for (var i = 0; i < side.length; i++) ...[
+                                side[i],
+                                SizedBox(
+                                  height: i == side.length - 1 ? 24 : 16,
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: _heroCardWideWidth, child: hero),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (var i = 0; i < side.length; i++) ...[
+                                      if (i > 0) const SizedBox(height: 16),
+                                      side[i],
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
 
                 // ── Sales Performance ────────────────────────────────
                 if (permissions.canViewSales || permissions.isOwner) ...[
@@ -3020,7 +3075,10 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
       if (!opened && mounted) {
         AppNotification.error(
           context,
-          _tr('Could not open WhatsApp. Please make sure it is installed.', 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'),
+          _tr(
+            'Could not open WhatsApp. Please make sure it is installed.',
+            'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+          ),
         );
       }
       await Future.delayed(const Duration(milliseconds: 1600));
@@ -3397,7 +3455,9 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
 
 /// Maps each catalogue product id to its buying price (costPrice). Used to
 /// value goods sold — invoices only store the selling price, not the cost.
-Map<String, double> _costByProductId(List<Map<String, dynamic>> inventoryItems) {
+Map<String, double> _costByProductId(
+  List<Map<String, dynamic>> inventoryItems,
+) {
   final map = <String, double>{};
   for (final item in inventoryItems) {
     final id = (item['id'] ?? item['productId'] ?? '').toString();
@@ -3429,10 +3489,7 @@ double _cogsForRevenueSales(
     var invoiceCogs = 0.0;
     for (final item in rawItems.whereType<Map>()) {
       final productId =
-          (item['productId'] ??
-                  item['inventoryItemId'] ??
-                  item['id'] ??
-                  '')
+          (item['productId'] ?? item['inventoryItemId'] ?? item['id'] ?? '')
               .toString();
       final quantity = _numericValue(item['quantity'] ?? item['qty'] ?? 1);
       final unitCost = _numericValue(
@@ -3504,8 +3561,7 @@ List<MapEntry<String, double>> _buildCategorySalesData(
     if (items.isEmpty) {
       final category = (invoice['category'] ?? '').toString().trim();
       final label = category.isEmpty ? _tr('Other', 'Nyingine') : category;
-      totals[label] =
-          (totals[label] ?? 0) + readInvoiceTotal(invoice);
+      totals[label] = (totals[label] ?? 0) + readInvoiceTotal(invoice);
       continue;
     }
 

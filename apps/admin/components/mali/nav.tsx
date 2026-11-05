@@ -30,10 +30,11 @@ export function Nav() {
   }, [])
 
   const links = [
-    { label: "Features",     href: "#features" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Pricing",      href: "#pricing" },
-    { label: "Stats",        href: "#stats" },
+    { label: "Features",     href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Pricing",      href: "/#pricing" },
+    { label: "Stats",        href: "/#stats" },
+    { label: "Download",     href: "/download/windows" },
   ]
 
   /* Ripple on CTA click */
@@ -60,7 +61,7 @@ export function Nav() {
       <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
 
         {/* Logo — heartbeat on hover */}
-        <a href="#" className="flex items-center gap-2.5 group">
+        <a href="/" className="flex items-center gap-2.5 group">
           <NextImage
             src="/maliup-logo.png"
             alt="Mali Up logo"
@@ -77,7 +78,7 @@ export function Nav() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
           {links.map((link) => {
-            const isActive = activeLink === link.href
+            const isActive = `/${activeLink}` === link.href
             return (
               <a
                 key={link.href}
@@ -151,7 +152,7 @@ export function Nav() {
             href={link.href}
             onClick={() => setMenuOpen(false)}
             className="font-medium transition-colors py-1"
-            style={{ color: activeLink === link.href ? "#F5A623" : "rgba(12,27,46,0.68)" }}
+            style={{ color: `/${activeLink}` === link.href ? "#F5A623" : "rgba(12,27,46,0.68)" }}
           >
             {link.label}
           </a>

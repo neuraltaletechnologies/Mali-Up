@@ -210,7 +210,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     // needs its own nudge to refetch or the new business won't appear (or
     // become selectable) until the shell itself is torn down and rebuilt.
     // Mirrors DashboardScreen's listener on the same notifier.
-    BusinessProfileService.updatedNotifier.addListener(_onBusinessProfileUpdated);
+    BusinessProfileService.updatedNotifier.addListener(
+      _onBusinessProfileUpdated,
+    );
     _loadNavSlotOverrides();
     _liveActivity.initialize();
     // The version-gate fetch kicked off in main.dart may still be in flight
@@ -931,22 +933,19 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        // Laptop/tablet: a floating full-height card inset from the screen
-        // edges, rounded on all four corners (there is no bottom nav there).
-        // Phones: flush to the left edge, rounded on the right only.
-        final wide = Responsive.isWide(dialogContext);
-        final panelRadius = wide
-            ? BorderRadius.circular(24)
-            : const BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              );
+        // Every screen size: a real sidebar — flush to the left edge and
+        // full height, rounded only on its inner (right) corners. (Wide
+        // screens used to inset it as a floating card, which read as a
+        // separate component rather than the app's side bar.)
+        const panelRadius = BorderRadius.only(
+          topRight: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        );
         return Stack(
           children: [
             Align(
               alignment: Alignment.centerLeft,
               child: SafeArea(
-                minimum: wide ? const EdgeInsets.all(12) : EdgeInsets.zero,
                 left: false,
                 // Bottom is NOT excluded here (unlike the header SafeArea
                 // below) — on devices with on-screen nav buttons or a tall
@@ -1908,17 +1907,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       _planActivationWatcher
           .checkForActivation(businessId, status.tier, status.activatedAt)
           .then((shouldCelebrate) {
-        if (!context.mounted || !shouldCelebrate) return;
-        // Don't drop the popup on top of the "switching…" spinner (doing so
-        // used to strand that dialog). The activation is already recorded,
-        // so this just skips that one crowded moment.
-        if (_switchingDialogOpen) return;
-        PlanActivatedDialog.show(
-          context,
-          tier: status.tier,
-          defs: status.definitions,
-        );
-      });
+            if (!context.mounted || !shouldCelebrate) return;
+            // Don't drop the popup on top of the "switching…" spinner (doing so
+            // used to strand that dialog). The activation is already recorded,
+            // so this just skips that one crowded moment.
+            if (_switchingDialogOpen) return;
+            PlanActivatedDialog.show(
+              context,
+              tier: status.tier,
+              defs: status.definitions,
+            );
+          });
     });
 
     return PopScope(
@@ -1989,79 +1988,79 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                   children: [
                     _StatusBarBlur(darkHeader: darkHeader),
                     SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12.0,
-                      vertical: 4.0,
-                    ),
-                    child: Container(
-                      height: 46,
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Notifications moved into the nav panel itself (see
-                          // _openNavigationPanel) — this small pulsing dot is
-                          // the only thing left in the top bar, just enough to
-                          // say "there's something waiting for you in there".
-                          // The key just gives the tour a stable target to
-                          // measure — it doesn't change anything about how
-                          // this button renders or behaves.
-                          KeyedSubtree(
-                            key: _tourKeys['menu']!,
-                            child: _MenuToggleButton(
-                              tooltip: _tr(
-                                'Open navigation menu',
-                                'Fungua menyu ya urambazaji',
-                              ),
-                              onPressed: () => _openNavigationPanel(
-                                context: context,
-                                location: location,
-                                profile: profile,
-                                ps: ps,
-                                member: member,
-                                planStatus: planStatus,
-                              ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: _FinanceContextSwitcher(
-                                  selectedContext: selectedContext,
-                                  canSwitch: canSwitch,
-                                  businesses: businesses,
-                                  isOnline: isOnline,
-                                  isSyncing: isSyncing,
-                                  onChanged: _switchFinanceContext,
-                                  onManageBusinesses: () async {
-                                    await context.push(
-                                      AppRouter.businessesPath,
-                                    );
-                                    _refreshProfile();
-                                  },
-                                ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12.0,
+                          vertical: 4.0,
+                        ),
+                        child: Container(
+                          height: 46,
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
                             ],
                           ),
-                        ],
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Notifications moved into the nav panel itself (see
+                              // _openNavigationPanel) — this small pulsing dot is
+                              // the only thing left in the top bar, just enough to
+                              // say "there's something waiting for you in there".
+                              // The key just gives the tour a stable target to
+                              // measure — it doesn't change anything about how
+                              // this button renders or behaves.
+                              KeyedSubtree(
+                                key: _tourKeys['menu']!,
+                                child: _MenuToggleButton(
+                                  tooltip: _tr(
+                                    'Open navigation menu',
+                                    'Fungua menyu ya urambazaji',
+                                  ),
+                                  onPressed: () => _openNavigationPanel(
+                                    context: context,
+                                    location: location,
+                                    profile: profile,
+                                    ps: ps,
+                                    member: member,
+                                    planStatus: planStatus,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: _FinanceContextSwitcher(
+                                      selectedContext: selectedContext,
+                                      canSwitch: canSwitch,
+                                      businesses: businesses,
+                                      isOnline: isOnline,
+                                      isSyncing: isSyncing,
+                                      onChanged: _switchFinanceContext,
+                                      onManageBusinesses: () async {
+                                        await context.push(
+                                          AppRouter.businessesPath,
+                                        );
+                                        _refreshProfile();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
                   ],
                 ),
               ),
@@ -2079,82 +2078,88 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
               bottomNavigationBar: Responsive.isWide(context)
                   ? null
                   : ValueListenableBuilder<int>(
-                valueListenable: sheetOpenNotifier,
-                builder: (_, sheetCount, child) => ClipRect(
-                  child: AnimatedAlign(
-                    alignment: Alignment.topCenter,
-                    heightFactor: sheetCount > 0 ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 280),
-                    curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
-                    child: child,
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        24,
-                        8,
-                        24,
-                        MediaQuery.of(context).padding.bottom > 0
-                            ? MediaQuery.of(context).padding.bottom + 8
-                            : 16.0,
+                      valueListenable: sheetOpenNotifier,
+                      builder: (_, sheetCount, child) => ClipRect(
+                        child: AnimatedAlign(
+                          alignment: Alignment.topCenter,
+                          heightFactor: sheetCount > 0 ? 0.0 : 1.0,
+                          duration: const Duration(milliseconds: 280),
+                          curve: sheetCount > 0
+                              ? Curves.easeIn
+                              : Curves.easeOut,
+                          child: child,
+                        ),
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.navyPrimary,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.28),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              24,
+                              8,
+                              24,
+                              MediaQuery.of(context).padding.bottom > 0
+                                  ? MediaQuery.of(context).padding.bottom + 8
+                                  : 16.0,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: List.generate(destinations.length, (index) {
-                            final destination = destinations[index];
-                            final isSelected = index == currentIndex;
-                            final isCustomizable =
-                                destination.slotPosition != null;
-                            return _buildBottomNavItem(
-                              context,
-                              destination,
-                              isSelected,
-                              index,
-                              onLongPressStart: !isCustomizable
-                                  ? null
-                                  : (details) => _startNavPick(
-                                      context,
-                                      ps,
-                                      destination,
-                                      details.globalPosition,
-                                    ),
-                              onLongPressMoveUpdate: !isCustomizable
-                                  ? null
-                                  : (details) =>
-                                        _updateNavPick(details.globalPosition),
-                              onLongPressEnd: !isCustomizable
-                                  ? null
-                                  : (_) => _endNavPick(),
-                              onLongPressCancel: !isCustomizable
-                                  ? null
-                                  : _cancelNavPick,
-                            );
-                          }),
-                        ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.navyPrimary,
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.28),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: List.generate(destinations.length, (
+                                  index,
+                                ) {
+                                  final destination = destinations[index];
+                                  final isSelected = index == currentIndex;
+                                  final isCustomizable =
+                                      destination.slotPosition != null;
+                                  return _buildBottomNavItem(
+                                    context,
+                                    destination,
+                                    isSelected,
+                                    index,
+                                    onLongPressStart: !isCustomizable
+                                        ? null
+                                        : (details) => _startNavPick(
+                                            context,
+                                            ps,
+                                            destination,
+                                            details.globalPosition,
+                                          ),
+                                    onLongPressMoveUpdate: !isCustomizable
+                                        ? null
+                                        : (details) => _updateNavPick(
+                                            details.globalPosition,
+                                          ),
+                                    onLongPressEnd: !isCustomizable
+                                        ? null
+                                        : (_) => _endNavPick(),
+                                    onLongPressCancel: !isCustomizable
+                                        ? null
+                                        : _cancelNavPick,
+                                  );
+                                }),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             );
           },
         ),
@@ -2416,6 +2421,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
   final bool isOnline;
+
   /// True only for the catch-up sync that runs when connectivity returns —
   /// not the routine background sync after every write. Keeps the pill's
   /// "Syncing…" badge from flickering on every edit.
@@ -2630,9 +2636,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
           onTap: canSwitch
               ? () => _openBusinessSwitcherSheet(context, selectedBusinessId)
               : null,
-          onDoubleTap: canSwitch
-              ? () => _switchToNextBusiness(context)
-              : null,
+          onDoubleTap: canSwitch ? () => _switchToNextBusiness(context) : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -2975,10 +2979,7 @@ class _PillNotchPainter extends CustomPainter {
   // asserts against that).
   static const double _overshoot = 1;
 
-  const _PillNotchPainter({
-    required this.t,
-  })  : capRadius = 20,
-        notchRadius = 22;
+  const _PillNotchPainter({required this.t}) : capRadius = 20, notchRadius = 22;
 
   Path _tabPath(Size size) {
     final w = size.width + _overshoot;
