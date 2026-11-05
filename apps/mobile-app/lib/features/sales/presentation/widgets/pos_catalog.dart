@@ -38,11 +38,11 @@ class PosCartLine {
 /// Read-only helpers over an inventory map.
 extension PosProduct on Map<String, dynamic> {
   String get posName => (this['name'] ?? '').toString();
-  String get posCategory => (this['categoryName'] ?? this['category'] ?? '')
-      .toString()
-      .trim();
+  String get posCategory =>
+      (this['categoryName'] ?? this['category'] ?? '').toString().trim();
   String get posImageUrl => (this['imageUrl'] ?? '').toString().trim();
-  double get posPrice => parseUnitPrice(this['unitPrice'] ?? this['price'] ?? 0);
+  double get posPrice =>
+      parseUnitPrice(this['unitPrice'] ?? this['price'] ?? 0);
   bool get posIsService => (this['productType'] ?? '').toString() == 'service';
   int get posStock => parseStock(this['currentStock'] ?? this['stock'] ?? 0);
   bool get posOutOfStock => !posIsService && posStock <= 0;
@@ -66,11 +66,10 @@ List<Map<String, dynamic>> filterPosProducts(
         (p['barcode'] ?? '').toString().toLowerCase().contains(q);
   }
 
-  return products.where(matches).toList()
-    ..sort((a, b) {
-      if (a.posOutOfStock != b.posOutOfStock) return a.posOutOfStock ? 1 : -1;
-      return a.posName.toLowerCase().compareTo(b.posName.toLowerCase());
-    });
+  return products.where(matches).toList()..sort((a, b) {
+    if (a.posOutOfStock != b.posOutOfStock) return a.posOutOfStock ? 1 : -1;
+    return a.posName.toLowerCase().compareTo(b.posName.toLowerCase());
+  });
 }
 
 List<String> posCategories(List<Map<String, dynamic>> products) {
@@ -83,6 +82,9 @@ List<String> posCategories(List<Map<String, dynamic>> products) {
 
 // ── Sell | History toggle ────────────────────────────────────────────────────
 
+/// Sell | History switch for the navy Sales header, sitting beside the
+/// search button. A 40px capsule matching [HeaderIconButton]: icons only on
+/// phones, icon + label on wide or landscape screens.
 class PosModeToggle extends StatelessWidget {
   final bool historyMode;
   final ValueChanged<bool> onChanged;
@@ -93,67 +95,76 @@ class PosModeToggle extends StatelessWidget {
     required this.onChanged,
   });
 
+  static bool _showLabels(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return size.width >= 600 || size.width > size.height;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final labels = _showLabels(context);
+
     Widget seg(String label, IconData icon, bool selected, bool value) {
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => onChanged(value),
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: selected
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x140D1B3E),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: selected ? AppColors.navyPrimary : AppColors.textMuted,
-                ),
+      final fg = selected ? AppColors.navyPrimary : Colors.white70;
+      final button = GestureDetector(
+        onTap: () => onChanged(value),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 34,
+          padding: EdgeInsets.symmetric(horizontal: labels ? 12 : 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              if (labels) ...[
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    color:
-                        selected ? AppColors.navyPrimary : AppColors.textMuted,
+                    color: fg,
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ),
+      );
+      return Semantics(
+        button: true,
+        selected: selected,
+        child: labels ? button : Tooltip(message: label, child: button),
       );
     }
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 320),
+      height: 40,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          seg(_tr('Sell', 'Uza'), Icons.point_of_sale_rounded, !historyMode,
-              false),
-          seg(_tr('History', 'Historia'), Icons.receipt_long_rounded,
-              historyMode, true),
+          seg(
+            _tr('Sell', 'Uza'),
+            Icons.point_of_sale_rounded,
+            !historyMode,
+            false,
+          ),
+          seg(
+            _tr('History', 'Historia'),
+            Icons.receipt_long_rounded,
+            historyMode,
+            true,
+          ),
         ],
       ),
     );
@@ -237,8 +248,11 @@ Color _tileColorFor(String name) =>
     _tileColors[name.isEmpty ? 0 : name.codeUnitAt(0) % _tileColors.length];
 
 String _initials(String name) {
-  final parts =
-      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return '?';
   if (parts.length == 1) return parts.first.characters.first.toUpperCase();
   return (parts[0].characters.first + parts[1].characters.first).toUpperCase();
@@ -259,8 +273,11 @@ class PosProductImage extends StatelessWidget {
       color: _tileColorFor(product.posName),
       alignment: Alignment.center,
       child: product.posIsService
-          ? Icon(Icons.design_services_outlined,
-              size: fontSize * 1.2, color: AppColors.navyPrimary)
+          ? Icon(
+              Icons.design_services_outlined,
+              size: fontSize * 1.2,
+              color: AppColors.navyPrimary,
+            )
           : Text(
               _initials(product.posName),
               style: GoogleFonts.dmSans(
@@ -346,7 +363,9 @@ class _PosProductCardState extends State<_PosProductCard> {
     final p = widget.product;
     final disabled = p.posOutOfStock;
     return MouseRegion(
-      cursor: disabled ? SystemMouseCursors.forbidden : SystemMouseCursors.click,
+      cursor: disabled
+          ? SystemMouseCursors.forbidden
+          : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
@@ -606,11 +625,7 @@ class _RoundIconButton extends StatelessWidget {
   final bool filled;
   final VoidCallback? onTap;
 
-  const _RoundIconButton({
-    required this.icon,
-    this.filled = false,
-    this.onTap,
-  });
+  const _RoundIconButton({required this.icon, this.filled = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -667,13 +682,15 @@ class PosCartBar extends StatelessWidget {
               IconButton(
                 onPressed: onClear,
                 tooltip: _tr('Clear cart', 'Futa kikapu'),
-                icon: const Icon(Icons.close_rounded,
-                    color: Colors.white70, size: 20),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white70,
+                  size: 20,
+                ),
                 visualDensity: VisualDensity.compact,
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.yellowBrand,
                   borderRadius: BorderRadius.circular(99),
@@ -707,8 +724,11 @@ class PosCartBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_forward_rounded,
-                  color: AppColors.yellowBrand, size: 18),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.yellowBrand,
+                size: 18,
+              ),
             ],
           ),
         ),
@@ -728,8 +748,11 @@ class _PosEmpty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.inventory_2_outlined,
-                size: 40, color: AppColors.textMuted),
+            const Icon(
+              Icons.inventory_2_outlined,
+              size: 40,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Text(
               _tr('No products found', 'Hakuna bidhaa'),
@@ -741,11 +764,15 @@ class _PosEmpty extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              _tr('Add products in Stock to sell them here.',
-                  'Ongeza bidhaa kwenye ukurasa wa Bidhaa ili uziuze hapa.'),
+              _tr(
+                'Add products in Stock to sell them here.',
+                'Ongeza bidhaa kwenye ukurasa wa Bidhaa ili uziuze hapa.',
+              ),
               textAlign: TextAlign.center,
-              style:
-                  GoogleFonts.dmSans(fontSize: 12.5, color: AppColors.textMuted),
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),

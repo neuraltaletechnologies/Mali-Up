@@ -11,7 +11,7 @@ import '../../../../core/utils/responsive.dart';
 ///   sheet starts at [_phoneSheetSize] of the screen so a good part of the
 ///   image stays visible; drag or scroll it up to [_phoneSheetMax].
 /// - Wide (laptop/desktop, tablet in landscape — [Responsive.isWide]): the
-///   form is a floating rounded card on the left and the image fills the
+///   form is a floating rounded card on the right and the image fills the
 ///   rest of the screen at full height, so it is seen whole instead of as a
 ///   thin cropped strip.
 class OnboardingLayout {
@@ -40,10 +40,10 @@ class OnboardingHero extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     if (Responsive.isWide(context)) {
       return Positioned(
-        left: OnboardingLayout._wideCardWidth(size) +
-            OnboardingLayout._wideInset * 2,
+        left: 0,
         top: 0,
-        right: 0,
+        right: OnboardingLayout._wideCardWidth(size) +
+            OnboardingLayout._wideInset * 2,
         bottom: 0,
         child: child,
       );
@@ -99,13 +99,13 @@ class _OnboardingSheetState extends State<OnboardingSheet> {
     // Stack full-screen; the card is then placed inside it.
     return SizedBox.expand(
       child: Align(
-        alignment: Alignment.topLeft,
+        alignment: Alignment.topRight,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-            inset,
+            0,
             // Leave room above the card for the screen's back / help buttons.
             mq.padding.top + 72,
-            0,
+            inset,
             inset + mq.padding.bottom,
           ),
           child: SizedBox(

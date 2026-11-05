@@ -419,12 +419,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   /// with the cart (the sale form) docked on the right; phones show a list
   /// with round images and a cart bar that opens checkout.
   Widget _buildSellView(bool wide) {
-    final all = ref.watch(inventoryItemListProvider).valueOrNull ??
+    final all =
+        ref.watch(inventoryItemListProvider).valueOrNull ??
         const <Map<String, dynamic>>[];
     final categories = posCategories(all);
     final category = categories.contains(_category) ? _category : null;
-    final products =
-        filterPosProducts(all, query: _query, category: category);
+    final products = filterPosProducts(all, query: _query, category: category);
     final navLift = NavBarLift.of(context);
     final categoryBar = PosCategoryBar(
       categories: categories,
@@ -450,19 +450,23 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               ],
             ),
           ),
+          // Docked cart: flush against the right edge like a till's ticket
+          // rail, rounded only on its inner (left) corners.
           Container(
             width: 400,
-            margin: EdgeInsets.fromLTRB(0, 0, 16, navLift + 16),
+            margin: EdgeInsets.only(bottom: navLift + 16),
             clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-              boxShadow: const [
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                bottomLeft: Radius.circular(24),
+              ),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x140D1B3E),
-                  blurRadius: 18,
-                  offset: Offset(0, 6),
+                  color: Color(0x1A0D1B3E),
+                  blurRadius: 20,
+                  offset: Offset(-4, 4),
                 ),
               ],
             ),
@@ -608,84 +612,89 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   if (!_searchExpanded) _query = '';
                 }),
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
+                modeToggle: !ps.canCreateSale
+                    ? null
+                    : PosModeToggle(
+                        historyMode: _historyMode,
+                        onChanged: (v) => setState(() {
+                          if (_historyMode == v) return;
+                          _historyMode = v;
+                          _searchExpanded = false;
+                          _query = '';
+                        }),
+                      ),
                 searchHint: selling
-                    ? _tr('Product name, SKU or barcode…',
-                        'Jina la bidhaa, SKU au barcode…')
+                    ? _tr(
+                        'Product name, SKU or barcode…',
+                        'Jina la bidhaa, SKU au barcode…',
+                      )
                     : null,
                 onFilterTap: selling
                     ? null
                     : () => showAppSheet<void>(
-                          context,
-                          builder: (_) => _SalesFilterSheet(
-                            selected: _filter,
-                            onApply: (f) => setState(() => _filter = f),
-                          ),
+                        context,
+                        builder: (_) => _SalesFilterSheet(
+                          selected: _filter,
+                          onApply: (f) => setState(() => _filter = f),
                         ),
+                      ),
               ),
               const SizedBox(height: HeaderStatsPill.pillHalf + 8),
-              if (ps.canCreateSale)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: PosModeToggle(
-                    historyMode: _historyMode,
-                    onChanged: (v) => setState(() {
-                      if (_historyMode == v) return;
-                      _historyMode = v;
-                      _searchExpanded = false;
-                      _query = '';
-                    }),
-                  ),
-                ),
               if (!selling && _filter != _SalesFilter.all)
                 _ActiveSalesFilterChip(
                   filter: _filter,
                   onRemove: () => setState(() => _filter = _SalesFilter.all),
                 ),
               Expanded(
-                child: selling ? _buildSellView(wide) : SilentRefresh(
-                  onRefresh: () => triggerSilentSync(context, ref),
-                  child: filtered.isEmpty
-                      ? SingleChildScrollView(
-                          physics: silentRefreshPhysics,
-                          child: _EmptySalesState(filter: _filter),
-                        )
-                      : ListView.builder(
-                          physics: silentRefreshPhysics,
-                          padding: const EdgeInsets.only(bottom: 104),
-                          itemCount: filtered.length,
-                          itemBuilder: (ctx, i) {
-                            final item = filtered[i];
-                            return ListSwipeCard(
-                              itemKey: ValueKey(item['id'] ?? i),
-                              onEdit: () => Navigator.of(ctx).push(
-                                MaterialPageRoute(
-                                  builder: (_) => InvoiceDetailScreen(
-                                    invoice: Map<String, dynamic>.from(item),
-                                  ),
-                                ),
+                child: selling
+                    ? _buildSellView(wide)
+                    : SilentRefresh(
+                        onRefresh: () => triggerSilentSync(context, ref),
+                        child: filtered.isEmpty
+                            ? SingleChildScrollView(
+                                physics: silentRefreshPhysics,
+                                child: _EmptySalesState(filter: _filter),
+                              )
+                            : ListView.builder(
+                                physics: silentRefreshPhysics,
+                                padding: const EdgeInsets.only(bottom: 104),
+                                itemCount: filtered.length,
+                                itemBuilder: (ctx, i) {
+                                  final item = filtered[i];
+                                  return ListSwipeCard(
+                                    itemKey: ValueKey(item['id'] ?? i),
+                                    onEdit: () => Navigator.of(ctx).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => InvoiceDetailScreen(
+                                          invoice: Map<String, dynamic>.from(
+                                            item,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    onDelete: ps.canDeleteSale
+                                        ? () => _deleteSale(ctx, ref, item)
+                                        : null,
+                                    child: _InvoiceCard(
+                                      item: item,
+                                      isLast: i == filtered.length - 1,
+                                      onTap: () => showAppSheet<void>(
+                                        ctx,
+                                        builder: (_) => _SaleInfoSheet(
+                                          item: Map<String, dynamic>.from(item),
+                                        ),
+                                      ),
+                                      onReceiptAction: () =>
+                                          _openReceiptActions(
+                                            context: ctx,
+                                            sale: item,
+                                            ref: ref,
+                                          ),
+                                    ),
+                                  );
+                                },
                               ),
-                              onDelete: ps.canDeleteSale
-                                  ? () => _deleteSale(ctx, ref, item)
-                                  : null,
-                              child: _InvoiceCard(
-                                item: item,
-                                isLast: i == filtered.length - 1,
-                                onTap: () => showAppSheet<void>(
-                                  ctx,
-                                  builder: (_) => _SaleInfoSheet(
-                                    item: Map<String, dynamic>.from(item),
-                                  ),
-                                ),
-                                onReceiptAction: () => _openReceiptActions(
-                                  context: ctx,
-                                  sale: item,
-                                  ref: ref,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
+                      ),
               ),
             ],
           );
@@ -883,7 +892,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           businessEmail: meta['businessEmail'] ?? '',
           businessAddress: meta['businessAddress'] ?? '',
           businessLogoUrl: meta['businessLogoUrl'] ?? '',
-          subject: _tr('Receipt', 'Risiti') +
+          subject:
+              _tr('Receipt', 'Risiti') +
               ' ${sale['invoiceNumber'] ?? sale['id'] ?? ''}'.trimRight(),
         );
       } catch (_) {
@@ -935,7 +945,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               _ReceiptAction(
                 icon: Icons.ios_share_rounded,
                 iconColor: AppColors.tealAccent,
-                label: _tr('Share PDF (WhatsApp, Email…)', 'Shiriki PDF (WhatsApp, Barua pepe…)'),
+                label: _tr(
+                  'Share PDF (WhatsApp, Email…)',
+                  'Shiriki PDF (WhatsApp, Barua pepe…)',
+                ),
                 onTap: () => sharePdf(ctx),
               ),
               _ReceiptAction(
@@ -1008,6 +1021,10 @@ class _SalesDarkHeader extends StatefulWidget {
   final VoidCallback? onFilterTap;
   final String? searchHint;
 
+  /// Sell | History switch shown beside the search button; null hides it
+  /// (no permission to create sales).
+  final Widget? modeToggle;
+
   const _SalesDarkHeader({
     required this.todayRevenue,
     required this.pendingTotal,
@@ -1018,6 +1035,7 @@ class _SalesDarkHeader extends StatefulWidget {
     required this.onSearchChanged,
     required this.onFilterTap,
     this.searchHint,
+    this.modeToggle,
   });
 
   @override
@@ -1072,6 +1090,10 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
       actions: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.modeToggle != null) ...[
+            widget.modeToggle!,
+            const SizedBox(width: 10),
+          ],
           HeaderIconButton(
             icon: widget.searchExpanded
                 ? Icons.close_rounded
@@ -1094,7 +1116,8 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
         controller: _ctrl,
         focusNode: _focus,
         onChanged: widget.onSearchChanged,
-        hintText: widget.searchHint ??
+        hintText:
+            widget.searchHint ??
             _tr(
               'Customer name or invoice #…',
               'Jina la mteja au namba ya ankara…',
@@ -1498,8 +1521,11 @@ class _InvoiceCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.undo_rounded,
-                                  size: 8, color: AppColors.tealAccent),
+                              const Icon(
+                                Icons.undo_rounded,
+                                size: 8,
+                                color: AppColors.tealAccent,
+                              ),
                               const SizedBox(width: 2),
                               Text(
                                 _tr('Returned', 'Imerudishwa'),
@@ -1806,6 +1832,10 @@ class _ItemEntry {
   /// advisory under the qty stepper. Null otherwise.
   String? recurringNote;
 
+  /// A picked product shows as a compact cart line; tapping it sets this to
+  /// show the full editor (name / price / qty) until "Done".
+  bool editing = false;
+
   _ItemEntry({String name = '', String price = ''})
     : nameCtrl = TextEditingController(text: name),
       priceCtrl = TextEditingController(text: price),
@@ -1851,7 +1881,8 @@ class _ItemEntry {
 
   bool get _isService => (selectedItem?['productType'] as String?) == 'service';
 
-  String get billingCycle => (selectedItem?['billingCycle'] as String?) ?? 'once';
+  String get billingCycle =>
+      (selectedItem?['billingCycle'] as String?) ?? 'once';
   bool get isRecurringService => _isService && billingCycle != 'once';
 
   int get maxStock {
@@ -2016,11 +2047,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // This is the guided first-run journey's true end: cash flow set up,
       // a product added, and now a first sale made. No-ops if this sheet
       // wasn't reached via that journey.
-      onFullyComplete: () => OnboardingJourney.advanceFrom(
-        context,
-        AppRoutes.sales,
-        null,
-      ),
+      onFullyComplete: () =>
+          OnboardingJourney.advanceFrom(context, AppRoutes.sales, null),
     );
   }
 
@@ -2078,8 +2106,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     final entry = blank ?? _newEntry();
     _selectProduct(entry, product);
     if (entry.isOutOfStock) {
-      _snack(_tr('${product.posName} is out of stock.',
-          '${product.posName} imekwisha stokuni.'));
+      _snack(
+        _tr(
+          '${product.posName} is out of stock.',
+          '${product.posName} imekwisha stokuni.',
+        ),
+      );
     }
     if (blank == null) setState(() => _items.add(entry));
     if (_errorField == _ErrorField.items) setState(() => _errorMsg = null);
@@ -2208,6 +2240,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       entry.showSuggs = false;
       entry.qty = 1;
       entry.recurringNote = null;
+      entry.editing = false;
     });
     if (entry.isRecurringService) _prefillRecurringPeriods(entry);
   }
@@ -2959,36 +2992,26 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          if (widget.embedded)
-            const SizedBox(height: 14)
-          else
-            _buildHandle(),
+          if (widget.embedded) const SizedBox(height: 16) else _buildHandle(),
           _buildHeader(),
-          const Divider(height: 1, color: AppColors.border),
+          const Divider(height: 1, color: AppColors.borderLight),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 16,
-                12,
+                4,
                 16,
                 MediaQuery.of(context).viewInsets.bottom + 16,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildItemsSection(),
+                  KeyedSubtree(key: _tourItemKey, child: _buildItemsSection()),
                   _buildFieldError(_ErrorField.items),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   _buildTotalsSection(),
-                  const SizedBox(height: 16),
-                  Text(
-                    _tr('Payment', 'Malipo'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
+                  const SizedBox(height: 18),
+                  const _CartSectionLabel(en: 'Payment', sw: 'Malipo'),
                   const SizedBox(height: 8),
                   _buildPaymentSection(),
                   _buildFieldError(_ErrorField.payment),
@@ -3009,21 +3032,52 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildHandle() => const SheetHandle();
 
   Widget _buildHeader() {
+    final count = _items
+        .where(
+          (e) => e.selectedItem != null || e.nameCtrl.text.trim().isNotEmpty,
+        )
+        .fold<int>(0, (n, e) => n + e.qty);
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 12),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              widget.embedded
-                  ? _tr('Current Sale', 'Mauzo ya Sasa')
-                  : _tr('Add Sale', 'Ongeza Mauzo'),
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.embedded
+                      ? _tr('Current Sale', 'Mauzo ya Sasa')
+                      : _tr('Add Sale', 'Ongeza Mauzo'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$count ${count == 1 ? _tr('item', 'bidhaa') : _tr('items', 'bidhaa')}'
+                  ' · ${_fmtDate(now)}, $time',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
+          ),
+          IconButton(
+            onPressed: _isSaving ? null : _openPosScanner,
+            tooltip: _tr('Scan mode', 'Hali ya skani'),
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+            color: AppColors.tealAccent,
+            visualDensity: VisualDensity.compact,
           ),
           if (widget.embedded)
             IconButton(
@@ -3234,52 +3288,45 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
-        8,
+        12,
         16,
         // Docked POS cart: its card already sits clear of the screen edge.
-        (widget.embedded ? 0 : MediaQuery.paddingOf(context).bottom) + 8,
+        (widget.embedded ? 0 : MediaQuery.paddingOf(context).bottom) + 12,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.border)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x120D1B3E),
-            blurRadius: 18,
-            offset: Offset(0, -4),
-          ),
-        ],
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Total', 'Jumla'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                _tr('Total', 'Jumla'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
-                  'TSh ${_grandTotal.toStringAsFixed(0)}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                  ),
+              ),
+              const Spacer(),
+              Text(
+                'TSh ${_sNum(_grandTotal)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
+          const SizedBox(height: 10),
           SizedBox(
             key: _tourSaveKey,
-            width: 176,
+            width: double.infinity,
             child: _buildSaveButton(),
           ),
         ],
@@ -3420,100 +3467,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Widget _buildItemsSection() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text(
-              _tr('Products', 'Bidhaa'),
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const Spacer(),
-            // POS continuous scan button
-            GestureDetector(
-              onTap: _openPosScanner,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.tealAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.tealAccent.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      size: 14,
-                      color: AppColors.tealAccent,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      _tr('Scan Mode', 'Skani'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.tealAccent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${_items.length} ${_tr("item", "bidhaa")}${_items.length != 1 ? "s" : ""}',
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
         for (var i = 0; i < _items.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: AppColors.borderLight),
           _buildItemRow(i),
-          const SizedBox(height: 6),
         ],
-        InkWell(
-          onTap: _addItem,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary.withValues(alpha: 0.06),
-              border: Border.all(
-                color: AppColors.navyPrimary.withValues(alpha: 0.25),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _addItem,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(
+              _tr('Add item', 'Ongeza bidhaa'),
+              style: GoogleFonts.dmSans(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
-              borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.add_circle_outline_rounded,
-                  size: 18,
-                  color: AppColors.navyPrimary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _tr('Add Item', 'Ongeza Bidhaa'),
-                  style: GoogleFonts.dmSans(
-                    color: AppColors.navyPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.tealAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
             ),
           ),
         ),
@@ -3523,411 +3499,145 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Widget _buildItemRow(int index) {
     final entry = _items[index];
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: entry.isOutOfStock
-              ? AppColors.error.withValues(alpha: 0.4)
-              : AppColors.border,
+    if (entry.selectedItem != null && !entry.editing && !entry.showSuggs) {
+      return _buildCartLine(index);
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: _buildItemEditor(index),
+    );
+  }
+
+  /// Minus at qty 1 takes the line off the ticket (the last line is
+  /// emptied instead, so there is always a row to search from).
+  void _decrementLine(int index) {
+    final entry = _items[index];
+    if (entry.qty > 1) {
+      setState(() {
+        entry.qty--;
+        entry.recurringNote = null;
+      });
+      return;
+    }
+    if (_items.length > 1) {
+      _removeItem(index);
+      return;
+    }
+    entry.nameCtrl.clear();
+    entry.priceCtrl.clear();
+    setState(() {
+      entry.selectedItem = null;
+      entry.basePrice = null;
+      entry.editing = false;
+      entry.qty = 1;
+      entry.recurringNote = null;
+    });
+  }
+
+  /// A picked product as a till-receipt line: thumbnail, name, unit price,
+  /// qty stepper and line total. Tap it to edit the price or product.
+  Widget _buildCartLine(int index) {
+    final entry = _items[index];
+    final product = entry.selectedItem!;
+    final canAdd = entry.qty < entry.maxStock;
+    final pct = entry.priceChangePct;
+
+    final meta = <InlineSpan>[
+      TextSpan(text: 'TSh ${_sNum(entry.unitPrice)}'),
+      if (pct != null)
+        TextSpan(
+          text: '  ${pct < 0 ? '−' : '+'}${_pctText(pct)}',
+          style: TextStyle(
+            color: pct < 0 ? AppColors.success : AppColors.warning,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '${_tr("Item", "Bidhaa")} ${index + 1}',
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const Spacer(),
-              if (_items.length > 1)
-                GestureDetector(
-                  onTap: () => _removeItem(index),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    size: 18,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-            ],
+      if (entry.isOutOfStock)
+        TextSpan(
+          text: '  · ${_tr('Out of stock', 'Imekwisha')}',
+          style: const TextStyle(
+            color: AppColors.error,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: entry.nameCtrl,
-            autofocus: index == 0 && _items.length == 1,
-            textCapitalization: TextCapitalization.words,
-            onChanged: (_) => setState(() {}),
-            decoration: _fieldDec(
-              label: _tr('Product name', 'Jina la bidhaa'),
-              prefix: Icons.inventory_2_outlined,
-              suffix: entry.selectedItem != null
-                  ? const Icon(
-                      Icons.check_circle_rounded,
-                      color: AppColors.success,
-                      size: 20,
-                    )
-                  : (entry.nameCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, size: 18),
-                            onPressed: () {
-                              entry.nameCtrl.clear();
-                              setState(() {
-                                entry.selectedItem = null;
-                                entry.basePrice = null;
-                                entry.suggs = [];
-                                entry.showSuggs = false;
-                              });
-                            },
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.qr_code_scanner_rounded,
-                              size: 22,
-                              color: AppColors.tealAccent,
-                            ),
-                            tooltip: _tr('Scan mode', 'Hali ya skani'),
-                            onPressed: _openPosScanner,
-                          )),
-            ),
+        )
+      else if (!entry._isService && entry.maxStock <= 5)
+        TextSpan(
+          text: '  · ${entry.maxStock} ${_tr('left', 'zimebaki')}',
+          style: const TextStyle(
+            color: AppColors.warning,
+            fontWeight: FontWeight.w600,
           ),
-          if (entry.showSuggs) _buildProductSuggestions(index),
-          if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
-            Builder(
-              builder: (_) {
-                final recent = _recentlySoldProducts();
-                if (recent.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Row(
-                    children: [
-                      Text(
-                        _tr('Recent', 'Hivi karibuni'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: recent.map((item) {
-                              final name = (item['name'] ?? '').toString();
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: ActionChip(
-                                  visualDensity: VisualDensity.compact,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  labelPadding: const EdgeInsets.symmetric(
-                                    horizontal: 2,
-                                  ),
-                                  side: const BorderSide(
-                                    color: AppColors.border,
-                                  ),
-                                  backgroundColor: AppColors.surface,
-                                  label: Text(
-                                    name,
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  onPressed: () => _selectProduct(entry, item),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          if (entry.nameCtrl.text.isNotEmpty &&
-              entry.selectedItem == null &&
-              !entry.showSuggs)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: InkWell(
-                onTap: () => showAppSheet<void>(
-                  context,
-                  builder: (_) => _AddProductSheet(
-                    initialName: entry.nameCtrl.text.trim(),
-                    onAdded: (item) => _selectProduct(entry, item),
-                  ),
-                ),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.06),
-                    border: Border.all(
-                      color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.add_circle_outline_rounded,
-                        size: 15,
-                        color: AppColors.navyPrimary,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          _tr(
-                            'Add "${entry.nameCtrl.text}" to inventory',
-                            'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.dmSans(
-                            color: AppColors.navyPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: entry.priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  onChanged: (_) => setState(() {}),
-                  decoration: _fieldDec(
-                    label: _tr('Price (TSh)', 'Bei (TSh)'),
-                    prefix: Icons.payments_outlined,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 120,
-                child: TextField(
-                  controller: entry.qtyCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  textAlign: TextAlign.center,
-                  onChanged: (v) {
-                    final parsed = int.tryParse(v) ?? 1;
-                    final clamped = parsed.clamp(1, entry.maxStock);
-                    setState(() {
-                      entry._qty = clamped;
-                      entry.recurringNote = null;
-                    });
-                    if (clamped != parsed) {
-                      entry.qtyCtrl.text = '$clamped';
-                      entry.qtyCtrl.selection = TextSelection.collapsed(
-                        offset: '$clamped'.length,
-                      );
-                    }
-                  },
-                  decoration:
-                      _fieldDec(
-                        label: _tr('Qty', 'Idadi'),
-                        prefix: Icons.remove_rounded,
-                      ).copyWith(
-                        prefixIcon: GestureDetector(
-                          onTap: entry.qty > 1
-                              ? () => setState(() {
-                                  entry.qty--;
-                                  entry.recurringNote = null;
-                                })
-                              : null,
-                          child: Icon(
-                            Icons.remove_rounded,
-                            size: 18,
-                            color: entry.qty > 1
-                                ? AppColors.navyPrimary
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                        suffixIcon: GestureDetector(
-                          onTap:
-                              (entry.selectedItem == null ||
-                                  entry.qty < entry.maxStock)
-                              ? () => setState(() {
-                                  entry.qty++;
-                                  entry.recurringNote = null;
-                                })
-                              : null,
-                          child: Icon(
-                            Icons.add_rounded,
-                            size: 18,
-                            color:
-                                (entry.selectedItem == null ||
-                                    entry.qty < entry.maxStock)
-                                ? AppColors.navyPrimary
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                        helperText:
-                            entry.selectedItem != null &&
-                                !entry._isService &&
-                                entry.maxStock < 9999
-                            ? '/ ${entry.maxStock}'
-                            : null,
-                        helperStyle: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                ),
-              ),
-            ],
-          ),
-          if (entry.recurringNote != null) ...[
-            const SizedBox(height: 4),
+        ),
+    ];
+
+    return InkWell(
+      onTap: () => setState(() => entry.editing = true),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                const Icon(
-                  Icons.event_repeat_rounded,
-                  size: 13,
-                  color: AppColors.tealAccent,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    entry.recurringNote!,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tealAccent,
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: PosProductImage(product: product, fontSize: 15),
                   ),
                 ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (entry.selectedItem != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              (entry._isService
-                                      ? AppColors.tealAccent
-                                      : entry.isOutOfStock
-                                      ? AppColors.error
-                                      : entry.maxStock <= 5
-                                      ? AppColors.warning
-                                      : AppColors.success)
-                                  .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          entry._isService
-                              ? _tr('Service', 'Huduma')
-                              : entry.isOutOfStock
-                              ? _tr('Out of stock', 'Imekwisha')
-                              : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: entry._isService
-                                ? AppColors.tealAccent
-                                : entry.isOutOfStock
-                                ? AppColors.error
-                                : entry.maxStock <= 5
-                                ? AppColors.warning
-                                : AppColors.success,
-                          ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        entry.nameCtrl.text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: entry.isOutOfStock
+                              ? AppColors.error
+                              : AppColors.navyPrimary,
                         ),
                       ),
-                    // Manual price edit vs catalog price: below list reads as
-                    // a discount (goes on the receipt), above list is flagged
-                    // for the cashier but stays off the receipt.
-                    if (entry.priceChangePct != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              (entry.priceChangePct! < 0
-                                      ? AppColors.success
-                                      : AppColors.warning)
-                                  .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              entry.priceChangePct! < 0
-                                  ? Icons.south_rounded
-                                  : Icons.north_rounded,
-                              size: 11,
-                              color: entry.priceChangePct! < 0
-                                  ? AppColors.success
-                                  : AppColors.warning,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              entry.priceChangePct! < 0
-                                  ? '${_pctText(entry.priceChangePct!)} ${_tr("discount", "punguzo")}'
-                                  : '${_pctText(entry.priceChangePct!)} ${_tr("above price", "juu ya bei")}',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: entry.priceChangePct! < 0
-                                    ? AppColors.success
-                                    : AppColors.warning,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 2),
+                      Text.rich(
+                        TextSpan(children: meta),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (entry.lineTotal > 0)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
+                const SizedBox(width: 8),
+                _CartQtyStepper(
+                  qty: entry.qty,
+                  onMinus: () => _decrementLine(index),
+                  onPlus: canAdd
+                      ? () => setState(() {
+                          entry.qty++;
+                          entry.recurringNote = null;
+                        })
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 78,
                   child: Text(
-                    'TSh ${entry.lineTotal.toStringAsFixed(0)}',
+                    _sNum(entry.lineTotal),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -3935,10 +3645,443 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     ),
                   ),
                 ),
+              ],
+            ),
+            if (entry.recurringNote != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 50, top: 4),
+                child: Text(
+                  entry.recurringNote!,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.tealAccent,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Full line editor: product search, price and qty. Used for a line with
+  /// no product picked yet, or a cart line the cashier tapped to edit.
+  Widget _buildItemEditor(int index) {
+    final entry = _items[index];
+    final showTopRow = entry.selectedItem != null || _items.length > 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showTopRow)
+          Row(
+            children: [
+              const Spacer(),
+              if (entry.selectedItem != null)
+                TextButton(
+                  onPressed: () => setState(() {
+                    entry.editing = false;
+                    entry.showSuggs = false;
+                  }),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.tealAccent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(
+                    _tr('Done', 'Sawa'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (_items.length > 1)
+                IconButton(
+                  onPressed: () => _removeItem(index),
+                  tooltip: _tr('Remove', 'Ondoa'),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        if (showTopRow) const SizedBox(height: 2),
+        TextField(
+          controller: entry.nameCtrl,
+          autofocus: index == 0 && _items.length == 1,
+          textCapitalization: TextCapitalization.words,
+          onChanged: (_) => setState(() {}),
+          decoration: _fieldDec(
+            label: _tr('Product name', 'Jina la bidhaa'),
+            prefix: Icons.inventory_2_outlined,
+            suffix: entry.selectedItem != null
+                ? const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 20,
+                  )
+                : (entry.nameCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            entry.nameCtrl.clear();
+                            setState(() {
+                              entry.selectedItem = null;
+                              entry.basePrice = null;
+                              entry.suggs = [];
+                              entry.showSuggs = false;
+                            });
+                          },
+                        )
+                      : IconButton(
+                          icon: const Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 22,
+                            color: AppColors.tealAccent,
+                          ),
+                          tooltip: _tr('Scan mode', 'Hali ya skani'),
+                          onPressed: _openPosScanner,
+                        )),
+          ),
+        ),
+        if (entry.showSuggs) _buildProductSuggestions(index),
+        if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
+          Builder(
+            builder: (_) {
+              final recent = _recentlySoldProducts();
+              if (recent.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      _tr('Recent', 'Hivi karibuni'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: recent.map((item) {
+                            final name = (item['name'] ?? '').toString();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                side: const BorderSide(color: AppColors.border),
+                                backgroundColor: AppColors.surface,
+                                label: Text(
+                                  name,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                onPressed: () => _selectProduct(entry, item),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        if (entry.nameCtrl.text.isNotEmpty &&
+            entry.selectedItem == null &&
+            !entry.showSuggs)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: InkWell(
+              onTap: () => showAppSheet<void>(
+                context,
+                builder: (_) => _AddProductSheet(
+                  initialName: entry.nameCtrl.text.trim(),
+                  onAdded: (item) => _selectProduct(entry, item),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 15,
+                      color: AppColors.navyPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _tr(
+                          'Add "${entry.nameCtrl.text}" to inventory',
+                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.navyPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: entry.priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                onChanged: (_) => setState(() {}),
+                decoration: _fieldDec(
+                  label: _tr('Price (TSh)', 'Bei (TSh)'),
+                  prefix: Icons.payments_outlined,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: entry.qtyCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textAlign: TextAlign.center,
+                onChanged: (v) {
+                  final parsed = int.tryParse(v) ?? 1;
+                  final clamped = parsed.clamp(1, entry.maxStock);
+                  setState(() {
+                    entry._qty = clamped;
+                    entry.recurringNote = null;
+                  });
+                  if (clamped != parsed) {
+                    entry.qtyCtrl.text = '$clamped';
+                    entry.qtyCtrl.selection = TextSelection.collapsed(
+                      offset: '$clamped'.length,
+                    );
+                  }
+                },
+                decoration:
+                    _fieldDec(
+                      label: _tr('Qty', 'Idadi'),
+                      prefix: Icons.remove_rounded,
+                    ).copyWith(
+                      prefixIcon: GestureDetector(
+                        onTap: entry.qty > 1
+                            ? () => setState(() {
+                                entry.qty--;
+                                entry.recurringNote = null;
+                              })
+                            : null,
+                        child: Icon(
+                          Icons.remove_rounded,
+                          size: 18,
+                          color: entry.qty > 1
+                              ? AppColors.navyPrimary
+                              : AppColors.textMuted,
+                        ),
+                      ),
+                      suffixIcon: GestureDetector(
+                        onTap:
+                            (entry.selectedItem == null ||
+                                entry.qty < entry.maxStock)
+                            ? () => setState(() {
+                                entry.qty++;
+                                entry.recurringNote = null;
+                              })
+                            : null,
+                        child: Icon(
+                          Icons.add_rounded,
+                          size: 18,
+                          color:
+                              (entry.selectedItem == null ||
+                                  entry.qty < entry.maxStock)
+                              ? AppColors.navyPrimary
+                              : AppColors.textMuted,
+                        ),
+                      ),
+                      helperText:
+                          entry.selectedItem != null &&
+                              !entry._isService &&
+                              entry.maxStock < 9999
+                          ? '/ ${entry.maxStock}'
+                          : null,
+                      helperStyle: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+              ),
+            ),
+          ],
+        ),
+        if (entry.recurringNote != null) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(
+                Icons.event_repeat_rounded,
+                size: 13,
+                color: AppColors.tealAccent,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  entry.recurringNote!,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.tealAccent,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
-      ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (entry.selectedItem != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (entry._isService
+                                    ? AppColors.tealAccent
+                                    : entry.isOutOfStock
+                                    ? AppColors.error
+                                    : entry.maxStock <= 5
+                                    ? AppColors.warning
+                                    : AppColors.success)
+                                .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        entry._isService
+                            ? _tr('Service', 'Huduma')
+                            : entry.isOutOfStock
+                            ? _tr('Out of stock', 'Imekwisha')
+                            : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: entry._isService
+                              ? AppColors.tealAccent
+                              : entry.isOutOfStock
+                              ? AppColors.error
+                              : entry.maxStock <= 5
+                              ? AppColors.warning
+                              : AppColors.success,
+                        ),
+                      ),
+                    ),
+                  // Manual price edit vs catalog price: below list reads as
+                  // a discount (goes on the receipt), above list is flagged
+                  // for the cashier but stays off the receipt.
+                  if (entry.priceChangePct != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (entry.priceChangePct! < 0
+                                    ? AppColors.success
+                                    : AppColors.warning)
+                                .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            entry.priceChangePct! < 0
+                                ? Icons.south_rounded
+                                : Icons.north_rounded,
+                            size: 11,
+                            color: entry.priceChangePct! < 0
+                                ? AppColors.success
+                                : AppColors.warning,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            entry.priceChangePct! < 0
+                                ? '${_pctText(entry.priceChangePct!)} ${_tr("discount", "punguzo")}'
+                                : '${_pctText(entry.priceChangePct!)} ${_tr("above price", "juu ya bei")}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: entry.priceChangePct! < 0
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (entry.lineTotal > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  'TSh ${entry.lineTotal.toStringAsFixed(0)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -4105,19 +4248,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(
               children: [
                 _TotalRow(
                   label: _tr('Subtotal', 'Jumla ya bidhaa'),
-                  value: 'TSh ${_subtotal.toStringAsFixed(0)}',
+                  value: 'TSh ${_sNum(_subtotal)}',
                 ),
+                if (_discountAmt > 0) ...[
+                  const SizedBox(height: 4),
+                  _TotalRow(
+                    label: _tr('Discount', 'Punguzo'),
+                    value: '− TSh ${_sNum(_discountAmt)}',
+                  ),
+                ],
+                if (_vatEnabled && !_adjustmentsExpanded) ...[
+                  const SizedBox(height: 4),
+                  _TotalRow(label: 'VAT (18%)', value: 'TSh ${_sNum(_vatAmt)}'),
+                ],
                 const SizedBox(height: 4),
                 InkWell(
                   onTap: () => setState(
@@ -4217,7 +4370,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     const SizedBox(height: 4),
                     _TotalRow(
                       label: 'VAT (18%)',
-                      value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
+                      value: 'TSh ${_sNum(_vatAmt)}',
                     ),
                   ],
                 ],
@@ -4243,8 +4396,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.all(4),
           child: Row(
@@ -4419,7 +4571,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     }
 
     return SizedBox(
-      height: 48,
+      height: 52,
       child: ElevatedButton(
         onPressed: isDisabled ? null : _save,
         style: ElevatedButton.styleFrom(
@@ -4427,7 +4579,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           foregroundColor: AppColors.navyPrimary,
           disabledBackgroundColor: disabledBg,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           elevation: 0,
         ),
@@ -4528,37 +4680,134 @@ class _PayBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fg = active ? activeColor : AppColors.textMuted;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           decoration: BoxDecoration(
-            color: active ? activeColor : Colors.transparent,
+            color: active ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
+            boxShadow: active
+                ? const [
+                    BoxShadow(
+                      color: Color(0x140D1B3E),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: active ? Colors.white : AppColors.textMuted,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                  color: active ? Colors.white : AppColors.textMuted,
+              Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: fg,
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small section caption inside the sale cart ("Payment").
+class _CartSectionLabel extends StatelessWidget {
+  final String en;
+  final String sw;
+
+  const _CartSectionLabel({required this.en, required this.sw});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _tr(en, sw),
+      style: GoogleFonts.dmSans(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.navyPrimary,
+      ),
+    );
+  }
+}
+
+/// Compact - qty + stepper for a cart line. At qty 1 the minus becomes a
+/// bin icon, since it takes the line off the ticket.
+class _CartQtyStepper extends StatelessWidget {
+  final int qty;
+  final VoidCallback onMinus;
+  final VoidCallback? onPlus;
+
+  const _CartQtyStepper({
+    required this.qty,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget btn(IconData icon, VoidCallback? onTap, {Color? color}) {
+      return InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Icon(
+            icon,
+            size: 16,
+            color: onTap == null
+                ? AppColors.textMuted.withValues(alpha: 0.5)
+                : (color ?? AppColors.navyPrimary),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          qty <= 1
+              ? btn(
+                  Icons.delete_outline_rounded,
+                  onMinus,
+                  color: AppColors.error,
+                )
+              : btn(Icons.remove_rounded, onMinus),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 22),
+            child: Text(
+              '$qty',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
+          btn(Icons.add_rounded, onPlus),
+        ],
       ),
     );
   }
