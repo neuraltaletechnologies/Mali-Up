@@ -35,8 +35,15 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       isOwnScoped ? FirebaseAuth.instance.currentUser?.uid : null;
   // Inventory items are assigned by staff record id (see firestore.rules
   // isOwnAssignedRecord), so scope the inventory pull to that, not the UID.
+  // Only for members who can't view the whole catalog: "own records only"
+  // narrows a cashier's sales/expenses, but they still need every product to
+  // sell (firestore.rules grants viewInventory holders the full read).
   final scopeInventoryToMemberId =
-      isOwnScoped && (member?.id.isNotEmpty ?? false) ? member!.id : null;
+      isOwnScoped &&
+          !(member?.can(AppPermission.viewInventory) ?? false) &&
+          (member?.id.isNotEmpty ?? false)
+      ? member!.id
+      : null;
 
   // A restricted member (e.g. a cashier without viewCashFlow / manageExpenses)
   // can't read every collection the pull phase fans out to — Firestore rejects
