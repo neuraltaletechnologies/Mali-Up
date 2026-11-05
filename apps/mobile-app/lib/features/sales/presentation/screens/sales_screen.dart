@@ -2425,6 +2425,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     final beforeSave = widget.beforeSave;
     if (beforeSave != null && !await beforeSave()) return;
     if (!mounted) return;
+    // Empty lines (e.g. left over from "Add item") aren't part of the sale -
+    // drop them rather than blocking the save, as long as something is left.
+    final blanks = _items
+        .where((e) => e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .toList();
+    if (blanks.isNotEmpty && blanks.length < _items.length) {
+      setState(() => _items.removeWhere(blanks.contains));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final b in blanks) {
+          b.dispose();
+        }
+      });
+    }
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
@@ -3502,6 +3515,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     if (entry.selectedItem != null && !entry.editing && !entry.showSuggs) {
       return _buildCartLine(index);
     }
+    // A fresh line (nothing picked, not opened for editing) is a compact
+    // search row shaped like a cart line instead of the full form. The full
+    // editor stays for an edited line so renaming it doesn't swap widgets
+    // (and drop focus) mid-typing.
+    if (!entry.editing) return _buildSearchLine(index);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: _buildItemEditor(index),
@@ -3746,114 +3764,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         ),
         if (entry.showSuggs) _buildProductSuggestions(index),
         if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
-          Builder(
-            builder: (_) {
-              final recent = _recentlySoldProducts();
-              if (recent.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    Text(
-                      _tr('Recent', 'Hivi karibuni'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: recent.map((item) {
-                            final name = (item['name'] ?? '').toString();
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ActionChip(
-                                visualDensity: VisualDensity.compact,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                labelPadding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                side: const BorderSide(color: AppColors.border),
-                                backgroundColor: AppColors.surface,
-                                label: Text(
-                                  name,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                onPressed: () => _selectProduct(entry, item),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          _buildRecentChips(entry),
         if (entry.nameCtrl.text.isNotEmpty &&
             entry.selectedItem == null &&
             !entry.showSuggs)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: InkWell(
-              onTap: () => showAppSheet<void>(
-                context,
-                builder: (_) => _AddProductSheet(
-                  initialName: entry.nameCtrl.text.trim(),
-                  onAdded: (item) => _selectProduct(entry, item),
-                ),
-              ),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
-                  border: Border.all(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 15,
-                      color: AppColors.navyPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _tr(
-                          'Add "${entry.nameCtrl.text}" to inventory',
-                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.navyPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildAddToInventoryPrompt(entry),
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4082,6 +3997,288 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           ],
         ),
       ],
+    );
+  }
+
+  /// "Recent" quick-pick chips shown under an empty line.
+  Widget _buildRecentChips(_ItemEntry entry) =>
+          Builder(
+            builder: (_) {
+              final recent = _recentlySoldProducts();
+              if (recent.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      _tr('Recent', 'Hivi karibuni'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: recent.map((item) {
+                            final name = (item['name'] ?? '').toString();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                side: const BorderSide(color: AppColors.border),
+                                backgroundColor: AppColors.surface,
+                                label: Text(
+                                  name,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                onPressed: () => _selectProduct(entry, item),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+  /// Offer to add a typed name that matched nothing to inventory.
+  Widget _buildAddToInventoryPrompt(_ItemEntry entry) =>
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: InkWell(
+              onTap: () => showAppSheet<void>(
+                context,
+                builder: (_) => _AddProductSheet(
+                  initialName: entry.nameCtrl.text.trim(),
+                  onAdded: (item) => _selectProduct(entry, item),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 15,
+                      color: AppColors.navyPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _tr(
+                          'Add "${entry.nameCtrl.text}" to inventory',
+                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.navyPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+  /// A line with nothing picked yet, laid out like a cart line: a product
+  /// tile, the search field and scan/remove actions in one row. Price and
+  /// qty only appear once a name that isn't in inventory is typed (a custom
+  /// item) - picking a product turns the line into a cart line instead.
+  Widget _buildSearchLine(int index) {
+    final entry = _items[index];
+    final typed = entry.nameCtrl.text.trim().isNotEmpty;
+    final custom = typed && !entry.showSuggs;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.tealAccent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.tealAccent.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Icon(
+                  custom ? Icons.edit_note_rounded : Icons.search_rounded,
+                  size: 20,
+                  color: AppColors.tealAccent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: entry.nameCtrl,
+                  autofocus: index == 0 && _items.length == 1,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    hintText: _tr(
+                      'Search or scan a product',
+                      'Tafuta au skani bidhaa',
+                    ),
+                    hintStyle: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+              if (typed)
+                IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _tr('Clear', 'Futa'),
+                  onPressed: () {
+                    entry.nameCtrl.clear();
+                    entry.priceCtrl.clear();
+                    setState(() {
+                      entry.selectedItem = null;
+                      entry.basePrice = null;
+                      entry.suggs = [];
+                      entry.showSuggs = false;
+                      entry.qty = 1;
+                    });
+                  },
+                )
+              else
+                IconButton(
+                  icon: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 22,
+                    color: AppColors.tealAccent,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _tr('Scan mode', 'Hali ya skani'),
+                  onPressed: _openPosScanner,
+                ),
+              if (_items.length > 1)
+                IconButton(
+                  onPressed: () => _removeItem(index),
+                  tooltip: _tr('Remove', 'Ondoa'),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          if (entry.showSuggs) _buildProductSuggestions(index),
+          if (!typed) _buildRecentChips(entry),
+          if (custom) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 50, top: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: entry.priceCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        prefixText: 'TSh ',
+                        hintText: _tr('Price', 'Bei'),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(99),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _CartQtyStepper(
+                    qty: entry.qty,
+                    onMinus: () => _decrementLine(index),
+                    onPlus: () => setState(() => entry.qty++),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 78,
+                    child: Text(
+                      _sNum(entry.lineTotal),
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 50),
+              child: _buildAddToInventoryPrompt(entry),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

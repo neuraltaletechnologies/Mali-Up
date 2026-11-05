@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../../../core/services/app_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -275,10 +276,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     final database = ref.read(appDatabaseProvider);
 
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable(
+      final callable = AppFunctions.callable(
         'deleteAccountData',
-        options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+        timeout: const Duration(minutes: 9),
       );
       await callable.call<Map<String, dynamic>>();
 
