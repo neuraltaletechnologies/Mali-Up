@@ -153,43 +153,6 @@ jobs:
             --output-path build/windows/msix \
             --output-name "MaliUp-${{ steps.version.outputs.name }}"
 
-      # Website download: uploads the installer to the Cloudflare R2 bucket
-      # twice — an immutable versioned copy and a fixed "latest" name that the
-      # site's Windows button points at (NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL).
-      # Skipped when the R2_* secrets aren't set.
-      - name: Upload installer to R2
-        env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-          VERSION: ${{ steps.version.outputs.name }}
-        run: |
-          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$R2_BUCKET" ]; then
-            echo "R2 secrets not set — skipping website upload."
-            exit 0
-          fi
-          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
-          src="build/windows/installer/MaliUp-Setup-$VERSION.exe"
-          # Versioned copy: never overwritten, safe to link to long-term.
-          aws s3 cp "$src" "s3://$R2_BUCKET/windows/$VERSION/MaliUp-Setup-$VERSION.exe" \
-            --endpoint-url "$endpoint" \
-            --content-type application/octet-stream \
-            --cache-control "public, max-age=31536000, immutable"
-          # Fixed name for the website button; always the newest build.
-          aws s3 cp "$src" "s3://$R2_BUCKET/windows/MaliUp-Setup.exe" \
-            --endpoint-url "$endpoint" \
-            --content-type application/octet-stream \
-            --cache-control "public, max-age=300"
-          printf '{"version":"%s","file":"windows/%s/MaliUp-Setup-%s.exe"}\n' "$VERSION" "$VERSION" "$VERSION" > latest.json
-          aws s3 cp latest.json "s3://$R2_BUCKET/windows/latest.json" \
-            --endpoint-url "$endpoint" \
-            --content-type application/json \
-            --cache-control "public, max-age=60"
-
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -211,3 +174,52 @@ jobs:
           - **MaliUp-Setup-$VERSION.exe** — installer for direct download.
           - **MaliUp-$VERSION.msix** — Microsoft Store package (upload in Partner Center)."
           fi
+
+      # Website download: uploads the installer to the Cloudflare R2 bucket
+      # twice — an immutable versioned copy and a fixed "latest" name that the
+      # site's Windows button points at (NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL).
+      # Skipped when the R2_* secrets aren't set. Runs after the GitHub
+      # Release so an R2 problem never blocks the MSIX/installer release.
+      # R2 speaks the S3 API, so the preinstalled `aws` CLI is used purely as
+      # an S3 client pointed at the R2 endpoint — no AWS account involved.
+      - name: Upload installer to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$R2_BUCKET" ]; then
+            echo "R2 secrets not set — skipping website upload."
+            exit 0
+          fi
+          # Catch the usual secret mix-ups with a readable error.
+          [[ "$R2_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]] || { echo "::error::R2_ACCOUNT_ID must be the 32-character account ID only (from https://<id>.r2.cloudflarestorage.com), not a URL"; exit 1; }
+          [ "${#AWS_ACCESS_KEY_ID}" -eq 32 ] || { echo "::error::R2_ACCESS_KEY_ID should be 32 characters (got ${#AWS_ACCESS_KEY_ID}) — use the R2 token's Access Key ID, not the API token value"; exit 1; }
+          [ "${#AWS_SECRET_ACCESS_KEY}" -eq 64 ] || { echo "::error::R2_SECRET_ACCESS_KEY should be 64 characters (got ${#AWS_SECRET_ACCESS_KEY})"; exit 1; }
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          aws --version
+          if ! aws s3 ls "s3://$R2_BUCKET" --endpoint-url "$endpoint" >/dev/null 2>err.txt; then
+            echo "::error::Cannot access R2 bucket '$R2_BUCKET': $(tr '\r\n' '  ' < err.txt)"
+            exit 1
+          fi
+          src="build/windows/installer/MaliUp-Setup-$VERSION.exe"
+          # Versioned copy: never overwritten, safe to link to long-term.
+          aws s3 cp "$src" "s3://$R2_BUCKET/windows/$VERSION/MaliUp-Setup-$VERSION.exe" \
+            --endpoint-url "$endpoint" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable"
+          # Fixed name for the website button; always the newest build.
+          aws s3 cp "$src" "s3://$R2_BUCKET/windows/MaliUp-Setup.exe" \
+            --endpoint-url "$endpoint" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=300"
+          printf '{"version":"%s","file":"windows/%s/MaliUp-Setup-%s.exe"}\n' "$VERSION" "$VERSION" "$VERSION" > latest.json
+          aws s3 cp latest.json "s3://$R2_BUCKET/windows/latest.json" \
+            --endpoint-url "$endpoint" \
+            --content-type application/json \
+            --cache-control "public, max-age=60"
