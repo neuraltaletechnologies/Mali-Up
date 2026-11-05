@@ -31,8 +31,9 @@ export function Nav() {
 
   const links = [
     { label: "Features",     href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
     { label: "Pricing",      href: "/#pricing" },
-    { label: "Download",     href: "/#download" },
+    { label: "Stats",        href: "/#stats" },
   ]
 
   /* Ripple on CTA click */

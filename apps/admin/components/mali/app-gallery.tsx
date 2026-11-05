@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import NextImage from "next/image"
+import { SectionCta } from "@/components/mali/section-cta"
 
 const screens = [
   {
@@ -165,6 +166,7 @@ export function AppGallery() {
             ))}
           </div>
         </div>
+        <SectionCta action="android" />
       </div>
     </section>
   )

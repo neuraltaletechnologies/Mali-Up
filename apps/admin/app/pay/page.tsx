@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { LegalHeader } from '@/components/mali/legal-shell'
+import { Nav } from '@/components/mali/nav'
 import { Footer } from '@/components/mali/footer'
 import { PayCheckoutLoader } from '@/components/mali/pay-checkout-loader'
 import type { BillingCycle, PublicTier } from '@/lib/public-plans'
@@ -31,8 +31,11 @@ export default async function PayPage({
 
   return (
     <main style={{ backgroundColor: '#F8FAFC' }} className="min-h-screen">
-      <LegalHeader />
-      <PayCheckoutLoader initialTier={initialTier} initialCycle={initialCycle} />
+      <Nav />
+      {/* Nav is fixed-position; pad so the checkout starts below it. */}
+      <div className="pt-24">
+        <PayCheckoutLoader initialTier={initialTier} initialCycle={initialCycle} />
+      </div>
       <Footer />
     </main>
   )

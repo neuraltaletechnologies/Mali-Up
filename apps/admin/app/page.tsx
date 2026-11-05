@@ -3,8 +3,11 @@ import Script from 'next/script'
 import { Nav } from "@/components/mali/nav"
 import { Hero } from "@/components/mali/hero"
 import { Features } from "@/components/mali/features"
+import { HowItWorks } from "@/components/mali/how-it-works"
+import { PhoneShowcase } from "@/components/mali/phone-showcase"
 import { Pricing } from "@/components/mali/pricing"
-import { Download } from "@/components/mali/download"
+import { AppGallery } from "@/components/mali/app-gallery"
+import { Stats } from "@/components/mali/stats"
 import { Footer } from "@/components/mali/footer"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.com'
@@ -193,8 +196,11 @@ export default function HomePage() {
         <Nav />
         <Hero />
         <Features />
+        <HowItWorks />
+        <PhoneShowcase />
         <Pricing />
-        <Download />
+        <AppGallery />
+        <Stats />
         <Footer />
       </main>
     </>
