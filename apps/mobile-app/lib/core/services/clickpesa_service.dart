@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'app_functions.dart';
 import 'package:flutter/foundation.dart';
 
 import 'plan_service.dart';
@@ -22,8 +23,6 @@ import 'plan_service.dart';
 ///
 /// Waiting for a result does NOT poll ClickPesa — see [waitForPayment].
 class ClickPesaService {
-  static final FirebaseFunctions _functions =
-      FirebaseFunctions.instanceFor(region: 'us-central1');
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Pushes a payment prompt to [phoneNumber] for [tier] billed per
@@ -46,7 +45,7 @@ class ClickPesaService {
     }
     try {
       debugPrint('[ClickPesa] Initiating USSD push for ${tier.name} (${billingCycle.name})');
-      final callable = _functions.httpsCallable('initiateClickPesaPayment');
+      final callable = AppFunctions.callable('initiateClickPesaPayment');
       final result = await callable.call<Map<String, dynamic>>({
         'tier': tier.name,
         'billingCycle': billingCycle.name,
@@ -69,7 +68,7 @@ class ClickPesaService {
   /// sees `completed`, the plan has already been activated server-side.
   static Future<ClickPesaVerifyResult> verifyPayment(String orderReference) async {
     try {
-      final callable = _functions.httpsCallable('verifyClickPesaPayment');
+      final callable = AppFunctions.callable('verifyClickPesaPayment');
       final result = await callable.call<Map<String, dynamic>>({
         'orderReference': orderReference,
       });

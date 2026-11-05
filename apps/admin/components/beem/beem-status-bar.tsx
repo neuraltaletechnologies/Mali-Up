@@ -39,7 +39,7 @@ export function BeemStatusBar({ status, loading, onRefresh }: BeemStatusBarProps
                 )}
               </div>
               <p className="text-[12px] text-[var(--ink-muted)] mt-0.5">
-                Default Sender ID: <strong className="font-mono text-[var(--ink)]">{status?.senderId || 'INFO'}</strong> · Multi-Country SMS Enabled
+                Default Sender ID: <strong className="font-mono text-[var(--ink)]">{status?.senderId || 'Mali Up'}</strong> · Multi-Country SMS Enabled
               </p>
             </div>
           </div>
@@ -80,7 +80,7 @@ export function BeemStatusBar({ status, loading, onRefresh }: BeemStatusBarProps
       <BeemTestSmsDialog
         open={testDialogOpen}
         onClose={() => setTestDialogOpen(false)}
-        senderId={status?.senderId || 'INFO'}
+        senderId={status?.senderId || 'Mali Up'}
       />
     </>
   )

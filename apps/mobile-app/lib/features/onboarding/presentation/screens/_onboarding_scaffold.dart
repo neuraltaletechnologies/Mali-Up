@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../../../../core/services/sms_code_autofill.dart';
 import '../../../../core/theme/app_colors.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -469,7 +470,12 @@ class PinDotsInput extends StatefulWidget {
     this.onChanged,
     this.onComplete,
     this.pinLength = 4,
+    this.isOneTimeCode = false,
   });
+
+  /// An SMS code rather than a PIN: lets iOS offer the code from Messages
+  /// above the keyboard.
+  final bool isOneTimeCode;
 
   final TextEditingController controller;
   final FocusNode? focusNode;
@@ -629,6 +635,9 @@ class _PinDotsInputState extends State<PinDotsInput>
               enabled: widget.enabled,
               keyboardType: TextInputType.number,
               maxLength: widget.pinLength,
+              autofillHints: widget.isOneTimeCode
+                  ? const [AutofillHints.oneTimeCode]
+                  : null,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(border: InputBorder.none),
               style: GoogleFonts.dmSans(height: 0.01, color: Colors.transparent),
@@ -752,15 +761,28 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
   @override
   void dispose() {
     _timer?.cancel();
+    unawaited(SmsCodeAutofill.cancel());
     _codeCtrl.dispose();
     _focus.dispose();
     super.dispose();
   }
 
+  /// Android: fill the code straight from the SMS (one "Allow" tap) —
+  /// PinDotsInput fires onComplete, which verifies it.
+  void _listenForSmsCode() {
+    SmsCodeAutofill.listen().then((code) {
+      if (!mounted || code == null || widget.isLoading) return;
+      _codeCtrl.text = code;
+    });
+  }
+
   Future<void> _send() async {
     if (!widget.isOnline) return;
+    // Listen before requesting so a fast SMS isn't missed.
+    _listenForSmsCode();
     final ok = await widget.onSend();
     if (!mounted) return;
+    if (!ok) unawaited(SmsCodeAutofill.cancel());
     // Always start the cooldown — even on failure — so a bad send (rate-limit,
     // provider error) still locks the button and prevents back-to-back retries
     // that burn Beem send slots before the previous request has a chance to
@@ -844,6 +866,7 @@ class _OtpVerifyBodyState extends State<OtpVerifyBody> {
                 controller: _codeCtrl,
                 focusNode: _focus,
                 pinLength: 6,
+                isOneTimeCode: true,
                 hasError: _hasError,
                 enabled: !widget.isLoading,
                 onChanged: (_) {

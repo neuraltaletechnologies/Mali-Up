@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../../../core/services/app_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,12 +32,12 @@ class OnboardingRepository {
     FirebaseFunctions? functions,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
-       _functions =
-           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+       _functions = functions;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
-  final FirebaseFunctions _functions;
+  /// Null = [AppFunctions] picks (plugin, or HTTPS on Windows desktop).
+  final FirebaseFunctions? _functions;
 
   // ─── LOOKUP ───────────────────────────────────────────────────────────────
 
@@ -263,7 +264,7 @@ class OnboardingRepository {
   /// passed back to [verifyOtp]. Throws [FirebaseFunctionsException] on
   /// rate-limit ('resource-exhausted') or provider failure.
   Future<String> sendOtp(String phone) async {
-    final callable = _functions.httpsCallable('sendBeemOtp');
+    final callable = AppFunctions.callable('sendBeemOtp', functions: _functions);
     final res = await callable.call<Map<String, dynamic>>({
       'phone': PhoneNumberUtils.canonical(phone),
     });
@@ -279,7 +280,7 @@ class OnboardingRepository {
     required String pinId,
     required String code,
   }) async {
-    final callable = _functions.httpsCallable('verifyBeemOtp');
+    final callable = AppFunctions.callable('verifyBeemOtp', functions: _functions);
     final res = await callable.call<Map<String, dynamic>>({
       'phone': PhoneNumberUtils.canonical(phone),
       'pinId': pinId,
@@ -310,7 +311,7 @@ class OnboardingRepository {
   ///   so the callable is authenticated and also stamps
   ///   `users/{uid}.phoneVerified = true` server-side (functions/src/beem_otp.ts).
   Future<bool> consumeOtpVerification(String phone, {String? newPassword}) async {
-    final callable = _functions.httpsCallable('consumeOtpVerification');
+    final callable = AppFunctions.callable('consumeOtpVerification', functions: _functions);
     final payload = <String, dynamic>{
       'phone': PhoneNumberUtils.canonical(phone),
     };
@@ -590,7 +591,7 @@ class OnboardingRepository {
     required String language,
   }) async {
     try {
-      final callable = _functions.httpsCallable('requestPinReset');
+      final callable = AppFunctions.callable('requestPinReset', functions: _functions);
       final res = await callable.call<Map<String, dynamic>>({
         'phone': PhoneNumberUtils.canonical(phone),
         'language': language,
@@ -620,7 +621,7 @@ class OnboardingRepository {
   /// so the caller can derive the new password locally. Never throws.
   Future<PinResetTokenInfo> validatePinResetToken(String token) async {
     try {
-      final callable = _functions.httpsCallable('validatePinResetToken');
+      final callable = AppFunctions.callable('validatePinResetToken', functions: _functions);
       final res = await callable.call<Map<String, dynamic>>({'token': token});
       final data = Map<String, dynamic>.from(res.data as Map);
       if (data['valid'] == true) {
@@ -657,7 +658,7 @@ class OnboardingRepository {
   }) async {
     try {
       final newPassword = buildAuthPasswordFromPin(phone: phone, pin: newPin);
-      final callable = _functions.httpsCallable('confirmPinReset');
+      final callable = AppFunctions.callable('confirmPinReset', functions: _functions);
       await callable.call<Map<String, dynamic>>({
         'token': token,
         'newPassword': newPassword,
@@ -683,7 +684,7 @@ class OnboardingRepository {
     required String language,
   }) async {
     try {
-      final callable = _functions.httpsCallable('requestPinResetOtp');
+      final callable = AppFunctions.callable('requestPinResetOtp', functions: _functions);
       final res = await callable.call<Map<String, dynamic>>({
         'phone': PhoneNumberUtils.canonical(phone),
         'language': language,
@@ -725,7 +726,7 @@ class OnboardingRepository {
         phone: canonical,
         pin: newPin,
       );
-      final callable = _functions.httpsCallable('confirmPinResetOtp');
+      final callable = AppFunctions.callable('confirmPinResetOtp', functions: _functions);
       await callable.call<Map<String, dynamic>>({
         'phone': canonical,
         'code': code,

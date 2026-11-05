@@ -13,6 +13,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/responsive_card_list.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -576,13 +577,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                       _query.isNotEmpty || activeFilters > 0,
                                 ),
                               )
-                            : ListView.builder(
+                            : ResponsiveCardList(
                                 physics: silentRefreshPhysics,
-                                padding: const EdgeInsets.only(bottom: 120),
                                 itemCount: filtered.length,
-                                itemBuilder: (ctx, i) => _ProductRow(
+                                itemBuilder: (ctx, i, inGrid) => _ProductRow(
                                   item: filtered[i],
-                                  isLast: i == filtered.length - 1,
+                                  isLast: inGrid || i == filtered.length - 1,
                                 ),
                               ),
                       ),

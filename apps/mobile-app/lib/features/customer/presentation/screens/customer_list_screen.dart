@@ -13,6 +13,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/responsive_card_list.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -249,15 +250,14 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                       physics: silentRefreshPhysics,
                       child: _Empty(query: _query, segment: _segment),
                     )
-                  : ListView.builder(
+                  : ResponsiveCardList(
                       physics: silentRefreshPhysics,
-                      padding: const EdgeInsets.only(bottom: 120),
                       itemCount: filtered.length,
-                      itemBuilder: (_, i) => _CustomerCard(
+                      itemBuilder: (_, i, inGrid) => _CustomerCard(
                         customer: filtered[i],
                         showFinancials: showFinancials,
                         canManage: ps.canManageCustomers || ps.isOwner,
-                        isLast: i == filtered.length - 1,
+                        isLast: inGrid || i == filtered.length - 1,
                         payableOwed: payableByCustomer[filtered[i].id] ?? 0,
                       ),
                     ),

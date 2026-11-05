@@ -46,7 +46,7 @@ async function fetchCampaigns() {
       id: doc.id,
       name: (d.name as string) || 'Untitled Campaign',
       campaignType: (d.campaignType as SmsCampaignType) || 'custom',
-      senderId: (d.senderId as string) || 'INFO',
+      senderId: (d.senderId as string) || 'Mali Up',
       message: (d.message as string) || '',
       messageSw: (d.messageSw as string) || undefined,
       audience: (d.audience as SmsCampaignAudience) || { kind: 'all' },
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     const creds = await getBeemCredentials()
-    const senderId = body.senderId?.trim() || creds.senderId || 'INFO'
+    const senderId = body.senderId?.trim() || creds.senderId || 'Mali Up'
 
     const session = await auth()
     const adminId = session?.user?.id ?? 'unknown'

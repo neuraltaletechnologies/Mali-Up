@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/error_reporter.dart';
 import '../services/sentry_metrics_service.dart';
@@ -108,6 +109,8 @@ class SyncService extends ChangeNotifier {
   /// service before they accept their invite — see firestore.rules
   /// `isOwnAssignedRecord`), so the inventory pull filters on this. Older
   /// assignments used the Auth UID, so [_pullInventory] pulls both shapes.
+  /// Null when the member holds `viewInventory` — "own records only" then
+  /// narrows their sales/expenses, not the product catalog they sell from.
   final String? scopeInventoryToMemberId;
 
   /// Which collections this session's role may pull — see [SyncPullScope].
@@ -815,6 +818,23 @@ class SyncService extends ChangeNotifier {
     if (await _queue.hasPendingForType('inventory_item')) return null;
 
     final memberId = scopeInventoryToMemberId;
+
+    // The watermark is shared by every collection, so when this session's
+    // inventory scope changes (e.g. an "own records only" cashier now sees
+    // the full catalog) an incremental pull would never fetch the items
+    // that predate it. Re-pull inventory from scratch once per scope change.
+    final scopeSig = (memberId != null && memberId.isNotEmpty)
+        ? 'member:$memberId'
+        : 'all';
+    final scopeKey = 'sync_inventory_scope_$businessId';
+    SharedPreferences? prefs;
+    try {
+      prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(scopeKey) != scopeSig) sinceMs = 0;
+    } catch (_) {
+      // No prefs (e.g. tests) — keep the incremental pull.
+    }
+
     final List<({String id, Map<String, dynamic> data})> updates;
     if (memberId != null && memberId.isNotEmpty) {
       // A DataScope.own member's own items are those assigned to them. New
@@ -836,11 +856,13 @@ class SyncService extends ChangeNotifier {
           if (seen.add(u.id)) u,
       ];
     } else {
-      updates = await _remoteInventory.fetchUpdatedSince(
-        sinceMs,
-        scopeToUid: scopeReadsToUid,
-      );
+      // Unscoped: the member may view the whole catalog (viewInventory), even
+      // if their sales/expenses are "own records only".
+      updates = await _remoteInventory.fetchUpdatedSince(sinceMs);
     }
+    try {
+      await prefs?.setString(scopeKey, scopeSig);
+    } catch (_) {}
     _pulledThisCycle += updates.length;
     var maxTs = 0;
     for (final update in updates) {

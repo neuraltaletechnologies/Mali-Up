@@ -280,7 +280,7 @@ async function materializeAutoCampaigns(now: number): Promise<number> {
       tx.set(campaignRef, {
         name: `${fresh.name || "Auto campaign"} ${year}`,
         campaignType: fresh.campaignType || "custom",
-        senderId: fresh.senderId || process.env.BEEM_SMS_SENDER_ID || "INFO",
+        senderId: fresh.senderId || process.env.BEEM_SMS_SENDER_ID || "Mali Up",
         message: fresh.message || "",
         messageSw: null,
         audience: fresh.audience || {kind: "all"},
@@ -341,7 +341,7 @@ async function dispatchDueCampaigns(now: number): Promise<number> {
         continue;
       }
 
-      const senderId = String(data.senderId || process.env.BEEM_SMS_SENDER_ID || "INFO");
+      const senderId = String(data.senderId || process.env.BEEM_SMS_SENDER_ID || "Mali Up");
       const {sent, failed} = await sendToRecipients(recipients, message, senderId);
       const parts = Math.max(1, Number(data.smsPartsCount) || 1);
       await doc.ref.update({

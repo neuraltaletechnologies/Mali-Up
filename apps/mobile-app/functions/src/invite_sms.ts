@@ -1,4 +1,4 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {BEEM_API_KEY, BEEM_SECRET_KEY, sendBeemSms} from "./beem_sms";
 
@@ -150,6 +150,45 @@ export const onPendingInviteCreatedSms = onDocumentCreated(
 );
 
 /**
+ * The owner corrected a still-pending member's phone number (team_screen.dart
+ * "edit details" updates pendingInvites.phoneNumber). The earlier SMS — sent,
+ * failed or abandoned — went to the old number, so reset the SMS state and
+ * text the new one with a fresh set of attempts.
+ *
+ * The reset write re-fires this trigger, but with the phone unchanged it
+ * returns immediately.
+ */
+export const onPendingInvitePhoneChangedSms = onDocumentUpdated(
+  {
+    document: "pendingInvites/{inviteId}",
+    region: REGION,
+    secrets: [BEEM_API_KEY, BEEM_SECRET_KEY],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || !event.data) return;
+    if (after.status !== "pending") return;
+    if (canonicalPhone(before.phoneNumber) === canonicalPhone(after.phoneNumber)) return;
+
+    const ref = event.data.after.ref;
+    const del = admin.firestore.FieldValue.delete();
+    await ref.update({
+      inviteSmsStatus: del,
+      inviteSmsAttempts: del,
+      inviteSmsError: del,
+      inviteSmsPhone: del,
+      inviteSmsSentAt: del,
+      inviteSmsLastAttemptAt: del,
+      // Restart the retry sweep's 3-day window for the new number.
+      inviteSmsWindowStartAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`[InviteSMS] Phone changed on invite ${ref.id}; re-sending to the new number`);
+    await sendInviteSms(ref);
+  },
+);
+
+/**
  * Retries invites whose SMS failed or whose sender crashed mid-send. The
  * query only matches invites that already had a problem, so it reads nothing
  * on a normal day. Called from the hourly welcome SMS sweep, which already
@@ -164,8 +203,9 @@ export async function retryPendingInviteSms(): Promise<Record<InviteSmsOutcome, 
 
   const cutoff = Date.now() - RETRY_WINDOW_MS;
   for (const doc of snap.docs) {
-    const createdAt = doc.get("createdAt") as FirebaseFirestore.Timestamp | undefined;
-    if (createdAt && createdAt.toMillis() < cutoff) continue;
+    const windowStart = (doc.get("inviteSmsWindowStartAt") ?? doc.get("createdAt")) as
+      FirebaseFirestore.Timestamp | undefined;
+    if (windowStart && windowStart.toMillis() < cutoff) continue;
     counts[await sendInviteSms(doc.ref)]++;
   }
   return counts;
