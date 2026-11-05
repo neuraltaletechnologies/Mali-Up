@@ -34,7 +34,6 @@ export function Nav() {
     { label: "How It Works", href: "/#how-it-works" },
     { label: "Pricing",      href: "/#pricing" },
     { label: "Stats",        href: "/#stats" },
-    { label: "Download",     href: "/download/windows" },
   ]
 
   /* Ripple on CTA click */

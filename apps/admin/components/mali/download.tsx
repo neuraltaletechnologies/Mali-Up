@@ -6,12 +6,8 @@ import NextImage from "next/image"
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.neuraltale.maliup"
 const CONTACT_URL = "https://neuraltale.com/#contact"
-// Desktop installers — set these in the deployment env once the builds are
-// hosted. Until then the Windows/Mac cards send people to the team instead
-// of a dead link.
 // Windows has its own download page (app/download/windows) with the installer button.
 const WINDOWS_PAGE = "/download/windows"
-const MAC_URL = process.env.NEXT_PUBLIC_MAC_DOWNLOAD_URL || ""
 
 const perks = [
   "Free to start, no credit card",
@@ -30,29 +26,17 @@ interface Device {
 
 const devices: Device[] = [
   {
-    name: "Android phone",
-    detail: "Run your shop from your pocket.",
-    cta: "Get it on Google Play",
-    href: PLAY_STORE_URL,
-  },
-  {
-    name: "POS handheld",
-    detail: "Android POS terminals with a built-in receipt printer.",
-    cta: "Install from Google Play",
+    name: "Android",
+    detail: "Phones and POS handhelds with a receipt printer.",
+    cta: "Download for Android",
     href: PLAY_STORE_URL,
     secondary: { label: "Need a POS device? Buy or rent one from us", href: CONTACT_URL },
   },
   {
-    name: "Windows computer",
-    detail: "Install on your shop or office desktop and laptop.",
+    name: "Windows",
+    detail: "Shop or office desktops and laptops.",
     cta: "Download for Windows",
     href: WINDOWS_PAGE,
-  },
-  {
-    name: "Mac",
-    detail: "Install on your MacBook or iMac.",
-    cta: MAC_URL ? "Download for Mac" : "Get it for Mac",
-    href: MAC_URL || CONTACT_URL,
   },
 ]
 
@@ -88,7 +72,7 @@ export function Download() {
         {/* Badge */}
         <div className="reveal inline-flex justify-center mb-6">
           <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-            Phone · POS · Windows · Mac
+            Android · Windows
           </span>
         </div>
 
@@ -141,7 +125,7 @@ export function Download() {
         </ul>
 
         {/* Devices */}
-        <div className="reveal grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+        <div className="reveal grid sm:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
           {devices.map((d) => (
             <div
               key={d.name}
@@ -154,8 +138,7 @@ export function Download() {
               <div className="flex flex-col gap-2">
                 <a
                   href={d.href}
-                  target="_blank"
-                  rel="noreferrer"
+                  {...(d.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
                   className="w-full rounded-xl bg-[#0C1B2E] text-white font-bold text-sm px-4 py-3 flex items-center justify-center gap-2 hover:bg-[#142038] transition-colors"
                 >
                   {d.cta}

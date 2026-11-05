@@ -8,7 +8,6 @@ import { PhoneShowcase } from "@/components/mali/phone-showcase"
 import { Pricing } from "@/components/mali/pricing"
 import { AppGallery } from "@/components/mali/app-gallery"
 import { Stats } from "@/components/mali/stats"
-import { Download } from "@/components/mali/download"
 import { Footer } from "@/components/mali/footer"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.com'
@@ -202,7 +201,6 @@ export default function HomePage() {
         <Pricing />
         <AppGallery />
         <Stats />
-        <Download />
         <Footer />
       </main>
     </>

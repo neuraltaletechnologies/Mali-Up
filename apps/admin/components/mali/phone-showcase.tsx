@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import { ChevronRight } from "lucide-react"
+import { SectionCta } from "@/components/mali/section-cta"
 
 const tabs = [
   {
@@ -240,6 +241,7 @@ export function PhoneShowcase() {
             </div>
           </div>
         </div>
+        <SectionCta action="windows" />
       </div>
     </section>
   )

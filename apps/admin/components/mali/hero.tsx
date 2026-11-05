@@ -175,7 +175,7 @@ export function Hero() {
             <p data-hero-item className="text-[#0C1B2E]/70 leading-relaxed text-lg max-w-md hero-desc">
               Mali Up is the pocket ERP built for Tanzanian SMBs — manage sales, invoices,
               inventory, finance, customers, and analytics from your phone, a POS handheld
-              or your Windows and Mac computer — all in sync.{" "}
+              or your Windows computer — all in sync.{" "}
               <span className="text-[#0C1B2E]/85">Fast on 3G. Ready for tomorrow.</span>
             </p>
 

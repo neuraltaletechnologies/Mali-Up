@@ -253,27 +253,8 @@ export function Pricing() {
           })}
         </div>
 
-        {/* How paying works — written for first-time visitors */}
-        <div className="reveal mt-12 grid sm:grid-cols-3 gap-4 text-center sm:text-left">
-          {[
-            { n: "1", t: "Weka namba yako", d: "Una akaunti? Weka PIN. Mpya? Tutakutumia msimbo kwa SMS." },
-            { n: "2", t: "Chagua mwezi au mwaka", d: monthsFree > 0 ? `Lipa kila mwezi, au kwa mwaka upate ${monthsFree === 1 ? "mwezi 1" : `miezi ${monthsFree}`} bure.` : "Lipa kila mwezi au kwa mwaka mzima." },
-            { n: "3", t: "Thibitisha kwenye simu", d: "Weka PIN ya M-Pesa/Tigo/Airtel. Kifurushi kinawaka papo hapo." },
-          ].map((s) => (
-            <div key={s.n} className="rounded-2xl p-5 bg-[#F8FAFC] border border-[#0C1B2E]/[0.08] flex sm:flex-col items-start gap-3">
-              <span className="w-8 h-8 rounded-full bg-[#F5A623] text-[#0C1B2E] font-black text-sm flex items-center justify-center shrink-0">
-                {s.n}
-              </span>
-              <div>
-                <h4 className="font-bold text-[#0C1B2E] text-sm">{s.t}</h4>
-                <p className="text-[#0C1B2E]/60 text-xs mt-1 leading-relaxed">{s.d}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* Enterprise / help bar */}
-        <div className="reveal mt-6 rounded-2xl p-6 bg-[#F8FAFC] border border-[#0C1B2E]/[0.08] flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+        <div className="reveal mt-12 rounded-2xl p-6 bg-[#F8FAFC] border border-[#0C1B2E]/[0.08] flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div className="flex items-start gap-3">
             <Smartphone size={20} className="text-[#0C1B2E]/40 shrink-0 mt-0.5 hidden md:block" />
             <div>
