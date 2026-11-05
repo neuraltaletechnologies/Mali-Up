@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Download, Store, TrendingUp } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
-import { SectionCta } from "@/components/mali/section-cta"
 
 
 const steps = [
@@ -174,7 +173,6 @@ export function HowItWorks() {
           ))}
         </div>
 
-        <SectionCta action="signup" className="mt-16" />
       </div>
     </section>
   )

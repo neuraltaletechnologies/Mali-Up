@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, Play, TrendingUp, Zap } from "lucide-react"
+import { ArrowRight, Download, TrendingUp, Zap } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import NextImage from "next/image"
 
@@ -194,13 +194,11 @@ export function Hero() {
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
-                href="#how-it-works"
-                className="flex items-center gap-2.5 text-[#0C1B2E]/60 hover:text-[#0C1B2E] transition-all duration-200 font-medium text-sm group"
+                href="/download"
+                className="flex items-center gap-2 rounded-2xl border border-[#0C1B2E]/15 bg-white text-[#0C1B2E] font-semibold px-6 py-3.5 text-base hover:border-[#0C1B2E]/40 transition-colors"
               >
-                <span className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:border-[#F5A623] group-hover:bg-[#F5A623]/10 transition-all duration-300">
-                  <Play size={13} className="ml-0.5 text-[#F5A623]" />
-                </span>
-                See how it works
+                <Download size={17} />
+                Download
               </a>
             </div>
 

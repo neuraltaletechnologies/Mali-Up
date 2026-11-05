@@ -146,6 +146,14 @@ jobs:
 
       # --store: unsigned package with the Partner Center identity from
       # pubspec msix_config; the Store signs it on ingestion.
+      # Portable ZIP for the website: the same Release folder, no installer.
+      # Unzip anywhere and run mali_up.exe (no Start-menu entry, no autostart).
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build\windows\portable | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "build\windows\portable\MaliUp-${{ steps.version.outputs.name }}-portable.zip" -Force
+
       - name: Build MSIX (Microsoft Store)
         run: |
           dart run msix:create --store --build-windows false \
@@ -162,6 +170,7 @@ jobs:
           files=(
             "build/windows/installer/MaliUp-Setup-$VERSION.exe"
             "build/windows/msix/MaliUp-$VERSION.msix"
+            "build/windows/portable/MaliUp-$VERSION-portable.zip"
           )
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
@@ -172,7 +181,8 @@ jobs:
               --notes "Windows desktop release $VERSION.
 
           - **MaliUp-Setup-$VERSION.exe** — installer for direct download.
-          - **MaliUp-$VERSION.msix** — Microsoft Store package (upload in Partner Center)."
+          - **MaliUp-$VERSION.msix** — Microsoft Store package (upload in Partner Center).
+          - **MaliUp-$VERSION-portable.zip** — portable build, no install needed."
           fi
 
       # Website download: uploads the installer to the Cloudflare R2 bucket
@@ -221,6 +231,13 @@ jobs:
             --content-type application/octet-stream \
             --cache-control "public, max-age=300"
           printf '{"version":"%s","file":"windows/%s/MaliUp-Setup-%s.exe"}\n' "$VERSION" "$VERSION" "$VERSION" > latest.json
+          zip="build/windows/portable/MaliUp-$VERSION-portable.zip"
+          put "$zip" "windows/$VERSION/MaliUp-$VERSION-portable.zip" \
+            --content-type application/zip \
+            --cache-control "public, max-age=31536000, immutable"
+          put "$zip" "windows/MaliUp-Portable.zip" \
+            --content-type application/zip \
+            --cache-control "public, max-age=300"
           put latest.json "windows/latest.json" \
             --content-type application/json \
             --cache-control "public, max-age=60"

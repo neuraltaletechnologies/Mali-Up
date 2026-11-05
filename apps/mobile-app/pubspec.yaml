@@ -147,7 +147,7 @@ flutter_launcher_icons:
 msix_config:
   display_name: Mali Up
   publisher_display_name: Neuraltale Technologies # Partner Center -> Product identity
-  identity_name: NeuraltaleTechnologies.neuraltale # Partner Center -> Product identity
+  identity_name: NeuraltaleTechnologies.MaliUp # Partner Center -> Product identity
   publisher: CN=05B40B51-180F-4A3C-9903-4FBEECE2456E # Partner Center -> Product identity
   logo_path: assets/branding/mali_up_wordmark.png
   languages: sw-TZ, en-US
