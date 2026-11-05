@@ -159,6 +159,17 @@ abstract final class AppRoutes {
       path.startsWith(subscription) ||
       path.startsWith(businesses) ||
       path.startsWith(syncDiagnostics);
+
+  // ── App-open landing ──────────────────────────────────────────────────────
+
+  /// Set whenever the app "opens" (cold start, PIN unlock, sign-in). The next
+  /// router redirect that lands on Home with permissions loaded consumes it
+  /// and sends POS users (see [PermissionService.isPosUser]) to Sales instead.
+  /// One-shot, so a cashier can still tap Home afterwards.
+  static bool _openLandingPending = true;
+
+  /// Marks the next arrival on Home as an app-open landing.
+  static void armOpenLanding() => _openLandingPending = true;
 }
 
 // ─── ROUTER PROVIDER ─────────────────────────────────────────────────────────
@@ -182,7 +193,13 @@ class _RouterNotifier extends ChangeNotifier {
     _ref.listen(onboardingNotifierProvider, (prev, next) => notifyListeners());
     // Re-evaluate on Firebase Auth sign-in / sign-out so first-login
     // correctly picks up the newly authenticated user.
-    _ref.listen(authStateProvider, (prev, next) => notifyListeners());
+    _ref.listen(authStateProvider, (prev, next) {
+      // A fresh sign-in is an app open too — re-arm the POS landing.
+      if (prev?.valueOrNull == null && next.valueOrNull != null) {
+        AppRoutes.armOpenLanding();
+      }
+      notifyListeners();
+    });
     // Re-evaluate routes whenever the user's permissions change
     // (e.g. profile loads, role changes, member is suspended).
     _ref.listen(permissionServiceProvider, (prev, next) => notifyListeners());
@@ -234,7 +251,10 @@ class _RouterNotifier extends ChangeNotifier {
                     .success // new-owner buffer screen
               : null; // stay on pin-login / team-setup
         }
-        return AppRoutes.dashboard;
+        AppRoutes._openLandingPending = false;
+        return _ref.read(permissionServiceProvider).isPosUser
+            ? AppRoutes.sales
+            : AppRoutes.dashboard;
       }
 
       // ── Session bootstrap guard ───────────────────────────────────────
@@ -267,6 +287,17 @@ class _RouterNotifier extends ChangeNotifier {
         final required = AppRoutes.requiredPermission(path);
         if (required != null && !ps.can(required)) {
           return AppRoutes.accessDenied;
+        }
+
+        // App-open landing: POS users start on Sales, not the dashboard.
+        // Consumed on the first settled shell route, so later taps on Home
+        // aren't hijacked. If permissions weren't loaded yet, this re-runs
+        // when they load (refreshListenable) and redirects then.
+        if (AppRoutes._openLandingPending) {
+          AppRoutes._openLandingPending = false;
+          if (path == AppRoutes.dashboard && ps.isPosUser) {
+            return AppRoutes.sales;
+          }
         }
       }
 

@@ -256,6 +256,8 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
       _navigatedAfterFirstUnlock = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && FirebaseAuth.instance.currentUser != null) {
+          // Router swaps this for Sales when the user is a POS member.
+          AppRoutes.armOpenLanding();
           ref.read(goRouterProvider).go(AppRoutes.dashboard);
         }
       });

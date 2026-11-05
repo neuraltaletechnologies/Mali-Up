@@ -257,6 +257,13 @@ class OnboardingJourney {
   /// overlay doesn't linger, pointing at a stale target, over whatever
   /// screen the journey navigates to next. Returns false once the journey
   /// has finished or was never started.
+  /// True while the guided first-run journey hasn't finished — other
+  /// interruptions (e.g. the rate-us prompt) should wait until it has.
+  static Future<bool> isInProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_currentStopKey) != null;
+  }
+
   static Future<bool> isAt(String stop) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_currentStopKey) == stop;

@@ -1950,7 +1950,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
-  bool _adjustmentsExpanded = false;
   bool _detailsExpanded = false;
   bool _isSaving = false;
   // Surfaced as an inline banner next to the field it's about, rather than
@@ -2135,7 +2134,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _payStatus = _PayStatus.paid;
       _dueDate = null;
       _vatEnabled = false;
-      _adjustmentsExpanded = false;
       _detailsExpanded = false;
       _isSaving = false;
       _errorMsg = null;
@@ -3021,8 +3019,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 children: [
                   KeyedSubtree(key: _tourItemKey, child: _buildItemsSection()),
                   _buildFieldError(_ErrorField.items),
-                  const SizedBox(height: 12),
-                  _buildTotalsSection(),
                   const SizedBox(height: 18),
                   const _CartSectionLabel(en: 'Payment', sw: 'Malipo'),
                   const SizedBox(height: 8),
@@ -3235,7 +3231,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       children: [
                         Flexible(
                           child: Text(
-                            _tr('Customer & details', 'Mteja na maelezo'),
+                            _tr('Customer', 'Mteja'),
                             style: GoogleFonts.dmSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -3282,8 +3278,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     const SizedBox(height: 12),
                     _buildDueDateRow(),
                   ],
-                  const SizedBox(height: 12),
-                  _buildNotesField(),
                 ],
               ),
             ),
@@ -3298,6 +3292,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Widget _buildStickyFooter() {
+    final hasAdjustments = _discountAmt > 0 || _vatEnabled;
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -3313,34 +3308,89 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                _tr('Total', 'Jumla'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'TSh ${_sNum(_grandTotal)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                ),
+          // Breakdown only when something changes the total — otherwise the
+          // subtotal is the total and would just repeat it.
+          if (hasAdjustments) ...[
+            _TotalRow(
+              label: _tr('Subtotal', 'Jumla ya bidhaa'),
+              value: 'TSh ${_sNum(_subtotal)}',
+            ),
+            if (_discountAmt > 0) ...[
+              const SizedBox(height: 3),
+              _TotalRow(
+                label: _tr('Discount', 'Punguzo'),
+                value: '− TSh ${_sNum(_discountAmt)}',
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            key: _tourSaveKey,
-            width: double.infinity,
-            child: _buildSaveButton(),
+            if (_vatEnabled) ...[
+              const SizedBox(height: 3),
+              _TotalRow(label: 'VAT (18%)', value: 'TSh ${_sNum(_vatAmt)}'),
+            ],
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _tr('Total', 'Jumla'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'TSh ${_sNum(_grandTotal)}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _isSaving ? null : _openAdjustmentsDialog,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              hasAdjustments
+                                  ? Icons.edit_rounded
+                                  : Icons.add_rounded,
+                              size: 13,
+                              color: AppColors.tealAccent,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _tr('Discount & VAT', 'Punguzo na kodi'),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.tealAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(key: _tourSaveKey, child: _buildSaveButton()),
+              ),
+            ],
           ),
         ],
       ),
@@ -4441,142 +4491,90 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
-  Widget _buildTotalsSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Column(
-              children: [
-                _TotalRow(
-                  label: _tr('Subtotal', 'Jumla ya bidhaa'),
-                  value: 'TSh ${_sNum(_subtotal)}',
-                ),
-                if (_discountAmt > 0) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(
-                    label: _tr('Discount', 'Punguzo'),
-                    value: '− TSh ${_sNum(_discountAmt)}',
-                  ),
-                ],
-                if (_vatEnabled && !_adjustmentsExpanded) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(label: 'VAT (18%)', value: 'TSh ${_sNum(_vatAmt)}'),
-                ],
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () => setState(
-                    () => _adjustmentsExpanded = !_adjustmentsExpanded,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          size: 17,
-                          color: _adjustmentsExpanded
-                              ? AppColors.tealAccent
-                              : AppColors.textMuted,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _tr('Discount & VAT', 'Punguzo na kodi'),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _tr('Optional', 'Hiari'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          _adjustmentsExpanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 20,
-                          color: AppColors.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_adjustmentsExpanded) ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _discountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                    decoration: _fieldDec(
-                      label: _tr(
-                        'Discount (TSh, optional)',
-                        'Punguzo (TSh, hiari)',
-                      ),
-                      prefix: Icons.discount_outlined,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.receipt_long_rounded,
-                        size: 16,
-                        color: AppColors.tealAccent,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Switch.adaptive(
-                        value: _vatEnabled,
-                        onChanged: (v) => setState(() => _vatEnabled = v),
-                        activeThumbColor: AppColors.tealAccent,
-                        activeTrackColor: AppColors.tealAccent.withValues(
-                          alpha: 0.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_vatEnabled) ...[
-                    const SizedBox(height: 4),
-                    _TotalRow(
-                      label: 'VAT (18%)',
-                      value: 'TSh ${_sNum(_vatAmt)}',
-                    ),
-                  ],
-                ],
-              ],
+  /// Discount & VAT, opened from the footer link next to the total — a
+  /// dialog rather than inline fields so the footer stays one row and the
+  /// field isn't hidden behind the keyboard.
+  Future<void> _openAdjustmentsDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            _tr('Discount & VAT', 'Punguzo na kodi'),
+            style: GoogleFonts.dmSans(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
             ),
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _discountCtrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                onChanged: (_) => setState(() {}),
+                decoration: _fieldDec(
+                  label: _tr('Discount (TSh)', 'Punguzo (TSh)'),
+                  prefix: Icons.discount_outlined,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.receipt_long_rounded,
+                    size: 16,
+                    color: AppColors.tealAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _vatEnabled,
+                    onChanged: (v) {
+                      setState(() => _vatEnabled = v);
+                      setLocal(() {});
+                    },
+                    activeThumbColor: AppColors.tealAccent,
+                    activeTrackColor: AppColors.tealAccent.withValues(
+                      alpha: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                _tr('Done', 'Sawa'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+    if (mounted) setState(() {});
   }
 
   void _setPayStatus(_PayStatus status) {
@@ -4731,18 +4729,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
-  Widget _buildNotesField() {
-    return TextField(
-      controller: _notesCtrl,
-      maxLines: 2,
-      textCapitalization: TextCapitalization.sentences,
-      decoration: _fieldDec(
-        label: _tr('Notes (optional)', 'Maelezo (hiari)'),
-        prefix: Icons.notes_outlined,
-      ),
-    );
-  }
-
   Widget _buildSaveButton() {
     final hasOutOfStock = _items.any((e) => e.isOutOfStock);
     final needsCustomer =
@@ -4791,9 +4777,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               )
             : Text(
                 buttonLabel,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
+                  height: 1.15,
                 ),
               ),
       ),
