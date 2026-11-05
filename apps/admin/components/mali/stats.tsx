@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { TrendingUp, Layers, Wifi, ShieldCheck } from "lucide-react"
-import { SectionCta } from "@/components/mali/section-cta"
 
 const stats = [
   { value: 2400, suffix: "+", label: "Businesses Using Mali Up", sublabel: "And growing every day",  color: "#F5A623", icon: TrendingUp  },
@@ -123,7 +122,6 @@ export function Stats() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-10">
           {stats.map((stat, i) => <StatCard key={stat.label} stat={stat} started={started} index={i} />)}
         </div>
-        <SectionCta action="windows" />
       </div>
     </section>
   )

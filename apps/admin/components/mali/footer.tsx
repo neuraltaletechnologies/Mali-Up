@@ -3,7 +3,7 @@ import NextImage from "next/image"
 
 export function Footer() {
   const links = {
-    Product: ["Features", "How It Works", "Pricing", "Roadmap"],
+    Product: ["Features", "How It Works", "Pricing", "Download"],
     Company: ["About Neuraltale", "Blog", "Careers", "Press"],
     Legal:   ["Privacy Policy", "Terms of Service", "Cookie Policy"],
   }
@@ -12,6 +12,12 @@ export function Footer() {
     Blog: "https://neuraltale.com/blog",
     Careers: "https://neuraltale.com/careers",
     Press: "https://neuraltale.com/press",
+  }
+  const productLinkMap: Record<string, string> = {
+    Features: "/#features",
+    "How It Works": "/#how-it-works",
+    Pricing: "/#pricing",
+    Download: "/download",
   }
   const legalLinkMap: Record<string, string> = {
     "Privacy Policy": "/privacy",
@@ -87,7 +93,7 @@ export function Footer() {
                           ? (companyLinkMap[item] ?? "https://neuraltale.com/")
                           : section === "Legal"
                           ? (legalLinkMap[item] ?? "#")
-                          : "#"
+                          : (productLinkMap[item] ?? "#")
                       }
                       target={section === "Company" ? "_blank" : undefined}
                       rel={section === "Company" ? "noreferrer" : undefined}

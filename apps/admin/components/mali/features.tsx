@@ -5,7 +5,6 @@ import {
   ShoppingCart, FileText, Package, TrendingUp,
   Users, BarChart3, Building2, MonitorSmartphone,
 } from "lucide-react"
-import { SectionCta } from "@/components/mali/section-cta"
 
 const modules = [
   { icon: ShoppingCart, color: "#F5A623", title: "Sales & POS",          desc: "Process sales instantly, manage products, apply discounts, and generate receipts — even offline on 3G." },
@@ -123,7 +122,6 @@ export function Features() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {modules.map((mod, i) => <FeatureCard key={mod.title} mod={mod} index={i} />)}
         </div>
-        <SectionCta action="android" />
       </div>
     </section>
   )

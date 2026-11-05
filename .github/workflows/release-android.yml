@@ -235,6 +235,45 @@ jobs:
           # region (`en-US`).
           whatsNewDirectory: apps/mobile-app/distribution/whatsnew
 
+      # Website download (maliup.neuraltale.com/download): a universal APK for
+      # people who can't use Google Play. Runs after the Play upload and is
+      # continue-on-error, so it can never block or fail a Play release.
+      # Signed with the upload key, so it is NOT interchangeable with the
+      # Play-installed app (Play re-signs with the app-signing key): moving
+      # between the two needs an uninstall first.
+      - name: Build APK and upload to R2
+        continue-on-error: true
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$R2_BUCKET" ]; then
+            echo "R2 secrets not set — skipping APK."
+            exit 0
+          fi
+          flutter build apk --release --build-number=$(( $(date +%s) / 60 )) --dart-define-from-file=.env.json --obfuscate --split-debug-info=build/symbols-apk
+          version=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:\s*//; s/\+.*//' | tr -d '\r')
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          put() {
+            if ! aws s3 cp "$1" "s3://$R2_BUCKET/$2" --endpoint-url "$endpoint" "${@:3}" 2>err.txt; then
+              echo "::error::R2 upload of $2 failed: $(tr '\r\n' '  ' < err.txt)"
+              exit 1
+            fi
+          }
+          put "$apk" "android/$version/MaliUp-$version.apk" \
+            --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=31536000, immutable"
+          put "$apk" "android/MaliUp.apk" \
+            --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=300"
+
       # Every release should ship a higher version than the last -- keeps
       # pubspec.yaml as the always-current "what's live on Play Store"
       # record instead of relying on someone remembering to bump it by hand.
