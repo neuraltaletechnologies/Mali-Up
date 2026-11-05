@@ -143,6 +143,17 @@ export function DownloadPicker() {
 
       {platform === "windows" ? (
         <div role="tabpanel" className="grid md:grid-cols-2 gap-4 items-start">
+          <div className="flex flex-col gap-4">
+            <Card title="Binaries">
+              <BinaryRow b={{ title: "EXE (Installer)", tags: ["x64", "ARM64 via emulation"], href: WINDOWS_INSTALLER }} />
+              <BinaryRow b={{ title: "ZIP (Portable)", tags: ["x64", "No install needed"], href: WINDOWS_PORTABLE }} />
+            </Card>
+            <Card title="Package Manager">
+              <p className="text-xs text-[#0C1B2E]/55 mb-3">Winget (built into Windows 10 and 11)</p>
+              <CopyCommand command={WINGET_COMMAND} />
+            </Card>
+          </div>
+
           <Card title="Store">
             <StoreButton
               icon={<MicrosoftStoreIcon size={22} />}
@@ -156,20 +167,17 @@ export function DownloadPicker() {
               built-in emulation.
             </p>
           </Card>
-
-          <div className="flex flex-col gap-4">
-            <Card title="Binaries">
-              <BinaryRow b={{ title: "EXE (Installer)", tags: ["x64", "ARM64 via emulation"], href: WINDOWS_INSTALLER }} />
-              <BinaryRow b={{ title: "ZIP (Portable)", tags: ["x64", "No install needed"], href: WINDOWS_PORTABLE }} />
-            </Card>
-            <Card title="Package Manager">
-              <p className="text-xs text-[#0C1B2E]/55 mb-3">Winget (built into Windows 10 and 11)</p>
-              <CopyCommand command={WINGET_COMMAND} />
-            </Card>
-          </div>
         </div>
       ) : (
         <div role="tabpanel" className="grid md:grid-cols-2 gap-4 items-start">
+          <Card title="Binaries">
+            <BinaryRow b={{ title: "APK", tags: ["Universal", "arm64 · armv7 · x86_64"], href: ANDROID_APK }} />
+            <p className="text-xs text-[#0C1B2E]/50 leading-relaxed mt-3">
+              For devices without Google Play; updates are manual. Allow &ldquo;Install unknown apps&rdquo; for your
+              browser. Already on the Play Store version? Keep it — the two can&apos;t update each other.
+            </p>
+          </Card>
+
           <Card title="Store">
             <StoreButton
               icon={<GooglePlayIcon size={22} />}
@@ -180,14 +188,6 @@ export function DownloadPicker() {
             />
             <p className="text-xs text-[#0C1B2E]/50 leading-relaxed mt-4">
               Android phones and POS handhelds with a built-in receipt printer.
-            </p>
-          </Card>
-
-          <Card title="Binaries">
-            <BinaryRow b={{ title: "APK", tags: ["Universal", "arm64 · armv7 · x86_64"], href: ANDROID_APK }} />
-            <p className="text-xs text-[#0C1B2E]/50 leading-relaxed mt-3">
-              For devices without Google Play; updates are manual. Allow &ldquo;Install unknown apps&rdquo; for your
-              browser. Already on the Play Store version? Keep it — the two can&apos;t update each other.
             </p>
           </Card>
         </div>
