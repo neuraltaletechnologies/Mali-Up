@@ -153,6 +153,43 @@ jobs:
             --output-path build/windows/msix \
             --output-name "MaliUp-${{ steps.version.outputs.name }}"
 
+      # Website download: uploads the installer to the Cloudflare R2 bucket
+      # twice — an immutable versioned copy and a fixed "latest" name that the
+      # site's Windows button points at (NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL).
+      # Skipped when the R2_* secrets aren't set.
+      - name: Upload installer to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$R2_BUCKET" ]; then
+            echo "R2 secrets not set — skipping website upload."
+            exit 0
+          fi
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          src="build/windows/installer/MaliUp-Setup-$VERSION.exe"
+          # Versioned copy: never overwritten, safe to link to long-term.
+          aws s3 cp "$src" "s3://$R2_BUCKET/windows/$VERSION/MaliUp-Setup-$VERSION.exe" \
+            --endpoint-url "$endpoint" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable"
+          # Fixed name for the website button; always the newest build.
+          aws s3 cp "$src" "s3://$R2_BUCKET/windows/MaliUp-Setup.exe" \
+            --endpoint-url "$endpoint" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=300"
+          printf '{"version":"%s","file":"windows/%s/MaliUp-Setup-%s.exe"}\n' "$VERSION" "$VERSION" "$VERSION" > latest.json
+          aws s3 cp latest.json "s3://$R2_BUCKET/windows/latest.json" \
+            --endpoint-url "$endpoint" \
+            --content-type application/json \
+            --cache-control "public, max-age=60"
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

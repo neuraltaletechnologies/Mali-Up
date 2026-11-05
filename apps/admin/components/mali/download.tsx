@@ -9,7 +9,8 @@ const CONTACT_URL = "https://neuraltale.com/#contact"
 // Desktop installers — set these in the deployment env once the builds are
 // hosted. Until then the Windows/Mac cards send people to the team instead
 // of a dead link.
-const WINDOWS_URL = process.env.NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL || ""
+// Windows has its own download page (app/download/windows) with the installer button.
+const WINDOWS_PAGE = "/download/windows"
 const MAC_URL = process.env.NEXT_PUBLIC_MAC_DOWNLOAD_URL || ""
 
 const perks = [
@@ -44,8 +45,8 @@ const devices: Device[] = [
   {
     name: "Windows computer",
     detail: "Install on your shop or office desktop and laptop.",
-    cta: WINDOWS_URL ? "Download for Windows" : "Get it for Windows",
-    href: WINDOWS_URL || CONTACT_URL,
+    cta: "Download for Windows",
+    href: WINDOWS_PAGE,
   },
   {
     name: "Mac",
