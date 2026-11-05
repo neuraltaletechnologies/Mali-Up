@@ -9,7 +9,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.
 // Always points at the newest installer.
 const INSTALLER_URL =
   process.env.NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL || 'https://downloads.neuraltale.com/windows/MaliUp-Setup.exe'
-const STORE_URL = 'https://apps.microsoft.com/detail/9NFFCXFP4881'
+const STORE_URL = 'https://apps.microsoft.com/detail/9NDQXPM95Q99'
 
 export const metadata: Metadata = {
   title: 'Download Mali Up for Windows',
