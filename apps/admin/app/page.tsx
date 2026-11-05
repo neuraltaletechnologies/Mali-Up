@@ -3,11 +3,7 @@ import Script from 'next/script'
 import { Nav } from "@/components/mali/nav"
 import { Hero } from "@/components/mali/hero"
 import { Features } from "@/components/mali/features"
-import { HowItWorks } from "@/components/mali/how-it-works"
-import { PhoneShowcase } from "@/components/mali/phone-showcase"
 import { Pricing } from "@/components/mali/pricing"
-import { AppGallery } from "@/components/mali/app-gallery"
-import { Stats } from "@/components/mali/stats"
 import { Download } from "@/components/mali/download"
 import { Footer } from "@/components/mali/footer"
 
@@ -197,11 +193,7 @@ export default function HomePage() {
         <Nav />
         <Hero />
         <Features />
-        <HowItWorks />
-        <PhoneShowcase />
         <Pricing />
-        <AppGallery />
-        <Stats />
         <Download />
         <Footer />
       </main>

@@ -14,7 +14,7 @@ const modules = [
   { icon: Users,        color: "#22C55E", title: "Customer CRM",         desc: "Build customer profiles, track purchase history, and maintain lasting relationships every day." },
   { icon: BarChart3,    color: "#3B82F6", title: "Business Analytics",   desc: "Data-driven dashboards that surface actionable insights on sales, revenue, and growth trends." },
   { icon: Building2,    color: "#F5A623", title: "Multi-Business",       desc: "One platform for multiple businesses. Each business gets isolated data, custom branding, and dedicated access." },
-  { icon: MonitorSmartphone, color: "#22C55E", title: "Phone, POS & Desktop", desc: "Sell from an Android phone, a handheld POS with a receipt printer, or a Windows or Mac computer — one account, synced, and fast even on 3G." },
+  { icon: MonitorSmartphone, color: "#22C55E", title: "Phone, POS & Desktop", desc: "Sell from an Android phone, a handheld POS with a receipt printer, or a Windows computer — one account, synced, and fast even on 3G." },
 ]
 
 function FeatureCard({ mod, index }: { mod: typeof modules[0]; index: number }) {
