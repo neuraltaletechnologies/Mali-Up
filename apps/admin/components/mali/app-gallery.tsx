@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { IPhoneMockup } from "@/components/mali/iphone-mockup"
+import { Phone3D } from "@/components/mali/phone-3d"
 import NextImage from "next/image"
 
 const screens = [
@@ -114,11 +114,13 @@ export function AppGallery() {
                   style={{ backgroundColor: s.color }}
                   aria-hidden="true"
                 />
-                <IPhoneMockup
+                <Phone3D
                   src={s.src}
                   alt={s.alt}
+                  model={i % 2 === 0 ? "iphone" : "pixel"}
                   width={200}
-                  accentColor={s.color}
+                  yaw={(i - 1.5) * -0.2}
+                  phase={i * 1.1}
                 />
               </div>
               {/* Label pill */}

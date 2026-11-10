@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight, Download, TrendingUp, Zap } from "lucide-react"
-import { IPhoneMockup } from "@/components/mali/iphone-mockup"
+import { Phone3D } from "@/components/mali/phone-3d"
 import NextImage from "next/image"
 
 
@@ -220,7 +220,7 @@ export function Hero() {
             </div>
           </div>
 
-          {/* ── Right: floating iPhone ── */}
+          {/* ── Right: floating 3D phones ── */}
           <div className="relative flex justify-center items-center" aria-hidden="true">
             {/* Pulsing glow ring */}
             <div
@@ -228,16 +228,25 @@ export function Hero() {
               style={{ background: "radial-gradient(circle, rgba(245,166,35,0.18) 0%, transparent 70%)" }}
             />
 
-            <div
-              className="relative animate-float-phone z-10"
-              style={{ filter: "drop-shadow(0 48px 64px rgba(0,0,0,0.55))" }}
-            >
-              <IPhoneMockup
+            <div className="relative animate-float-phone z-10 -translate-x-6 sm:translate-x-0">
+              <div className="absolute top-10 -right-20 sm:-right-32">
+                <Phone3D
+                  src="/app-analytics.jpg"
+                  alt="Mali Up analytics"
+                  model="pixel"
+                  width={205}
+                  yaw={-0.42}
+                  phase={1.6}
+                  interactive
+                />
+              </div>
+              <Phone3D
                 src="/app-dashboard.jpg"
                 alt="Mali Up dashboard"
+                model="iphone"
                 width={230}
-                accentColor="#F5A623"
-                animate
+                yaw={0.32}
+                interactive
               />
 
               {/* Floating metric cards */}
