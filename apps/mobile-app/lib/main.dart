@@ -105,16 +105,7 @@ Future<void> _startApp() async {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
-    unawaited(
-      FirebaseAppCheck.instance.activate(
-        providerAndroid: kDebugMode
-            ? const AndroidDebugProvider()
-            : const AndroidPlayIntegrityProvider(),
-        providerApple: kDebugMode
-            ? const AppleDebugProvider()
-            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
-      ),
-    );
+    unawaited(_activateAppCheck());
   }
 
   // Fire-and-forget: checks this build against the remote version gate.
@@ -210,6 +201,30 @@ Future<void> main() async {
   SentryMetricsService.appLaunched(sentryEnabled: false);
 }
 
+Future<void> _activateAppCheck() async {
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: kDebugMode
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
+    providerApple: kDebugMode
+        ? const AppleDebugProvider()
+        : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+  );
+  if (!kDebugMode) {
+    return;
+  }
+  try {
+    await FirebaseAppCheck.instance.getToken();
+  } catch (e) {
+    debugPrint(
+      '[AppCheck] Debug token exchange failed: $e\n'
+      'Find the line "Firebase App Check Debug Token: ..." in the Xcode or '
+      'device log, then register it in Firebase Console → App Check → iOS '
+      'app → Manage debug tokens (see apps/mobile-app/APP_CHECK_SETUP.md).',
+    );
+  }
+}
+
 class MaliUpApp extends ConsumerStatefulWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
@@ -254,10 +269,15 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
         _startedLocked &&
         !_navigatedAfterFirstUnlock) {
       _navigatedAfterFirstUnlock = true;
+      // Wait until after the PIN-lock MaterialApp has unmounted before
+      // driving GoRouter — otherwise router.go during that teardown trips
+      // NavigatorState.dispose's !_debugLocked assert.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && FirebaseAuth.instance.currentUser != null) {
-          ref.read(goRouterProvider).go(AppRoutes.dashboard);
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && FirebaseAuth.instance.currentUser != null) {
+            ref.read(goRouterProvider).go(AppRoutes.dashboard);
+          }
+        });
       });
     }
   }
