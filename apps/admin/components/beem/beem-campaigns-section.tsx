@@ -79,7 +79,7 @@ export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.Reac
       {/* ── Campaign Composer ── */}
       <BeemCampaignComposer
         businesses={businesses}
-        defaultSenderId={statusData?.senderId || 'INFO'}
+        defaultSenderId={statusData?.senderId || 'Mali Up'}
         onCampaignCreated={() => {
           refetchCampaigns()
           refetchStatus()

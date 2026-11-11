@@ -13,6 +13,21 @@ import '../data/sales_providers.dart' show parseNumericAmount;
 /// or empty when the debt has no linked sale, e.g. a manually added debt)
 /// supplies only the line items.
 abstract final class DebtReminderText {
+  /// A manually added debt (no linked sale) has no line items — its note is
+  /// where the user writes what was bought (product or service). Turns that
+  /// note into a single line item (qty 1 at the principal) so reminders
+  /// still say what the money is for. Null when there's no note.
+  static Map<String, dynamic>? manualLineItem(Debt debt) {
+    final name = debt.note.trim();
+    if (name.isEmpty) return null;
+    return {
+      'name': name,
+      'qty': 1,
+      'unitPrice': debt.originalAmount,
+      'total': debt.originalAmount,
+    };
+  }
+
   static String build({
     required Debt debt,
     required Map<String, dynamic> invoice,
@@ -33,9 +48,13 @@ abstract final class DebtReminderText {
     }
 
     final rawItems = invoice['items'] ?? invoice['lineItems'];
-    final items = rawItems is List
+    var items = rawItems is List
         ? rawItems.whereType<Map>().toList()
         : const <Map>[];
+    if (items.isEmpty) {
+      final manual = manualLineItem(debt);
+      if (manual != null) items = [manual];
+    }
     if (items.isNotEmpty) {
       buf.writeln('━━━━━━━━━━━━━━━━━━━━━');
       for (final item in items) {

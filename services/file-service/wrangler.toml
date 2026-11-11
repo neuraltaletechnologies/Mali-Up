@@ -1,0 +1,30 @@
+# Mali Up file service — Worker + R2 bucket that replaces Firebase Storage.
+#
+# One-time setup (same Cloudflare account as apps/admin):
+#   npx wrangler r2 bucket create maliup-files
+#   npx wrangler deploy
+# Optional, only while migrating old Firebase photos:
+#   npx wrangler secret put MIGRATION_TOKEN     # any long random string
+#   npx wrangler secret delete MIGRATION_TOKEN  # when the migration is done
+#
+# The bucket stays private (no r2.dev / public bucket access) — every read goes
+# through this Worker's GET /f/<key>.
+name = "maliup-files"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# Custom domain on the neuraltale.com zone. If you change it, change
+# PUBLIC_BASE_URL below and FILES_BASE_URL in the mobile app
+# (lib/core/services/file_upload_service.dart) to match.
+routes = [{ pattern = "maliup-files.neuraltale.com", custom_domain = true }]
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "maliup-files"
+
+[vars]
+FIREBASE_PROJECT_ID = "neuraltale-mali-up"
+PUBLIC_BASE_URL = "https://maliup-files.neuraltale.com"
+
+[observability]
+enabled = true

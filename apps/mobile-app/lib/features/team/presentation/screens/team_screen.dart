@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../../../core/services/app_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/responsive_card_list.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -47,11 +49,10 @@ Future<void> _callRemoveTeamMember({
   required String businessId,
   required String memberId,
 }) async {
-  final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-      .httpsCallable(
-        'removeTeamMember',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 90)),
-      );
+  final callable = AppFunctions.callable(
+    'removeTeamMember',
+    timeout: const Duration(seconds: 90),
+  );
   await callable.call<Map<String, dynamic>>({
     'businessId': businessId,
     'memberId': memberId,
@@ -252,11 +253,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                           physics: silentRefreshPhysics,
                           child: _EmptyState(filter: _filter),
                         )
-                      : ListView.builder(
+                      : ResponsiveCardList(
                           physics: silentRefreshPhysics,
-                          padding: const EdgeInsets.only(bottom: 104),
+                          bottomPadding: 104,
                           itemCount: filtered.length,
-                          itemBuilder: (ctx, i) => ListSwipeCard(
+                          itemBuilder: (ctx, i, inGrid) => ListSwipeCard(
                             itemKey: ValueKey(filtered[i].id),
                             onEdit: ps.isOwner
                                 ? () => _showMemberSheet(context, filtered[i])
@@ -266,7 +267,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                                 : null,
                             child: _MemberCard(
                               member: filtered[i],
-                              isLast: i == filtered.length - 1,
+                              isLast: inGrid || i == filtered.length - 1,
                               onTap: () =>
                                   _showMemberSheet(context, filtered[i]),
                             ),
@@ -1893,32 +1894,52 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           ),
         );
       }
+      final updated = _member.copyWith(
+        role: data.containsKey('role')
+            ? TeamRole.fromString(data['role'] as String)
+            : null,
+        status: data['status'] as String?,
+        dataScope: data.containsKey('dataScope')
+            ? DataScope.fromString(data['dataScope'] as String)
+            : null,
+        customPermissions: data['customPermissions'] is List
+            ? (data['customPermissions'] as List)
+                .whereType<String>()
+                .map(AppPermissionX.fromString)
+                .whereType<AppPermission>()
+                .toSet()
+            : null,
+        customRoleId: data['customRoleId'] is String
+            ? data['customRoleId'] as String
+            : null,
+        customRoleName: data['customRoleName'] is String
+            ? data['customRoleName'] as String
+            : null,
+        clearCustomRole:
+            data.containsKey('customRoleId') && data['customRoleId'] is! String,
+      );
+
+      // Mirror to Drift — the team list reads only from Drift, so without
+      // this the list (and this screen on re-open) shows the stale status.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final existing = await db.teamDao.getById(_member.id);
+        await db.teamDao.upsert(
+          TeamMemberMapper.toCompanion(
+            updated,
+            businessId: bizId,
+            syncStatus: 'synced',
+            createdAtMs:
+                existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      } catch (_) {
+        // Best-effort — the next sync pull will reconcile Drift.
+      }
+
       if (!mounted) return;
       setState(() {
-        _member = _member.copyWith(
-          role: data.containsKey('role')
-              ? TeamRole.fromString(data['role'] as String)
-              : null,
-          status: data['status'] as String?,
-          dataScope: data.containsKey('dataScope')
-              ? DataScope.fromString(data['dataScope'] as String)
-              : null,
-          customPermissions: data['customPermissions'] is List
-              ? (data['customPermissions'] as List)
-                  .whereType<String>()
-                  .map(AppPermissionX.fromString)
-                  .whereType<AppPermission>()
-                  .toSet()
-              : null,
-          customRoleId: data['customRoleId'] is String
-              ? data['customRoleId'] as String
-              : null,
-          customRoleName: data['customRoleName'] is String
-              ? data['customRoleName'] as String
-              : null,
-          clearCustomRole:
-              data.containsKey('customRoleId') && data['customRoleId'] is! String,
-        );
+        _member = updated;
         _pendingCustomRole = null;
         _isSaving = false;
         _editingRole = false;

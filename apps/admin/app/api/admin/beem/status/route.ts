@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({
         configured: false,
         balance: null,
-        senderId: creds.senderId || 'INFO',
+        senderId: creds.senderId || 'Mali Up',
         templates: [],
         message: 'Beem Africa API credentials are not configured in environment or platform config.',
       })
@@ -29,7 +29,7 @@ export async function GET() {
       configured: true,
       balance: balanceRes.success ? balanceRes.balance : null,
       balanceError: balanceRes.error,
-      senderId: creds.senderId || 'INFO',
+      senderId: creds.senderId || 'Mali Up',
       templates: templatesRes.templates || [],
       connected: balanceRes.success,
     })

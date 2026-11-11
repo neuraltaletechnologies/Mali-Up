@@ -1950,7 +1950,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
-  bool _adjustmentsExpanded = false;
   bool _detailsExpanded = false;
   bool _isSaving = false;
   // Surfaced as an inline banner next to the field it's about, rather than
@@ -2135,7 +2134,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _payStatus = _PayStatus.paid;
       _dueDate = null;
       _vatEnabled = false;
-      _adjustmentsExpanded = false;
       _detailsExpanded = false;
       _isSaving = false;
       _errorMsg = null;
@@ -2425,6 +2423,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     final beforeSave = widget.beforeSave;
     if (beforeSave != null && !await beforeSave()) return;
     if (!mounted) return;
+    // Empty lines (e.g. left over from "Add item") aren't part of the sale -
+    // drop them rather than blocking the save, as long as something is left.
+    final blanks = _items
+        .where((e) => e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .toList();
+    if (blanks.isNotEmpty && blanks.length < _items.length) {
+      setState(() => _items.removeWhere(blanks.contains));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final b in blanks) {
+          b.dispose();
+        }
+      });
+    }
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
@@ -3008,8 +3019,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 children: [
                   KeyedSubtree(key: _tourItemKey, child: _buildItemsSection()),
                   _buildFieldError(_ErrorField.items),
-                  const SizedBox(height: 12),
-                  _buildTotalsSection(),
                   const SizedBox(height: 18),
                   const _CartSectionLabel(en: 'Payment', sw: 'Malipo'),
                   const SizedBox(height: 8),
@@ -3222,7 +3231,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       children: [
                         Flexible(
                           child: Text(
-                            _tr('Customer & details', 'Mteja na maelezo'),
+                            _tr('Customer', 'Mteja'),
                             style: GoogleFonts.dmSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -3269,8 +3278,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     const SizedBox(height: 12),
                     _buildDueDateRow(),
                   ],
-                  const SizedBox(height: 12),
-                  _buildNotesField(),
                 ],
               ),
             ),
@@ -3285,6 +3292,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Widget _buildStickyFooter() {
+    final hasAdjustments = _discountAmt > 0 || _vatEnabled;
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -3300,34 +3308,89 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                _tr('Total', 'Jumla'),
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'TSh ${_sNum(_grandTotal)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                ),
+          // Breakdown only when something changes the total — otherwise the
+          // subtotal is the total and would just repeat it.
+          if (hasAdjustments) ...[
+            _TotalRow(
+              label: _tr('Subtotal', 'Jumla ya bidhaa'),
+              value: 'TSh ${_sNum(_subtotal)}',
+            ),
+            if (_discountAmt > 0) ...[
+              const SizedBox(height: 3),
+              _TotalRow(
+                label: _tr('Discount', 'Punguzo'),
+                value: '− TSh ${_sNum(_discountAmt)}',
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            key: _tourSaveKey,
-            width: double.infinity,
-            child: _buildSaveButton(),
+            if (_vatEnabled) ...[
+              const SizedBox(height: 3),
+              _TotalRow(label: 'VAT (18%)', value: 'TSh ${_sNum(_vatAmt)}'),
+            ],
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _tr('Total', 'Jumla'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'TSh ${_sNum(_grandTotal)}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _isSaving ? null : _openAdjustmentsDialog,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              hasAdjustments
+                                  ? Icons.edit_rounded
+                                  : Icons.add_rounded,
+                              size: 13,
+                              color: AppColors.tealAccent,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _tr('Discount & VAT', 'Punguzo na kodi'),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.tealAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(key: _tourSaveKey, child: _buildSaveButton()),
+              ),
+            ],
           ),
         ],
       ),
@@ -3502,6 +3565,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     if (entry.selectedItem != null && !entry.editing && !entry.showSuggs) {
       return _buildCartLine(index);
     }
+    // A fresh line (nothing picked, not opened for editing) is a compact
+    // search row shaped like a cart line instead of the full form. The full
+    // editor stays for an edited line so renaming it doesn't swap widgets
+    // (and drop focus) mid-typing.
+    if (!entry.editing) return _buildSearchLine(index);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: _buildItemEditor(index),
@@ -3746,114 +3814,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         ),
         if (entry.showSuggs) _buildProductSuggestions(index),
         if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
-          Builder(
-            builder: (_) {
-              final recent = _recentlySoldProducts();
-              if (recent.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    Text(
-                      _tr('Recent', 'Hivi karibuni'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: recent.map((item) {
-                            final name = (item['name'] ?? '').toString();
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ActionChip(
-                                visualDensity: VisualDensity.compact,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                labelPadding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                side: const BorderSide(color: AppColors.border),
-                                backgroundColor: AppColors.surface,
-                                label: Text(
-                                  name,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                onPressed: () => _selectProduct(entry, item),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          _buildRecentChips(entry),
         if (entry.nameCtrl.text.isNotEmpty &&
             entry.selectedItem == null &&
             !entry.showSuggs)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: InkWell(
-              onTap: () => showAppSheet<void>(
-                context,
-                builder: (_) => _AddProductSheet(
-                  initialName: entry.nameCtrl.text.trim(),
-                  onAdded: (item) => _selectProduct(entry, item),
-                ),
-              ),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
-                  border: Border.all(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 15,
-                      color: AppColors.navyPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _tr(
-                          'Add "${entry.nameCtrl.text}" to inventory',
-                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.navyPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildAddToInventoryPrompt(entry),
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4085,6 +4050,288 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
+  /// "Recent" quick-pick chips shown under an empty line.
+  Widget _buildRecentChips(_ItemEntry entry) =>
+          Builder(
+            builder: (_) {
+              final recent = _recentlySoldProducts();
+              if (recent.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      _tr('Recent', 'Hivi karibuni'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: recent.map((item) {
+                            final name = (item['name'] ?? '').toString();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                side: const BorderSide(color: AppColors.border),
+                                backgroundColor: AppColors.surface,
+                                label: Text(
+                                  name,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                onPressed: () => _selectProduct(entry, item),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+  /// Offer to add a typed name that matched nothing to inventory.
+  Widget _buildAddToInventoryPrompt(_ItemEntry entry) =>
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: InkWell(
+              onTap: () => showAppSheet<void>(
+                context,
+                builder: (_) => _AddProductSheet(
+                  initialName: entry.nameCtrl.text.trim(),
+                  onAdded: (item) => _selectProduct(entry, item),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 15,
+                      color: AppColors.navyPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _tr(
+                          'Add "${entry.nameCtrl.text}" to inventory',
+                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          color: AppColors.navyPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+  /// A line with nothing picked yet, laid out like a cart line: a product
+  /// tile, the search field and scan/remove actions in one row. Price and
+  /// qty only appear once a name that isn't in inventory is typed (a custom
+  /// item) - picking a product turns the line into a cart line instead.
+  Widget _buildSearchLine(int index) {
+    final entry = _items[index];
+    final typed = entry.nameCtrl.text.trim().isNotEmpty;
+    final custom = typed && !entry.showSuggs;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.tealAccent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.tealAccent.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Icon(
+                  custom ? Icons.edit_note_rounded : Icons.search_rounded,
+                  size: 20,
+                  color: AppColors.tealAccent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: entry.nameCtrl,
+                  autofocus: index == 0 && _items.length == 1,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    hintText: _tr(
+                      'Search or scan a product',
+                      'Tafuta au skani bidhaa',
+                    ),
+                    hintStyle: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+              if (typed)
+                IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _tr('Clear', 'Futa'),
+                  onPressed: () {
+                    entry.nameCtrl.clear();
+                    entry.priceCtrl.clear();
+                    setState(() {
+                      entry.selectedItem = null;
+                      entry.basePrice = null;
+                      entry.suggs = [];
+                      entry.showSuggs = false;
+                      entry.qty = 1;
+                    });
+                  },
+                )
+              else
+                IconButton(
+                  icon: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 22,
+                    color: AppColors.tealAccent,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _tr('Scan mode', 'Hali ya skani'),
+                  onPressed: _openPosScanner,
+                ),
+              if (_items.length > 1)
+                IconButton(
+                  onPressed: () => _removeItem(index),
+                  tooltip: _tr('Remove', 'Ondoa'),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          if (entry.showSuggs) _buildProductSuggestions(index),
+          if (!typed) _buildRecentChips(entry),
+          if (custom) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 50, top: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: entry.priceCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        prefixText: 'TSh ',
+                        hintText: _tr('Price', 'Bei'),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(99),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _CartQtyStepper(
+                    qty: entry.qty,
+                    onMinus: () => _decrementLine(index),
+                    onPlus: () => setState(() => entry.qty++),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 78,
+                    child: Text(
+                      _sNum(entry.lineTotal),
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 50),
+              child: _buildAddToInventoryPrompt(entry),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductSuggestions(int index) {
     final entry = _items[index];
     return Container(
@@ -4244,142 +4491,90 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
-  Widget _buildTotalsSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Column(
-              children: [
-                _TotalRow(
-                  label: _tr('Subtotal', 'Jumla ya bidhaa'),
-                  value: 'TSh ${_sNum(_subtotal)}',
-                ),
-                if (_discountAmt > 0) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(
-                    label: _tr('Discount', 'Punguzo'),
-                    value: '− TSh ${_sNum(_discountAmt)}',
-                  ),
-                ],
-                if (_vatEnabled && !_adjustmentsExpanded) ...[
-                  const SizedBox(height: 4),
-                  _TotalRow(label: 'VAT (18%)', value: 'TSh ${_sNum(_vatAmt)}'),
-                ],
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () => setState(
-                    () => _adjustmentsExpanded = !_adjustmentsExpanded,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          size: 17,
-                          color: _adjustmentsExpanded
-                              ? AppColors.tealAccent
-                              : AppColors.textMuted,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _tr('Discount & VAT', 'Punguzo na kodi'),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _tr('Optional', 'Hiari'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          _adjustmentsExpanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 20,
-                          color: AppColors.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_adjustmentsExpanded) ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _discountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                    decoration: _fieldDec(
-                      label: _tr(
-                        'Discount (TSh, optional)',
-                        'Punguzo (TSh, hiari)',
-                      ),
-                      prefix: Icons.discount_outlined,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.receipt_long_rounded,
-                        size: 16,
-                        color: AppColors.tealAccent,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Switch.adaptive(
-                        value: _vatEnabled,
-                        onChanged: (v) => setState(() => _vatEnabled = v),
-                        activeThumbColor: AppColors.tealAccent,
-                        activeTrackColor: AppColors.tealAccent.withValues(
-                          alpha: 0.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_vatEnabled) ...[
-                    const SizedBox(height: 4),
-                    _TotalRow(
-                      label: 'VAT (18%)',
-                      value: 'TSh ${_sNum(_vatAmt)}',
-                    ),
-                  ],
-                ],
-              ],
+  /// Discount & VAT, opened from the footer link next to the total — a
+  /// dialog rather than inline fields so the footer stays one row and the
+  /// field isn't hidden behind the keyboard.
+  Future<void> _openAdjustmentsDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            _tr('Discount & VAT', 'Punguzo na kodi'),
+            style: GoogleFonts.dmSans(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
             ),
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _discountCtrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                onChanged: (_) => setState(() {}),
+                decoration: _fieldDec(
+                  label: _tr('Discount (TSh)', 'Punguzo (TSh)'),
+                  prefix: Icons.discount_outlined,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.receipt_long_rounded,
+                    size: 16,
+                    color: AppColors.tealAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _vatEnabled,
+                    onChanged: (v) {
+                      setState(() => _vatEnabled = v);
+                      setLocal(() {});
+                    },
+                    activeThumbColor: AppColors.tealAccent,
+                    activeTrackColor: AppColors.tealAccent.withValues(
+                      alpha: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                _tr('Done', 'Sawa'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+    if (mounted) setState(() {});
   }
 
   void _setPayStatus(_PayStatus status) {
@@ -4534,18 +4729,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
-  Widget _buildNotesField() {
-    return TextField(
-      controller: _notesCtrl,
-      maxLines: 2,
-      textCapitalization: TextCapitalization.sentences,
-      decoration: _fieldDec(
-        label: _tr('Notes (optional)', 'Maelezo (hiari)'),
-        prefix: Icons.notes_outlined,
-      ),
-    );
-  }
-
   Widget _buildSaveButton() {
     final hasOutOfStock = _items.any((e) => e.isOutOfStock);
     final needsCustomer =
@@ -4594,9 +4777,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               )
             : Text(
                 buttonLabel,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
+                  height: 1.15,
                 ),
               ),
       ),

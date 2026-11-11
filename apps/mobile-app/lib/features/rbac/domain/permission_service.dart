@@ -51,6 +51,15 @@ class PermissionService {
   /// everything in the business. Always false for owners.
   bool get isOwnRecordsOnly => !_isOwner && _dataScope == DataScope.own;
 
+  /// True for point-of-sale members — team members who can ring up sales but
+  /// can't see financial reports (the built-in Cashier role, or any custom
+  /// role shaped like it). They open the app straight onto the Sales/POS
+  /// screen instead of the dashboard, whose figures they mostly can't see.
+  bool get isPosUser =>
+      !_isOwner &&
+      _permissions.contains(AppPermission.createSale) &&
+      !_permissions.contains(AppPermission.viewFinancialReports);
+
   // ── Core check ────────────────────────────────────────────────────────────
 
   /// Returns true if the user may perform the given action.

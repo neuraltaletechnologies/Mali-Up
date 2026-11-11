@@ -67,7 +67,18 @@ npm run prisma:generate / prisma:migrate
     auto-opened `dev → main` PR gets that label by default; remove it to
     merge without an Android release. A feature-branch PR straight into
     `main` needs the label added by hand. It can also be run manually from
-    the Actions tab.
+    the Actions tab. The same run uploads the website APK to R2
+    (`downloads.neuraltale.com/android/MaliUp.apk`).
+  - Windows ships only with the `release:windows` label →
+    `release-windows.yml` (installer to R2 + GitHub Release, MSIX for
+    Partner Center). The auto-opened `dev → main` PR gets it by default too.
+  - **One version for every platform**: `version:` in
+    `apps/mobile-app/pubspec.yaml` is the only source (Android, iOS, web,
+    Windows installer, MSIX `x.y.z.0`). Ship Android and Windows from the
+    same merge so they carry the same number; the Android run patch-bumps
+    pubspec afterwards. Bump minor/major by hand in a PR.
+  - Backend Workers under `services/` deploy via `deploy-services.yml`:
+    `dev` only runs checks, `main` deploys to production (no staging yet).
   - The Flutter **web** build (`deploy-web.yml`) is not label-gated: it
     deploys on any `main` push touching `apps/mobile-app/**`.
 - After a `dev → main` release, sync `dev` back up (`git merge main` into

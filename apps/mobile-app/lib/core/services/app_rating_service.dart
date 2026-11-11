@@ -20,9 +20,17 @@ class AppRatingService {
   static const _kPromptCount = 'rating_prompt_count';
   static const _kHasRated = 'rating_has_rated';
 
-  /// Positive signals required before we even consider asking.
-  /// Set to 1 so the prompt fires after the very first completed sale.
-  static const _minSignals = 1;
+  /// Positive signals (completed sales) required before we even consider
+  /// asking — enough that the user has actually got value from the app,
+  /// not just finished setup.
+  static const _minSignals = 3;
+
+  /// The app must have been installed at least this long — never on day one.
+  static const _minAgeForSalesPath = Duration(days: 2);
+
+  /// The "never asked yet" path for long-term users who don't record sales
+  /// (e.g. expense/stock-only) — only once they've clearly stuck around.
+  static const _minAgeForReturningPath = Duration(days: 7);
 
   /// Minimum time between two prompts.
   static const _cooldown = Duration(days: 60);
@@ -49,18 +57,27 @@ class AppRatingService {
     await prefs.setInt(_kPositiveSignals, current + 1);
   }
 
+  /// True once the install is at least [age] old.
+  static bool _installedFor(SharedPreferences prefs, Duration age) {
+    final first = prefs.getInt(_kFirstLaunchAt);
+    if (first == null) return false;
+    return DateTime.now().difference(
+          DateTime.fromMillisecondsSinceEpoch(first),
+        ) >=
+        age;
+  }
+
   /// Whether to prompt a returning / continuing user on app open.
   ///
-  /// This fires **once** for any user who has never seen the review dialog
-  /// before — regardless of how many sales they have. It catches people who
-  /// were already using the app before the rating prompt was introduced, or
-  /// who simply haven't made a sale yet on this install but are clearly
-  /// long-term users. After it fires it is subject to the normal cooldown
-  /// and prompt-count cap so they won't be asked again until [_cooldown]
-  /// has elapsed.
+  /// Fires **once** for a user who has never seen the review dialog, even
+  /// with fewer sales than [shouldPrompt] needs — but only after
+  /// [_minAgeForReturningPath] of use, so a brand-new user finishing setup
+  /// is never asked. After it fires it is subject to the normal cooldown
+  /// and prompt-count cap.
   static Future<bool> shouldPromptReturningUser() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(_kHasRated) ?? false) return false;
+    if (!_installedFor(prefs, _minAgeForReturningPath)) return false;
 
     final promptCount = prefs.getInt(_kPromptCount) ?? 0;
     // Only fire this path if they have *never* been prompted at all.
@@ -88,6 +105,7 @@ class AppRatingService {
 
     final signals = prefs.getInt(_kPositiveSignals) ?? 0;
     if (signals < _minSignals) return false;
+    if (!_installedFor(prefs, _minAgeForSalesPath)) return false;
 
     final lastPrompted = prefs.getInt(_kLastPromptedAt);
     if (lastPrompted != null) {

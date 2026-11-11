@@ -12,7 +12,9 @@
     "backfill:barcodes:dry": "ts-node backfill-barcodes.ts --dry-run",
     "backfill:barcodes:count": "ts-node backfill-barcodes.ts --count-only",
     "sms:welcome": "ts-node send-welcome-sms-existing-users.ts",
-    "sms:welcome:dry": "ts-node send-welcome-sms-existing-users.ts --dry-run"
+    "sms:welcome:dry": "ts-node send-welcome-sms-existing-users.ts --dry-run",
+    "migrate:r2": "ts-node migrate-storage-to-r2.ts",
+    "migrate:r2:dry": "ts-node migrate-storage-to-r2.ts --dry-run"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0"

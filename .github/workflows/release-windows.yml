@@ -9,12 +9,12 @@ name: Release Windows (Installer + Microsoft Store)
 #                               Partner Center (Product -> Packages)
 #
 # Like release-android.yml, merging into `main` does not ship on its own: only
-# a merged PR carrying the `release:windows` label does (add it by hand; the
-# auto-opened dev -> main PR does not get it). Can also be run from the
-# Actions tab.
+# a merged PR carrying the `release:windows` label does (the auto-opened
+# dev -> main PR gets it by default, next to `release:android`; add it by
+# hand on any other PR). Can also be run from the Actions tab.
 #
-# Version: pubspec `version` (e.g. 1.2.5+6) -> installer 1.2.5, MSIX
-# 1.2.5.0 (the Store requires the 4th MSIX segment to be 0). This workflow
+# Version: pubspec `version` (e.g. 1.3.0+8) -> installer 1.3.0, MSIX
+# 1.3.0.0 (the Store requires the 4th MSIX segment to be 0). This workflow
 # does not bump the version; release-android.yml does that after each Android
 # release, so ship Android and Windows together or bump pubspec yourself —
 # the Store rejects an MSIX whose version isn't higher than the last one.

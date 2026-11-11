@@ -42,7 +42,7 @@ export function normalizePhone(raw: string): string {
 export async function getBeemCredentials(): Promise<BeemConfig> {
   const envKey = process.env.BEEM_SMS_API_KEY || process.env.BEEM_API_KEY || ''
   const envSecret = process.env.BEEM_SMS_SECRET_KEY || process.env.BEEM_SECRET_KEY || ''
-  const envSender = process.env.BEEM_SMS_SENDER_ID || process.env.BEEM_SENDER_ID || 'INFO'
+  const envSender = process.env.BEEM_SMS_SENDER_ID || process.env.BEEM_SENDER_ID || 'Mali Up'
 
   if (envKey && envSecret) {
     return {
@@ -253,7 +253,7 @@ export async function sendBeemSmsBatch(options: SendSmsBatchOptions): Promise<Se
     }
   }
 
-  const senderId = options.senderId?.trim() || creds.senderId || 'INFO'
+  const senderId = options.senderId?.trim() || creds.senderId || 'Mali Up'
   const scheduleTime = options.scheduleTime?.trim() || ''
 
   const hasTags = /\{(name|businessName|phone|appName)\}/i.test(options.message)

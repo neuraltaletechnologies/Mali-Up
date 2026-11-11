@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Download, Store, TrendingUp } from "lucide-react"
-import { IPhoneMockup } from "@/components/mali/iphone-mockup"
+import { Phone3D } from "@/components/mali/phone-3d"
 
 
 const steps = [
@@ -43,7 +43,7 @@ function StepCard({ step, index }: { step: typeof steps[0]; index: number }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* iPhone mockup */}
+      {/* 3D phone */}
       <div className="relative">
         {/* Glow that intensifies on hover */}
         <div
@@ -61,11 +61,13 @@ function StepCard({ step, index }: { step: typeof steps[0]; index: number }) {
             transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1)",
           }}
         >
-          <IPhoneMockup
+          <Phone3D
             src={step.img}
             alt={`Mali Up — ${step.title}`}
+            model={index % 2 === 0 ? "iphone" : "pixel"}
             width={150}
-            accentColor={step.color}
+            yaw={(index - 1) * -0.2}
+            phase={index * 1.3}
           />
         </div>
 

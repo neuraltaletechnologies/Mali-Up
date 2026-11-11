@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/page_tour.dart';
 import '../../../../core/services/app_rating_service.dart';
 import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
@@ -240,8 +241,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? false
         : await AppRatingService.shouldPromptReturningUser();
     if ((!eligible && !returningUser) || !mounted) return;
+    // Never interrupt the first-run journey; it'll be asked on a later visit.
+    if (await OnboardingJourney.isInProgress()) return;
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
+    // Something else took the screen meanwhile (a page tour, a sheet, the
+    // website-interest nudge) — skip this visit rather than stack on top.
+    if (PageTour.isActive || sheetOpenNotifier.value > 0) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     RateAppDialog.show(context);
   }
 

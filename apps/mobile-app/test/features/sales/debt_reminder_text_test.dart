@@ -73,6 +73,27 @@ void main() {
       expect(text, contains('Amount Owed:'));
     });
 
+    test('lists the note as the item bought on a manually added debt', () {
+      const debt = Debt(
+        id: 'debt-2',
+        partyName: 'Juma Mwangi',
+        type: 'receivable',
+        originalAmount: 40000,
+        dueDate: '2026-01-01',
+        note: 'Mifuko 2 ya saruji',
+      );
+      final text = DebtReminderText.build(
+        debt: debt,
+        invoice: const {},
+        isSwahili: false,
+      );
+
+      expect(
+        text,
+        contains('Mifuko 2 ya saruji × 1 @ TZS 40,000 = *TZS 40,000*'),
+      );
+    });
+
     test('shows "overdue" framing when the due date has passed', () {
       final overdueDebt = makeDebt(dueDate: '2020-01-01');
       final text = DebtReminderText.build(

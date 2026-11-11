@@ -44,7 +44,7 @@ interface BeemCampaignComposerProps {
 
 export function BeemCampaignComposer({
   businesses,
-  defaultSenderId = 'INFO',
+  defaultSenderId = 'Mali Up',
   onCampaignCreated,
 }: BeemCampaignComposerProps) {
   // Preset & basics
@@ -306,7 +306,7 @@ export function BeemCampaignComposer({
               <input
                 value={senderId}
                 onChange={(e) => setSenderId(e.target.value)}
-                placeholder="e.g. INFO"
+                placeholder="e.g. Mali Up"
                 className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
               />
             </div>

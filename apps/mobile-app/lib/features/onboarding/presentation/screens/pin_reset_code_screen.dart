@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/sms_code_autofill.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../i18n/gen/strings.g.dart';
 import '../../../../shared/widgets/app_notification.dart';
@@ -65,11 +66,24 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
   void initState() {
     super.initState();
     _startCooldown();
+    // The code was requested just before this screen opened.
+    _listenForSmsCode();
+  }
+
+  /// Android: fill the code straight from the SMS (one "Allow" tap).
+  void _listenForSmsCode() {
+    SmsCodeAutofill.listen().then((code) {
+      if (!mounted || code == null || _submitting) return;
+      _codeCtrl.text = code;
+      if (_codeError != null) setState(() => _codeError = null);
+      _pinFocus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    unawaited(SmsCodeAutofill.cancel());
     _codeCtrl.dispose();
     _pinCtrl.dispose();
     _confirmCtrl.dispose();
@@ -99,6 +113,7 @@ class _PinResetCodeScreenState extends ConsumerState<PinResetCodeScreen> {
 
   Future<void> _resend() async {
     setState(() => _resending = true);
+    _listenForSmsCode();
     final result = await ref
         .read(onboardingNotifierProvider.notifier)
         .requestPinResetCode();

@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Play Store upload and commits it back to main, so this always reflects the
 # version currently live (or about to ship). Bump minor/major by hand in the
 # PR when a release deserves it; CI keeps patch-bumping from whatever you set.
-version: 1.2.6+7
+version: 1.3.0+8
 
 environment:
   sdk: ^3.10.4
@@ -61,7 +61,6 @@ dependencies:
   in_app_review: ^2.0.9
   connectivity_plus: ^6.0.1
   image_picker: ^1.1.2
-  firebase_storage: ^13.4.3
   # v2.2+ requires AGP Built-in Kotlin, while several Firebase/review plugins
   # still require the legacy Kotlin Gradle Plugin configuration. Pin the final
   # legacy-compatible v2 release so the v2 Dart API remains available.
@@ -92,6 +91,7 @@ dependencies:
   slang_flutter: ^4.19.0
   window_manager: 0.5.1
   country_flags: ^4.1.2
+  smart_auth: ^3.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

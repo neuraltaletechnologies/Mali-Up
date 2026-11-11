@@ -15,7 +15,7 @@ export function BeemTestSmsDialog({
   open,
   onClose,
   defaultMessage = 'Test SMS message from Mali Up Admin via Beem Africa API.',
-  senderId = 'INFO',
+  senderId = 'Mali Up',
 }: BeemTestSmsDialogProps) {
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState(defaultMessage)
@@ -86,7 +86,7 @@ export function BeemTestSmsDialog({
               type="text"
               value={customSenderId}
               onChange={(e) => setCustomSenderId(e.target.value)}
-              placeholder="e.g. INFO or Mali Up"
+              placeholder="e.g. Mali Up"
               className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
             />
           </div>

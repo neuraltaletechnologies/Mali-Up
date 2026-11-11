@@ -249,8 +249,13 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // From account (withdrawal / transfer)
-                  if (_type == 'withdrawal' || _type == 'transfer') ...[
+                  // From account (withdrawal / transfer). When opened from an
+                  // account's own page, a transfer always leaves that account
+                  // (_fromAccountId is prefilled in initState), so only the
+                  // destination needs picking.
+                  if (_type == 'withdrawal' ||
+                      (_type == 'transfer' &&
+                          widget.defaultAccount == null)) ...[
                     KeyedSubtree(
                       key: _tourFromAccountKey,
                       child: _AccountDropdown(

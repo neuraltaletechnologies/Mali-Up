@@ -18,6 +18,7 @@ import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../../../core/services/app_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../onboarding/presentation/widgets/onboarding_layout.dart';
@@ -388,8 +389,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('requestPinReset');
+      final callable = AppFunctions.callable('requestPinReset');
       final res = await callable.call<Map<String, dynamic>>({
         'phone': phone,
         'language': _language == AppLanguage.swahili ? 'sw' : 'en',

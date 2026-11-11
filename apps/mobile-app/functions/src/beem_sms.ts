@@ -35,7 +35,7 @@ export async function sendBeemSms(
   const senderId =
     sourceAddr ||
     process.env.BEEM_SMS_SENDER_ID ||
-    "INFO";
+    "Mali Up";
 
   try {
     const payload = {

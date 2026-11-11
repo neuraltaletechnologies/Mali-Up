@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +12,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/business_profile_service.dart';
+import '../../../../core/services/file_upload_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -136,33 +135,10 @@ class _ManageBusinessesScreenState
 
   // ─── Storage helpers ─────────────────────────────────────────────────────────
 
-  String _fileExtension(String path) {
-    final dot = path.lastIndexOf('.');
-    if (dot <= -1 || dot >= path.length - 1) return '.jpg';
-    final ext = path.substring(dot).toLowerCase();
-    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp') {
-      return ext;
-    }
-    return '.jpg';
-  }
-
-  String _contentTypeFromExtension(String ext) {
-    switch (ext) {
-      case '.png':
-        return 'image/png';
-      case '.webp':
-        return 'image/webp';
-      default:
-        return 'image/jpeg';
-    }
-  }
-
-  String _normalizeBucketName(String name) {
-    var value = name.trim();
-    if (value.isEmpty) return '';
-    if (value.startsWith('gs://')) value = value.substring(5);
-    if (value.endsWith('/')) value = value.substring(0, value.length - 1);
-    return value;
+  /// Uploads the logo to Cloudflare R2 (via the file service) and returns its
+  /// public URL. Throws [FileUploadException] on failure.
+  Future<String> _uploadBusinessLogo({required File file}) {
+    return FileUploadService.uploadImage(file: file, kind: UploadKind.logo);
   }
 
   String? _normalizeOptionalUrl(String? url) {
@@ -173,84 +149,6 @@ class _ManageBusinessesScreenState
       value = 'https://$value';
     }
     return value;
-  }
-
-  bool _isBucketResolutionError(FirebaseException e) {
-    return e.code == 'object-not-found' ||
-        e.code == 'bucket-not-found' ||
-        e.code == 'unknown';
-  }
-
-  Future<String> _uploadBusinessLogo({
-    required String userId,
-    required String businessId,
-    required File file,
-  }) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final ext = _fileExtension(file.path);
-    final objectPath = 'businesses/$userId/$businessId/logo_$now$ext';
-    final metadata = SettableMetadata(
-      contentType: _contentTypeFromExtension(ext),
-      cacheControl: 'public,max-age=3600',
-    );
-
-    final attempts = <MapEntry<String, FirebaseStorage>>[
-      MapEntry('default', FirebaseStorage.instance),
-    ];
-
-    final configuredBucket = _normalizeBucketName(
-      Firebase.app().options.storageBucket ?? '',
-    );
-    final projectId = Firebase.app().options.projectId.trim();
-    final fallbackBuckets = <String>{
-      if (configuredBucket.isNotEmpty) configuredBucket,
-      if (projectId.isNotEmpty) '$projectId.appspot.com',
-      if (projectId.isNotEmpty) '$projectId.firebasestorage.app',
-    };
-    for (final bucket in fallbackBuckets) {
-      attempts.add(
-        MapEntry(bucket, FirebaseStorage.instanceFor(bucket: 'gs://$bucket')),
-      );
-    }
-
-    FirebaseException? lastFirebaseError;
-    for (final attempt in attempts) {
-      try {
-        debugPrint('Attempting upload using bucket: ${attempt.key}');
-        final ref = attempt.value.ref().child(objectPath);
-        final snapshot = await ref.putFile(file, metadata).whenComplete(() {});
-        if (snapshot.state == TaskState.success) {
-          return await snapshot.ref.getDownloadURL();
-        } else {
-          throw FirebaseException(
-            plugin: 'firebase_storage',
-            code: 'upload-failed',
-            message:
-                'Upload did not complete successfully (state: ${snapshot.state})',
-          );
-        }
-      } on FirebaseException catch (e) {
-        lastFirebaseError = e;
-        debugPrint(
-          'Logo upload failed on ${attempt.key}: code=${e.code}, message=${e.message}',
-        );
-        if (!_isBucketResolutionError(e)) rethrow;
-      } catch (e, st) {
-        debugPrint('Unexpected upload error on ${attempt.key}: $e\n$st');
-        lastFirebaseError = FirebaseException(
-          plugin: 'firebase_storage',
-          code: 'unknown',
-          message: e.toString(),
-        );
-      }
-    }
-
-    throw lastFirebaseError ??
-        FirebaseException(
-          plugin: 'firebase_storage',
-          code: 'unknown',
-          message: 'Logo upload failed for all configured storage buckets.',
-        );
   }
 
   // ─── Data helpers ─────────────────────────────────────────────────────────────
@@ -1304,13 +1202,9 @@ class _ManageBusinessesScreenState
       if (pickedLogoFile != null) {
         final overlay = Overlay.of(context, rootOverlay: true);
         try {
-          newLogoUrl = await _uploadBusinessLogo(
-            userId: user.uid,
-            businessId: resolvedId,
-            file: pickedLogoFile,
-          );
-        } on FirebaseException catch (e) {
-          debugPrint('Logo upload failed: ${e.code} ${e.message}');
+          newLogoUrl = await _uploadBusinessLogo(file: pickedLogoFile);
+        } on FileUploadException catch (e) {
+          debugPrint('Logo upload failed: $e');
           if (mounted) {
             AppNotification.showVia(
               overlay,
