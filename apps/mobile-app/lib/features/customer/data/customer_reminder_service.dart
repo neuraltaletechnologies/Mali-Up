@@ -7,9 +7,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../shared/widgets/app_notification.dart';
+import '../../debt/data/debt_providers.dart';
+import '../../debt/domain/models/debt.dart';
 import '../../rbac/data/audit_log_service.dart';
 import '../../rbac/data/rbac_providers.dart';
 import '../../sales/data/sales_providers.dart';
+import '../../sales/domain/debt_reminder_text.dart';
 import '../../sales/services/receipt_pdf_service.dart';
 import '../domain/models/customer.dart';
 import 'customer_providers.dart';
@@ -62,10 +65,36 @@ abstract final class CustomerReminderService {
     }).toList();
   }
 
+  /// Open receivables added by hand on the Debt page (no linked sale) whose
+  /// note says what was bought — these count toward the customer's balance
+  /// but have no invoice, so without this the reminder never mentions them.
+  static List<Debt> _manualDebts(WidgetRef ref, String customerId) {
+    final invoiceNumbers = ref
+        .read(customerInvoicesProvider(customerId))
+        .maybeWhen(data: (d) => d, orElse: () => <Map<String, dynamic>>[])
+        .map((inv) => (inv['invoiceNumber'] ?? '').toString())
+        .where((n) => n.isNotEmpty)
+        .toSet();
+    return ref
+        .read(debtListProvider)
+        .maybeWhen(data: (d) => d, orElse: () => <Debt>[])
+        .where(
+          (d) =>
+              d.type == 'receivable' &&
+              d.partyId == customerId &&
+              !d.isWrittenOff &&
+              d.remainingAmount > 0 &&
+              d.note.trim().isNotEmpty &&
+              !invoiceNumbers.contains(d.invoiceRef),
+        )
+        .toList();
+  }
+
   static String _buildReminderText(
     Customer c,
     double balance,
     List<Map<String, dynamic>> overdue,
+    List<Debt> manualDebts,
   ) {
     final buf = StringBuffer();
     buf.writeln(_t('Dear *${c.name}*,', 'Ndugu *${c.name}*,'));
@@ -112,6 +141,13 @@ abstract final class CustomerReminderService {
       }
       buf.writeln();
     }
+    if (manualDebts.isNotEmpty) {
+      buf.writeln(_t('Other amounts owed:', 'Madeni mengine:'));
+      for (final d in manualDebts.take(5)) {
+        buf.writeln('• ${d.note.trim()} — TZS ${_fmtNum(d.remainingAmount)}');
+      }
+      buf.writeln();
+    }
     buf.writeln(
       '*${_t('Total Outstanding: TZS ${_fmtNum(balance)}', 'Jumla Inayodaiwa: TZS ${_fmtNum(balance)}')}*',
     );
@@ -134,6 +170,7 @@ abstract final class CustomerReminderService {
     Customer c,
     double balance,
     List<Map<String, dynamic>> overdue,
+    List<Debt> manualDebts,
   ) {
     final items = <Map<String, dynamic>>[];
     for (final inv in overdue.take(5)) {
@@ -143,6 +180,10 @@ abstract final class CustomerReminderService {
           raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
         );
       }
+    }
+    for (final d in manualDebts.take(5)) {
+      final line = DebtReminderText.manualLineItem(d);
+      if (line != null) items.add(line);
     }
     DateTime? earliestDue;
     for (final inv in overdue) {
@@ -230,6 +271,7 @@ abstract final class CustomerReminderService {
         customer,
         balance,
         _overdueInvoices(ref, customer.id),
+        _manualDebts(ref, customer.id),
       );
       final meta = await ReceiptPdfService.loadMeta(uid: uid, businessId: bizId);
       final shared = await ReceiptPdfService.share(
@@ -273,6 +315,7 @@ abstract final class CustomerReminderService {
       customer,
       balance,
       _overdueInvoices(ref, customer.id),
+      _manualDebts(ref, customer.id),
     ).replaceAll('*', '');
     final uri = Uri.parse(
       'sms:${customer.phone}?body=${Uri.encodeComponent(msg)}',
@@ -313,6 +356,7 @@ abstract final class CustomerReminderService {
         customer,
         balance,
         _overdueInvoices(ref, customer.id),
+        _manualDebts(ref, customer.id),
       );
       final meta = await ReceiptPdfService.loadMeta(uid: uid, businessId: bizId);
       await ReceiptPdfService.open(

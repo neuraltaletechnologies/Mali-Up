@@ -198,8 +198,15 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   /// updates the originating invoice's amountPaid — the debt stays the one
   /// authoritative source for what's actually still owed.
   Map<String, dynamic> _buildReminderSale(Map<String, dynamic> invoice) {
+    final rawItems = invoice['items'] ?? invoice['lineItems'];
+    final hasInvoiceItems = rawItems is List && rawItems.isNotEmpty;
+    // No linked sale (manually added debt): list the note — what was bought —
+    // as the receipt's line item instead of leaving the items table empty.
+    final manualItem =
+        hasInvoiceItems ? null : DebtReminderText.manualLineItem(_debt);
     return {
       ...invoice,
+      if (manualItem != null) 'items': [manualItem],
       // Overrides the invoice's own 'type' (sale/quotation/…) — this PDF is
       // a receipt of what's still owed, not proof of the completed sale, so
       // ReceiptPdfService titles it "DEBT RECEIPT" instead.
@@ -211,7 +218,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       'amount': _debt.totalOwedWithInterest,
       'amountPaid': _debt.paidAmount,
       'dueDate': _debt.dueDate,
-      'notes': _debt.note,
+      // Already shown as the line item — don't print it twice.
+      if (manualItem == null) 'notes': _debt.note,
     };
   }
 

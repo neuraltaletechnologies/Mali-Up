@@ -429,7 +429,14 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                           ),
                           _TextRow(
                             icon: Icons.notes_outlined,
-                            label: _tr('Note (optional)', 'Maelezo (hiari)'),
+                            // For a receivable the note is what the customer
+                            // took — reminders list it as the item owed for.
+                            label: _isReceivable
+                                ? _tr(
+                                    'Product / service taken (optional)',
+                                    'Bidhaa / huduma aliyochukua (hiari)',
+                                  )
+                                : _tr('Note (optional)', 'Maelezo (hiari)'),
                             controller: _noteCtrl,
                             maxLines: 3,
                           ),
