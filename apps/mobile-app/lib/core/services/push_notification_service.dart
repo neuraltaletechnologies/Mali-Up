@@ -46,6 +46,20 @@ class PushNotificationService {
     try {
       await _messaging.requestPermission();
 
+      // iOS: getToken() throws until APNs has handed the device token to
+      // FCM, which happens asynchronously after launch. Wait briefly.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        String? apns = await _messaging.getAPNSToken();
+        for (var i = 0; apns == null && i < 10; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          apns = await _messaging.getAPNSToken();
+        }
+        if (apns == null) {
+          debugPrint('[PushNotificationService] APNs token unavailable');
+          return;
+        }
+      }
+
       final token = await _messaging.getToken();
       if (token != null) await _saveToken(uid, token);
 
