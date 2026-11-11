@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -424,7 +423,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   }
 
   Future<void> _openUpdateUrl(VersionGateStatus status) async {
-    final url = Platform.isIOS ? status.updateUrlIOS : status.updateUrlAndroid;
+    final url = status.updateUrl;
     if (url.isNotEmpty) {
       final uri = Uri.tryParse(url);
       if (uri != null) {

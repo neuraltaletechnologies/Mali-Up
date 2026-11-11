@@ -5,8 +5,10 @@ name: Release Windows (Installer + Microsoft Store)
 #
 #   MaliUp-Setup-<version>.exe  direct-download installer (Inno Setup,
 #                               windows/installer/mali_up.iss) for the website
-#   MaliUp-<version>.msix       Microsoft Store package — upload it by hand in
-#                               Partner Center (Product -> Packages)
+#   MaliUp-<version>.msix       Microsoft Store package — submitted to the
+#                               Store automatically (last step) once the
+#                               MSSTORE_* secrets are set; until then upload
+#                               it by hand in Partner Center (Product -> Packages)
 #
 # Like release-android.yml, merging into `main` does not ship on its own: only
 # a merged PR carrying the `release:windows` label does (the auto-opened
@@ -181,7 +183,7 @@ jobs:
               --notes "Windows desktop release $VERSION.
 
           - **MaliUp-Setup-$VERSION.exe** — installer for direct download.
-          - **MaliUp-$VERSION.msix** — Microsoft Store package (upload in Partner Center).
+          - **MaliUp-$VERSION.msix** — Microsoft Store package (auto-submitted to https://apps.microsoft.com/detail/9NDQXPM95Q99).
           - **MaliUp-$VERSION-portable.zip** — portable build, no install needed."
           fi
 
@@ -241,3 +243,55 @@ jobs:
           put latest.json "windows/latest.json" \
             --content-type application/json \
             --cache-control "public, max-age=60"
+
+      # Microsoft Store: submits the MSIX to product 9NDQXPM95Q99
+      # (https://apps.microsoft.com/detail/9NDQXPM95Q99) with Microsoft's
+      # Store Developer CLI. It clones the live submission (listing, pricing,
+      # markets stay as they are), swaps in this package and commits it for
+      # certification — users get the update once Microsoft approves it
+      # (usually within 1–3 days). Runs last, so a Store problem never blocks
+      # the installer/R2 release above. Skipped until the secrets are set.
+      #
+      # One-time setup (Partner Center → Account settings → User management →
+      # Microsoft Entra applications → add/create an app with the Manager
+      # role, then create a client secret for it):
+      #   secrets.MSSTORE_TENANT_ID     — Entra tenant ID
+      #   secrets.MSSTORE_SELLER_ID     — Partner Center → Account settings →
+      #                                   Legal info → Seller ID
+      #   secrets.MSSTORE_CLIENT_ID     — the Entra app's client (application) ID
+      #   secrets.MSSTORE_CLIENT_SECRET — the Entra app's client secret
+      # Fails if a previous submission is still in certification — wait for
+      # it (or cancel it in Partner Center) and re-run this workflow.
+      - name: Set up Microsoft Store CLI
+        id: msstore
+        env:
+          MSSTORE_CLIENT_ID: ${{ secrets.MSSTORE_CLIENT_ID }}
+        run: |
+          if [ -z "$MSSTORE_CLIENT_ID" ]; then
+            echo "MSSTORE_* secrets not set — skipping Microsoft Store submission (upload the MSIX by hand)."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Installs the Microsoft Store Developer CLI (`msstore`).
+      - name: Install Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+        if: steps.msstore.outputs.enabled == 'true'
+
+      - name: Submit to Microsoft Store
+        if: steps.msstore.outputs.enabled == 'true'
+        env:
+          MSSTORE_TENANT_ID: ${{ secrets.MSSTORE_TENANT_ID }}
+          MSSTORE_SELLER_ID: ${{ secrets.MSSTORE_SELLER_ID }}
+          MSSTORE_CLIENT_ID: ${{ secrets.MSSTORE_CLIENT_ID }}
+          MSSTORE_CLIENT_SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          msstore reconfigure \
+            --tenantId "$MSSTORE_TENANT_ID" \
+            --sellerId "$MSSTORE_SELLER_ID" \
+            --clientId "$MSSTORE_CLIENT_ID" \
+            --clientSecret "$MSSTORE_CLIENT_SECRET"
+          msstore publish "build/windows/msix/MaliUp-$VERSION.msix" -id 9NDQXPM95Q99
+          echo "✅ MSIX $VERSION submitted to the Microsoft Store for certification."

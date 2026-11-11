@@ -11,7 +11,9 @@ const DOWNLOADS = "https://downloads.neuraltale.com"
 const WINDOWS_INSTALLER = process.env.NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL || `${DOWNLOADS}/windows/MaliUp-Setup.exe`
 const WINDOWS_PORTABLE = `${DOWNLOADS}/windows/MaliUp-Portable.zip`
 const ANDROID_APK = `${DOWNLOADS}/android/MaliUp.apk`
-const MS_STORE_ID = "9NFFCXFP4881"
+// Partner Center → Product identity → Store ID. Keep in sync with
+// apps/mobile-app/lib/core/constants/store_links.dart.
+const MS_STORE_ID = "9NDQXPM95Q99"
 const MS_STORE_WEB = `https://apps.microsoft.com/detail/${MS_STORE_ID}`
 // Opens the Microsoft Store app directly; only works on Windows.
 const MS_STORE_APP = `ms-windows-store://pdp/?productid=${MS_STORE_ID}`

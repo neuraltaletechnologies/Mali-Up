@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,9 +44,7 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   }
 
   Future<void> _openStore() async {
-    final url = Platform.isIOS
-        ? widget.status.updateUrlIOS
-        : widget.status.updateUrlAndroid;
+    final url = widget.status.updateUrl;
     if (url.isEmpty) return;
 
     setState(() => _opening = true);

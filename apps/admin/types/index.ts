@@ -495,6 +495,8 @@ export interface VersionGateConfig {
   recommendedVersion: string
   updateUrlAndroid: string
   updateUrlIOS: string
+  // Blank → the Windows app opens its Microsoft Store listing itself.
+  updateUrlWindows: string
   messageEn: string
   messageSw: string
 }

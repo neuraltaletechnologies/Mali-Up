@@ -69,6 +69,7 @@ export default function VersionGatePage() {
         recommendedVersion: config.recommendedVersion.trim(),
         updateUrlAndroid: config.updateUrlAndroid,
         updateUrlIOS: config.updateUrlIOS,
+        updateUrlWindows: config.updateUrlWindows,
         messageEn: config.messageEn,
         messageSw: config.messageSw,
       })
@@ -142,6 +143,14 @@ export default function VersionGatePage() {
                 value={config.updateUrlIOS}
                 onChange={(e) => update('updateUrlIOS', e.target.value)}
                 placeholder="https://apps.apple.com/app/id..."
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Windows (Microsoft Store) URL">
+              <input
+                value={config.updateUrlWindows}
+                onChange={(e) => update('updateUrlWindows', e.target.value)}
+                placeholder="https://apps.microsoft.com/detail/9NDQXPM95Q99"
                 className={inputClass}
               />
             </Field>
