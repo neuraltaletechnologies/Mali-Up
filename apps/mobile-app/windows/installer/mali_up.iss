@@ -7,7 +7,7 @@
 ;
 ; Built in CI by .github/workflows/release-windows.yml. Locally (Inno Setup 6):
 ;   flutter build windows --release
-;   iscc /DAppVersion=1.2.5 windows\installer\mali_up.iss
+;   iscc /DAppVersion=1.3.0 windows\installer\mali_up.iss
 ; Output lands in build\windows\installer\.
 
 #ifndef AppVersion
