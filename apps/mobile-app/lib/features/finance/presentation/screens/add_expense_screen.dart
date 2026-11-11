@@ -3,13 +3,13 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/services/file_upload_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -232,11 +232,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
     setState(() => _uploadingReceipt = true);
     try {
-      final ref = FirebaseStorage.instance.ref(
-        'receipts/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      final url = await FileUploadService.uploadImage(
+        file: _receiptFile!,
+        kind: UploadKind.receipt,
       );
-      await ref.putFile(_receiptFile!);
-      final url = await ref.getDownloadURL();
       if (mounted) setState(() => _uploadingReceipt = false);
       return url;
     } catch (_) {

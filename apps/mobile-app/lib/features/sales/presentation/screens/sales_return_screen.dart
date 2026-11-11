@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/file_upload_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
@@ -254,11 +254,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   /// is no photo. Throws on a genuine upload failure so [_save] can abort.
   Future<String?> _uploadProof(String uid, String creditNoteNumber) async {
     if (_proofFile == null) return null;
-    final storageRef = FirebaseStorage.instance.ref(
-      'returns/$uid/$creditNoteNumber-${DateTime.now().millisecondsSinceEpoch}.jpg',
+    return FileUploadService.uploadImage(
+      file: _proofFile!,
+      kind: UploadKind.returnProof,
     );
-    await storageRef.putFile(_proofFile!);
-    return storageRef.getDownloadURL();
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────────

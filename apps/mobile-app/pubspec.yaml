@@ -61,7 +61,6 @@ dependencies:
   in_app_review: ^2.0.9
   connectivity_plus: ^6.0.1
   image_picker: ^1.1.2
-  firebase_storage: ^13.4.3
   # v2.2+ requires AGP Built-in Kotlin, while several Firebase/review plugins
   # still require the legacy Kotlin Gradle Plugin configuration. Pin the final
   # legacy-compatible v2 release so the v2 Dart API remains available.
