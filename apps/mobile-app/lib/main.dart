@@ -105,16 +105,7 @@ Future<void> _startApp() async {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
-    unawaited(
-      FirebaseAppCheck.instance.activate(
-        providerAndroid: kDebugMode
-            ? const AndroidDebugProvider()
-            : const AndroidPlayIntegrityProvider(),
-        providerApple: kDebugMode
-            ? const AppleDebugProvider()
-            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
-      ),
-    );
+    unawaited(_activateAppCheck());
   }
 
   // Fire-and-forget: checks this build against the remote version gate.
@@ -210,6 +201,30 @@ Future<void> main() async {
   SentryMetricsService.appLaunched(sentryEnabled: false);
 }
 
+Future<void> _activateAppCheck() async {
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: kDebugMode
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
+    providerApple: kDebugMode
+        ? const AppleDebugProvider()
+        : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+  );
+  if (!kDebugMode) {
+    return;
+  }
+  try {
+    await FirebaseAppCheck.instance.getToken();
+  } catch (e) {
+    debugPrint(
+      '[AppCheck] Debug token exchange failed: $e\n'
+      'Find the line "Firebase App Check Debug Token: ..." in the Xcode or '
+      'device log, then register it in Firebase Console → App Check → iOS '
+      'app → Manage debug tokens (see apps/mobile-app/APP_CHECK_SETUP.md).',
+    );
+  }
+}
+
 class MaliUpApp extends ConsumerStatefulWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
@@ -254,12 +269,15 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
         _startedLocked &&
         !_navigatedAfterFirstUnlock) {
       _navigatedAfterFirstUnlock = true;
+      // Wait until after the PIN-lock MaterialApp has unmounted before
+      // driving GoRouter — otherwise router.go during that teardown trips
+      // NavigatorState.dispose's !_debugLocked assert.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && FirebaseAuth.instance.currentUser != null) {
-          // Router swaps this for Sales when the user is a POS member.
-          AppRoutes.armOpenLanding();
-          ref.read(goRouterProvider).go(AppRoutes.dashboard);
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && FirebaseAuth.instance.currentUser != null) {
+            ref.read(goRouterProvider).go(AppRoutes.dashboard);
+          }
+        });
       });
     }
   }
@@ -347,30 +365,30 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                   ],
                   routerConfig: router,
                   builder: (context, child) {
-                      // Cap every modal bottom sheet at 80% of screen height so
-                      // they never cover the full screen. The constraint is applied
-                      // at the route level and works regardless of backgroundColor.
-                      final maxSheetHeight =
-                          MediaQuery.sizeOf(context).height * 0.8;
-                      final mediaQuery = MediaQuery.of(context);
-                      return MediaQuery(
-                        data: mediaQuery.copyWith(
-                          disableAnimations:
-                              mediaQuery.disableAnimations || reducedMotion,
-                        ),
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            bottomSheetTheme: Theme.of(context).bottomSheetTheme
-                                .copyWith(
-                                  constraints: BoxConstraints(
-                                    maxHeight: maxSheetHeight,
-                                  ),
+                    // Cap every modal bottom sheet at 80% of screen height so
+                    // they never cover the full screen. The constraint is applied
+                    // at the route level and works regardless of backgroundColor.
+                    final maxSheetHeight =
+                        MediaQuery.sizeOf(context).height * 0.8;
+                    final mediaQuery = MediaQuery.of(context);
+                    return MediaQuery(
+                      data: mediaQuery.copyWith(
+                        disableAnimations:
+                            mediaQuery.disableAnimations || reducedMotion,
+                      ),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          bottomSheetTheme: Theme.of(context).bottomSheetTheme
+                              .copyWith(
+                                constraints: BoxConstraints(
+                                  maxHeight: maxSheetHeight,
                                 ),
-                          ),
-                          child: child!,
+                              ),
                         ),
-                      );
-                    },
+                        child: child!,
+                      ),
+                    );
+                  },
                 );
               },
             );
