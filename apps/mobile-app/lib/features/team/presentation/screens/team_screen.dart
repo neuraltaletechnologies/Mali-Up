@@ -1894,32 +1894,52 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           ),
         );
       }
+      final updated = _member.copyWith(
+        role: data.containsKey('role')
+            ? TeamRole.fromString(data['role'] as String)
+            : null,
+        status: data['status'] as String?,
+        dataScope: data.containsKey('dataScope')
+            ? DataScope.fromString(data['dataScope'] as String)
+            : null,
+        customPermissions: data['customPermissions'] is List
+            ? (data['customPermissions'] as List)
+                .whereType<String>()
+                .map(AppPermissionX.fromString)
+                .whereType<AppPermission>()
+                .toSet()
+            : null,
+        customRoleId: data['customRoleId'] is String
+            ? data['customRoleId'] as String
+            : null,
+        customRoleName: data['customRoleName'] is String
+            ? data['customRoleName'] as String
+            : null,
+        clearCustomRole:
+            data.containsKey('customRoleId') && data['customRoleId'] is! String,
+      );
+
+      // Mirror to Drift — the team list reads only from Drift, so without
+      // this the list (and this screen on re-open) shows the stale status.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final existing = await db.teamDao.getById(_member.id);
+        await db.teamDao.upsert(
+          TeamMemberMapper.toCompanion(
+            updated,
+            businessId: bizId,
+            syncStatus: 'synced',
+            createdAtMs:
+                existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      } catch (_) {
+        // Best-effort — the next sync pull will reconcile Drift.
+      }
+
       if (!mounted) return;
       setState(() {
-        _member = _member.copyWith(
-          role: data.containsKey('role')
-              ? TeamRole.fromString(data['role'] as String)
-              : null,
-          status: data['status'] as String?,
-          dataScope: data.containsKey('dataScope')
-              ? DataScope.fromString(data['dataScope'] as String)
-              : null,
-          customPermissions: data['customPermissions'] is List
-              ? (data['customPermissions'] as List)
-                  .whereType<String>()
-                  .map(AppPermissionX.fromString)
-                  .whereType<AppPermission>()
-                  .toSet()
-              : null,
-          customRoleId: data['customRoleId'] is String
-              ? data['customRoleId'] as String
-              : null,
-          customRoleName: data['customRoleName'] is String
-              ? data['customRoleName'] as String
-              : null,
-          clearCustomRole:
-              data.containsKey('customRoleId') && data['customRoleId'] is! String,
-        );
+        _member = updated;
         _pendingCustomRole = null;
         _isSaving = false;
         _editingRole = false;

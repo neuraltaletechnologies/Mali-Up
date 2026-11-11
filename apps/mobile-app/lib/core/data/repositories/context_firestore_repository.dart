@@ -470,7 +470,11 @@ class ContextFirestoreRepository {
         .collection('businesses')
         .doc(bizId)
         .collection('staff');
-    await staffRef.doc(memberId).update(data);
+    // Bump updatedAt so incremental sync pulls (which query on updatedAt)
+    // pick this change up and refresh the local Drift copy.
+    await staffRef
+        .doc(memberId)
+        .update({...data, 'updatedAt': FieldValue.serverTimestamp()});
     // Mirror permission/status changes to the pointer doc so isStaffWithAny()
     // reflects the new permissions immediately.
     if (workerUid != null && workerUid.isNotEmpty) {
