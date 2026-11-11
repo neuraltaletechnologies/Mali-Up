@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { IPhoneMockup } from "@/components/mali/iphone-mockup"
+import { Phone3D } from "@/components/mali/phone-3d"
 import { ChevronRight } from "lucide-react"
 
 const tabs = [
@@ -165,12 +165,13 @@ export function PhoneShowcase() {
                   transition: "all 0.32s cubic-bezier(0.22,1,0.36,1)",
                 }}
               >
-                <IPhoneMockup
-                  key={current.id}
+                <Phone3D
                   src={current.img}
                   alt={`Mali Up ${current.label} screen`}
+                  model="pixel"
                   width={255}
-                  accentColor={current.color}
+                  yaw={0.22}
+                  interactive
                 />
               </div>
             </div>
