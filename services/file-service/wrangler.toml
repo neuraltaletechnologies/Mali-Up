@@ -28,18 +28,3 @@ PUBLIC_BASE_URL = "https://maliup-files.neuraltale.com"
 
 [observability]
 enabled = true
-
-# ─── Staging (deployed from the `dev` branch) ─────────────────────────────────
-# `npx wrangler deploy --env staging` → Worker "maliup-files-staging".
-# Bindings/vars are NOT inherited from the top level, so they are repeated
-# here with staging resources — staging must never touch production photos.
-[env.staging]
-routes = [{ pattern = "maliup-files-staging.neuraltale.com", custom_domain = true }]
-
-[[env.staging.r2_buckets]]
-binding = "FILES"
-bucket_name = "maliup-files-staging"
-
-[env.staging.vars]
-FIREBASE_PROJECT_ID = "neuraltale-mali-up"
-PUBLIC_BASE_URL = "https://maliup-files-staging.neuraltale.com"

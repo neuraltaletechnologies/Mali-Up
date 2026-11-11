@@ -78,7 +78,7 @@ npm run prisma:generate / prisma:migrate
     same merge so they carry the same number; the Android run patch-bumps
     pubspec afterwards. Bump minor/major by hand in a PR.
   - Backend Workers under `services/` deploy via `deploy-services.yml`:
-    `dev` → staging, `main` → production.
+    `dev` only runs checks, `main` deploys to production (no staging yet).
   - The Flutter **web** build (`deploy-web.yml`) is not label-gated: it
     deploys on any `main` push touching `apps/mobile-app/**`.
 - After a `dev → main` release, sync `dev` back up (`git merge main` into

@@ -2,21 +2,26 @@ name: Deploy Services (Cloudflare Workers)
 
 # One pipeline for every backend Worker under services/.
 #
-#   PR (any branch)   → typecheck + wrangler dry-run for changed services
-#   push to `dev`     → deploy changed services with `--env staging`
-#   push to `main`    → deploy changed services to production
-#   workflow_dispatch → deploy one chosen service to a chosen environment
+#   PR / push to `dev` → typecheck + wrangler dry-run for changed services
+#   push to `main`     → deploy changed services to production
+#   workflow_dispatch  → deploy one chosen service to production
+#
+# Production only for now. When a service needs a staging copy (e.g. the
+# future API with Postgres), add an [env.staging] block to its wrangler.toml
+# and a `--env staging` deploy for `dev` here.
 #
 # Adding a service: give it package.json (with a `typecheck` script),
-# wrangler.toml (top level = production, [env.staging] = staging) and a
-# GET /health route, then add one entry to the `filters` block below.
+# wrangler.toml with PUBLIC_BASE_URL in [vars], and a GET /health route,
+# then add one entry to the `filters` block below.
 #
 # Required repo config:
-#   secrets.CLOUDFLARE_API_TOKEN  — needs Account: Workers Scripts Edit,
-#                                   Workers R2 Storage Edit; Zone (neuraltale.com):
-#                                   Workers Routes Edit, DNS Edit (custom domains)
+#   secrets.CLOUDFLARE_API_TOKEN  — a Cloudflare API token (My Profile → API
+#                                   Tokens, NOT an R2 token) with Account:
+#                                   Workers Scripts Edit, Workers R2 Storage
+#                                   Edit; Zone (neuraltale.com): Workers
+#                                   Routes Edit, DNS Edit (custom domains)
 #   secrets.CLOUDFLARE_ACCOUNT_ID
-# Runtime secrets are NOT set here — use `wrangler secret put [--env staging]`.
+# Runtime secrets are NOT set here — use `wrangler secret put`.
 on:
   pull_request:
     paths:
@@ -35,12 +40,6 @@ on:
         description: 'Service folder under services/'
         required: true
         default: 'file-service'
-      environment:
-        description: 'staging or production'
-        required: true
-        default: 'staging'
-        type: choice
-        options: [staging, production]
 
 permissions:
   contents: read
@@ -98,14 +97,18 @@ jobs:
 
   deploy:
     needs: [changes, check]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.services != '[]'
+    # Production deploys only: merges into `main`, or a manual run.
+    if: >-
+      needs.changes.outputs.services != '[]' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref_name == 'main'))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         service: ${{ fromJSON(needs.changes.outputs.services) }}
     concurrency:
-      group: deploy-${{ matrix.service }}-${{ github.ref_name }}
+      group: deploy-${{ matrix.service }}
       cancel-in-progress: false
     defaults:
       run:
@@ -113,8 +116,6 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # dev → staging, main → production; a manual run uses the chosen input.
-      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -125,23 +126,12 @@ jobs:
       - run: npm ci
 
       - name: Deploy
-        run: |
-          if [ "$TARGET" = "production" ]; then
-            npx wrangler deploy
-          else
-            npx wrangler deploy --env staging
-          fi
+        run: npx wrangler deploy
 
       - name: Smoke test /health (roll back on failure)
         run: |
           NAME=$(grep -m1 '^name' wrangler.toml | sed -E 's/.*"(.*)".*/\1/')
-          if [ "$TARGET" = "production" ]; then
-            URL=$(grep -m1 '^PUBLIC_BASE_URL' wrangler.toml | sed -E 's/.*"(.*)".*/\1/')
-            ENV_FLAG=""
-          else
-            URL=$(awk '/^\[env.staging.vars\]/{f=1} f && /^PUBLIC_BASE_URL/{print; exit}' wrangler.toml | sed -E 's/.*"(.*)".*/\1/')
-            ENV_FLAG="--env staging"
-          fi
+          URL=$(grep -m1 '^PUBLIC_BASE_URL' wrangler.toml | sed -E 's/.*"(.*)".*/\1/')
           for i in 1 2 3 4 5 6; do
             if curl -fsS "$URL/health" | grep -q '"ok":true'; then
               echo "✅ $NAME healthy at $URL"; exit 0
@@ -149,5 +139,5 @@ jobs:
             sleep 10
           done
           echo "❌ $URL/health failed — rolling back $NAME"
-          npx wrangler rollback $ENV_FLAG --message "CI smoke test failed for ${{ github.sha }}" -y || true
+          npx wrangler rollback --message "CI smoke test failed for ${{ github.sha }}" -y || true
           exit 1
