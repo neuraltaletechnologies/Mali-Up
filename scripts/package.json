@@ -14,10 +14,14 @@
     "sms:welcome": "ts-node send-welcome-sms-existing-users.ts",
     "sms:welcome:dry": "ts-node send-welcome-sms-existing-users.ts --dry-run",
     "migrate:r2": "ts-node migrate-storage-to-r2.ts",
-    "migrate:r2:dry": "ts-node migrate-storage-to-r2.ts --dry-run"
+    "migrate:r2:dry": "ts-node migrate-storage-to-r2.ts --dry-run",
+    "images": "ts-node backfill-catalog-images.ts",
+    "images:dry": "ts-node backfill-catalog-images.ts --dry-run",
+    "images:count": "ts-node backfill-catalog-images.ts --count-only"
   },
   "dependencies": {
-    "firebase-admin": "^13.10.0"
+    "firebase-admin": "^13.10.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

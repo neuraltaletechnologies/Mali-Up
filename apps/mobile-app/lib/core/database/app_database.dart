@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   /// Removes account and business data cached on this device.
   ///
@@ -286,6 +286,23 @@ class AppDatabase extends _$AppDatabase {
             await m.alterTable(TableMigration(cashAccountsTable));
             await m.alterTable(TableMigration(dailyReconciliationsTable));
             await _createV5Indexes();
+          }
+          if (from < 18) {
+            // Master catalog products gained a picture URL. Also zero the
+            // cache stamp so the next catalog open re-pulls and picks the
+            // URLs up instead of waiting out the 24h refresh window.
+            // Guarded: an upgrade from < v8 has just created master_products
+            // from the current schema, which already has the column.
+            final cols = await customSelect(
+              "SELECT 1 FROM pragma_table_info('master_products') "
+              "WHERE name = 'image_url'",
+            ).get();
+            if (cols.isEmpty) {
+              await customStatement(
+                "ALTER TABLE master_products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''",
+              );
+            }
+            await customStatement('UPDATE master_categories SET cached_at = 0');
           }
         },
         beforeOpen: (details) async {

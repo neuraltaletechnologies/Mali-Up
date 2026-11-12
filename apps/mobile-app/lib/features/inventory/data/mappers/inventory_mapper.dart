@@ -58,6 +58,7 @@ abstract final class InventoryMapper {
       bomOverheads: _decodeBomOverheads(meta['bomOverheads']),
       bomBatchYield: (meta['bomBatchYield'] as num?)?.toDouble() ?? 1,
       assignedToUserId: meta['assignedToUserId'] as String? ?? '',
+      imageUrl: row.imageUrl,
     );
   }
 
@@ -108,7 +109,7 @@ abstract final class InventoryMapper {
       unitPrice: Value(item.unitPrice),
       costPrice: Value(item.costPrice),
       description: Value(item.description),
-      imageUrl: const Value(''),
+      imageUrl: Value(item.imageUrl),
       isActive: Value(item.isActive ? 1 : 0),
       metadata: Value(meta),
       createdAt: Value(createdAtMs),

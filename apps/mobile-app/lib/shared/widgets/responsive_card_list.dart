@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/responsive.dart';
+import 'pos_tile.dart';
 
 /// A scrolling list that becomes a grid of cards when there is room.
 ///
@@ -12,11 +14,19 @@ import '../../core/theme/app_colors.dart';
 ///
 /// [itemBuilder] gets `inGrid` so a row can drop its bottom divider, which
 /// only makes sense between stacked rows.
+///
+/// When [tileBuilder] is given, wide screens ([Responsive.isWide]: desktop
+/// windows and tablets held sideways) show the POS product-card grid
+/// instead — one [PosTile] per item — so every list page matches the Sales
+/// screen there.
 class ResponsiveCardList extends StatelessWidget {
   final int itemCount;
   final Widget Function(BuildContext context, int index, bool inGrid)
   itemBuilder;
   final ScrollPhysics? physics;
+
+  /// Builds a [PosTile] for item `index` on wide screens.
+  final IndexedWidgetBuilder? tileBuilder;
 
   /// Bottom padding so the last row clears a FAB / bottom nav.
   final double bottomPadding;
@@ -27,6 +37,7 @@ class ResponsiveCardList extends StatelessWidget {
     required this.itemCount,
     required this.itemBuilder,
     this.physics,
+    this.tileBuilder,
     this.bottomPadding = 120,
     this.minCardWidth = 340,
   });
@@ -36,6 +47,15 @@ class ResponsiveCardList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tiles = tileBuilder;
+    if (tiles != null && Responsive.isWide(context)) {
+      return PosTileGrid(
+        physics: physics,
+        padding: EdgeInsets.fromLTRB(_hPad, 4, _hPad, bottomPadding),
+        itemCount: itemCount,
+        itemBuilder: tiles,
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final usable = constraints.maxWidth - _hPad * 2;

@@ -120,6 +120,9 @@ class InventoryItem {
   // scope Firestore reads for team members with DataScope.own — see
   // firestore.rules. Named to match Customer.assignedToUserId.
   final String assignedToUserId;
+  // Product picture (R2 URL). Seeded from the master catalog's imageUrl when
+  // a product is imported; empty means the UI shows the initials tile.
+  final String imageUrl;
 
   InventoryItem({
     required this.id,
@@ -151,6 +154,7 @@ class InventoryItem {
     this.bomOverheads = const [],
     this.bomBatchYield = 1,
     this.assignedToUserId = '',
+    this.imageUrl = '',
   });
 
   factory InventoryItem.fromFirestore(Map<String, dynamic> data, String id) {
@@ -193,6 +197,7 @@ class InventoryItem {
       bomOverheads: _parseBomOverheads(data['bomOverheads']),
       bomBatchYield: (data['bomBatchYield'] as num?)?.toDouble() ?? 1,
       assignedToUserId: data['assignedToUserId'] as String? ?? '',
+      imageUrl: data['imageUrl'] as String? ?? '',
     );
   }
 
@@ -253,6 +258,7 @@ class InventoryItem {
       'bomOverheads': bomOverheads.map((o) => o.toJson()).toList(),
       'bomBatchYield': bomBatchYield,
       'assignedToUserId': assignedToUserId,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -286,6 +292,7 @@ class InventoryItem {
     List<BomOverheadCost>? bomOverheads,
     double? bomBatchYield,
     String? assignedToUserId,
+    String? imageUrl,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -317,6 +324,7 @@ class InventoryItem {
       bomOverheads: bomOverheads ?? this.bomOverheads,
       bomBatchYield: bomBatchYield ?? this.bomBatchYield,
       assignedToUserId: assignedToUserId ?? this.assignedToUserId,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 

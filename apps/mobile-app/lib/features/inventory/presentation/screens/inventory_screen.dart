@@ -14,6 +14,9 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/responsive_card_list.dart';
+import '../../../../shared/widgets/pos_tile.dart';
+import '../../../sales/presentation/widgets/pos_catalog.dart'
+    show PosProductImage;
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -422,9 +425,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         featureKey: PlanFeatureKey.productLimit,
         triggerReason: _tr(
           'You have reached the ${check.maxProducts}-product limit on the free '
-          'plan. Upgrade for unlimited products.',
+              'plan. Upgrade for unlimited products.',
           'Umefika kikomo cha bidhaa ${check.maxProducts} kwenye mpango wa bure. '
-          'Panda mpango kupata bidhaa zisizo na kikomo.',
+              'Panda mpango kupata bidhaa zisizo na kikomo.',
         ),
       );
       return;
@@ -584,6 +587,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                   item: filtered[i],
                                   isLast: inGrid || i == filtered.length - 1,
                                 ),
+                                tileBuilder: (ctx, i) =>
+                                    _ProductTile(item: filtered[i]),
                               ),
                       ),
                     ),
@@ -832,36 +837,151 @@ class _EmptyPlaceholder extends StatelessWidget {
   );
 }
 
+// ── Product actions (shared by the phone row and the wide-screen tile) ───────
+
+Future<void> _editProduct(BuildContext context, Map<String, dynamic> item) =>
+    showAppSheet<void>(
+      context,
+      builder: (_) => _ProductFormSheet(
+        existingItem: item,
+        existingId: (item['id'] as String?) ?? '',
+      ),
+    );
+
+void _openProductDetail(BuildContext context, Map<String, dynamic> item) {
+  showAppSheet<void>(context, builder: (_) => _ProductDetailSheet(item: item));
+}
+
+Future<void> _confirmDeleteProduct(
+  BuildContext context,
+  WidgetRef ref,
+  Map<String, dynamic> item,
+) async {
+  final name = (item['name'] ?? item['productName'] ?? '—').toString();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        _tr('Delete Product?', 'Futa Bidhaa?'),
+        style: GoogleFonts.dmSans(
+          fontWeight: FontWeight.w700,
+          color: AppColors.navyPrimary,
+        ),
+      ),
+      content: Text(
+        _tr(
+          'Delete "$name"? This cannot be undone.',
+          'Futa "$name"? Hii haiwezi kutenduliwa.',
+        ),
+        style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(
+            _tr('Cancel', 'Ghairi'),
+            style: GoogleFonts.dmSans(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          child: Text(
+            _tr('Delete', 'Futa'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  final id = (item['id'] as String?) ?? '';
+  if (id.isEmpty) return;
+  try {
+    await ref.read(inventoryRepositoryProvider).delete(id);
+    if (context.mounted) {
+      AppNotification.success(
+        context,
+        _tr('Product deleted', 'Bidhaa imefutwa'),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      AppNotification.error(
+        context,
+        _tr(
+          'Failed to delete. Try again.',
+          'Imeshindikana kufuta. Jaribu tena.',
+        ),
+      );
+    }
+  }
+}
+
+// ── Product Tile (wide screens — the POS card) ────────────────────────────────
+
+class _ProductTile extends ConsumerWidget {
+  final Map<String, dynamic> item;
+  const _ProductTile({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final type = _readType(item);
+    final name = (item['name'] ?? item['productName'] ?? '—').toString();
+    final unit = (item['unit'] ?? 'pcs').toString();
+    final level = _fullStatusLevel(item);
+
+    final String status;
+    if (type == ProductType.service) {
+      status = _tr('Service', 'Huduma');
+    } else if (level == 4) {
+      final days = _daysUntilExpiry(item);
+      status = days >= 0
+          ? _tr('Exp. in $days days', 'Inaisha siku $days')
+          : _tr('Expires soon', 'Karibu kuisha');
+    } else if (level == 5) {
+      status = _tr('Expired', 'Imeisha muda');
+    } else {
+      status = '${_stock(item)} $unit';
+    }
+
+    return PosTile(
+      title: name,
+      image: PosProductImage(product: {...item, 'name': name}, fontSize: 26),
+      subtitle: _isManufacturedItem(item)
+          ? _tr('Manufactured', 'Inatengenezwa')
+          : null,
+      value: _fmtAmount(_readSellingPrice(item)),
+      status: status,
+      statusColor: level == 0 ? AppColors.tealAccent : _fullStatusColor(level),
+      // Low / out / expiring / expired. White backing so the tinted pill
+      // stays readable on top of a product photo.
+      badge: level >= 2
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: _StatusPill(level: level),
+            )
+          : null,
+      onTap: () => _openProductDetail(context, item),
+      onEdit: () => _editProduct(context, item),
+      onDelete: () => _confirmDeleteProduct(context, ref, item),
+    );
+  }
+}
+
 // ── Product Row ───────────────────────────────────────────────────────────────
 
 class _ProductRow extends ConsumerWidget {
   final Map<String, dynamic> item;
   final bool isLast;
   const _ProductRow({required this.item, required this.isLast});
-
-  Future<void> _deleteItem(BuildContext context, WidgetRef ref) async {
-    final id = (item['id'] as String?) ?? '';
-    if (id.isEmpty) return;
-    try {
-      await ref.read(inventoryRepositoryProvider).delete(id);
-      if (context.mounted) {
-        AppNotification.success(
-          context,
-          _tr('Product deleted', 'Bidhaa imefutwa'),
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        AppNotification.error(
-          context,
-          _tr(
-            'Failed to delete. Try again.',
-            'Imeshindikana kufuta. Jaribu tena.',
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -886,65 +1006,8 @@ class _ProductRow extends ConsumerWidget {
 
     return ListSwipeCard(
       itemKey: ValueKey(item['id'] ?? name),
-      onEdit: () async {
-        await showAppSheet<void>(
-          context,
-          builder: (_) => _ProductFormSheet(
-            existingItem: item,
-            existingId: (item['id'] as String?) ?? '',
-          ),
-        );
-      },
-      onDelete: () async {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              _tr('Delete Product?', 'Futa Bidhaa?'),
-              style: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            content: Text(
-              _tr(
-                'Delete "$name"? This cannot be undone.',
-                'Futa "$name"? Hii haiwezi kutenduliwa.',
-              ),
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(
-                  _tr('Cancel', 'Ghairi'),
-                  style: GoogleFonts.dmSans(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: Text(
-                  _tr('Delete', 'Futa'),
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        );
-        if (confirmed == true && context.mounted) {
-          await _deleteItem(context, ref);
-        }
-      },
+      onEdit: () => _editProduct(context, item),
+      onDelete: () => _confirmDeleteProduct(context, ref, item),
       child: GestureDetector(
         onTap: () {
           showAppSheet<void>(
@@ -2160,8 +2223,8 @@ class _DetailView extends StatelessWidget {
                   if (type == ProductType.service &&
                       (item['assignedToUserId'] ?? '').toString().isNotEmpty)
                     _AssignedToSection(
-                      assignedToUserId:
-                          (item['assignedToUserId'] ?? '').toString(),
+                      assignedToUserId: (item['assignedToUserId'] ?? '')
+                          .toString(),
                       onTap: onReassign,
                       busy: reassigning,
                     ),
@@ -3126,8 +3189,10 @@ class _AssignedToSection extends ConsumerWidget {
     final membersAsync = ref.watch(teamMembersProvider);
     final members = membersAsync.valueOrNull ?? const <TeamMember>[];
     final match = members
-        .where((m) =>
-            m.id == assignedToUserId || (m.userId ?? '') == assignedToUserId)
+        .where(
+          (m) =>
+              m.id == assignedToUserId || (m.userId ?? '') == assignedToUserId,
+        )
         .cast<TeamMember?>()
         .firstOrNull;
 
@@ -3160,8 +3225,7 @@ class _AssignedToSection extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor:
-                      AppColors.tealAccent.withValues(alpha: 0.12),
+                  backgroundColor: AppColors.tealAccent.withValues(alpha: 0.12),
                   child: Text(
                     match?.initials ?? '?',
                     style: GoogleFonts.dmSans(
@@ -3451,6 +3515,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   // accepted their invite yet. See firestore.rules (isOwnAssignedRecord).
   String _assignedToMemberId = '';
 
+  // Product picture URL. Not editable in this form — it comes from the
+  // master catalog when a suggestion is applied, and is carried through
+  // unchanged on edit so saving never wipes an existing picture.
+  String _imageUrl = '';
+
   // Billing cadence for service-type items only: 'once' | 'weekly' |
   // 'monthly'. Recurring services let the Sales screen pre-fill how many
   // unpaid periods a customer owes — see RecurringBillingCalculator.
@@ -3508,9 +3577,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   /// True when the free plan's service-product sub-cap is already full. The
   /// item being edited is excluded so re-saving an existing service never
   /// counts against itself.
-  bool _serviceLimitReached() =>
-      _ProductLimitCheck.read(ref, excludeId: widget.existingId)
-          .serviceLimitReached;
+  bool _serviceLimitReached() => _ProductLimitCheck.read(
+    ref,
+    excludeId: widget.existingId,
+  ).serviceLimitReached;
 
   void _showServiceLimitSheet() {
     final max = _ProductLimitCheck.read(ref).maxServiceProducts;
@@ -3642,6 +3712,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '')
           .toString();
       _assignedToMemberId = (item['assignedToUserId'] ?? '').toString();
+      _imageUrl = (item['imageUrl'] ?? '').toString();
 
       final expiry = item['expiryDate'] as String? ?? '';
       if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
@@ -3778,17 +3849,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     // blocked before it is written. Restocks (inline or direct) re-save an
     // item that already exists, so they are exempt.
     if (!_isEdit && _restockTarget == null) {
-      final check =
-          _ProductLimitCheck.read(ref, excludeId: widget.existingId);
+      final check = _ProductLimitCheck.read(ref, excludeId: widget.existingId);
       if (check.productLimitReached) {
         showUpgradeSheet(
           context,
           featureKey: PlanFeatureKey.productLimit,
           triggerReason: _tr(
             'You have reached the ${check.maxProducts}-product limit on the '
-            'free plan. Upgrade for unlimited products.',
+                'free plan. Upgrade for unlimited products.',
             'Umefika kikomo cha bidhaa ${check.maxProducts} kwenye mpango wa '
-            'bure. Panda mpango kupata bidhaa zisizo na kikomo.',
+                'bure. Panda mpango kupata bidhaa zisizo na kikomo.',
           ),
         );
         return;
@@ -4205,8 +4275,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         bomIngredients: bomIngredients,
         bomOverheads: bomOverheads,
         bomBatchYield: isManufactured ? _bomBatchYield : 1,
-        assignedToUserId: _type == ProductType.service ? _assignedToMemberId : '',
+        assignedToUserId: _type == ProductType.service
+            ? _assignedToMemberId
+            : '',
         billingCycle: _type == ProductType.service ? _billingCycle : 'once',
+        imageUrl: _imageUrl,
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
@@ -4409,6 +4482,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _brandCtrl.text = src.brand;
     _warrantyCtrl.text = src.warrantyPeriod;
     _billingCycle = src.billingCycle;
+    _imageUrl = src.imageUrl;
     _expiryDate = src.expiryDate.isNotEmpty
         ? DateTime.tryParse(src.expiryDate)
         : null;
@@ -4497,7 +4571,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           ),
           child: Column(
             children: [
-              Icon(icon, size: 15, color: sel ? Colors.white : AppColors.textMuted),
+              Icon(
+                icon,
+                size: 15,
+                color: sel ? Colors.white : AppColors.textMuted,
+              ),
               const SizedBox(height: 3),
               Text(
                 label,
@@ -4631,6 +4709,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           ? product.commonBarcodes.first
           : _skuCtrl.text;
       _unit = product.unit;
+      if (product.imageUrl.isNotEmpty) _imageUrl = product.imageUrl;
       if (matched != null) {
         _selectedCategoryId = matched.id;
         _selectedCategoryName = matched.displayName;
@@ -4662,7 +4741,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     // null means the sheet was dismissed without a choice.
     final result = await showAppSheet<String?>(
       context,
-      builder: (_) => _AssigneePickerSheet(selectedMemberId: _assignedToMemberId),
+      builder: (_) =>
+          _AssigneePickerSheet(selectedMemberId: _assignedToMemberId),
     );
     if (result != null) {
       setState(() => _assignedToMemberId = result);
@@ -4677,7 +4757,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           ? _bomBatchYield.toStringAsFixed(0)
           : _bomBatchYield.toStringAsFixed(2);
       return Align(
-        alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
+        alignment: AppSheetScope.isSidePanelOf(context)
+            ? Alignment.topCenter
+            : Alignment.bottomCenter,
         child: Material(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -4817,7 +4899,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final categories = categoriesAsync.valueOrNull ?? const <MasterCategory>[];
 
     return Align(
-      alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
+      alignment: AppSheetScope.isSidePanelOf(context)
+          ? Alignment.topCenter
+          : Alignment.bottomCenter,
       child: SizedBox(
         width: sheetWidth,
         child: Material(
@@ -5349,10 +5433,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             border: Border.all(color: AppColors.border),
                           ),
                           child: const Column(
-                            children: [
-                              SkeletonListTile(),
-                              SkeletonListTile(),
-                            ],
+                            children: [SkeletonListTile(), SkeletonListTile()],
                           ),
                         ),
                       ],
@@ -6081,8 +6162,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             children: [
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _FormLabel(
                                       _tr('Buying price', 'Bei ya kununua'),
@@ -6109,8 +6189,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _FormLabel(
                                       _tr('Selling price *', 'Bei ya kuuza *'),
@@ -6248,8 +6327,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             children: [
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _FormLabel(
                                       _restockTarget != null
@@ -6263,8 +6341,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       keyboard: TextInputType.number,
                                       focusNode: _stockFocus,
                                       formatters: [
-                                        FilteringTextInputFormatter
-                                            .digitsOnly,
+                                        FilteringTextInputFormatter.digitsOnly,
                                       ],
                                     ),
                                   ],
@@ -6273,8 +6350,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _FormLabel(_tr('Reorder point', 'Kikomo')),
                                     const SizedBox(height: 6),
@@ -6284,8 +6360,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       keyboard: TextInputType.number,
                                       focusNode: _reorderFocus,
                                       formatters: [
-                                        FilteringTextInputFormatter
-                                            .digitsOnly,
+                                        FilteringTextInputFormatter.digitsOnly,
                                       ],
                                     ),
                                   ],
@@ -7506,8 +7581,11 @@ class _AssignedToField extends ConsumerWidget {
       final members = membersAsync.valueOrNull ?? const <TeamMember>[];
       // Match on the staff record id; also accept a legacy Auth-UID value.
       final match = members
-          .where((m) =>
-              m.id == selectedMemberId || (m.userId ?? '') == selectedMemberId)
+          .where(
+            (m) =>
+                m.id == selectedMemberId ||
+                (m.userId ?? '') == selectedMemberId,
+          )
           .cast<TeamMember?>()
           .firstOrNull;
       label = match?.name ?? _tr('Unknown member', 'Mwanachama hajulikani');
@@ -7569,13 +7647,14 @@ class _AssigneePickerSheet extends ConsumerWidget {
     // accepted their invite yet (status 'pending', no Auth UID) can still be
     // assigned — firestore.rules resolves it once they join. Suspended
     // members are left out; they shouldn't be picking up new work.
-    final assignable = (membersAsync.valueOrNull ?? const <TeamMember>[])
-        .where((m) => m.status == 'active' || m.status == 'pending')
-        .toList()
-      ..sort((a, b) {
-        if (a.status == b.status) return a.name.compareTo(b.name);
-        return a.status == 'active' ? -1 : 1;
-      });
+    final assignable =
+        (membersAsync.valueOrNull ?? const <TeamMember>[])
+            .where((m) => m.status == 'active' || m.status == 'pending')
+            .toList()
+          ..sort((a, b) {
+            if (a.status == b.status) return a.name.compareTo(b.name);
+            return a.status == 'active' ? -1 : 1;
+          });
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -7640,7 +7719,8 @@ class _AssigneePickerSheet extends ConsumerWidget {
                   else
                     ...assignable.map((m) {
                       final isPending = m.status == 'pending';
-                      final isSelected = selectedMemberId.isNotEmpty &&
+                      final isSelected =
+                          selectedMemberId.isNotEmpty &&
                           (selectedMemberId == m.id ||
                               selectedMemberId == (m.userId ?? ''));
                       return ListTile(
@@ -7857,7 +7937,9 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     // reveal silently never paints. Wrapping in Align > SizedBox(width:)
     // (same shape as _ProductFormSheet's root) keeps that pass bounded.
     return Align(
-      alignment: AppSheetScope.isSidePanelOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
+      alignment: AppSheetScope.isSidePanelOf(context)
+          ? Alignment.topCenter
+          : Alignment.bottomCenter,
       child: SizedBox(
         width: MediaQuery.sizeOf(context).width,
         child: ConstrainedBox(

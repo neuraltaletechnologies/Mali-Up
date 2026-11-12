@@ -16,6 +16,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/responsive_card_list.dart';
+import '../../../../shared/widgets/pos_tile.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -60,7 +61,8 @@ Future<void> _callRemoveTeamMember({
 }
 
 String _removeMemberErrorText(Object error) {
-  if (error is FirebaseFunctionsException && error.code == 'permission-denied') {
+  if (error is FirebaseFunctionsException &&
+      error.code == 'permission-denied') {
     return _tr(
       'Only the business owner can remove a team member.',
       'Ni mmiliki wa biashara pekee anayeweza kuondoa mwanachama.',
@@ -271,6 +273,16 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                               onTap: () =>
                                   _showMemberSheet(context, filtered[i]),
                             ),
+                          ),
+                          tileBuilder: (ctx, i) => _MemberTile(
+                            member: filtered[i],
+                            onTap: () => _showMemberSheet(context, filtered[i]),
+                            onEdit: ps.isOwner
+                                ? () => _showMemberSheet(context, filtered[i])
+                                : null,
+                            onDelete: ps.isOwner
+                                ? () => _removeMember(context, ref, filtered[i])
+                                : null,
                           ),
                         ),
                 ),
@@ -923,6 +935,45 @@ class _MemberCard extends StatelessWidget {
   }
 }
 
+// ── Member tile (wide screens — the POS card) ─────────────────────────────────
+
+class _MemberTile extends StatelessWidget {
+  final TeamMember member;
+  final VoidCallback onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _MemberTile({
+    required this.member,
+    required this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusColor, statusLabel) = switch (member.status) {
+      'active' => (AppColors.success, _tr('Active', 'Amilifu')),
+      'pending' => (AppColors.warning, _tr('Pending', 'Inasubiri')),
+      _ => (AppColors.textDisabled, _tr('Suspended', 'Imezuiliwa')),
+    };
+    final permCount = member.effectivePermissions.length;
+
+    return PosTile(
+      title: member.name,
+      subtitle: member.email.isNotEmpty ? member.email : null,
+      value: member.roleLabel(sw: LocalizationService.isSwahili),
+      valueColor: _roleColor(member.role),
+      valueIsMoney: false,
+      status: '$statusLabel · $permCount ${_tr('permissions', 'ruhusa')}',
+      statusColor: statusColor,
+      onTap: onTap,
+      onEdit: onEdit,
+      onDelete: onDelete,
+    );
+  }
+}
+
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
@@ -1130,8 +1181,8 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       final permsToStore = savedRole != null
           ? savedRole.permissions
           : (_selectedRole == TeamRole.custom
-              ? _customPerms
-              : defaultPermissionsFor(_selectedRole));
+                ? _customPerms
+                : defaultPermissionsFor(_selectedRole));
 
       final storedPhone = normalizedPhone.isNotEmpty
           ? normalizedPhone
@@ -1372,8 +1423,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                 size: 18,
                                 color: AppColors.textMuted,
                               ),
-                              validator: (v) =>
-                                  (v == null || v.trim().isEmpty)
+                              validator: (v) => (v == null || v.trim().isEmpty)
                                   ? _tr(
                                       'Name is required.',
                                       'Jina linahitajika.',
@@ -1508,9 +1558,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                             Text(
                               _tr(
                                 'From the "${_selectedCustomRole!.name}" role. '
-                                'Edit the role to change these.',
+                                    'Edit the role to change these.',
                                 'Kutoka jukumu la "${_selectedCustomRole!.name}". '
-                                'Hariri jukumu kubadilisha ruhusa hizi.',
+                                    'Hariri jukumu kubadilisha ruhusa hizi.',
                               ),
                               style: GoogleFonts.dmSans(
                                 fontSize: 11,
@@ -1700,7 +1750,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       if (storedPhone != _member.phone) {
         final lookup = await ref
             .read(onboardingRepositoryProvider)
-            .lookupByPhone(normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone)
+            .lookupByPhone(
+              normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone,
+            )
             .timeout(const Duration(seconds: 15));
         final isDuplicate = switch (lookup) {
           ReturningUser() => true,
@@ -1904,10 +1956,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
             : null,
         customPermissions: data['customPermissions'] is List
             ? (data['customPermissions'] as List)
-                .whereType<String>()
-                .map(AppPermissionX.fromString)
-                .whereType<AppPermission>()
-                .toSet()
+                  .whereType<String>()
+                  .map(AppPermissionX.fromString)
+                  .whereType<AppPermission>()
+                  .toSet()
             : null,
         customRoleId: data['customRoleId'] is String
             ? data['customRoleId'] as String
@@ -1995,8 +2047,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
     final effectivePerms = cr != null
         ? cr.permissions
         : (_pendingRole == TeamRole.custom
-            ? _pendingPerms
-            : defaultPermissionsFor(_pendingRole));
+              ? _pendingPerms
+              : defaultPermissionsFor(_pendingRole));
     final permNames = effectivePerms.map((p) => p.name).toList();
     // "Own records only" (DataScope.own) can be applied to any role — the sync
     // layer + dashboard scope such a member to their own contribution
@@ -2206,9 +2258,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           color: AppColors.textMuted,
                           size: 20,
                         ),
-                        onTap: () => setState(
-                          () => _editingDetails = !_editingDetails,
-                        ),
+                        onTap: () =>
+                            setState(() => _editingDetails = !_editingDetails),
                       ),
                       if (_editingDetails) ...[
                         const SizedBox(height: 10),
@@ -2265,8 +2316,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                         icon: Icons.swap_horiz_rounded,
                         color: AppColors.navyPrimary,
                         title: _tr('Change Role', 'Badilisha Jukumu'),
-                        subtitle:
-                            _member.roleLabel(sw: LocalizationService.isSwahili),
+                        subtitle: _member.roleLabel(
+                          sw: LocalizationService.isSwahili,
+                        ),
                         trailing: Icon(
                           _editingRole
                               ? Icons.expand_less_rounded
@@ -2281,7 +2333,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                         const SizedBox(height: 10),
                         _RolePickerButton(
                           role: _pendingRole,
-                          customRoleName: _pendingCustomRole?.name ??
+                          customRoleName:
+                              _pendingCustomRole?.name ??
                               (_pendingRole == _member.role
                                   ? _member.customRoleName
                                   : null),
@@ -2314,8 +2367,9 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           _OwnRecordsOnlyToggle(
                             value: _pendingDataScope == DataScope.own,
                             onChanged: (v) => setState(
-                              () => _pendingDataScope =
-                                  v ? DataScope.own : DataScope.all,
+                              () => _pendingDataScope = v
+                                  ? DataScope.own
+                                  : DataScope.all,
                             ),
                           ),
                         ],
@@ -2425,10 +2479,7 @@ class _RolePickerSheet extends ConsumerStatefulWidget {
   final TeamRole currentRole;
   final String? currentCustomRoleId;
 
-  const _RolePickerSheet({
-    required this.currentRole,
-    this.currentCustomRoleId,
-  });
+  const _RolePickerSheet({required this.currentRole, this.currentCustomRoleId});
 
   @override
   ConsumerState<_RolePickerSheet> createState() => _RolePickerSheetState();
@@ -2453,9 +2504,9 @@ class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
         content: Text(
           _tr(
             'Delete the "${role.name}" role? Members already assigned it keep '
-            'their current permissions.',
+                'their current permissions.',
             'Futa jukumu la "${role.name}"? Wanachama waliopewa tayari '
-            'watabaki na ruhusa zao za sasa.',
+                'watabaki na ruhusa zao za sasa.',
           ),
         ),
         actions: [
@@ -2478,11 +2529,7 @@ class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
     try {
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
-      await repo.deleteCustomRole(
-        uid: user.uid,
-        context: ctx,
-        roleId: role.id,
-      );
+      await repo.deleteCustomRole(uid: user.uid, context: ctx, roleId: role.id);
     } catch (_) {
       if (mounted) {
         AppNotification.error(
@@ -2545,11 +2592,12 @@ class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _RoleCard(
                             role: r,
-                            selected: widget.currentRole == r &&
+                            selected:
+                                widget.currentRole == r &&
                                 (r != TeamRole.custom ||
                                     widget.currentCustomRoleId == null),
-                            onTap: () => Navigator.of(context)
-                                .pop(_RoleSelection(r)),
+                            onTap: () =>
+                                Navigator.of(context).pop(_RoleSelection(r)),
                           ),
                         ),
                       ),
@@ -2587,9 +2635,9 @@ class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
                               child: Text(
                                 _tr(
                                   'No custom roles yet. Create one to reuse '
-                                  'across team members.',
+                                      'across team members.',
                                   'Hakuna majukumu maalum bado. Tengeneza moja '
-                                  'ili kulitumia kwa wanachama wengi.',
+                                      'ili kulitumia kwa wanachama wengi.',
                                 ),
                                 style: GoogleFonts.dmSans(
                                   fontSize: 12,
@@ -2624,10 +2672,7 @@ class _RolePickerSheetState extends ConsumerState<_RolePickerSheet> {
                         onPressed: () => _openEditor(),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: Text(
-                          _tr(
-                            'Create custom role',
-                            'Tengeneza jukumu maalum',
-                          ),
+                          _tr('Create custom role', 'Tengeneza jukumu maalum'),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.navyPrimary,
@@ -2748,8 +2793,10 @@ class _CustomRoleRow extends StatelessWidget {
               onTap: onTap,
               borderRadius: BorderRadius.circular(14),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -2907,17 +2954,16 @@ class _CustomRoleEditorSheetState
       final msg = !_isEdit
           ? _tr('"$name" role created.', 'Jukumu la "$name" limetengenezwa.')
           : (affected == 0
-              ? _tr('"$name" role updated.', 'Jukumu la "$name" limesasishwa.')
-              : _tr(
-                  '"$name" role updated — $affected member(s) refreshed.',
-                  'Jukumu la "$name" limesasishwa — wanachama $affected '
-                  'wamesasishwa.',
-                ));
-      AppNotification.showVia(
-        overlay,
-        msg,
-        type: AppNotificationType.success,
-      );
+                ? _tr(
+                    '"$name" role updated.',
+                    'Jukumu la "$name" limesasishwa.',
+                  )
+                : _tr(
+                    '"$name" role updated — $affected member(s) refreshed.',
+                    'Jukumu la "$name" limesasishwa — wanachama $affected '
+                        'wamesasishwa.',
+                  ));
+      AppNotification.showVia(overlay, msg, type: AppNotificationType.success);
     } catch (e, st) {
       ErrorReporter.captureException(e, stackTrace: st);
       if (!mounted) return;
@@ -2999,9 +3045,9 @@ class _CustomRoleEditorSheetState
                         Text(
                           _tr(
                             'Saving updates every team member currently '
-                            'assigned this role.',
+                                'assigned this role.',
                             'Kuhifadhi kunasasisha kila mwanachama aliye na '
-                            'jukumu hili sasa.',
+                                'jukumu hili sasa.',
                           ),
                           style: GoogleFonts.dmSans(
                             fontSize: 11,
@@ -3035,7 +3081,10 @@ class _CustomRoleEditorSheetState
                                 )
                               : Text(
                                   _isEdit
-                                      ? _tr('Save Changes', 'Hifadhi Mabadiliko')
+                                      ? _tr(
+                                          'Save Changes',
+                                          'Hifadhi Mabadiliko',
+                                        )
                                       : _tr('Create Role', 'Tengeneza Jukumu'),
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w700,

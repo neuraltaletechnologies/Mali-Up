@@ -14,6 +14,7 @@ class MasterProduct {
   final List<String> tags;
   final bool prescriptionRequired;
   final bool coldStorage;
+  final String imageUrl; // R2 picture URL, empty when none yet
 
   const MasterProduct({
     required this.id,
@@ -31,6 +32,7 @@ class MasterProduct {
     this.tags = const [],
     this.prescriptionRequired = false,
     this.coldStorage = false,
+    this.imageUrl = '',
   });
 
   factory MasterProduct.fromFirestore(
@@ -60,6 +62,7 @@ class MasterProduct {
       tags: strList(data['tags']),
       prescriptionRequired: data['prescriptionRequired'] as bool? ?? false,
       coldStorage: data['coldStorage'] as bool? ?? false,
+      imageUrl: (data['imageUrl'] as String? ?? '').trim(),
     );
   }
 

@@ -219,6 +219,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
         unit: widget.product.unit,
         createdAt: now,
         updatedAt: now,
+        imageUrl: widget.product.imageUrl,
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);

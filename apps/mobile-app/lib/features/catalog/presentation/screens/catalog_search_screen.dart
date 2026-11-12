@@ -368,19 +368,23 @@ class _ProductCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
         child: Row(
           children: [
-            // Product icon
+            // Product picture (falls back to the generic icon)
             Container(
               width: 44,
               height: 44,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: const Color(0xFFF0F7FA),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
-                Icons.inventory_2_outlined,
-                color: AppColors.tealAccent,
-                size: 22,
-              ),
+              child: product.imageUrl.isEmpty
+                  ? const _CatalogIcon()
+                  : Image.network(
+                      product.imageUrl,
+                      fit: BoxFit.cover,
+                      cacheWidth: 132,
+                      errorBuilder: (_, _, _) => const _CatalogIcon(),
+                    ),
             ),
             const SizedBox(width: 12),
 
@@ -463,6 +467,17 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
+}
+
+class _CatalogIcon extends StatelessWidget {
+  const _CatalogIcon();
+
+  @override
+  Widget build(BuildContext context) => const Icon(
+    Icons.inventory_2_outlined,
+    color: AppColors.tealAccent,
+    size: 22,
+  );
 }
 
 class _Pill extends StatelessWidget {

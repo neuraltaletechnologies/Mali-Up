@@ -47,6 +47,8 @@ class MasterProductsTable extends Table {
   TextColumn get tags => text().withDefault(const Constant('[]'))();
   IntColumn get prescriptionRequired => integer().withDefault(const Constant(0))();
   IntColumn get coldStorage => integer().withDefault(const Constant(0))();
+  // R2 picture URL from master_products.imageUrl (empty = none yet).
+  TextColumn get imageUrl => text().withDefault(const Constant(''))();
   IntColumn get cachedAt => integer().withDefault(const Constant(0))();
 
   @override

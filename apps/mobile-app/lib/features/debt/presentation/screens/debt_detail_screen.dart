@@ -259,7 +259,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       final shared = await ReceiptPdfService.share(
         sale: sale,
         businessName: meta['businessName'] ?? 'Business',
-        printedBy: meta['printedBy'] ?? 'User',
+        printedBy: meta['printedBy'] ?? _tr('User', 'Mtumiaji'),
         isSwahili: LocalizationService.isSwahili,
         businessPhone: meta['businessPhone'] ?? '',
         businessEmail: meta['businessEmail'] ?? '',
@@ -326,7 +326,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
       await ReceiptPdfService.open(
         sale: sale,
         businessName: meta['businessName'] ?? 'Business',
-        printedBy: meta['printedBy'] ?? 'User',
+        printedBy: meta['printedBy'] ?? _tr('User', 'Mtumiaji'),
         isSwahili: LocalizationService.isSwahili,
         businessPhone: meta['businessPhone'] ?? '',
         businessEmail: meta['businessEmail'] ?? '',

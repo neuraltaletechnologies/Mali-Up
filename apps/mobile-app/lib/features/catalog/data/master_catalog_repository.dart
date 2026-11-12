@@ -288,6 +288,7 @@ class MasterCatalogRepository {
             (data['prescriptionRequired'] as bool? ?? false) ? 1 : 0,
           ),
           coldStorage: Value((data['coldStorage'] as bool? ?? false) ? 1 : 0),
+          imageUrl: Value((data['imageUrl'] as String? ?? '').trim()),
           cachedAt: Value(now),
         );
       }).toList();
@@ -435,6 +436,7 @@ class MasterCatalogRepository {
       tags: decode(r.tags),
       prescriptionRequired: r.prescriptionRequired == 1,
       coldStorage: r.coldStorage == 1,
+      imageUrl: r.imageUrl,
     );
   }
 }

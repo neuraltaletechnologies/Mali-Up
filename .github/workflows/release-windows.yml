@@ -16,10 +16,11 @@ name: Release Windows (Installer + Microsoft Store)
 # hand on any other PR). Can also be run from the Actions tab.
 #
 # Version: pubspec `version` (e.g. 1.3.0+8) -> installer 1.3.0, MSIX
-# 1.3.0.0 (the Store requires the 4th MSIX segment to be 0). This workflow
-# does not bump the version; release-android.yml does that after each Android
-# release, so ship Android and Windows together or bump pubspec yourself —
-# the Store rejects an MSIX whose version isn't higher than the last one.
+# 1.3.0.0 (the Store requires the 4th MSIX segment to be 0). The version
+# climbs automatically, like Android: after a successful release the patch is
+# bumped on main and mirrored to dev. When the same merge also carries
+# `release:android`, release-android.yml does that bump instead, so a joint
+# release ships one shared number and bumps it once. Bump minor/major by hand.
 #
 # Optional code signing of the installer (avoids the SmartScreen "unknown
 # publisher" warning): set repo secrets WINDOWS_CERT_PFX_BASE64 (base64 of
@@ -295,3 +296,64 @@ jobs:
             --clientSecret "$MSSTORE_CLIENT_SECRET"
           msstore publish "build/windows/msix/MaliUp-$VERSION.msix" -id 9NDQXPM95Q99
           echo "✅ MSIX $VERSION submitted to the Microsoft Store for certification."
+
+      # Same patch bump as release-android.yml, so the next Windows release
+      # carries a higher version than this one (the Store rejects repeats).
+      # Skipped when this merge also ships Android — that workflow bumps the
+      # shared version itself, and bumping here too would skip a number.
+      # Only runs after every step above succeeded, so a failed release can be
+      # re-run on the same version. continue-on-error: a push problem here
+      # never marks an already-submitted release as failed.
+      - name: Bump patch version for the next release
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          !contains(github.event.pull_request.labels.*.name, 'release:android')
+        continue-on-error: true
+        run: |
+          current=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:\s*//' | tr -d '\r')
+          name=${current%%+*}
+          build=${current#*+}
+          IFS='.' read -r major minor patch <<< "$name"
+          next_name="$major.$minor.$((patch + 1))"
+          if [ "$build" = "$current" ]; then
+            next="$next_name"
+          else
+            next="$next_name+$((build + 1))"
+          fi
+          sed -i -E "s/^version:.*/version: $next/" pubspec.yaml
+          echo "Bumped version: $current -> $next"
+          cd "$GITHUB_WORKSPACE"
+          git config user.name 'Mali Up Release Bot'
+          git config user.email 'release-bot@users.noreply.github.com'
+          git add apps/mobile-app/pubspec.yaml
+          git checkout -- .
+          git commit -m "chore(release): bump mobile app to $next_name [skip ci]"
+          # The checkout is a detached merge commit; main may have moved since.
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && break
+            echo "Push rejected, retrying (attempt $attempt)..."
+            git fetch origin main
+            git rebase origin/main
+          done
+
+          # Mirror the new version onto dev so it doesn't drift behind main.
+          git fetch origin dev
+          sync="$RUNNER_TEMP/dev-version-sync"
+          git worktree add "$sync" origin/dev
+          cd "$sync"
+          dev_version=$(grep -E '^version:' apps/mobile-app/pubspec.yaml | sed -E 's/^version:\s*//' | tr -d '\r')
+          if [ "$dev_version" = "$next" ]; then
+            echo "dev is already at $next, nothing to sync"
+          else
+            sed -i -E "s/^version:.*/version: $next/" apps/mobile-app/pubspec.yaml
+            git add apps/mobile-app/pubspec.yaml
+            git commit -m "chore(release): sync mobile app version to $next on dev [skip ci]"
+            for attempt in 1 2 3; do
+              git push origin HEAD:dev && break
+              echo "Push rejected, retrying (attempt $attempt)..."
+              git fetch origin dev
+              git rebase origin/dev
+            done
+          fi
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove "$sync" --force
