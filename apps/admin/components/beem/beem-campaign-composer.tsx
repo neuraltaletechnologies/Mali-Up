@@ -15,6 +15,7 @@ import { CAMPAIGN_PRESETS, CampaignPreset } from './campaign-presets'
 import { createBeemCampaign, estimateSmsRecipients } from '@/lib/admin-api'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
+import { calculateSmsParts } from '@/lib/sms-parts'
 import type { Business, PlanTier, SmsCampaignAudience, SmsCampaignAudienceKind, SmsCampaignType } from '@/types'
 
 const BUSINESS_CATEGORIES = [
@@ -72,8 +73,6 @@ export function BeemCampaignComposer({
   // Estimation & state
   const [estimating, setEstimating] = useState(false)
   const [recipientCount, setRecipientCount] = useState<number>(0)
-  const [estimatedCredits, setEstimatedCredits] = useState<number>(0)
-  const [smsParts, setSmsParts] = useState<number>(1)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,15 +146,8 @@ export function BeemCampaignComposer({
     async function runEstimate() {
       setEstimating(true)
       try {
-        const res = await estimateSmsRecipients({
-          audience: currentAudience,
-          message: currentMessage,
-        })
-        if (active) {
-          setRecipientCount(res.recipientCount)
-          setSmsParts(res.smsParts)
-          setEstimatedCredits(res.estimatedCredits)
-        }
+        const res = await estimateSmsRecipients({ audience: currentAudience })
+        if (active) setRecipientCount(res.recipientCount)
       } catch (err) {
         console.error('Estimate error:', err)
       } finally {
@@ -168,7 +160,12 @@ export function BeemCampaignComposer({
       active = false
       clearTimeout(timer)
     }
-  }, [currentAudience, currentMessage])
+    // Audience only: each estimate reads the users + businesses collections,
+    // so it must not re-run on every keystroke in the message box.
+  }, [currentAudience])
+
+  const smsParts = useMemo(() => calculateSmsParts(currentMessage || 'Sample').parts, [currentMessage])
+  const estimatedCredits = recipientCount * smsParts
 
   // Filter businesses for picker
   const filteredBusinesses = useMemo(() => {
@@ -224,7 +221,7 @@ export function BeemCampaignComposer({
       setSuccessNotice(
         sendMode === 'scheduled'
           ? `Campaign scheduled successfully for ${res.recipientCount} recipients.`
-          : `Campaign dispatched to ${res.recipientCount} recipients via Beem Africa!`
+          : `Campaign queued for ${res.recipientCount} recipients — sending now. Watch its status in the history below.`
       )
 
       setConfirmOpen(false)

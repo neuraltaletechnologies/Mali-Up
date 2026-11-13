@@ -23,6 +23,7 @@ const statusConfig: Record<
   { status: 'good' | 'warn' | 'bad'; label: string; icon: typeof CheckCircle2 }
 > = {
   sent: { status: 'good', label: 'Sent', icon: CheckCircle2 },
+  queued: { status: 'warn', label: 'Queued', icon: Clock },
   sending: { status: 'warn', label: 'Sending…', icon: Clock },
   scheduled: { status: 'warn', label: 'Scheduled', icon: Calendar },
   draft: { status: 'warn', label: 'Draft', icon: Clock },
@@ -44,9 +45,10 @@ function audienceSummary(c: BeemSmsCampaign): string {
 interface BeemCampaignsTableProps {
   campaigns: BeemSmsCampaign[]
   onDeleteCampaign?: (id: string) => void
+  onCampaignResent?: () => void
 }
 
-export function BeemCampaignsTable({ campaigns, onDeleteCampaign }: BeemCampaignsTableProps) {
+export function BeemCampaignsTable({ campaigns, onDeleteCampaign, onCampaignResent }: BeemCampaignsTableProps) {
   const [query, setQuery] = useState('')
   const [selectedCampaign, setSelectedCampaign] = useState<BeemSmsCampaign | null>(null)
 
@@ -133,10 +135,12 @@ export function BeemCampaignsTable({ campaigns, onDeleteCampaign }: BeemCampaign
                   <div className="shrink-0 text-right flex flex-col items-end">
                     <StatusDot status={cfg.status} label={cfg.label} />
                     <div className="text-[11px] text-[var(--ink-faint)] mt-1 font-mono">
-                      {c.sentCount}/{c.targetCount} delivered
-                      {c.failedCount > 0 ? (
+                      {c.recipientsTracked
+                        ? `${c.deliveredCount ?? 0}/${c.targetCount} delivered`
+                        : `${c.sentCount}/${c.targetCount} accepted`}
+                      {c.failedCount + (c.undeliveredCount ?? 0) > 0 ? (
                         <span className="text-[var(--status-bad)] ml-1">
-                          ({c.failedCount} failed)
+                          ({c.failedCount + (c.undeliveredCount ?? 0)} not delivered)
                         </span>
                       ) : null}
                     </div>
@@ -161,6 +165,7 @@ export function BeemCampaignsTable({ campaigns, onDeleteCampaign }: BeemCampaign
           setSelectedCampaign(null)
           onDeleteCampaign?.(id)
         }}
+        onResent={onCampaignResent}
       />
     </>
   )
