@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { verifyIdToken, isAdminUser } from './firebase-admin'
 import { clientIp, rateLimitIp } from './rate-limit'
@@ -9,6 +9,12 @@ import { z } from 'zod'
 const credentialsSchema = z.object({
   idToken: z.string().min(1, 'ID token is required'),
 })
+
+// Surfaces as `result.code` from the client's signIn(), so the login page can
+// say "too many attempts" instead of "your account does not have admin access".
+class SignInRateLimited extends CredentialsSignin {
+  code = 'rate_limited'
+}
 
 // How often to re-verify the admin claim against Firebase Auth + Firestore
 // for an already-signed-in session. Every `auth()` call used to do this
@@ -53,10 +59,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // budget in lib/rate-limit.ts since this path is reachable with no
         // session at all.
         const ip = clientIp(request.headers)
-        const throttled = await rateLimitIp(ip, { limit: 10, windowSeconds: 5 * 60 })
+        // Own `signin:` counter — sharing the API guard's `ip:` one meant 401s
+        // from a dashboard tab still polling after logout used up the sign-in
+        // budget and locked the admin out for a couple of minutes.
+        const throttled = await rateLimitIp(ip, { limit: 10, windowSeconds: 5 * 60, scope: 'signin' })
         if (throttled) {
           console.warn('[Auth] Sign-in rate limited', { ip })
-          return null
+          throw new SignInRateLimited()
         }
 
         const parsed = credentialsSchema.safeParse(credentials)

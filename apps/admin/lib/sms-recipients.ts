@@ -1,6 +1,7 @@
 import { restFirestore as adminFirestore, type DocumentData } from '@/lib/firestore-rest'
 import { normalizePhone, SmsRecipient } from '@/lib/beem'
 import type { SmsCampaignAudience } from '@/types'
+import { withCache } from '@/lib/api-cache'
 
 /**
  * Field names follow what the mobile app writes
@@ -19,7 +20,16 @@ type Directory = {
   businessesById: Map<string, DocumentData>
 }
 
-async function loadDirectory(): Promise<Directory> {
+// Every estimate and campaign create needs the whole users + businesses
+// directory. Share one load per minute so composing a campaign (estimate on
+// each audience change, then the create) doesn't re-read both collections.
+const DIRECTORY_TTL_MS = 60_000
+
+function loadDirectory(): Promise<Directory> {
+  return withCache('sms-recipient-directory', DIRECTORY_TTL_MS, fetchDirectory)
+}
+
+async function fetchDirectory(): Promise<Directory> {
   const [usersSnap, bizSnap] = await Promise.all([
     adminFirestore.collection('users').limit(MAX_DOCS).get(),
     adminFirestore.collection('businesses').limit(MAX_DOCS).get(),

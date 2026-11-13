@@ -43,6 +43,15 @@ export async function DELETE(
     }
 
     const before = snap.data()!
+    // Drop the recipients/{phone} subcollection 500 docs per commit. Not
+    // recursiveDelete: it makes two requests per recipient doc, which runs a
+    // big campaign into the Worker's per-request subrequest cap.
+    const recSnap = await ref.collection('recipients').limit(2000).get()
+    for (let i = 0; i < recSnap.docs.length; i += 500) {
+      const batch = adminFirestore.batch()
+      for (const doc of recSnap.docs.slice(i, i + 500)) batch.delete(doc.ref)
+      await batch.commit()
+    }
     await ref.delete()
 
     await writeAudit({

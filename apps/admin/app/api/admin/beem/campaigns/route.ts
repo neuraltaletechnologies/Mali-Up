@@ -4,7 +4,7 @@ import { requireAdminSession } from '@/lib/api-guard'
 import { auth } from '@/lib/auth'
 import { writeAudit } from '@/lib/write-audit'
 import { withCache, invalidateCache } from '@/lib/api-cache'
-import { calculateSmsParts, getBeemCredentials, sendBeemSmsBatch } from '@/lib/beem'
+import { calculateSmsParts, getBeemCredentials } from '@/lib/beem'
 import { resolveSmsRecipients } from '@/lib/sms-recipients'
 import type { BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType } from '@/types'
 
@@ -62,6 +62,12 @@ async function fetchCampaigns() {
       createdByAdminId: (d.createdByAdminId as string) || '',
       createdByAdminName: (d.createdByAdminName as string) || 'Admin',
       failedRecipients: (d.failedRecipients as { phone: string; reason: string }[]) || undefined,
+      recipientsTracked: d.recipientsTracked === true,
+      deliveredCount: Number(d.deliveredCount) || 0,
+      undeliveredCount: Number(d.undeliveredCount) || 0,
+      dlrPendingCount: Number(d.dlrPendingCount) || 0,
+      dlrState: (d.dlrState as BeemSmsCampaign['dlrState']) || undefined,
+      resendOf: (d.resendOf as string) || undefined,
     }
   })
 
@@ -126,7 +132,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Scheduled time must be a valid time in the future' }, { status: 400 })
     }
 
-    // Initial save
+    // Only queue here — never send from this request. A personalised
+    // message is one Beem call per recipient, which outruns a Worker
+    // request's subrequest/time limits (the request died mid-send, leaving
+    // the campaign stuck on "sending" and some numbers already texted).
+    // functions/src/sms_campaigns.ts sends it: onSmsCampaignCreated picks up
+    // `queued` immediately, dispatchSmsCampaigns handles `scheduled`.
     await campaignRef.set({
       name,
       campaignType,
@@ -134,7 +145,7 @@ export async function POST(request: Request) {
       message,
       messageSw: messageSw || null,
       audience,
-      status: isScheduled ? 'scheduled' : 'sending',
+      status: isScheduled ? 'scheduled' : 'queued',
       targetCount: recipients.length,
       sentCount: 0,
       failedCount: 0,
@@ -147,39 +158,6 @@ export async function POST(request: Request) {
       createdByAdminId: adminId,
       createdByAdminName: adminName,
     })
-
-    // If not scheduled, dispatch immediately
-    if (!isScheduled) {
-      try {
-        const dispatchResult = await sendBeemSmsBatch({
-          recipients,
-          message,
-          senderId,
-        })
-
-        const finalStatus =
-          dispatchResult.totalSent === recipients.length
-            ? 'sent'
-            : dispatchResult.totalSent > 0
-            ? 'partially_failed'
-            : 'failed'
-
-        await campaignRef.update({
-          status: finalStatus,
-          sentCount: dispatchResult.totalSent,
-          failedCount: dispatchResult.totalFailed,
-          sentAt: FieldValue.serverTimestamp(),
-          failedRecipients: dispatchResult.failedNumbers.slice(0, 50),
-        })
-      } catch (sendErr) {
-        console.error('[Beem Campaigns] Send error:', sendErr)
-        await campaignRef.update({
-          status: 'failed',
-          failedCount: recipients.length,
-          sentAt: FieldValue.serverTimestamp(),
-        })
-      }
-    }
 
     await writeAudit({
       action: isScheduled ? 'schedule_sms_campaign' : 'send_sms_campaign',

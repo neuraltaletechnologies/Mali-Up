@@ -530,7 +530,7 @@ export interface SmsCampaignAudience {
   customNumbers?: string[]
 }
 
-export type SmsCampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'partially_failed' | 'failed' | 'cancelled'
+export type SmsCampaignStatus = 'draft' | 'queued' | 'scheduled' | 'sending' | 'sent' | 'partially_failed' | 'failed' | 'cancelled'
 
 export interface BeemSmsCampaign {
   id: string
@@ -552,6 +552,30 @@ export interface BeemSmsCampaign {
   createdByAdminId: string
   createdByAdminName: string
   failedRecipients?: { phone: string; reason: string }[]
+  /** True once the sender has written `recipients/{phone}` docs (campaigns from before tracking have none). */
+  recipientsTracked?: boolean
+  /** Handset delivery, pulled from Beem's delivery-report API after sending. */
+  deliveredCount?: number
+  undeliveredCount?: number
+  dlrPendingCount?: number
+  /** `pending` while delivery checks are still running, `done` once they stop. */
+  dlrState?: 'pending' | 'done' | 'none'
+  /** Set on a campaign created by "Resend to not delivered". */
+  resendOf?: string
+}
+
+export type SmsDeliveryStatus = 'PENDING' | 'DELIVERED' | 'UNDELIVERED'
+
+/** `beem_sms_campaigns/{id}/recipients/{phone}` — one per number the campaign targeted. */
+export interface SmsCampaignRecipient {
+  phone: string
+  name: string
+  businessName: string
+  /** Whether Beem accepted the send request. Not the same as delivered. */
+  status: 'accepted' | 'failed'
+  reason: string | null
+  dlrStatus: SmsDeliveryStatus | null
+  sentAt?: string
 }
 
 
