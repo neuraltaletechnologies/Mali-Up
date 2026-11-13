@@ -261,15 +261,21 @@ class OnboardingRepository {
   // is confirmed (see that method's doc for both callers).
 
   /// Requests an OTP be sent to [phone]. Returns Beem's pinId, which must be
-  /// passed back to [verifyOtp]. Throws [FirebaseFunctionsException] on
-  /// rate-limit ('resource-exhausted') or provider failure.
-  Future<String> sendOtp(String phone) async {
+  /// passed back to [verifyOtp], and `bypassed` — true when the number's
+  /// country is outside Beem's coverage, so no SMS was sent and the server
+  /// already marked the phone verified (see functions/src/beem_coverage.ts).
+  /// Throws [FirebaseFunctionsException] on rate-limit ('resource-exhausted')
+  /// or provider failure.
+  Future<({String pinId, bool bypassed})> sendOtp(String phone) async {
     final callable = AppFunctions.callable('sendBeemOtp', functions: _functions);
     final res = await callable.call<Map<String, dynamic>>({
       'phone': PhoneNumberUtils.canonical(phone),
     });
     final data = Map<String, dynamic>.from(res.data as Map);
-    return data['pinId'] as String;
+    return (
+      pinId: (data['pinId'] as String?) ?? '',
+      bypassed: data['bypassed'] == true,
+    );
   }
 
   /// Verifies [code] against [pinId] for [phone]. Returns false for a wrong

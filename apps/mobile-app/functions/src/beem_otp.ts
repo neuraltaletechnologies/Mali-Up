@@ -2,6 +2,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import {enforceRateLimit} from "./rate_limit";
+import {isBeemOtpReachable} from "./beem_coverage";
 
 /**
  * Phone OTP verification for first-time registration (new owner + team
@@ -68,6 +69,12 @@ interface SendOtpRequest {
 interface SendOtpResponse {
   pinId: string;
   expiresInSeconds: number;
+  /**
+   * True when the phone's country is outside Beem's coverage (see
+   * beem_coverage.ts): no SMS was sent and the phone is already marked
+   * verified, so the client skips straight past the code-entry step.
+   */
+  bypassed?: boolean;
 }
 
 /** Provider-only request shared by onboarding and PIN recovery. */
@@ -142,6 +149,25 @@ export const sendBeemOtp = onCall<SendOtpRequest>(
       max: 20,
       message: "Too many verification code requests. Please wait before trying again.",
     });
+
+    // Beem can't deliver outside its (African) footprint — the SMS would
+    // silently never arrive and lock the user out. Skip it and write the
+    // verified marker directly. `bypassed` makes consumeOtpVerification
+    // refuse the orphan-account password reset for this phone, since nobody
+    // actually proved they receive its SMS.
+    if (!isBeemOtpReachable(phone)) {
+      console.log("[BeemOtp] country not covered by Beem, skipping OTP for", phone.slice(0, 4) + "…");
+      await admin
+        .firestore()
+        .collection("otp_verifications")
+        .doc(phone)
+        .set({
+          verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAtMs: Date.now() + OTP_VERIFIED_TTL_MS,
+          bypassed: true,
+        });
+      return {pinId: "", expiresInSeconds: 0, bypassed: true};
+    }
 
     return requestBeemOtpCode(phone);
   },
@@ -295,6 +321,7 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
     const ref = admin.firestore().collection("otp_verifications").doc(phone);
     const snap = await ref.get();
     const expiresAtMs = snap.data()?.expiresAtMs as number | undefined;
+    const bypassed = snap.data()?.bypassed === true;
     if (!snap.exists || !expiresAtMs || expiresAtMs < Date.now()) {
       throw new HttpsError(
         "failed-precondition",
@@ -304,8 +331,12 @@ export const consumeOtpVerification = onCall<ConsumeOtpRequest>(
 
     // Heal an orphaned account for this phone before burning the marker —
     // mirrors PhoneNumberUtils.authEmail (canonical digits-only phone).
+    // Never for a bypassed (no-SMS) marker: that would let anyone reset the
+    // PIN of an existing account on an uncovered number just by
+    // "registering" it again. The client then hits email-already-in-use and
+    // shows "account already exists, sign in with your PIN".
     let accountExisted = false;
-    if (newPassword) {
+    if (newPassword && !bypassed) {
       try {
         const user = await admin.auth().getUserByEmail(`${phone}@mali.up`);
         await admin.auth().updateUser(user.uid, {password: newPassword});
