@@ -7,6 +7,7 @@ import type {
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
   PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
   BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType, BeemAutoCampaign, BeemAutoCampaignInput,
+  SmsCampaignRecipient,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -546,6 +547,15 @@ export async function createBeemCampaign(data: {
 
 export async function deleteBeemCampaign(id: string): Promise<void> {
   await apiFetch(`/api/admin/beem/campaigns/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchBeemCampaignRecipients(id: string): Promise<{ recipients: SmsCampaignRecipient[] }> {
+  return apiFetch(`/api/admin/beem/campaigns/${id}/recipients`)
+}
+
+/** Queues a new campaign for this campaign's failed + undelivered numbers. */
+export async function resendBeemCampaign(id: string): Promise<{ id: string; recipientCount: number }> {
+  return apiFetch(`/api/admin/beem/campaigns/${id}/resend`, { method: 'POST' })
 }
 
 export async function sendTestSms(data: {

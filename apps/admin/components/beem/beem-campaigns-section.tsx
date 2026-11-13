@@ -15,6 +15,8 @@ import {
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { AlertCircle } from 'lucide-react'
 
+const ACTIVE_WINDOW_MS = 15 * 60_000
+
 export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.ReactNode } = {}) {
   const {
     data: statusData,
@@ -38,11 +40,22 @@ export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.Reac
     refetch: refetchCampaigns,
   } = useAdminFetch(useCallback(() => fetchBeemCampaigns(), []), {
     key: 'beem-sms-campaigns',
-    pollingInterval: hasActiveCampaign ? 10_000 : undefined,
+    pollingInterval: hasActiveCampaign ? 15_000 : undefined,
   })
 
   useEffect(() => {
-    setHasActiveCampaign((campaignsData?.campaigns ?? []).some((c) => c.status === 'sending'))
+    // Each poll re-reads the campaign list, so only poll for campaigns that
+    // are genuinely in flight: queued/sending AND recent. The sender times out
+    // after 9 minutes, so anything older is stuck and polling can't help —
+    // without this cutoff one stuck doc polled forever.
+    const cutoff = Date.now() - ACTIVE_WINDOW_MS
+    setHasActiveCampaign(
+      (campaignsData?.campaigns ?? []).some(
+        (c) =>
+          (c.status === 'queued' || c.status === 'sending') &&
+          Date.parse(c.createdAt) > cutoff
+      )
+    )
   }, [campaignsData])
 
   const { data: businessData } = useAdminFetch(
@@ -107,6 +120,7 @@ export function BeemCampaignsSection({ afterStatus }: { afterStatus?: React.Reac
         <BeemCampaignsTable
           campaigns={campaigns}
           onDeleteCampaign={handleDeleteCampaign}
+          onCampaignResent={refetchCampaigns}
         />
       )}
     </div>

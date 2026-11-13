@@ -124,10 +124,16 @@ export async function rateLimitAdmin(uid: string): Promise<NextResponse | null> 
  * per-admin budget since it can sit behind a shared NAT, but tight enough to
  * blunt a credential-stuffing / probing script.
  */
-export async function rateLimitIp(ip: string, opts?: { limit?: number; windowSeconds?: number }): Promise<NextResponse | null> {
+export async function rateLimitIp(
+  ip: string,
+  opts?: { limit?: number; windowSeconds?: number; scope?: string },
+): Promise<NextResponse | null> {
   const limit = opts?.limit ?? 60
   const windowSeconds = opts?.windowSeconds ?? 60
-  const result = await checkRateLimit(`ip:${ip}`, limit, windowSeconds)
+  // Each budget needs its own key: one counter shared by limiters with
+  // different limits/windows lets the looser one exhaust the stricter one.
+  const prefix = opts?.scope ?? 'ip'
+  const result = await checkRateLimit(`${prefix}:${ip}`, limit, windowSeconds)
   return result.allowed ? null : tooManyRequests(result.retryAfterSeconds)
 }
 

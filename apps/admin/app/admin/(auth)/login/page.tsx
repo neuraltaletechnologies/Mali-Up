@@ -59,7 +59,9 @@ export default function LoginPage() {
       if (result?.error) {
         await getFirebaseAuth().signOut()
         setError(
-          result.error === 'CredentialsSignin'
+          result.code === 'rate_limited'
+            ? 'Too many sign-in attempts. Please wait a few minutes and try again.'
+            : result.error === 'CredentialsSignin'
             ? 'Your account does not have admin access. Contact the platform owner.'
             : 'The admin sign-in service is temporarily unavailable. Please try again.',
         )
