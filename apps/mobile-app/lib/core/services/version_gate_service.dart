@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../constants/store_links.dart';
+
 /// Whether the running build should be blocked, nagged, or left alone,
 /// based on the remote `platform_config/version_gate` doc.
 enum VersionGateTier { ok, softNag, hardBlock }
@@ -14,6 +16,7 @@ class VersionGateStatus {
   final String messageSw;
   final String updateUrlAndroid;
   final String updateUrlIOS;
+  final String updateUrlWindows;
   // The recommended version string (normalised "x.y.z"), carried through so
   // the soft-nag banner can key its "dismissed until" SharedPreferences state
   // off the specific version being recommended rather than dismissing forever.
@@ -25,8 +28,28 @@ class VersionGateStatus {
     this.messageSw = '',
     this.updateUrlAndroid = '',
     this.updateUrlIOS = '',
+    this.updateUrlWindows = '',
     this.recommendedVersion,
   });
+
+  /// The update link for the platform this build runs on. Windows falls back
+  /// to opening the Microsoft Store listing when the admin left it blank.
+  /// Empty when there is nowhere to send the user (e.g. web).
+  String get updateUrl {
+    if (kIsWeb) return '';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+        return updateUrlIOS;
+      case TargetPlatform.windows:
+        return updateUrlWindows.isNotEmpty
+            ? updateUrlWindows
+            : StoreLinks.microsoftStoreApp;
+      case TargetPlatform.android:
+        return updateUrlAndroid;
+      default:
+        return '';
+    }
+  }
 
   static const ok = VersionGateStatus(tier: VersionGateTier.ok);
 }
@@ -96,6 +119,7 @@ class VersionGateService {
       messageSw: (data['messageSw'] as String?) ?? '',
       updateUrlAndroid: (data['updateUrlAndroid'] as String?) ?? '',
       updateUrlIOS: (data['updateUrlIOS'] as String?) ?? '',
+      updateUrlWindows: (data['updateUrlWindows'] as String?) ?? '',
       recommendedVersion:
           recommendedVersion == null ? null : _format(recommendedVersion),
     );

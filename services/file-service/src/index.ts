@@ -16,9 +16,12 @@
  *       unchanged.
  *
  *   PUT /admin/objects/legacy/<name>
+ *   PUT /admin/objects/catalog/<name>
  *        Authorization: Bearer <MIGRATION_TOKEN secret>
- *     → used only by scripts/migrate-storage-to-r2.ts to copy the old
- *       Firebase Storage objects across. Disabled unless the secret is set.
+ *     → admin-only writes from scripts/: legacy/ is the Firebase Storage
+ *       copy (migrate-storage-to-r2.ts), catalog/ holds master-catalog
+ *       product pictures (backfill-catalog-images.ts). Disabled unless the
+ *       secret is set.
  */
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
@@ -36,6 +39,12 @@ const KIND_PREFIX: Record<string, string> = {
   logo: 'logos',
   receipt: 'receipts',
   return: 'returns',
+};
+
+/** Key prefixes the admin PUT may write → R2 `source` metadata. */
+const ADMIN_PREFIX_SOURCE: Record<string, string> = {
+  legacy: 'firebase-storage',
+  catalog: 'master-catalog',
 };
 
 const EXT_FOR_TYPE: Record<string, string> = {
@@ -141,13 +150,19 @@ async function handleAdminPut(request: Request, env: Env, key: string): Promise<
   if (!env.MIGRATION_TOKEN) return json({ error: 'not-found' }, 404);
   const presented = bearerToken(request) ?? '';
   if (!timingSafeEqual(presented, env.MIGRATION_TOKEN)) return json({ error: 'unauthenticated' }, 401);
-  if (!key.startsWith('legacy/') || key.includes('..')) return json({ error: 'invalid-key' }, 400);
+  const prefix = key.split('/')[0];
+  if (!(prefix in ADMIN_PREFIX_SOURCE) || key.includes('..')) return json({ error: 'invalid-key' }, 400);
 
   const contentType = request.headers.get('Content-Type') ?? 'application/octet-stream';
   const body = await request.arrayBuffer();
+  // catalog/ is public product art served straight into the app, so hold it
+  // to the same image-only rule as user uploads.
+  if (prefix === 'catalog' && !matchesImageSignature(new Uint8Array(body), contentType)) {
+    return json({ error: 'not-an-image' }, 415);
+  }
   await env.FILES.put(key, body, {
     httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
-    customMetadata: { source: 'firebase-storage' },
+    customMetadata: { source: ADMIN_PREFIX_SOURCE[prefix] },
   });
   return json({ key, url: publicUrl(env, key) }, 201);
 }

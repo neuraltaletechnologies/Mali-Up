@@ -58,20 +58,8 @@ abstract final class DebtReminderText {
     if (items.isNotEmpty) {
       buf.writeln('━━━━━━━━━━━━━━━━━━━━━');
       for (final item in items) {
-        final name = (item['name'] ?? item['productName'] ?? '').toString();
-        if (name.isEmpty) continue;
-        final rawQty = item['quantity'] ?? item['qty'] ?? 1;
-        final qty = rawQty is num
-            ? rawQty.toDouble()
-            : double.tryParse('$rawQty') ?? 1;
-        final qtyStr = qty % 1 == 0
-            ? qty.toInt().toString()
-            : qty.toStringAsFixed(1);
-        final price = parseNumericAmount(item['unitPrice']);
-        final lineTotal = parseNumericAmount(item['total'] ?? item['lineTotal']);
-        buf.writeln(
-          '• $name × $qtyStr @ TZS ${_fmtNum(price)} = *TZS ${_fmtNum(lineTotal)}*',
-        );
+        final line = itemLine(item);
+        if (line.isNotEmpty) buf.writeln('• $line');
       }
       buf.writeln('━━━━━━━━━━━━━━━━━━━━━');
     }
@@ -101,6 +89,22 @@ abstract final class DebtReminderText {
       ),
     );
     return buf.toString();
+  }
+
+  /// One line item as `Name × qty @ TZS price = *TZS total*` (no bullet) —
+  /// shared with the customer-level reminder so both read the same. Empty
+  /// when the item has no name.
+  static String itemLine(Map item) {
+    final name = (item['name'] ?? item['productName'] ?? '').toString();
+    if (name.isEmpty) return '';
+    final rawQty = item['quantity'] ?? item['qty'] ?? 1;
+    final qty = rawQty is num
+        ? rawQty.toDouble()
+        : double.tryParse('$rawQty') ?? 1;
+    final qtyStr = qty % 1 == 0 ? qty.toInt().toString() : qty.toStringAsFixed(1);
+    final price = parseNumericAmount(item['unitPrice']);
+    final lineTotal = parseNumericAmount(item['total'] ?? item['lineTotal']);
+    return '$name × $qtyStr @ TZS ${_fmtNum(price)} = *TZS ${_fmtNum(lineTotal)}*';
   }
 
   static String _fmtNum(double v) {

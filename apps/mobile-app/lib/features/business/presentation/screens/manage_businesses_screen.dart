@@ -18,6 +18,8 @@ import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/online_guard.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../shared/widgets/pos_tile.dart';
 import '../../../rbac/data/role_cache_service.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -341,7 +343,10 @@ class _ManageBusinessesScreenState
       GoRouter.of(context).go(AppRouter.dashboardPath);
     }
 
-    AppNotification.success(context, _tr('Business deleted.', 'Biashara imefutwa.'));
+    AppNotification.success(
+      context,
+      _tr('Business deleted.', 'Biashara imefutwa.'),
+    );
   }
 
   // ─── Form sheet ───────────────────────────────────────────────────────────────
@@ -1284,7 +1289,9 @@ class _ManageBusinessesScreenState
     Map<String, dynamic> business,
   ) async {
     final businessId = (business['id'] as String?)?.trim() ?? '';
-    if (businessId.isEmpty || businessId == _selectedBusinessId(profile)) return;
+    if (businessId.isEmpty || businessId == _selectedBusinessId(profile)) {
+      return;
+    }
 
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
@@ -1576,6 +1583,40 @@ class _ManageBusinessesScreenState
                       Expanded(
                         child: visibleBusinesses.isEmpty
                             ? const _BusinessEmptyState()
+                            : Responsive.isWide(context)
+                            ? PosTileGrid(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  4,
+                                  16,
+                                  120,
+                                ),
+                                itemCount: visibleBusinesses.length,
+                                itemBuilder: (_, i) {
+                                  final biz = visibleBusinesses[i];
+                                  final isActive =
+                                      biz['id'] == selectedBusinessId;
+                                  return _BusinessTile(
+                                    business: biz,
+                                    isActive: isActive,
+                                    planTier: isActive
+                                        ? tier
+                                        : PlanTierX.fromString(
+                                            biz['plan'] as String?,
+                                          ),
+                                    isReadOnly: !isOnline,
+                                    onTap: isOnline
+                                        ? () => _openBusinessActionsSheet(
+                                            profile,
+                                            biz,
+                                          )
+                                        : null,
+                                    onDoubleTap: isOnline && !isActive
+                                        ? () => _switchToBusiness(profile, biz)
+                                        : null,
+                                  );
+                                },
+                              )
                             : ListView.builder(
                                 padding: const EdgeInsets.only(bottom: 120),
                                 itemCount: visibleBusinesses.length,
@@ -1699,7 +1740,10 @@ class _BusinessDarkHeader extends StatelessWidget {
         controller: searchCtrl,
         autofocus: true,
         onChanged: (_) {},
-        hintText: _tr('Search by name or category…', 'Tafuta kwa jina au kategoria…'),
+        hintText: _tr(
+          'Search by name or category…',
+          'Tafuta kwa jina au kategoria…',
+        ),
         showClear: searchCtrl.text.isNotEmpty,
       ),
       expanded: searchExpanded,
@@ -1895,6 +1939,61 @@ class _BusinessRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Business tile (wide screens — the POS card) ─────────────────────────────
+
+class _BusinessTile extends StatelessWidget {
+  final Map<String, dynamic> business;
+  final bool isActive;
+  final PlanTier planTier;
+  final bool isReadOnly;
+  final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
+
+  const _BusinessTile({
+    required this.business,
+    required this.isActive,
+    required this.planTier,
+    required this.isReadOnly,
+    required this.onTap,
+    required this.onDoubleTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (business['name'] as String?)?.trim() ?? '';
+    final category = (business['category'] as String?)?.trim() ?? '';
+    final place = (business['placeOfBusiness'] as String?)?.trim() ?? '';
+
+    final String status;
+    final Color statusColor;
+    if (isActive) {
+      status = _tr('Active business', 'Biashara inayotumika');
+      statusColor = AppColors.success;
+    } else if (isReadOnly) {
+      status = _tr('Available online', 'Inapatikana mtandaoni');
+      statusColor = AppColors.textMuted;
+    } else {
+      status = _tr('Double-tap to switch', 'Gusa mara mbili kubadili');
+      statusColor = AppColors.textMuted;
+    }
+
+    return PosTile(
+      title: name.isEmpty ? _tr('Business', 'Biashara') : name,
+      imageUrl: business['logoUrl'] as String?,
+      subtitle: category.isNotEmpty ? category : null,
+      value: place.isNotEmpty ? place : null,
+      valueColor: AppColors.textSecondary,
+      valueIsMoney: false,
+      status: status,
+      statusColor: statusColor,
+      badge: _PlanBadge(tier: planTier, active: isActive),
+      selected: isActive,
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
     );
   }
 }

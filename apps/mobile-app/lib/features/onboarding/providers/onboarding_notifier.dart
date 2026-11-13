@@ -640,8 +640,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   Future<bool> sendOtp() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final pinId = await _service.sendOtp(phone: state.phone);
-      state = state.copyWith(otpPinId: pinId, isLoading: false);
+      final result = await _service.sendOtp(phone: state.phone);
+      // Number outside Beem's coverage (e.g. +966): no SMS will ever come,
+      // the server already marked it verified — go straight to PIN setup.
+      state = state.copyWith(
+        otpPinId: result.pinId,
+        otpVerified: result.bypassed ? true : null,
+        isLoading: false,
+      );
       return true;
     } on FirebaseFunctionsException catch (e, st) {
       ErrorReporter.captureException(e, stackTrace: st);

@@ -47,6 +47,7 @@ Map<String, dynamic> _itemToMap(InventoryItem item) => {
       'bomOverheads': item.bomOverheads.map((o) => o.toJson()).toList(),
       'bomBatchYield': item.bomBatchYield,
       'assignedToUserId': item.assignedToUserId,
+      'imageUrl': item.imageUrl,
     };
 
 int parseStock(Object? value) {

@@ -75,8 +75,10 @@ npm run prisma:generate / prisma:migrate
   - **One version for every platform**: `version:` in
     `apps/mobile-app/pubspec.yaml` is the only source (Android, iOS, web,
     Windows installer, MSIX `x.y.z.0`). Ship Android and Windows from the
-    same merge so they carry the same number; the Android run patch-bumps
-    pubspec afterwards. Bump minor/major by hand in a PR.
+    same merge so they carry the same number. After a release the patch is
+    bumped automatically on `main` and mirrored to `dev` — by the Android run,
+    or by the Windows run when Android isn't in that merge. Bump minor/major by
+    hand in a PR.
   - Backend Workers under `services/` deploy via `deploy-services.yml`:
     `dev` only runs checks, `main` deploys to production (no staging yet).
   - The Flutter **web** build (`deploy-web.yml`) is not label-gated: it

@@ -1,6 +1,8 @@
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/store_links.dart';
+
 /// Drives the "rate us" prompt: tracks happy-path signals (paid invoices,
 /// successful sales) and decides when it's a good moment to softly ask the
 /// user to rate Mali Up, then hands off to the OS-native review sheet.
@@ -142,9 +144,12 @@ class AppRatingService {
     if (await inAppReview.isAvailable()) {
       await inAppReview.requestReview();
     } else {
-      // No appStoreId passed: Android resolves the Play listing from the
-      // package name alone. Add appStoreId once the iOS App Store id exists.
-      await inAppReview.openStoreListing();
+      // Android resolves the Play listing from the package name alone;
+      // Windows needs the Microsoft Store ID. Add appStoreId once the iOS
+      // App Store id exists.
+      await inAppReview.openStoreListing(
+        microsoftStoreId: StoreLinks.microsoftStoreId,
+      );
     }
   }
 }

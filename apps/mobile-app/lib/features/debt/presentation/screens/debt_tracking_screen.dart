@@ -5,11 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/pos_tile.dart';
 import '../../../../shared/widgets/page_tour.dart';
 import '../../../../shared/widgets/silent_refresh.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
@@ -112,6 +114,15 @@ String _bucketLabel(String bucket) => switch (bucket) {
   '61-90' => '61–90 days',
   '90+' => '90+ days',
   _ => bucket,
+};
+
+Color _debtAgeColor(String bucket) => switch (bucket) {
+  'current' => AppColors.success,
+  '0-30' => AppColors.warning,
+  '31-60' => const Color(0xFFE07010),
+  '61-90' => const Color(0xFFDC4A26),
+  '90+' => AppColors.error,
+  _ => AppColors.textMuted,
 };
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
@@ -332,7 +343,6 @@ class _DebtDarkHeader extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-       
         ],
       ),
       actions: Row(
@@ -523,6 +533,15 @@ class _ReceivablesTab extends ConsumerWidget {
                     ),
             ),
           )
+        else if (Responsive.isWide(context))
+          SliverPosTileGrid(
+            itemCount: filtered.length,
+            itemBuilder: (ctx, i) => _DebtTile(
+              debt: filtered[i],
+              onTap: () => onTap(filtered[i]),
+              onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
+            ),
+          )
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
@@ -608,79 +627,128 @@ class _PayablesTab extends ConsumerWidget {
           : null;
       final lastDebtId = lastDebt?.id;
 
-      body = KeyedSubtree(
-        key: const ValueKey('content'),
-        child: CustomScrollView(
-          physics: silentRefreshPhysics,
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.only(top: 14),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (overdue.isNotEmpty) ...[
-                    _SectionHeader(
-                      label: _tr('Overdue', 'Zimechelewa'),
-                      color: AppColors.error,
-                      count: overdue.length,
-                    ),
-                    ...overdue.map(
-                      (d) => ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(
-                          debt: d,
-                          isLast: d.id == lastDebtId,
-                          onTap: () => onTap(d),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (dueSoon.isNotEmpty) ...[
-                    _SectionHeader(
-                      label: _tr('Due This Week', 'Inakaribia'),
-                      color: AppColors.warning,
-                      count: dueSoon.length,
-                    ),
-                    ...dueSoon.map(
-                      (d) => ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(
-                          debt: d,
-                          isLast: d.id == lastDebtId,
-                          onTap: () => onTap(d),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (upcoming.isNotEmpty) ...[
-                    _SectionHeader(
-                      label: _tr('Upcoming', 'Zijazo'),
-                      color: AppColors.textMuted,
-                      count: upcoming.length,
-                    ),
-                    ...upcoming.map(
-                      (d) => ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(
-                          debt: d,
-                          isLast: d.id == lastDebtId,
-                          onTap: () => onTap(d),
-                        ),
-                      ),
-                    ),
-                  ],
-                ]),
+      if (Responsive.isWide(context)) {
+        List<Widget> section(String label, Color color, List<Debt> debts) => [
+          if (debts.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                label: label,
+                color: color,
+                count: debts.length,
               ),
             ),
-            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+            SliverPosTileGrid(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              itemCount: debts.length,
+              itemBuilder: (ctx, i) => _DebtTile(
+                debt: debts[i],
+                onTap: () => onTap(debts[i]),
+                onDelete: () => _deleteDebt(ctx, ref, debts[i]),
+              ),
+            ),
           ],
-        ),
-      );
+        ];
+
+        body = KeyedSubtree(
+          key: const ValueKey('content'),
+          child: CustomScrollView(
+            physics: silentRefreshPhysics,
+            slivers: [
+              const SliverPadding(padding: EdgeInsets.only(top: 14)),
+              ...section(
+                _tr('Overdue', 'Zimechelewa'),
+                AppColors.error,
+                overdue,
+              ),
+              ...section(
+                _tr('Due This Week', 'Inakaribia'),
+                AppColors.warning,
+                dueSoon,
+              ),
+              ...section(
+                _tr('Upcoming', 'Zijazo'),
+                AppColors.textMuted,
+                upcoming,
+              ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+            ],
+          ),
+        );
+      } else {
+        body = KeyedSubtree(
+          key: const ValueKey('content'),
+          child: CustomScrollView(
+            physics: silentRefreshPhysics,
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.only(top: 14),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    if (overdue.isNotEmpty) ...[
+                      _SectionHeader(
+                        label: _tr('Overdue', 'Zimechelewa'),
+                        color: AppColors.error,
+                        count: overdue.length,
+                      ),
+                      ...overdue.map(
+                        (d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (dueSoon.isNotEmpty) ...[
+                      _SectionHeader(
+                        label: _tr('Due This Week', 'Inakaribia'),
+                        color: AppColors.warning,
+                        count: dueSoon.length,
+                      ),
+                      ...dueSoon.map(
+                        (d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (upcoming.isNotEmpty) ...[
+                      _SectionHeader(
+                        label: _tr('Upcoming', 'Zijazo'),
+                        color: AppColors.textMuted,
+                        count: upcoming.length,
+                      ),
+                      ...upcoming.map(
+                        (d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ]),
+                ),
+              ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+            ],
+          ),
+        );
+      }
     }
 
     return AnimatedSwitcher(
@@ -757,14 +825,7 @@ class _DebtCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color get _ageColor => switch (debt.agingBucket) {
-    'current' => AppColors.success,
-    '0-30' => AppColors.warning,
-    '31-60' => const Color(0xFFE07010),
-    '61-90' => const Color(0xFFDC4A26),
-    '90+' => AppColors.error,
-    _ => AppColors.textMuted,
-  };
+  Color get _ageColor => _debtAgeColor(debt.agingBucket);
 
   @override
   Widget build(BuildContext context) {
@@ -886,6 +947,46 @@ class _DebtCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Debt tile — wide screens (the POS card)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DebtTile extends StatelessWidget {
+  final Debt debt;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _DebtTile({
+    required this.debt,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final daysOver = debt.daysOverdue;
+    final ageColor = _debtAgeColor(debt.agingBucket);
+    final isReceivable = debt.type == 'receivable';
+
+    return PosTile(
+      title: debt.partyName,
+      subtitle: debt.partyPhone.isNotEmpty ? debt.partyPhone : null,
+      value: _fmtAmt(debt.remainingAmount),
+      valueColor: isReceivable ? AppColors.success : AppColors.error,
+      status: daysOver <= 0
+          ? _tr(
+              'Due ${_fmtDate(debt.dueDate)}',
+              'Mwisho ${_fmtDate(debt.dueDate)}',
+            )
+          : '$daysOver ${_tr('days overdue', 'siku zimechelewa')}',
+      statusColor: ageColor,
+      onTap: onTap,
+      onEdit: onTap,
+      onDelete: onDelete,
     );
   }
 }

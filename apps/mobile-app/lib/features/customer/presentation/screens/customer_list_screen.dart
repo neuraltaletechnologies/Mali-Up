@@ -14,6 +14,7 @@ import '../../../../shared/widgets/app_notification.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/responsive_card_list.dart';
+import '../../../../shared/widgets/pos_tile.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/page_tour.dart';
@@ -259,6 +260,14 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                         canManage: ps.canManageCustomers || ps.isOwner,
                         isLast: inGrid || i == filtered.length - 1,
                         payableOwed: payableByCustomer[filtered[i].id] ?? 0,
+                      ),
+                      tileBuilder: (_, i) => _CustomerCard(
+                        customer: filtered[i],
+                        showFinancials: showFinancials,
+                        canManage: ps.canManageCustomers || ps.isOwner,
+                        isLast: true,
+                        payableOwed: payableByCustomer[filtered[i].id] ?? 0,
+                        asTile: true,
                       ),
                     ),
             ),
@@ -683,12 +692,16 @@ class _CustomerCard extends ConsumerWidget {
   /// not part of [Customer.balanceAmount], merged in purely for display.
   final double payableOwed;
 
+  /// Wide screens: render as the POS card instead of a list row.
+  final bool asTile;
+
   const _CustomerCard({
     required this.customer,
     required this.showFinancials,
     required this.canManage,
     required this.isLast,
     required this.payableOwed,
+    this.asTile = false,
   });
 
   Color get _accentColor {
@@ -755,72 +768,138 @@ class _CustomerCard extends ConsumerWidget {
     final lastDate = _relativeLastPurchase(customer);
     final hasLastDate = lastDate.isNotEmpty;
 
+    final VoidCallback? onEdit = canManage
+        ? () async {
+            await showAppSheet<void>(
+              context,
+              builder: (_) => _EditCustomerSheet(customer: customer),
+            );
+          }
+        : null;
+    final VoidCallback? onDelete = canManage
+        ? () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(
+                  _tr('Delete Customer?', 'Futa Mteja?'),
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                ),
+                content: Text(
+                  _tr(
+                    'Delete "${customer.name}"? This cannot be undone.',
+                    'Futa "${customer.name}"? Hii haiwezi kutenduliwa.',
+                  ),
+                  style: GoogleFonts.dmSans(),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: Text(
+                      _tr('Cancel', 'Ghairi'),
+                      style: GoogleFonts.dmSans(color: AppColors.textMuted),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                    child: Text(
+                      _tr('Delete', 'Futa'),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true && context.mounted) {
+              await _delete(context, ref);
+            }
+          }
+        : null;
+    void openInfo() {
+      showAppSheet<void>(
+        context,
+        builder: (_) => _CustomerInfoSheet(
+          customer: customer,
+          showFinancials: showFinancials,
+          canManage: canManage,
+        ),
+      );
+    }
+
+    if (asTile) {
+      final subtitle = customer.displaySubtitle.isNotEmpty
+          ? customer.displaySubtitle
+          : null;
+      final String value;
+      final Color valueColor;
+      if (!showFinancials) {
+        value = '';
+        valueColor = AppColors.textMuted;
+      } else if (netBalance > 0) {
+        value = 'TZS ${_fmtShort(netBalance)}';
+        valueColor = AppColors.error;
+      } else if (netBalance < 0) {
+        value = '+TZS ${_fmtShort(netBalance.abs())}';
+        valueColor = AppColors.success;
+      } else {
+        value = _tr('Clear', 'Safi');
+        valueColor = AppColors.success;
+      }
+      final String? status;
+      final Color statusColor;
+      if (showFinancials && hasBalance && customer.isOverCreditLimit) {
+        status = _tr('Over credit limit!', 'Imezidi kikomo!');
+        statusColor = AppColors.error;
+      } else if (hasLastDate) {
+        status = lastDate;
+        statusColor = AppColors.textMuted;
+      } else {
+        status = null;
+        statusColor = AppColors.textMuted;
+      }
+      final firstTag = customer.tags
+          .where((t) => t.toLowerCase() != 'contact')
+          .firstOrNull;
+      return PosTile(
+        title: customer.name,
+        subtitle: subtitle,
+        value: value,
+        valueColor: valueColor,
+        status: status,
+        statusColor: statusColor,
+        // White backing keeps the tinted chip readable on the tile colour.
+        badge: customer.isOrganisation || firstTag != null
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: customer.isOrganisation
+                    ? _TagChip(
+                        tag: _tr('ORG', 'SHIRIKA'),
+                        color: AppColors.navySecondary,
+                      )
+                    : _TagChip(tag: firstTag!, color: _tagColor(firstTag)),
+              )
+            : null,
+        onTap: openInfo,
+        onEdit: onEdit,
+        onDelete: onDelete,
+      );
+    }
+
     return ListSwipeCard(
       itemKey: ValueKey(customer.id),
-      onEdit: canManage
-          ? () async {
-              await showAppSheet<void>(
-                context,
-                builder: (_) => _EditCustomerSheet(customer: customer),
-              );
-            }
-          : null,
-      onDelete: canManage
-          ? () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  title: Text(
-                    _tr('Delete Customer?', 'Futa Mteja?'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                  ),
-                  content: Text(
-                    _tr(
-                      'Delete "${customer.name}"? This cannot be undone.',
-                      'Futa "${customer.name}"? Hii haiwezi kutenduliwa.',
-                    ),
-                    style: GoogleFonts.dmSans(),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: Text(
-                        _tr('Cancel', 'Ghairi'),
-                        style: GoogleFonts.dmSans(color: AppColors.textMuted),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                      ),
-                      child: Text(
-                        _tr('Delete', 'Futa'),
-                        style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed == true && context.mounted) {
-                await _delete(context, ref);
-              }
-            }
-          : null,
+      onEdit: onEdit,
+      onDelete: onDelete,
       child: GestureDetector(
-        onTap: () {
-          showAppSheet<void>(
-            context,
-            builder: (_) => _CustomerInfoSheet(
-              customer: customer,
-              showFinancials: showFinancials,
-              canManage: canManage,
-            ),
-          );
-        },
+        onTap: openInfo,
         child: Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1872,7 +1951,8 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                             'paidAt':
                                                 FieldValue.serverTimestamp(),
                                             'recordedBy': user.uid,
-                                          }).ignore();
+                                          })
+                                          .ignore();
                                     }
                                   }
                                   await ref
@@ -1948,13 +2028,12 @@ class _CustomerInfoSheet extends ConsumerWidget {
                     if (showFinancials && hasBalance) ...[
                       const SizedBox(height: 10),
                       ReminderShareRow(
-                        onWhatsApp: () =>
-                            CustomerReminderService.sendWhatsApp(
-                              ref,
-                              context,
-                              live,
-                              balance,
-                            ),
+                        onWhatsApp: () => CustomerReminderService.sendWhatsApp(
+                          ref,
+                          context,
+                          live,
+                          balance,
+                        ),
                         onSms: () => CustomerReminderService.sendSms(
                           ref,
                           context,

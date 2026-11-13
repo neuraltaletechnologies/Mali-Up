@@ -42,3 +42,5 @@ service-account.json
 
 # Barcode backfill API-response cache (scripts/backfill-barcodes.ts)
 scripts/barcode-cache.json
+# Catalog picture dry-run previews (scripts/backfill-catalog-images.ts)
+scripts/catalog-image-preview/

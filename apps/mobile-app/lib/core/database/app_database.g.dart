@@ -14844,6 +14844,18 @@ class $MasterProductsTableTable extends MasterProductsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+    'image_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -14873,6 +14885,7 @@ class $MasterProductsTableTable extends MasterProductsTable
     tags,
     prescriptionRequired,
     coldStorage,
+    imageUrl,
     cachedAt,
   ];
   @override
@@ -15013,6 +15026,12 @@ class $MasterProductsTableTable extends MasterProductsTable
         ),
       );
     }
+    if (data.containsKey('image_url')) {
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -15091,6 +15110,10 @@ class $MasterProductsTableTable extends MasterProductsTable
         DriftSqlType.int,
         data['${effectivePrefix}cold_storage'],
       )!,
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      )!,
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}cached_at'],
@@ -15121,6 +15144,7 @@ class MasterProductsTableData extends DataClass
   final String tags;
   final int prescriptionRequired;
   final int coldStorage;
+  final String imageUrl;
   final int cachedAt;
   const MasterProductsTableData({
     required this.id,
@@ -15138,6 +15162,7 @@ class MasterProductsTableData extends DataClass
     required this.tags,
     required this.prescriptionRequired,
     required this.coldStorage,
+    required this.imageUrl,
     required this.cachedAt,
   });
   @override
@@ -15158,6 +15183,7 @@ class MasterProductsTableData extends DataClass
     map['tags'] = Variable<String>(tags);
     map['prescription_required'] = Variable<int>(prescriptionRequired);
     map['cold_storage'] = Variable<int>(coldStorage);
+    map['image_url'] = Variable<String>(imageUrl);
     map['cached_at'] = Variable<int>(cachedAt);
     return map;
   }
@@ -15179,6 +15205,7 @@ class MasterProductsTableData extends DataClass
       tags: Value(tags),
       prescriptionRequired: Value(prescriptionRequired),
       coldStorage: Value(coldStorage),
+      imageUrl: Value(imageUrl),
       cachedAt: Value(cachedAt),
     );
   }
@@ -15206,6 +15233,7 @@ class MasterProductsTableData extends DataClass
         json['prescriptionRequired'],
       ),
       coldStorage: serializer.fromJson<int>(json['coldStorage']),
+      imageUrl: serializer.fromJson<String>(json['imageUrl']),
       cachedAt: serializer.fromJson<int>(json['cachedAt']),
     );
   }
@@ -15228,6 +15256,7 @@ class MasterProductsTableData extends DataClass
       'tags': serializer.toJson<String>(tags),
       'prescriptionRequired': serializer.toJson<int>(prescriptionRequired),
       'coldStorage': serializer.toJson<int>(coldStorage),
+      'imageUrl': serializer.toJson<String>(imageUrl),
       'cachedAt': serializer.toJson<int>(cachedAt),
     };
   }
@@ -15248,6 +15277,7 @@ class MasterProductsTableData extends DataClass
     String? tags,
     int? prescriptionRequired,
     int? coldStorage,
+    String? imageUrl,
     int? cachedAt,
   }) => MasterProductsTableData(
     id: id ?? this.id,
@@ -15265,6 +15295,7 @@ class MasterProductsTableData extends DataClass
     tags: tags ?? this.tags,
     prescriptionRequired: prescriptionRequired ?? this.prescriptionRequired,
     coldStorage: coldStorage ?? this.coldStorage,
+    imageUrl: imageUrl ?? this.imageUrl,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   MasterProductsTableData copyWithCompanion(MasterProductsTableCompanion data) {
@@ -15308,6 +15339,7 @@ class MasterProductsTableData extends DataClass
       coldStorage: data.coldStorage.present
           ? data.coldStorage.value
           : this.coldStorage,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -15330,6 +15362,7 @@ class MasterProductsTableData extends DataClass
           ..write('tags: $tags, ')
           ..write('prescriptionRequired: $prescriptionRequired, ')
           ..write('coldStorage: $coldStorage, ')
+          ..write('imageUrl: $imageUrl, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
@@ -15352,6 +15385,7 @@ class MasterProductsTableData extends DataClass
     tags,
     prescriptionRequired,
     coldStorage,
+    imageUrl,
     cachedAt,
   );
   @override
@@ -15373,6 +15407,7 @@ class MasterProductsTableData extends DataClass
           other.tags == this.tags &&
           other.prescriptionRequired == this.prescriptionRequired &&
           other.coldStorage == this.coldStorage &&
+          other.imageUrl == this.imageUrl &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -15393,6 +15428,7 @@ class MasterProductsTableCompanion
   final Value<String> tags;
   final Value<int> prescriptionRequired;
   final Value<int> coldStorage;
+  final Value<String> imageUrl;
   final Value<int> cachedAt;
   final Value<int> rowid;
   const MasterProductsTableCompanion({
@@ -15411,6 +15447,7 @@ class MasterProductsTableCompanion
     this.tags = const Value.absent(),
     this.prescriptionRequired = const Value.absent(),
     this.coldStorage = const Value.absent(),
+    this.imageUrl = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -15430,6 +15467,7 @@ class MasterProductsTableCompanion
     this.tags = const Value.absent(),
     this.prescriptionRequired = const Value.absent(),
     this.coldStorage = const Value.absent(),
+    this.imageUrl = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -15451,6 +15489,7 @@ class MasterProductsTableCompanion
     Expression<String>? tags,
     Expression<int>? prescriptionRequired,
     Expression<int>? coldStorage,
+    Expression<String>? imageUrl,
     Expression<int>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -15471,6 +15510,7 @@ class MasterProductsTableCompanion
       if (prescriptionRequired != null)
         'prescription_required': prescriptionRequired,
       if (coldStorage != null) 'cold_storage': coldStorage,
+      if (imageUrl != null) 'image_url': imageUrl,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -15492,6 +15532,7 @@ class MasterProductsTableCompanion
     Value<String>? tags,
     Value<int>? prescriptionRequired,
     Value<int>? coldStorage,
+    Value<String>? imageUrl,
     Value<int>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -15511,6 +15552,7 @@ class MasterProductsTableCompanion
       tags: tags ?? this.tags,
       prescriptionRequired: prescriptionRequired ?? this.prescriptionRequired,
       coldStorage: coldStorage ?? this.coldStorage,
+      imageUrl: imageUrl ?? this.imageUrl,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -15564,6 +15606,9 @@ class MasterProductsTableCompanion
     if (coldStorage.present) {
       map['cold_storage'] = Variable<int>(coldStorage.value);
     }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<int>(cachedAt.value);
     }
@@ -15591,6 +15636,7 @@ class MasterProductsTableCompanion
           ..write('tags: $tags, ')
           ..write('prescriptionRequired: $prescriptionRequired, ')
           ..write('coldStorage: $coldStorage, ')
+          ..write('imageUrl: $imageUrl, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -23428,6 +23474,7 @@ typedef $$MasterProductsTableTableCreateCompanionBuilder =
       Value<String> tags,
       Value<int> prescriptionRequired,
       Value<int> coldStorage,
+      Value<String> imageUrl,
       Value<int> cachedAt,
       Value<int> rowid,
     });
@@ -23448,6 +23495,7 @@ typedef $$MasterProductsTableTableUpdateCompanionBuilder =
       Value<String> tags,
       Value<int> prescriptionRequired,
       Value<int> coldStorage,
+      Value<String> imageUrl,
       Value<int> cachedAt,
       Value<int> rowid,
     });
@@ -23533,6 +23581,11 @@ class $$MasterProductsTableTableFilterComposer
 
   ColumnFilters<int> get coldStorage => $composableBuilder(
     column: $table.coldStorage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23626,6 +23679,11 @@ class $$MasterProductsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -23710,6 +23768,9 @@ class $$MasterProductsTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
   GeneratedColumn<int> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
 }
@@ -23772,6 +23833,7 @@ class $$MasterProductsTableTableTableManager
                 Value<String> tags = const Value.absent(),
                 Value<int> prescriptionRequired = const Value.absent(),
                 Value<int> coldStorage = const Value.absent(),
+                Value<String> imageUrl = const Value.absent(),
                 Value<int> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MasterProductsTableCompanion(
@@ -23790,6 +23852,7 @@ class $$MasterProductsTableTableTableManager
                 tags: tags,
                 prescriptionRequired: prescriptionRequired,
                 coldStorage: coldStorage,
+                imageUrl: imageUrl,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -23810,6 +23873,7 @@ class $$MasterProductsTableTableTableManager
                 Value<String> tags = const Value.absent(),
                 Value<int> prescriptionRequired = const Value.absent(),
                 Value<int> coldStorage = const Value.absent(),
+                Value<String> imageUrl = const Value.absent(),
                 Value<int> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MasterProductsTableCompanion.insert(
@@ -23828,6 +23892,7 @@ class $$MasterProductsTableTableTableManager
                 tags: tags,
                 prescriptionRequired: prescriptionRequired,
                 coldStorage: coldStorage,
+                imageUrl: imageUrl,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),

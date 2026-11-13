@@ -149,8 +149,9 @@ class OnboardingService {
   // ─── OTP VERIFICATION (first-time registration only) ─────────────────────
 
   /// Requests a Beem OTP be sent to [phone]. Returns the pinId to pass to
-  /// [verifyOtp].
-  Future<String> sendOtp({required String phone}) {
+  /// [verifyOtp], and whether the step was bypassed (country Beem can't
+  /// reach — phone is already verified server-side, no code to enter).
+  Future<({String pinId, bool bypassed})> sendOtp({required String phone}) {
     return _repository.sendOtp(phone);
   }
 

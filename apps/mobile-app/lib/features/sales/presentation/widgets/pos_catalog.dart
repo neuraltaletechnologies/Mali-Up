@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/pos_tile.dart';
 import '../../../inventory/data/inventory_providers.dart';
 
 /// Point-of-sale building blocks for the Sales screen's "Sell" mode:
@@ -235,29 +236,6 @@ class PosCategoryBar extends StatelessWidget {
 
 // ── Product image / placeholder ──────────────────────────────────────────────
 
-const _tileColors = [
-  Color(0xFFE0F2FE),
-  Color(0xFFFEF3C7),
-  Color(0xFFDCFCE7),
-  Color(0xFFFCE7F3),
-  Color(0xFFEDE9FE),
-  Color(0xFFFFEDD5),
-];
-
-Color _tileColorFor(String name) =>
-    _tileColors[name.isEmpty ? 0 : name.codeUnitAt(0) % _tileColors.length];
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-  return (parts[0].characters.first + parts[1].characters.first).toUpperCase();
-}
-
 /// Product photo when there is one, otherwise a soft coloured tile with the
 /// product's initials (or a service icon).
 class PosProductImage extends StatelessWidget {
@@ -267,35 +245,12 @@ class PosProductImage extends StatelessWidget {
   const PosProductImage({super.key, required this.product, this.fontSize = 22});
 
   @override
-  Widget build(BuildContext context) {
-    final url = product.posImageUrl;
-    final placeholder = Container(
-      color: _tileColorFor(product.posName),
-      alignment: Alignment.center,
-      child: product.posIsService
-          ? Icon(
-              Icons.design_services_outlined,
-              size: fontSize * 1.2,
-              color: AppColors.navyPrimary,
-            )
-          : Text(
-              _initials(product.posName),
-              style: GoogleFonts.dmSans(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navyPrimary.withValues(alpha: 0.75),
-              ),
-            ),
-    );
-    if (url.isEmpty) return placeholder;
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => placeholder,
-      loadingBuilder: (_, child, progress) =>
-          progress == null ? child : placeholder,
-    );
-  }
+  Widget build(BuildContext context) => PosTileImage(
+    name: product.posName,
+    imageUrl: product.posImageUrl,
+    icon: product.posIsService ? Icons.design_services_outlined : null,
+    fontSize: fontSize,
+  );
 }
 
 String _stockLabel(Map<String, dynamic> p) {
@@ -329,123 +284,21 @@ class PosProductGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (products.isEmpty) return const _PosEmpty();
-    return GridView.builder(
+    return PosTileGrid(
       padding: padding,
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 190,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 14,
-        childAspectRatio: 0.78,
-      ),
       itemCount: products.length,
-      itemBuilder: (_, i) =>
-          _PosProductCard(product: products[i], onTap: onTap),
-    );
-  }
-}
-
-class _PosProductCard extends StatefulWidget {
-  final Map<String, dynamic> product;
-  final ValueChanged<Map<String, dynamic>> onTap;
-
-  const _PosProductCard({required this.product, required this.onTap});
-
-  @override
-  State<_PosProductCard> createState() => _PosProductCardState();
-}
-
-class _PosProductCardState extends State<_PosProductCard> {
-  bool _hover = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = widget.product;
-    final disabled = p.posOutOfStock;
-    return MouseRegion(
-      cursor: disabled
-          ? SystemMouseCursors.forbidden
-          : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTap: disabled ? null : () => widget.onTap(p),
-        child: AnimatedScale(
-          scale: _pressed ? 0.96 : 1,
-          duration: const Duration(milliseconds: 110),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _hover && !disabled
-                    ? AppColors.tealAccent.withValues(alpha: 0.5)
-                    : AppColors.border,
-              ),
-              boxShadow: _hover && !disabled
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x1A0D1B3E),
-                        blurRadius: 14,
-                        offset: Offset(0, 6),
-                      ),
-                    ]
-                  : null,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Opacity(
-              opacity: disabled ? 0.5 : 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: PosProductImage(product: p, fontSize: 26)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          p.posName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            height: 1.25,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _money(p.posPrice),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.tealAccent,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _stockLabel(p),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _stockColor(p),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      itemBuilder: (_, i) {
+        final p = products[i];
+        return PosTile(
+          title: p.posName,
+          image: PosProductImage(product: p, fontSize: 26),
+          value: _money(p.posPrice),
+          status: _stockLabel(p),
+          statusColor: _stockColor(p),
+          disabled: p.posOutOfStock,
+          onTap: () => onTap(p),
+        );
+      },
     );
   }
 }

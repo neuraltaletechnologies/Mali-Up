@@ -12,6 +12,7 @@ const DEFAULT_CONFIG: VersionGateConfig = {
   recommendedVersion: '0.0.0',
   updateUrlAndroid: 'https://play.google.com/store/apps/details?id=com.neuraltale.maliup',
   updateUrlIOS: '',
+  updateUrlWindows: 'https://apps.microsoft.com/detail/9NDQXPM95Q99',
   messageEn: '',
   messageSw: '',
 }
