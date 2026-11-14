@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../data/services/onboarding_service.dart';
 import '../domain/models/onboarding_state.dart';
@@ -339,6 +340,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ));
       }
       SentryMetricsService.authSuccess('pin_login');
+      unawaited(
+        Posthog().capture(
+          eventName: 'user_logged_in',
+          properties: {'login_method': 'pin'},
+        ),
+      );
       state = state.copyWith(
         pin: pin,
         currentStep: OnboardingStep.success,
@@ -542,6 +549,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ));
       }
       SentryMetricsService.authSuccess('team_member_setup');
+      unawaited(
+        Posthog().capture(
+          eventName: 'team_member_registered',
+          properties: {'role': state.role},
+        ),
+      );
       state = state.copyWith(
         pin: pin,
         currentStep: OnboardingStep.success,
@@ -751,6 +764,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ));
       }
       SentryMetricsService.authSuccess('new_owner_registration');
+      unawaited(
+        Posthog().capture(
+          eventName: 'account_registered',
+          properties: {'account_type': 'business_owner'},
+        ),
+      );
       state = state.copyWith(
         businessId: bizId,
         isLoading: false,
