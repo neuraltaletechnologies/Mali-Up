@@ -14,6 +14,7 @@ import '../../rbac/data/rbac_providers.dart';
 import '../../sales/data/sales_providers.dart';
 import '../../sales/domain/debt_reminder_text.dart';
 import '../../sales/services/receipt_pdf_service.dart';
+import '../../printing/services/receipt_printer.dart';
 import '../domain/models/customer.dart';
 import 'customer_providers.dart';
 
@@ -358,6 +359,38 @@ abstract final class CustomerReminderService {
         );
       }
     }
+  }
+
+  /// Prints the reminder statement on this device's receipt printer
+  /// (Bluetooth thermal or system dialog — see [ReceiptPrinter]).
+  static Future<void> printStatement(
+    WidgetRef ref,
+    BuildContext context,
+    Customer customer,
+    double balance,
+  ) async {
+    if (!canSend(context, customer, balance)) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final bizId = ref.read(currentBusinessIdProvider).valueOrNull;
+    final sale = _buildStatementSale(
+      customer,
+      balance,
+      _bills(ref, customer.id),
+    );
+    final meta = await ReceiptPdfService.loadMeta(uid: uid, businessId: bizId);
+    if (!context.mounted) return;
+    final printed = await ReceiptPrinter.printReceipt(
+      context,
+      sale: sale,
+      meta: meta,
+    );
+    if (!printed) return;
+    await _markSent(
+      ref,
+      customerId: customer.id,
+      customerName: customer.name,
+      channel: 'print',
+    );
   }
 
   /// Opens the reminder PDF in the OS "Open with" viewer for a quick

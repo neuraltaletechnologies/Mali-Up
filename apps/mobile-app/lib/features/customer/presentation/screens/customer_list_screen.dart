@@ -2046,6 +2046,12 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           live,
                           balance,
                         ),
+                        onPrint: () => CustomerReminderService.printStatement(
+                          ref,
+                          context,
+                          live,
+                          balance,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 18),

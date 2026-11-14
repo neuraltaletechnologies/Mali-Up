@@ -12,8 +12,7 @@
  *   1. Open Food Facts — if the product has a barcode (`commonBarcodes`) and
  *      OFF knows it, its real front-of-pack photo (free, no key, CC BY-SA).
  *   2. Cloudflare Workers AI (FLUX.1 schnell) — everything else: a generated,
- *      consistent white-background product shot (or a plated dish / simple
- *      illustration for restaurants and services). Works for 100% of the
+ *      consistent white-background product shot. Works for 100% of the
  *      catalog: generic drugs, loose produce, dishes, services.
  *
  * Every picture is resized to 512×512 WebP (~20–40 KB) before upload, so POS
@@ -49,10 +48,16 @@
  *
  *   --limit N        only the first N candidates
  *   --only <docId>   just this product (combine with --force to redo it)
+ *   --prompt "<text>"  with --only: use this AI prompt instead of the built
+ *                    one (for the odd product the safety filter wrongly
+ *                    blocks, e.g. "eggplant" → "purple brinjal vegetables")
  *   --force          redo products that already have a (non-manual) picture
  *   --source auto|ai|off   picture source (default auto = OFF, then AI)
  *   --concurrency N  parallel products (default 3)
  *   --files-url URL  non-default file-service Worker
+ *   --ai-url URL     call Workers AI through the local proxy in ai-proxy/
+ *                    (runs on your `wrangler login`) instead of the REST
+ *                    API — then CF_ACCOUNT_ID / CF_API_TOKEN aren't needed
  *
  * When done: `npx wrangler secret delete MIGRATION_TOKEN`.
  */
@@ -92,9 +97,11 @@ const FORCE = process.argv.includes('--force');
 const DO_INVENTORY = process.argv.includes('--inventory');
 const LIMIT = Number(flagValue('--limit') ?? '0'); // 0 = no limit
 const ONLY = flagValue('--only');
+const PROMPT = ONLY ? flagValue('--prompt') : undefined;
 const SOURCE = (flagValue('--source') ?? 'auto') as 'auto' | 'ai' | 'off';
 const CONCURRENCY = Math.max(1, Number(flagValue('--concurrency') ?? '3'));
 const FILES_URL = (flagValue('--files-url') ?? 'https://maliup-files.neuraltale.com').replace(/\/+$/, '');
+const AI_URL = flagValue('--ai-url')?.replace(/\/+$/, '');
 
 const MIGRATION_TOKEN = process.env.MIGRATION_TOKEN ?? '';
 const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID ?? '';
@@ -108,8 +115,8 @@ if (!['auto', 'ai', 'off'].includes(SOURCE)) {
   process.exit(1);
 }
 if (!COUNT_ONLY) {
-  if (SOURCE !== 'off' && (!CF_ACCOUNT_ID || !CF_API_TOKEN)) {
-    console.error('❌ Set CF_ACCOUNT_ID and CF_API_TOKEN (Workers AI), or pass --source off.');
+  if (SOURCE !== 'off' && !AI_URL && (!CF_ACCOUNT_ID || !CF_API_TOKEN)) {
+    console.error('❌ Set CF_ACCOUNT_ID and CF_API_TOKEN (Workers AI), pass --ai-url, or pass --source off.');
     process.exit(1);
   }
   if (!DRY_RUN && !MIGRATION_TOKEN) {
@@ -118,19 +125,7 @@ if (!COUNT_ONLY) {
   }
 }
 
-// ─── Prompt styles ──────────────────────────────────────────────────────────
-// Catalog businessTypes values (see _catalogTypeNames in the app's
-// master_catalog_repository.dart) whose items are dishes or services rather
-// than shelf products.
-const FOOD_TYPES = new Set(['Restaurant', 'Cafe & Bakery', 'Street Food', 'Catering']);
-const SERVICE_TYPES = new Set([
-  'Education & Training', 'Real Estate', 'Financial Services', 'ICT & Software',
-  'Entertainment & Events', 'Cleaning Services', 'Security Services',
-  'NGO & Community Services', 'Media & Communications', 'Travel & Tours',
-  'Hotel & Accommodation', 'Salon & Barber', 'Auto Repair',
-  'Transportation & Logistics', 'Clinic & Laboratory',
-]);
-
+// ─── Prompt ─────────────────────────────────────────────────────────────────
 type Product = {
   id: string;
   name: string;
@@ -145,19 +140,19 @@ function promptFor(p: Product): string {
     .filter(Boolean)
     .join(' ');
   const generic = p.generic && p.generic.toLowerCase() !== p.name.toLowerCase() ? ` (${p.generic})` : '';
-  const types = p.businessTypes;
   const noText = 'no text, no words, no letters, no watermark, no logo';
 
-  if (types.length > 0 && types.every((t) => FOOD_TYPES.has(t))) {
-    return `Appetizing food photograph of ${what}${generic}, East African / Tanzanian style, served on a plain plate, ` +
-      `top-down three-quarter view, centered, plain light background, soft natural light, ${noText}`;
-  }
-  if (types.length > 0 && types.every((t) => SERVICE_TYPES.has(t))) {
-    return `Simple clean flat illustration representing "${what}"${generic}, single centered subject, ` +
-      `navy and teal colour palette, plain white background, modern app icon style, ${noText}`;
-  }
+  // One style for every vertical: restaurant / cafe / salon catalogs list
+  // ingredients and physical stock, so a per-vertical "plated dish" or
+  // "illustration" style misfires (a cabbage became a cooked meal).
   return `Professional e-commerce product photo of ${what}${generic}, a single item as sold in a Tanzanian shop, ` +
+    `any bag, box or bottle is plain and unlabeled with no printing, ` +
     `centered, fills the frame, plain pure white background, soft studio lighting, sharp focus, ${noText}`;
+}
+
+/** Fallback when the safety filter wrongly flags the full prompt. */
+function plainPromptFor(p: Product): string {
+  return `Studio photo of ${p.name.replace(/\(.*?\)/g, '').trim()}, plain white background, no text`;
 }
 
 // ─── Sources ────────────────────────────────────────────────────────────────
@@ -183,13 +178,27 @@ async function fromOpenFoodFacts(p: Product): Promise<Buffer | null> {
 }
 
 async function fromWorkersAi(p: Product): Promise<Buffer> {
+  if (PROMPT) return runAi(PROMPT);
+  try {
+    return await runAi(promptFor(p));
+  } catch (e) {
+    // Error 8007 = the NSFW filter, which misfires on harmless words
+    // ("Maize (metric ton)"). One retry with a bare prompt usually passes.
+    if (!String((e as Error).message).includes('8007')) throw e;
+    return runAi(plainPromptFor(p));
+  }
+}
+
+async function runAi(prompt: string): Promise<Buffer> {
   const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${AI_MODEL}`,
+    AI_URL ?? `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${AI_MODEL}`,
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' },
-      // Deterministic seed per product: a re-run regenerates the same picture.
-      body: JSON.stringify({ prompt: promptFor(p), steps: 6, seed: seedFor(p.id) }),
+      headers: AI_URL
+        ? { 'Content-Type': 'application/json' }
+        : { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' },
+      // FLUX schnell takes no seed, so a --force re-run gives a new picture.
+      body: JSON.stringify({ prompt, steps: 6 }),
     },
   );
   const body = (await res.json().catch(() => ({}))) as { result?: { image?: string }; errors?: unknown };
@@ -197,10 +206,6 @@ async function fromWorkersAi(p: Product): Promise<Buffer> {
     throw new Error(`Workers AI ${res.status}: ${JSON.stringify(body.errors ?? body).slice(0, 300)}`);
   }
   return Buffer.from(body.result.image, 'base64');
-}
-
-function seedFor(id: string): number {
-  return crypto.createHash('sha256').update(id).digest().readUInt32BE(0) % 2147483647;
 }
 
 // ─── Upload ─────────────────────────────────────────────────────────────────

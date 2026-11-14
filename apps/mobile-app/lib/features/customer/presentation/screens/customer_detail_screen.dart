@@ -276,6 +276,13 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
     _customer.balanceAmount,
   );
 
+  Future<void> _printReminder() => CustomerReminderService.printStatement(
+    ref,
+    context,
+    _customer,
+    _customer.balanceAmount,
+  );
+
   Future<void> _updateTags(List<String> newTags) async {
     final previous = _customer.tags;
     try {
@@ -406,6 +413,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet>
                         onSendWhatsAppReminder: _sendWhatsAppReminder,
                         onSendSmsReminder: _sendSmsReminder,
                         onSendPdfReminder: _sendPdfReminder,
+                        onPrintReminder: _printReminder,
                         onPayDebt: showFinancials ? _showPayDebtSheet : null,
                       ),
                       _ActivityTab(
@@ -749,6 +757,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
   final VoidCallback onSendWhatsAppReminder;
   final VoidCallback onSendSmsReminder;
   final VoidCallback onSendPdfReminder;
+  final VoidCallback onPrintReminder;
   final VoidCallback? onPayDebt;
 
   const _OverviewTab({
@@ -763,6 +772,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
     required this.onSendWhatsAppReminder,
     required this.onSendSmsReminder,
     required this.onSendPdfReminder,
+    required this.onPrintReminder,
     this.onPayDebt,
   });
 
@@ -860,6 +870,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             onSendWhatsAppReminder: widget.onSendWhatsAppReminder,
             onSendSmsReminder: widget.onSendSmsReminder,
             onSendPdfReminder: widget.onSendPdfReminder,
+            onPrintReminder: widget.onPrintReminder,
           ),
           const SizedBox(height: 16),
           // Payables this business owes this contact (as a supplier) —
@@ -1008,6 +1019,7 @@ class _BalanceCard extends StatefulWidget {
   final VoidCallback? onSendWhatsAppReminder;
   final VoidCallback? onSendSmsReminder;
   final VoidCallback? onSendPdfReminder;
+  final VoidCallback? onPrintReminder;
 
   const _BalanceCard({
     required this.balance,
@@ -1019,6 +1031,7 @@ class _BalanceCard extends StatefulWidget {
     this.onSendWhatsAppReminder,
     this.onSendSmsReminder,
     this.onSendPdfReminder,
+    this.onPrintReminder,
   });
 
   @override
@@ -1365,6 +1378,7 @@ class _BalanceCardState extends State<_BalanceCard> {
               onWhatsApp: widget.onSendWhatsAppReminder,
               onSms: widget.onSendSmsReminder,
               onPdf: widget.onSendPdfReminder,
+              onPrint: widget.onPrintReminder,
             ),
           ],
         ],
@@ -3613,6 +3627,13 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
     widget.balance,
   );
 
+  Future<void> _printReminder() => CustomerReminderService.printStatement(
+    ref,
+    context,
+    widget.customer,
+    widget.balance,
+  );
+
   Future<void> _save() async {
     if (_paymentError != null) setState(() => _paymentError = null);
     if (!_formKey.currentState!.validate()) return;
@@ -3700,6 +3721,7 @@ class _CustomerPayDebtSheetState extends ConsumerState<CustomerPayDebtSheet> {
               onWhatsApp: _sendWhatsAppReminder,
               onSms: _sendSmsReminder,
               onPdf: _sendPdfReminder,
+              onPrint: _printReminder,
             ),
             const SizedBox(height: 14),
             const Divider(height: 1, color: AppColors.border),

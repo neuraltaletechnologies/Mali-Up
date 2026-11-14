@@ -11,6 +11,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Receipt printing to a paired Bluetooth thermal printer
+         (BluetoothPrinterHandler). Only already-paired devices are used, so
+         no BLUETOOTH_SCAN / location permission. BLUETOOTH_CONNECT is
+         runtime-requested (Android 12+) the first time a printer is set up. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <!-- open_filex bundles these unconditionally so it can open arbitrary
          user-picked files, but we only ever hand it a PDF the app just wrote
          to its own temp dir (see PdfExportService.openPdf), shared via its

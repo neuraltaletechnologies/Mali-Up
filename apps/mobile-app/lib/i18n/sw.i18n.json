@@ -34,5 +34,45 @@
     "bannerTitleLastDay": "$tier bure kinaisha leo",
     "bannerBody": "Kinaisha tarehe $date. Lipia sasa uendelee kutumia vipengele vyote.",
     "bannerCta": "Lipia"
+  },
+  "receiptPrinter": {
+    "printAction": "Chapisha risiti",
+    "printShort": "Chapisha",
+    "openPdf": "Fungua PDF",
+    "sending": "Inatuma kwa $name…",
+    "printed": "Risiti imechapishwa.",
+    "systemFailed": "Imeshindwa kufungua dirisha la kuchapisha. Jaribu tena.",
+    "errors": {
+      "off": "Bluetooth imezimwa. Iwashe kisha ujaribu tena.",
+      "permission": "Ruhusu Mali Up kutumia Vifaa vilivyo karibu (Bluetooth) kwenye mipangilio ya simu ili kuchapisha.",
+      "unsupported": "Kifaa hiki hakiwezi kuchapisha kwa Bluetooth. Chagua Printa ya mfumo badala yake.",
+      "notFound": "Printa iliyohifadhiwa haijaunganishwa tena. Ichague upya kwenye Mipangilio → Printa ya risiti.",
+      "connectFailed": "Imeshindwa kufikia printa. Hakikisha imewashwa, iko karibu na ina karatasi."
+    },
+    "settings": {
+      "sectionTitle": "Uchapishaji",
+      "tileTitle": "Printa ya risiti",
+      "tileSubtitleSystem": "$width · Printa ya mfumo",
+      "tileSubtitleBluetooth": "$width · $name",
+      "screenTitle": "Printa ya risiti",
+      "paperWidth": "Upana wa karatasi",
+      "paperWidthHint": "Angalia lebo kwenye roli ya karatasi au kwenye printa.",
+      "mm58Hint": "Printa ndogo za mkononi / Bluetooth",
+      "mm80Hint": "Printa za kaunta / mezani",
+      "connection": "Aina ya printa",
+      "system": "Printa ya mfumo",
+      "systemHint": "Printa ya USB, Wi-Fi au Windows. Inafungua dirisha la kuchapisha.",
+      "bluetooth": "Printa ya risiti ya Bluetooth",
+      "bluetoothHint": "Inachapisha moja kwa moja, bila dirisha.",
+      "bluetoothAndroidOnly": "Uchapishaji wa Bluetooth unafanya kazi kwenye simu na mashine za POS za Android. Kwenye kifaa hiki, tumia printa yenye dereva (USB au Wi-Fi).",
+      "choosePrinter": "Chagua printa",
+      "pairFirst": "Unganisha printa kwanza kwenye mipangilio ya Bluetooth ya simu (PIN mara nyingi ni 0000 au 1234), kisha gusa Onyesha upya.",
+      "refresh": "Onyesha upya",
+      "noDevices": "Hakuna vifaa vya Bluetooth vilivyounganishwa.",
+      "likelyPrinter": "Printa",
+      "testPrint": "Chapisha ukurasa wa majaribio",
+      "testSent": "Ukurasa wa majaribio umetumwa.",
+      "selectPrinterFirst": "Chagua printa kwanza."
+    }
   }
 }

@@ -26,6 +26,11 @@ import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../rbac/data/role_cache_service.dart';
+import '../../../../i18n/gen/strings.g.dart';
+import '../../../printing/data/bluetooth_printer_channel.dart';
+import '../../../printing/data/printer_settings_store.dart';
+import '../../../printing/domain/printer_settings.dart';
+import '../../../printing/presentation/screens/printer_settings_screen.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
 
@@ -71,6 +76,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
     MotionService.reducedMotionNotifier.addListener(_motionListener);
+    _loadPrinterSettings();
+  }
+
+  PrinterSettings? _printerSettings;
+
+  Future<void> _loadPrinterSettings() async {
+    final settings = await PrinterSettingsStore.load();
+    if (mounted) setState(() => _printerSettings = settings);
+  }
+
+  String _printerSubtitle() {
+    final settings = _printerSettings ?? const PrinterSettings();
+    final width = '${settings.paperWidth.mm}mm';
+    final s = t.receiptPrinter.settings;
+    return settings.usesBluetooth && BluetoothPrinterChannel.isAvailable
+        ? s.tileSubtitleBluetooth(
+            width: width,
+            name: settings.bluetoothName ?? '',
+          )
+        : s.tileSubtitleSystem(width: width);
   }
 
   @override
@@ -409,6 +434,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ],
+          const SizedBox(height: 20),
+
+          // ── Printing ──────────────────────────────────────────
+          // Per-device (not owner-only): staff at the till pair their own
+          // receipt printer.
+          _SectionHeader(label: t.receiptPrinter.settings.sectionTitle),
+          const SizedBox(height: 8),
+          _SettingCard(
+            children: [
+              _SettingTile(
+                icon: Icons.print_rounded,
+                iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
+                iconColor: AppColors.tealAccent,
+                title: t.receiptPrinter.settings.tileTitle,
+                subtitle: _printerSubtitle(),
+                onTap: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const PrinterSettingsScreen(),
+                  ));
+                  _loadPrinterSettings();
+                },
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
           // ── Other devices ─────────────────────────────────────

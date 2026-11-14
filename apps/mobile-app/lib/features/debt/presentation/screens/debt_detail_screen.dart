@@ -22,6 +22,7 @@ import '../../../invoice/data/mappers/invoice_mapper.dart';
 import '../../../sales/data/sales_providers.dart' show normalizeWhatsAppPhone;
 import '../../../sales/domain/debt_reminder_text.dart';
 import '../../../sales/services/receipt_pdf_service.dart';
+import '../../../printing/services/receipt_printer.dart';
 import '../../../team/data/creator_providers.dart';
 import '../../../team/presentation/widgets/issued_by.dart';
 import '../../data/customer_debt_sync_service.dart';
@@ -307,6 +308,39 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
         AppNotification.error(
           context,
           _tr('Could not open the SMS app.', 'Imeshindwa kufungua programu ya SMS.'),
+        );
+      }
+    }
+  }
+
+  /// Prints the debt receipt on this device's receipt printer (Bluetooth
+  /// thermal or system dialog — see [ReceiptPrinter]).
+  Future<void> _printReminder() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final bizId = ref.read(currentBusinessIdProvider).valueOrNull;
+      final invoice = await _loadLinkedInvoice();
+      final sale = _buildReminderSale(invoice);
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: uid,
+        businessId: bizId,
+        createdByUid: _debt.createdBy,
+      );
+      if (!mounted) return;
+      final printed = await ReceiptPrinter.printReceipt(
+        context,
+        sale: sale,
+        meta: meta,
+      );
+      if (printed) await _markReminderSent();
+    } catch (_) {
+      if (mounted) {
+        AppNotification.error(
+          context,
+          _tr(
+            'Could not print the debt receipt. Please try again.',
+            'Imeshindwa kuchapisha risiti ya deni. Jaribu tena.',
+          ),
         );
       }
     }
@@ -643,6 +677,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     onSendWhatsApp: _sendWhatsAppReminder,
                     onSendSms: _sendSmsReminder,
                     onSendPdf: _sendPdfReminder,
+                    onPrint: _printReminder,
                     onWriteOff: _showWriteOffDialog,
                     onEdit: _edit,
                     onDelete: _delete,
@@ -1253,6 +1288,7 @@ class _ActionsCard extends StatelessWidget {
   final VoidCallback onSendWhatsApp;
   final VoidCallback onSendSms;
   final VoidCallback onSendPdf;
+  final VoidCallback onPrint;
   final VoidCallback onWriteOff;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1264,6 +1300,7 @@ class _ActionsCard extends StatelessWidget {
     required this.onSendWhatsApp,
     required this.onSendSms,
     required this.onSendPdf,
+    required this.onPrint,
     required this.onWriteOff,
     required this.onEdit,
     required this.onDelete,
@@ -1300,6 +1337,7 @@ class _ActionsCard extends StatelessWidget {
                 onWhatsApp: busy ? null : onSendWhatsApp,
                 onSms: busy ? null : onSendSms,
                 onPdf: busy ? null : onSendPdf,
+                onPrint: busy ? null : onPrint,
               ),
             ),
             const _Divider(),

@@ -34,5 +34,45 @@
     "bannerTitleLastDay": "Free $tier ends today",
     "bannerBody": "Ends on $date. Pay now to keep every feature.",
     "bannerCta": "Pay"
+  },
+  "receiptPrinter": {
+    "printAction": "Print receipt",
+    "printShort": "Print",
+    "openPdf": "Open PDF",
+    "sending": "Sending to $name…",
+    "printed": "Receipt printed.",
+    "systemFailed": "Could not open the print dialog. Please try again.",
+    "errors": {
+      "off": "Bluetooth is off. Turn it on and try again.",
+      "permission": "Allow Mali Up to use Nearby devices (Bluetooth) in your phone settings to print.",
+      "unsupported": "This device can't print over Bluetooth. Choose System printer instead.",
+      "notFound": "The saved printer is no longer paired. Choose it again in Settings → Receipt printer.",
+      "connectFailed": "Couldn't reach the printer. Check that it's on, nearby and has paper."
+    },
+    "settings": {
+      "sectionTitle": "Printing",
+      "tileTitle": "Receipt printer",
+      "tileSubtitleSystem": "$width · System printer",
+      "tileSubtitleBluetooth": "$width · $name",
+      "screenTitle": "Receipt printer",
+      "paperWidth": "Paper roll width",
+      "paperWidthHint": "Check the label on the paper roll or the printer.",
+      "mm58Hint": "Small handheld / Bluetooth printers",
+      "mm80Hint": "Counter / desktop printers",
+      "connection": "Printer type",
+      "system": "System printer",
+      "systemHint": "USB, Wi-Fi or Windows printer. Opens the print dialog.",
+      "bluetooth": "Bluetooth receipt printer",
+      "bluetoothHint": "Prints straight away, no dialog.",
+      "bluetoothAndroidOnly": "Bluetooth printing works on Android phones and POS devices. On this device, use a printer with a driver (USB or Wi-Fi).",
+      "choosePrinter": "Choose printer",
+      "pairFirst": "Pair the printer first in your phone's Bluetooth settings (the PIN is usually 0000 or 1234), then tap Refresh.",
+      "refresh": "Refresh",
+      "noDevices": "No paired Bluetooth devices found.",
+      "likelyPrinter": "Printer",
+      "testPrint": "Print test page",
+      "testSent": "Test page sent.",
+      "selectPrinterFirst": "Choose a printer first."
+    }
   }
 }

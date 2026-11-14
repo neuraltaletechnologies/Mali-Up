@@ -28,6 +28,7 @@ import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import '../../services/receipt_pdf_service.dart';
+import '../../../printing/services/receipt_printer.dart';
 import 'create_invoice_screen.dart';
 import 'sales_return_screen.dart';
 
@@ -469,6 +470,32 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
+  Future<void> _printReceipt() async {
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final meta = await ReceiptPdfService.loadMeta(
+        uid: scope.userUid,
+        businessId: scope.businessId,
+        createdByUid: (_inv['createdBy'] ?? '').toString(),
+      );
+      if (!mounted) return;
+      final printed = await ReceiptPrinter.printReceipt(
+        context,
+        sale: _inv,
+        meta: meta,
+      );
+      if (printed) _offerMarkSent();
+    } catch (_) {
+      _showSnack(
+        _tr(
+          'Could not create the receipt PDF. Please try again.',
+          'Imeshindwa kutengeneza PDF ya risiti. Jaribu tena.',
+        ),
+      );
+    }
+  }
+
   Future<void> _sharePdf() async {
     try {
       final scope = await resolveSalesScope(ref);
@@ -611,6 +638,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             _ShareRow(
               onSms: _shareSms,
               onShare: _sharePdf,
+              onPrint: _printReceipt,
               onOpen: _openPdf,
             ),
             const SizedBox(height: 16),
@@ -1024,11 +1052,13 @@ class _SummaryMeta extends StatelessWidget {
 class _ShareRow extends StatelessWidget {
   final VoidCallback onSms;
   final VoidCallback onShare;
+  final VoidCallback onPrint;
   final VoidCallback onOpen;
 
   const _ShareRow({
     required this.onSms,
     required this.onShare,
+    required this.onPrint,
     required this.onOpen,
   });
 
@@ -1051,6 +1081,15 @@ class _ShareRow extends StatelessWidget {
             icon: Icons.sms_outlined,
             color: AppColors.warning,
             onTap: onSms,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ShareBtn(
+            label: _tr('Print', 'Chapisha'),
+            icon: Icons.print_rounded,
+            color: AppColors.navyPrimary,
+            onTap: onPrint,
           ),
         ),
         const SizedBox(width: 10),

@@ -6,8 +6,9 @@ import '../../core/theme/app_colors.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-/// Three buttons — WhatsApp, SMS, and PDF reminders — for sending a debt
-/// reminder. Shared across the Debt detail sheet, the customer detail
+/// Four buttons — WhatsApp, SMS, PDF and Print — for sending a debt
+/// reminder (Print goes to the device's receipt printer, see
+/// ReceiptPrinter). Shared across the Debt detail sheet, the customer detail
 /// screen's Balance card, the Record-Debt-Payment sheet, and the customer
 /// list's quick info sheet, so every place a reminder can be sent from
 /// offers the exact same three channels — one screen quietly keeping only a
@@ -17,12 +18,14 @@ class ReminderShareRow extends StatelessWidget {
   final VoidCallback? onWhatsApp;
   final VoidCallback? onSms;
   final VoidCallback? onPdf;
+  final VoidCallback? onPrint;
 
   const ReminderShareRow({
     super.key,
     required this.onWhatsApp,
     required this.onSms,
     required this.onPdf,
+    required this.onPrint,
   });
 
   @override
@@ -53,6 +56,15 @@ class ReminderShareRow extends StatelessWidget {
             icon: Icons.picture_as_pdf_outlined,
             color: AppColors.tealAccent,
             onTap: onPdf,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ReminderShareBtn(
+            label: _tr('Print', 'Chapisha'),
+            icon: Icons.print_rounded,
+            color: AppColors.navyPrimary,
+            onTap: onPrint,
           ),
         ),
       ],

@@ -9,15 +9,19 @@ import 'package:printing/printing.dart';
 import '../../../core/services/business_profile_service.dart';
 import '../../../core/services/pdf_export_service.dart';
 import '../../../core/utils/online_guard.dart';
+import '../../printing/domain/printer_settings.dart';
+import 'receipt_data.dart';
 
 /// Builds and hands out customer-facing sale receipts as real PDF files.
 ///
 /// The caller continues to own channel selection. [share] hands the PDF to the
 /// OS share sheet (WhatsApp, email, Drive…) — the customer-facing "Share"
 /// path. [open] generates the PDF and lets the user pick a viewer via the OS
-/// "Open with" chooser (quick on-device preview), printing uses [print], while
-/// SMS can keep using the compact text receipt already built by the sales
-/// screens.
+/// "Open with" chooser (quick on-device preview), [print] opens the system
+/// print dialog, while SMS can keep using the compact text receipt already
+/// built by the sales screens. UI should print through [ReceiptPrinter],
+/// which picks Bluetooth thermal vs. [print] from the device's printer
+/// settings.
 abstract final class ReceiptPdfService {
   static const _navy = PdfColor.fromInt(0xFF0D1B3E);
   static const _teal = PdfColor.fromInt(0xFF1A6E8A);
@@ -27,13 +31,14 @@ abstract final class ReceiptPdfService {
   static const _cream = PdfColor.fromInt(0xFFFBF9F4);
 
   /// A tall, narrow "ticket" page that auto-sizes to its content (no fixed
-  /// bottom edge, no pagination) — the same shape as an 80mm receipt-roll
-  /// printout, which also makes it print cleanly on small POS printers.
-  static const _ticketFormat = PdfPageFormat(
-    80 * PdfPageFormat.mm,
+  /// bottom edge, no pagination) — the same shape as a receipt-roll
+  /// printout, so it prints at true size on 58mm/80mm thermal printers.
+  /// 58mm gets tighter side margins so the content isn't squeezed further.
+  static PdfPageFormat _ticketFormat(ReceiptPaperWidth width) => PdfPageFormat(
+    width.mm * PdfPageFormat.mm,
     double.infinity,
-    marginLeft: 16,
-    marginRight: 16,
+    marginLeft: width == ReceiptPaperWidth.mm58 ? 8 : 16,
+    marginRight: width == ReceiptPaperWidth.mm58 ? 8 : 16,
     marginTop: 22,
     marginBottom: 20,
   );
@@ -204,83 +209,29 @@ abstract final class ReceiptPdfService {
     String businessEmail = '',
     String businessAddress = '',
     String businessLogoUrl = '',
+    ReceiptPaperWidth paperWidth = ReceiptPaperWidth.mm80,
   }) async {
     String t(String en, String sw) => isSwahili ? sw : en;
 
-    final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? '-')
-        .toString();
-    final saleType = (sale['type'] ?? '').toString().toLowerCase();
-    final isQuotation = saleType == 'quotation';
-    // A debt reminder isn't proof of a completed sale — it's a receipt of
-    // what's still owed, so it gets its own title rather than "SALE RECEIPT".
-    final isDebtReceipt = saleType == 'debt';
-    final documentTitle = isQuotation
-        ? t('QUOTATION', 'NUKUU')
-        : isDebtReceipt
-        ? t('DEBT RECEIPT', 'RISITI YA DENI')
-        : t('SALE RECEIPT', 'RISITI YA MAUZO');
-    final customerName = (sale['customerName'] ?? '').toString().trim();
-    final customer = customerName.isEmpty
-        ? t('Walk-in customer', 'Mteja wa kawaida')
-        : customerName;
-    final customerPhone = (sale['customerPhone'] ?? '').toString().trim();
-    // The sale's actual date, not when the record was written — a backdated
-    // sale must print the date the user picked, not today's date.
-    final createdAt = _asDate(
-      sale['date'] ?? sale['invoiceDate'] ?? sale['createdAt'],
-    );
-    final dueDate = _asDate(sale['dueDate']);
-    final amount = _amount(sale['totalAmount'] ?? sale['amount']);
-    final amountPaid = _amount(sale['amountPaid']);
-    final balance = (amount - amountPaid).clamp(0, amount).toDouble();
-    final rawItems = sale['lineItems'] ?? sale['items'];
-    final items = rawItems is List
-        ? rawItems.whereType<Map>().toList()
-        : const <Map>[];
-
-    var itemDiscount = 0.0;
-    final displayItems = <_ReceiptLine>[];
-    for (final item in items) {
-      final quantity = _amount(item['qty'] ?? item['quantity'] ?? 1);
-      final chargedUnitPrice = _amount(item['unitPrice']);
-      final basePrice = _amount(item['basePrice']);
-      final displayUnitPrice =
-          basePrice > chargedUnitPrice && chargedUnitPrice > 0
-          ? basePrice
-          : chargedUnitPrice;
-      if (displayUnitPrice > chargedUnitPrice && quantity > 0) {
-        itemDiscount += (displayUnitPrice - chargedUnitPrice) * quantity;
-      }
-      final storedTotal = _amount(item['lineTotal'] ?? item['total']);
-      final displayTotal = displayUnitPrice > chargedUnitPrice && quantity > 0
-          ? displayUnitPrice * quantity
-          : storedTotal > 0
-          ? storedTotal
-          : displayUnitPrice * quantity;
-      final name = (item['productName'] ?? item['name'] ?? '-')
-          .toString()
-          .trim();
-      displayItems.add(
-        _ReceiptLine(
-          name: name.isEmpty ? '-' : name,
-          quantity: quantity,
-          unitPrice: displayUnitPrice,
-          total: displayTotal,
-        ),
-      );
-    }
-
-    final storedSubtotal = _amount(sale['subtotal']);
-    final subtotal =
-        (storedSubtotal > 0 ? storedSubtotal : amount) + itemDiscount;
-    final discount = _amount(sale['discountAmount']) + itemDiscount;
-    final vat = _amount(sale['vatAmount']);
-    final paymentMethod = _paymentMethod(
-      (sale['paymentMethod'] ?? '').toString(),
-      isSwahili: isSwahili,
-    );
-    final paymentReference = (sale['mpesaRef'] ?? '').toString().trim();
-    final notes = (sale['notes'] ?? '').toString().trim();
+    final receipt = ReceiptData.fromSale(sale, isSwahili: isSwahili);
+    final invoiceNumber = receipt.invoiceNumber;
+    final isQuotation = receipt.isQuotation;
+    final isDebtReceipt = receipt.isDebtReceipt;
+    final documentTitle = receipt.documentTitle;
+    final customer = receipt.customer;
+    final customerPhone = receipt.customerPhone;
+    final createdAt = receipt.createdAt;
+    final dueDate = receipt.dueDate;
+    final amount = receipt.amount;
+    final amountPaid = receipt.amountPaid;
+    final balance = receipt.balance;
+    final displayItems = receipt.lines;
+    final subtotal = receipt.subtotal;
+    final discount = receipt.discount;
+    final vat = receipt.vat;
+    final paymentMethod = receipt.paymentMethod;
+    final paymentReference = receipt.paymentReference;
+    final notes = receipt.notes;
     final businessLogo = await _networkImage(businessLogoUrl);
     final maliUpLogo = await _assetImage(
       'assets/branding/mali_up_wordmark.png',
@@ -295,7 +246,7 @@ abstract final class ReceiptPdfService {
     );
     document.addPage(
       pw.Page(
-        pageFormat: _ticketFormat,
+        pageFormat: _ticketFormat(paperWidth),
         theme: pw.ThemeData.withFont(
           base: pw.Font.helvetica(),
           bold: pw.Font.helveticaBold(),
@@ -411,7 +362,7 @@ abstract final class ReceiptPdfService {
                       _smallLabel(t('DATE', 'TAREHE')),
                       pw.SizedBox(height: 3),
                       pw.Text(
-                        _formatDateTime(createdAt),
+                        ReceiptFormat.dateTime(createdAt),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ],
@@ -420,7 +371,7 @@ abstract final class ReceiptPdfService {
                       _smallLabel(t('DUE', 'MWISHO')),
                       pw.SizedBox(height: 3),
                       pw.Text(
-                        _formatDate(dueDate),
+                        ReceiptFormat.date(dueDate),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ],
@@ -486,7 +437,7 @@ abstract final class ReceiptPdfService {
                     ),
                   ),
                   pw.Text(
-                    _money(amount),
+                    ReceiptFormat.money(amount),
                     style: pw.TextStyle(
                       color: _navy,
                       fontSize: 12,
@@ -645,6 +596,7 @@ abstract final class ReceiptPdfService {
     String businessEmail = '',
     String businessAddress = '',
     String businessLogoUrl = '',
+    ReceiptPaperWidth paperWidth = ReceiptPaperWidth.mm80,
   }) {
     final invoiceNumber = (sale['invoiceNumber'] ?? sale['id'] ?? 'receipt')
         .toString();
@@ -659,6 +611,7 @@ abstract final class ReceiptPdfService {
         businessEmail: businessEmail,
         businessAddress: businessAddress,
         businessLogoUrl: businessLogoUrl,
+        paperWidth: paperWidth,
       ),
     );
   }
@@ -763,7 +716,7 @@ abstract final class ReceiptPdfService {
             ),
             pw.SizedBox(width: 8),
             pw.Text(
-              _money(total),
+              ReceiptFormat.money(total),
               style: pw.TextStyle(
                 color: _navy,
                 fontSize: 9.5,
@@ -774,7 +727,7 @@ abstract final class ReceiptPdfService {
         ),
         pw.SizedBox(height: 2),
         pw.Text(
-          '${_quantity(quantity)} x ${_money(unitPrice)}',
+          '${ReceiptFormat.quantity(quantity)} x ${ReceiptFormat.money(unitPrice)}',
           style: const pw.TextStyle(fontSize: 7.8, color: _muted),
         ),
       ],
@@ -799,7 +752,7 @@ abstract final class ReceiptPdfService {
           ),
         ),
         pw.Text(
-          _money(value),
+          ReceiptFormat.money(value),
           style: pw.TextStyle(
             fontSize: emphasized ? 11 : 9,
             color: emphasized ? _navy : PdfColors.black,
@@ -809,65 +762,4 @@ abstract final class ReceiptPdfService {
       ],
     ),
   );
-
-  static double _amount(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(
-          (value ?? '').toString().replaceAll(RegExp(r'[^0-9.-]'), ''),
-        ) ??
-        0;
-  }
-
-  static DateTime? _asDate(dynamic value) {
-    if (value is DateTime) return value;
-    if (value is Timestamp) return value.toDate();
-    if (value is String) return DateTime.tryParse(value);
-    return null;
-  }
-
-  static String _formatDate(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
-
-  static String _formatDateTime(DateTime value) =>
-      '${_formatDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-
-  static String _quantity(double value) => value == value.roundToDouble()
-      ? value.toInt().toString()
-      : value.toStringAsFixed(2);
-
-  static String _money(double value) {
-    final sign = value < 0 ? '-' : '';
-    final raw = value.abs().toStringAsFixed(0);
-    final grouped = raw.replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+$)'),
-      (match) => '${match[1]},',
-    );
-    return '${sign}TZS $grouped';
-  }
-
-  static String _paymentMethod(String value, {required bool isSwahili}) {
-    String t(String en, String sw) => isSwahili ? sw : en;
-    return switch (value.trim().toLowerCase()) {
-      'mpesa' => 'M-Pesa',
-      'bank_transfer' => t('Bank transfer', 'Uhamisho wa benki'),
-      'card' => t('Card', 'Kadi'),
-      'credit' => t('Credit (pay later)', 'Mkopo'),
-      'cash' => t('Cash', 'Taslimu'),
-      final other => other,
-    };
-  }
-}
-
-class _ReceiptLine {
-  final String name;
-  final double quantity;
-  final double unitPrice;
-  final double total;
-
-  const _ReceiptLine({
-    required this.name,
-    required this.quantity,
-    required this.unitPrice,
-    required this.total,
-  });
 }

@@ -42,6 +42,7 @@ class TranslationsSw extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$app$sw app = _Translations$app$sw._(_root);
 	@override late final _Translations$pinResetCode$sw pinResetCode = _Translations$pinResetCode$sw._(_root);
 	@override late final _Translations$trial$sw trial = _Translations$trial$sw._(_root);
+	@override late final _Translations$receiptPrinter$sw receiptPrinter = _Translations$receiptPrinter$sw._(_root);
 }
 
 // Path: app
@@ -101,6 +102,69 @@ class _Translations$trial$sw extends Translations$trial$en {
 	@override String get bannerCta => 'Lipia';
 }
 
+// Path: receiptPrinter
+class _Translations$receiptPrinter$sw extends Translations$receiptPrinter$en {
+	_Translations$receiptPrinter$sw._(TranslationsSw root) : this._root = root, super.internal(root);
+
+	final TranslationsSw _root; // ignore: unused_field
+
+	// Translations
+	@override String get printAction => 'Chapisha risiti';
+	@override String get printShort => 'Chapisha';
+	@override String get openPdf => 'Fungua PDF';
+	@override String sending({required Object name}) => 'Inatuma kwa ${name}…';
+	@override String get printed => 'Risiti imechapishwa.';
+	@override String get systemFailed => 'Imeshindwa kufungua dirisha la kuchapisha. Jaribu tena.';
+	@override late final _Translations$receiptPrinter$errors$sw errors = _Translations$receiptPrinter$errors$sw._(_root);
+	@override late final _Translations$receiptPrinter$settings$sw settings = _Translations$receiptPrinter$settings$sw._(_root);
+}
+
+// Path: receiptPrinter.errors
+class _Translations$receiptPrinter$errors$sw extends Translations$receiptPrinter$errors$en {
+	_Translations$receiptPrinter$errors$sw._(TranslationsSw root) : this._root = root, super.internal(root);
+
+	final TranslationsSw _root; // ignore: unused_field
+
+	// Translations
+	@override String get off => 'Bluetooth imezimwa. Iwashe kisha ujaribu tena.';
+	@override String get permission => 'Ruhusu Mali Up kutumia Vifaa vilivyo karibu (Bluetooth) kwenye mipangilio ya simu ili kuchapisha.';
+	@override String get unsupported => 'Kifaa hiki hakiwezi kuchapisha kwa Bluetooth. Chagua Printa ya mfumo badala yake.';
+	@override String get notFound => 'Printa iliyohifadhiwa haijaunganishwa tena. Ichague upya kwenye Mipangilio → Printa ya risiti.';
+	@override String get connectFailed => 'Imeshindwa kufikia printa. Hakikisha imewashwa, iko karibu na ina karatasi.';
+}
+
+// Path: receiptPrinter.settings
+class _Translations$receiptPrinter$settings$sw extends Translations$receiptPrinter$settings$en {
+	_Translations$receiptPrinter$settings$sw._(TranslationsSw root) : this._root = root, super.internal(root);
+
+	final TranslationsSw _root; // ignore: unused_field
+
+	// Translations
+	@override String get sectionTitle => 'Uchapishaji';
+	@override String get tileTitle => 'Printa ya risiti';
+	@override String tileSubtitleSystem({required Object width}) => '${width} · Printa ya mfumo';
+	@override String tileSubtitleBluetooth({required Object width, required Object name}) => '${width} · ${name}';
+	@override String get screenTitle => 'Printa ya risiti';
+	@override String get paperWidth => 'Upana wa karatasi';
+	@override String get paperWidthHint => 'Angalia lebo kwenye roli ya karatasi au kwenye printa.';
+	@override String get mm58Hint => 'Printa ndogo za mkononi / Bluetooth';
+	@override String get mm80Hint => 'Printa za kaunta / mezani';
+	@override String get connection => 'Aina ya printa';
+	@override String get system => 'Printa ya mfumo';
+	@override String get systemHint => 'Printa ya USB, Wi-Fi au Windows. Inafungua dirisha la kuchapisha.';
+	@override String get bluetooth => 'Printa ya risiti ya Bluetooth';
+	@override String get bluetoothHint => 'Inachapisha moja kwa moja, bila dirisha.';
+	@override String get bluetoothAndroidOnly => 'Uchapishaji wa Bluetooth unafanya kazi kwenye simu na mashine za POS za Android. Kwenye kifaa hiki, tumia printa yenye dereva (USB au Wi-Fi).';
+	@override String get choosePrinter => 'Chagua printa';
+	@override String get pairFirst => 'Unganisha printa kwanza kwenye mipangilio ya Bluetooth ya simu (PIN mara nyingi ni 0000 au 1234), kisha gusa Onyesha upya.';
+	@override String get refresh => 'Onyesha upya';
+	@override String get noDevices => 'Hakuna vifaa vya Bluetooth vilivyounganishwa.';
+	@override String get likelyPrinter => 'Printa';
+	@override String get testPrint => 'Chapisha ukurasa wa majaribio';
+	@override String get testSent => 'Ukurasa wa majaribio umetumwa.';
+	@override String get selectPrinterFirst => 'Chagua printa kwanza.';
+}
+
 /// The flat map containing all translations for locale <sw>.
 /// Only for edge cases! For simple maps, use the map function of this library.
 ///
@@ -139,6 +203,40 @@ extension on TranslationsSw {
 			'trial.bannerTitleLastDay' => ({required Object tier}) => '${tier} bure kinaisha leo',
 			'trial.bannerBody' => ({required Object date}) => 'Kinaisha tarehe ${date}. Lipia sasa uendelee kutumia vipengele vyote.',
 			'trial.bannerCta' => 'Lipia',
+			'receiptPrinter.printAction' => 'Chapisha risiti',
+			'receiptPrinter.printShort' => 'Chapisha',
+			'receiptPrinter.openPdf' => 'Fungua PDF',
+			'receiptPrinter.sending' => ({required Object name}) => 'Inatuma kwa ${name}…',
+			'receiptPrinter.printed' => 'Risiti imechapishwa.',
+			'receiptPrinter.systemFailed' => 'Imeshindwa kufungua dirisha la kuchapisha. Jaribu tena.',
+			'receiptPrinter.errors.off' => 'Bluetooth imezimwa. Iwashe kisha ujaribu tena.',
+			'receiptPrinter.errors.permission' => 'Ruhusu Mali Up kutumia Vifaa vilivyo karibu (Bluetooth) kwenye mipangilio ya simu ili kuchapisha.',
+			'receiptPrinter.errors.unsupported' => 'Kifaa hiki hakiwezi kuchapisha kwa Bluetooth. Chagua Printa ya mfumo badala yake.',
+			'receiptPrinter.errors.notFound' => 'Printa iliyohifadhiwa haijaunganishwa tena. Ichague upya kwenye Mipangilio → Printa ya risiti.',
+			'receiptPrinter.errors.connectFailed' => 'Imeshindwa kufikia printa. Hakikisha imewashwa, iko karibu na ina karatasi.',
+			'receiptPrinter.settings.sectionTitle' => 'Uchapishaji',
+			'receiptPrinter.settings.tileTitle' => 'Printa ya risiti',
+			'receiptPrinter.settings.tileSubtitleSystem' => ({required Object width}) => '${width} · Printa ya mfumo',
+			'receiptPrinter.settings.tileSubtitleBluetooth' => ({required Object width, required Object name}) => '${width} · ${name}',
+			'receiptPrinter.settings.screenTitle' => 'Printa ya risiti',
+			'receiptPrinter.settings.paperWidth' => 'Upana wa karatasi',
+			'receiptPrinter.settings.paperWidthHint' => 'Angalia lebo kwenye roli ya karatasi au kwenye printa.',
+			'receiptPrinter.settings.mm58Hint' => 'Printa ndogo za mkononi / Bluetooth',
+			'receiptPrinter.settings.mm80Hint' => 'Printa za kaunta / mezani',
+			'receiptPrinter.settings.connection' => 'Aina ya printa',
+			'receiptPrinter.settings.system' => 'Printa ya mfumo',
+			'receiptPrinter.settings.systemHint' => 'Printa ya USB, Wi-Fi au Windows. Inafungua dirisha la kuchapisha.',
+			'receiptPrinter.settings.bluetooth' => 'Printa ya risiti ya Bluetooth',
+			'receiptPrinter.settings.bluetoothHint' => 'Inachapisha moja kwa moja, bila dirisha.',
+			'receiptPrinter.settings.bluetoothAndroidOnly' => 'Uchapishaji wa Bluetooth unafanya kazi kwenye simu na mashine za POS za Android. Kwenye kifaa hiki, tumia printa yenye dereva (USB au Wi-Fi).',
+			'receiptPrinter.settings.choosePrinter' => 'Chagua printa',
+			'receiptPrinter.settings.pairFirst' => 'Unganisha printa kwanza kwenye mipangilio ya Bluetooth ya simu (PIN mara nyingi ni 0000 au 1234), kisha gusa Onyesha upya.',
+			'receiptPrinter.settings.refresh' => 'Onyesha upya',
+			'receiptPrinter.settings.noDevices' => 'Hakuna vifaa vya Bluetooth vilivyounganishwa.',
+			'receiptPrinter.settings.likelyPrinter' => 'Printa',
+			'receiptPrinter.settings.testPrint' => 'Chapisha ukurasa wa majaribio',
+			'receiptPrinter.settings.testSent' => 'Ukurasa wa majaribio umetumwa.',
+			'receiptPrinter.settings.selectPrinterFirst' => 'Chagua printa kwanza.',
 			_ => null,
 		};
 	}

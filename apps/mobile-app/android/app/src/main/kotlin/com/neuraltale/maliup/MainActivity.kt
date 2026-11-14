@@ -9,5 +9,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PlayIntegrityHandler.CHANNEL)
             .setMethodCallHandler(PlayIntegrityHandler(applicationContext))
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BluetoothPrinterHandler.CHANNEL)
+            .setMethodCallHandler(BluetoothPrinterHandler(applicationContext))
     }
 }

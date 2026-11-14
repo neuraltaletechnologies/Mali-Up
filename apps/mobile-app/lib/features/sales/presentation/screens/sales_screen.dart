@@ -53,6 +53,7 @@ import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import '../../domain/recurring_billing_calculator.dart';
 import '../../services/receipt_pdf_service.dart';
+import '../../../printing/services/receipt_printer.dart';
 import '../../services/invoice_number_generator.dart';
 import '../widgets/pos_catalog.dart';
 import 'invoice_detail_screen.dart';
@@ -161,6 +162,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   final _saleKey = GlobalKey<_NewSaleSheetState>();
   // Phones: products picked from the list, checked out in the sale sheet.
   final List<PosCartLine> _cart = [];
+  // Phones: camera strip on top of the Sell view; scans go straight into
+  // [_cart], which is listed right under it.
+  bool _scanning = false;
 
   int get _activeFilters => _filter != _SalesFilter.all ? 1 : 0;
 
@@ -380,26 +384,79 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     );
   }
 
-  void _cartAdd(Map<String, dynamic> product) {
-    if (product.posOutOfStock) return;
+  /// Adds one [product] to the phone cart. False when stock ran out (and,
+  /// unless [quiet], says so).
+  bool _cartAdd(Map<String, dynamic> product, {bool quiet = false}) {
+    if (product.posOutOfStock) return false;
     final id = (product['id'] ?? '').toString();
     final line = _cart.where((l) => l.id == id).firstOrNull;
     if (line != null) {
       if (!product.posIsService && line.qty >= product.posStock) {
-        AppNotification.info(
-          context,
-          _tr(
-            'Only ${product.posStock} of ${product.posName} in stock.',
-            'Kuna ${product.posStock} tu za ${product.posName} stokuni.',
-          ),
-        );
-        return;
+        if (!quiet) {
+          AppNotification.info(
+            context,
+            _tr(
+              'Only ${product.posStock} of ${product.posName} in stock.',
+              'Kuna ${product.posStock} tu za ${product.posName} stokuni.',
+            ),
+          );
+        }
+        return false;
       }
       setState(() => line.qty++);
     } else {
       setState(() => _cart.add(PosCartLine(product)));
     }
-    unawaited(HapticFeedback.selectionClick());
+    if (!quiet) unawaited(HapticFeedback.selectionClick());
+    return true;
+  }
+
+  /// Phone scan mode: one scan = one more of that product in the cart. The
+  /// scanned line moves to the top of the list so the cashier sees it.
+  Future<ScanFeedback> _onPosScan(String code) async {
+    final all =
+        ref.read(inventoryItemListProvider).valueOrNull ??
+        const <Map<String, dynamic>>[];
+    final product = posFindByCode(all, code);
+    if (product == null) {
+      return ScanFeedback.error(
+        _tr('No product with code $code', 'Hakuna bidhaa yenye nambari $code'),
+      );
+    }
+    if (product.posOutOfStock) {
+      return ScanFeedback.error(
+        _tr(
+          '${product.posName} is out of stock',
+          '${product.posName} imekwisha stokuni',
+        ),
+      );
+    }
+    if (!_cartAdd(product, quiet: true)) {
+      return ScanFeedback.error(
+        _tr(
+          'Only ${product.posStock} of ${product.posName} in stock',
+          'Kuna ${product.posStock} tu za ${product.posName}',
+        ),
+      );
+    }
+    final id = (product['id'] ?? '').toString();
+    final line = _cart.firstWhere((l) => l.id == id);
+    setState(() {
+      _cart.remove(line);
+      _cart.add(line);
+    });
+    return ScanFeedback.ok('${product.posName}  ×${line.qty}');
+  }
+
+  /// Phone checkout. The camera is stopped while the sale sheet is open
+  /// (it has its own scanner) and comes back afterwards for the next sale.
+  Future<void> _checkoutCart(BuildContext ctx) async {
+    final wasScanning = _scanning;
+    if (wasScanning) setState(() => _scanning = false);
+    await _showNewSaleSheet(ctx, lines: List.of(_cart));
+    if (wasScanning && mounted && !_historyMode) {
+      setState(() => _scanning = true);
+    }
   }
 
   void _cartRemove(Map<String, dynamic> product) {
@@ -484,22 +541,43 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final cartQty = {for (final l in _cart) l.id: l.qty};
     final count = _cart.fold<int>(0, (s, l) => s + l.qty);
     final total = _cart.fold<double>(0, (s, l) => s + l.total);
+    final listPadding = EdgeInsets.only(top: 4, bottom: navLift + 96);
     return Stack(
       children: [
         Column(
-          children: [
-            categoryBar,
-            const SizedBox(height: 4),
-            Expanded(
-              child: PosProductList(
-                products: products,
-                cartQty: cartQty,
-                onAdd: _cartAdd,
-                onRemove: _cartRemove,
-                padding: EdgeInsets.only(top: 4, bottom: navLift + 96),
-              ),
-            ),
-          ],
+          children: _scanning
+              ? [
+                  // Scan mode: camera on top, the cart itself underneath —
+                  // newest scan first, with +/- to fix quantities.
+                  InlineBarcodeScanner(
+                    onCode: _onPosScan,
+                    onClose: () => setState(() => _scanning = false),
+                  ),
+                  Expanded(
+                    child: _cart.isEmpty
+                        ? const PosScanEmpty()
+                        : PosProductList(
+                            products: [for (final l in _cart.reversed) l.item],
+                            cartQty: cartQty,
+                            onAdd: _cartAdd,
+                            onRemove: _cartRemove,
+                            padding: listPadding,
+                          ),
+                  ),
+                ]
+              : [
+                  categoryBar,
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: PosProductList(
+                      products: products,
+                      cartQty: cartQty,
+                      onAdd: _cartAdd,
+                      onRemove: _cartRemove,
+                      padding: listPadding,
+                    ),
+                  ),
+                ],
         ),
         if (_cart.isNotEmpty)
           Positioned(
@@ -509,8 +587,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             child: PosCartBar(
               itemCount: count,
               total: total,
-              onCheckout: () =>
-                  _showNewSaleSheet(context, lines: List.of(_cart)),
+              onCheckout: () => _checkoutCart(context),
               onClear: () => setState(_cart.clear),
             ),
           ),
@@ -528,7 +605,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     // The "Add Sale" button opens a blank sale form. In Sell mode the cart
     // takes its place: always on wide screens (docked cart), and on phones
     // once something is in the cart (the cart bar).
-    final showFab = ps.canCreateSale && (!selling || (!wide && _cart.isEmpty));
+    final showFab =
+        ps.canCreateSale &&
+        (!selling || (!wide && _cart.isEmpty && !_scanning));
 
     return Scaffold(
       floatingActionButton: !showFab
@@ -612,6 +691,17 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   if (!_searchExpanded) _query = '';
                 }),
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
+                // Phones only: wide screens scan from the docked cart.
+                onScanTap: selling && !wide
+                    ? () => setState(() {
+                        _scanning = !_scanning;
+                        if (_scanning) {
+                          _searchExpanded = false;
+                          _query = '';
+                        }
+                      })
+                    : null,
+                scanActive: _scanning,
                 modeToggle: !ps.canCreateSale
                     ? null
                     : PosModeToggle(
@@ -619,6 +709,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         onChanged: (v) => setState(() {
                           if (_historyMode == v) return;
                           _historyMode = v;
+                          _scanning = false;
                           _searchExpanded = false;
                           _query = '';
                         }),
@@ -908,6 +999,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       }
     }
 
+    Future<void> printReceipt(BuildContext sheetContext) async {
+      // Close the sheet so the print dialog / status toast isn't under it.
+      Navigator.of(sheetContext).pop();
+      await ReceiptPrinter.printReceipt(context, sale: sale, meta: meta);
+    }
+
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
@@ -952,6 +1049,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 onTap: () => sharePdf(ctx),
               ),
               _ReceiptAction(
+                icon: Icons.print_rounded,
+                iconColor: AppColors.navyPrimary,
+                label: _tr('Print receipt', 'Chapisha risiti'),
+                onTap: () => printReceipt(ctx),
+              ),
+              _ReceiptAction(
                 icon: Icons.sms_outlined,
                 iconColor: AppColors.warning,
                 label: _tr('Text message (SMS)', 'Ujumbe wa maandishi (SMS)'),
@@ -966,7 +1069,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               _ReceiptAction(
                 icon: Icons.picture_as_pdf_outlined,
                 iconColor: AppColors.textMuted,
-                label: _tr('Open / print PDF', 'Fungua / chapisha PDF'),
+                label: _tr('Open PDF', 'Fungua PDF'),
                 onTap: openPdf,
               ),
             ],
@@ -1025,6 +1128,10 @@ class _SalesDarkHeader extends StatefulWidget {
   /// (no permission to create sales).
   final Widget? modeToggle;
 
+  /// Toggles the in-page barcode scanner (phone Sell mode); null hides it.
+  final VoidCallback? onScanTap;
+  final bool scanActive;
+
   const _SalesDarkHeader({
     required this.todayRevenue,
     required this.pendingTotal,
@@ -1036,6 +1143,8 @@ class _SalesDarkHeader extends StatefulWidget {
     required this.onFilterTap,
     this.searchHint,
     this.modeToggle,
+    this.onScanTap,
+    this.scanActive = false,
   });
 
   @override
@@ -1092,6 +1201,19 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
         children: [
           if (widget.modeToggle != null) ...[
             widget.modeToggle!,
+            const SizedBox(width: 10),
+          ],
+          if (widget.onScanTap != null) ...[
+            Tooltip(
+              message: widget.scanActive
+                  ? _tr('Stop scanning', 'Acha kuskani')
+                  : _tr('Scan barcode', 'Skani barcode'),
+              child: HeaderIconButton(
+                icon: Icons.qr_code_scanner_rounded,
+                active: widget.scanActive,
+                onTap: widget.onScanTap!,
+              ),
+            ),
             const SizedBox(width: 10),
           ],
           HeaderIconButton(
@@ -1952,6 +2074,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   bool _vatEnabled = false;
   bool _detailsExpanded = false;
   bool _isSaving = false;
+  // Camera strip on top of the ticket (see [_toggleScanner]).
+  bool _scanning = false;
   // Surfaced as an inline banner next to the field it's about, rather than
   // a SnackBar: this sheet is pushed on the root Navigator and covers
   // ~80-95% of the screen height, so a SnackBar from the underlying
@@ -2335,76 +2459,44 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     }
   }
 
-  /// Opens the continuous POS scanner. Each successful scan auto-adds an
-  /// item row (or increments qty if the product is already in the list).
-  /// True when the scanned code matches the product's barcode or SKU.
-  static bool _codeMatches(Map<String, dynamic> item, String code) {
-    final c = code.toLowerCase();
-    return (item['barcode'] ?? '').toString().toLowerCase() == c ||
-        (item['sku'] ?? '').toString().toLowerCase() == c;
-  }
+  /// Shows / hides the camera strip at the top of this sheet. Scans add to
+  /// the item list right below it — no separate scan page.
+  void _toggleScanner() => setState(() => _scanning = !_scanning);
 
-  Future<void> _openPosScanner() async {
-    final inventory = ref.read(inventoryItemListProvider).value ?? [];
-
-    final results = await PosScannerScreen.show(
-      context,
-      title: _tr('Scan Items', 'Skani Bidhaa'),
-      onScanned: (barcode) async {
-        final matched = inventory.firstWhere(
-          (item) => _codeMatches(item, barcode),
-          orElse: () => <String, dynamic>{},
-        );
-        if (matched.isEmpty) return null;
-        final name = (matched['name'] ?? '').toString();
-        final price = parseUnitPrice(
-          matched['unitPrice'] ?? matched['price'] ?? 0,
-        );
-        return PosCartEntry(barcode: barcode, name: name, price: price);
-      },
-    );
-
-    if (!mounted || results.isEmpty) return;
-
-    // Remove any blank placeholder items first.
-    final toRemove = _items
-        .where((e) => e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
-        .toList();
-    for (final e in toRemove) {
-      e.dispose();
-      _items.remove(e);
-    }
-
-    // Merge scanner results into the items list, never exceeding stock.
-    for (final scanned in results) {
-      final matchIdx = _items.indexWhere(
-        (e) =>
-            e.selectedItem != null &&
-            _codeMatches(e.selectedItem!, scanned.barcode),
+  /// One scan = one more of that product on the ticket.
+  Future<ScanFeedback> _onScanCode(String code) async {
+    final inventory =
+        ref.read(inventoryItemListProvider).valueOrNull ??
+        const <Map<String, dynamic>>[];
+    final product = posFindByCode(inventory, code);
+    if (product == null) {
+      return ScanFeedback.error(
+        _tr('No product with code $code', 'Hakuna bidhaa yenye nambari $code'),
       );
-
-      if (matchIdx >= 0) {
-        final entry = _items[matchIdx];
-        final cap = entry.maxStock > 0 ? entry.maxStock : 1;
-        entry.qty = (entry.qty + scanned.qty).clamp(1, cap);
-      } else {
-        final inv = inventory.firstWhere(
-          (item) => _codeMatches(item, scanned.barcode),
-          orElse: () => <String, dynamic>{},
-        );
-        if (inv.isNotEmpty) {
-          final newEntry = _ItemEntry();
-          newEntry.nameCtrl.addListener(() => _onItemNameChanged(newEntry));
-          _selectProduct(newEntry, inv);
-          final cap = newEntry.maxStock > 0 ? newEntry.maxStock : 1;
-          newEntry.qty = scanned.qty.clamp(1, cap);
-          _items.add(newEntry);
-        }
-      }
     }
-
-    if (_items.isEmpty) _addItem();
-    setState(() {});
+    if (product.posOutOfStock) {
+      return ScanFeedback.error(
+        _tr(
+          '${product.posName} is out of stock',
+          '${product.posName} imekwisha stokuni',
+        ),
+      );
+    }
+    final id = (product['id'] ?? '').toString();
+    _ItemEntry? line() => _items
+        .where((e) => id.isNotEmpty && e.selectedItem?['id']?.toString() == id)
+        .firstOrNull;
+    final existing = line();
+    if (existing != null && existing.qty >= existing.maxStock) {
+      return ScanFeedback.error(
+        _tr(
+          'Only ${existing.maxStock} of ${product.posName} in stock',
+          'Kuna ${existing.maxStock} tu za ${product.posName}',
+        ),
+      );
+    }
+    addProduct(product);
+    return ScanFeedback.ok('${product.posName}  ×${line()?.qty ?? 1}');
   }
 
   Future<void> _pickDueDate() async {
@@ -3006,6 +3098,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           if (widget.embedded) const SizedBox(height: 16) else _buildHandle(),
           _buildHeader(),
           const Divider(height: 1, color: AppColors.borderLight),
+          if (_scanning)
+            InlineBarcodeScanner(
+              height: 150,
+              onCode: _onScanCode,
+              onClose: () => setState(() => _scanning = false),
+            ),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -3082,10 +3180,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           IconButton(
-            onPressed: _isSaving ? null : _openPosScanner,
-            tooltip: _tr('Scan mode', 'Hali ya skani'),
+            onPressed: _isSaving ? null : _toggleScanner,
+            tooltip: _scanning
+                ? _tr('Stop scanning', 'Acha kuskani')
+                : _tr('Scan barcode', 'Skani barcode'),
             icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-            color: AppColors.tealAccent,
+            color: _scanning ? AppColors.navyPrimary : AppColors.tealAccent,
+            style: _scanning
+                ? IconButton.styleFrom(
+                    backgroundColor: AppColors.yellowBrand.withValues(
+                      alpha: 0.25,
+                    ),
+                  )
+                : null,
             visualDensity: VisualDensity.compact,
           ),
           if (widget.embedded)
@@ -3808,7 +3915,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                             color: AppColors.tealAccent,
                           ),
                           tooltip: _tr('Scan mode', 'Hali ya skani'),
-                          onPressed: _openPosScanner,
+                          onPressed: _toggleScanner,
                         )),
           ),
         ),
@@ -4051,115 +4158,107 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   /// "Recent" quick-pick chips shown under an empty line.
-  Widget _buildRecentChips(_ItemEntry entry) =>
-          Builder(
-            builder: (_) {
-              final recent = _recentlySoldProducts();
-              if (recent.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    Text(
-                      _tr('Recent', 'Hivi karibuni'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: recent.map((item) {
-                            final name = (item['name'] ?? '').toString();
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ActionChip(
-                                visualDensity: VisualDensity.compact,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                labelPadding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                side: const BorderSide(color: AppColors.border),
-                                backgroundColor: AppColors.surface,
-                                label: Text(
-                                  name,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                onPressed: () => _selectProduct(entry, item),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-
-  /// Offer to add a typed name that matched nothing to inventory.
-  Widget _buildAddToInventoryPrompt(_ItemEntry entry) =>
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: InkWell(
-              onTap: () => showAppSheet<void>(
-                context,
-                builder: (_) => _AddProductSheet(
-                  initialName: entry.nameCtrl.text.trim(),
-                  onAdded: (item) => _selectProduct(entry, item),
-                ),
+  Widget _buildRecentChips(_ItemEntry entry) => Builder(
+    builder: (_) {
+      final recent = _recentlySoldProducts();
+      if (recent.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            Text(
+              _tr('Recent', 'Hivi karibuni'),
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                color: AppColors.textMuted,
               ),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.06),
-                  border: Border.all(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 15,
-                      color: AppColors.navyPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _tr(
-                          'Add "${entry.nameCtrl.text}" to inventory',
-                          'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                  children: recent.map((item) {
+                    final name = (item['name'] ?? '').toString();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                        side: const BorderSide(color: AppColors.border),
+                        backgroundColor: AppColors.surface,
+                        label: Text(
+                          name,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                          color: AppColors.navyPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                        onPressed: () => _selectProduct(entry, item),
                       ),
-                    ),
-                  ],
+                    );
+                  }).toList(),
                 ),
               ),
             ),
-          );
+          ],
+        ),
+      );
+    },
+  );
+
+  /// Offer to add a typed name that matched nothing to inventory.
+  Widget _buildAddToInventoryPrompt(_ItemEntry entry) => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: InkWell(
+      onTap: () => showAppSheet<void>(
+        context,
+        builder: (_) => _AddProductSheet(
+          initialName: entry.nameCtrl.text.trim(),
+          onAdded: (item) => _selectProduct(entry, item),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.navyPrimary.withValues(alpha: 0.06),
+          border: Border.all(
+            color: AppColors.navyPrimary.withValues(alpha: 0.25),
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.add_circle_outline_rounded,
+              size: 15,
+              color: AppColors.navyPrimary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                _tr(
+                  'Add "${entry.nameCtrl.text}" to inventory',
+                  'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.dmSans(
+                  color: AppColors.navyPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   /// A line with nothing picked yet, laid out like a cart line: a product
   /// tile, the search field and scan/remove actions in one row. Price and
@@ -4247,7 +4346,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   ),
                   visualDensity: VisualDensity.compact,
                   tooltip: _tr('Scan mode', 'Hali ya skani'),
-                  onPressed: _openPosScanner,
+                  onPressed: _toggleScanner,
                 ),
               if (_items.length > 1)
                 IconButton(

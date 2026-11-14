@@ -167,354 +167,406 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   }
 }
 
-// ── POS Continuous Scanner ────────────────────────────────────────────────────
+// ── Inline (in-page) continuous scanner ─────────────────────────────────────
 
-/// Cart item entry used by the POS scanner overlay.
-class PosCartEntry {
-  final String barcode;
-  final String name;
-  final double price;
-  int qty;
+/// What an [InlineBarcodeScanner] shows after a scan: the product that was
+/// added (green) or why nothing was added (red).
+class ScanFeedback {
+  final String message;
+  final bool ok;
 
-  PosCartEntry({
-    required this.barcode,
-    required this.name,
-    required this.price,
-    this.qty = 1,
-  });
+  const ScanFeedback.ok(this.message) : ok = true;
+  const ScanFeedback.error(this.message) : ok = false;
 }
 
-/// Continuous scanner for POS flow.
+/// A compact camera strip that sits at the top of the page it is used on —
+/// the cart stays visible right below it, so every scan lands in the cart
+/// the cashier is looking at. No separate scan page.
 ///
-/// Stays open after each scan. Calls [onScanned] for every new unique barcode.
-/// Shows a floating mini-cart with running item count and subtotal.
-/// Debounce prevents duplicate scans within [scanCooldown].
-class PosScannerScreen extends StatefulWidget {
-  /// Called every time a new barcode is successfully scanned.
-  /// Return a [PosCartEntry] to display it in the mini-cart, or null to ignore.
-  final Future<PosCartEntry?> Function(String barcode) onScanned;
+/// Stays open and keeps scanning until [onClose]. A barcode held in front
+/// of the camera is counted once; it counts again only after it has left
+/// the view (so two identical items are two scans).
+///
+/// On desktop (no camera) it is a one-line field that a USB/Bluetooth
+/// barcode scanner types into — every Enter is one scan.
+class InlineBarcodeScanner extends StatefulWidget {
+  /// Called for every accepted scan; the result is flashed on the strip.
+  final Future<ScanFeedback> Function(String code) onCode;
+  final VoidCallback onClose;
+  final double height;
+  final EdgeInsetsGeometry margin;
 
-  /// Shown at the top-left of the appbar.
-  final String title;
-
-  /// Cooldown between accepted scans of the same barcode.
-  final Duration scanCooldown;
-
-  const PosScannerScreen({
+  const InlineBarcodeScanner({
     super.key,
-    required this.onScanned,
-    this.title = 'Scan Items',
-    this.scanCooldown = const Duration(milliseconds: 600),
+    required this.onCode,
+    required this.onClose,
+    this.height = 170,
+    this.margin = const EdgeInsets.fromLTRB(16, 8, 16, 8),
   });
-
-  static Future<List<PosCartEntry>> show(
-    BuildContext context, {
-    required Future<PosCartEntry?> Function(String barcode) onScanned,
-    String title = 'Scan Items',
-  }) async {
-    final result = await Navigator.of(context).push<List<PosCartEntry>>(
-      AppMotion.taskRoute<List<PosCartEntry>>(
-        builder: (_) => PosScannerScreen(onScanned: onScanned, title: title),
-      ),
-    );
-    return result ?? [];
-  }
 
   @override
-  State<PosScannerScreen> createState() => _PosScannerScreenState();
+  State<InlineBarcodeScanner> createState() => _InlineBarcodeScannerState();
 }
 
-class _PosScannerScreenState extends State<PosScannerScreen>
-    with SingleTickerProviderStateMixin {
-  // Default DetectionSpeed.normal allows re-detection of the same barcode in
-  // successive frames — required for consecutive identical products.
-  // Accidental double-reads are filtered by the software cooldown below.
-  // Null on desktop (Windows) — input comes from a USB barcode scanner.
+class _InlineBarcodeScannerState extends State<InlineBarcodeScanner> {
+  // DetectionSpeed.normal re-reports a code every ~250ms while it stays in
+  // view; [_lastSeen] turns that into "once per appearance".
   final MobileScannerController? _ctrl = PlatformCapabilities.hasCameraScanner
       ? MobileScannerController()
       : null;
 
-  final List<PosCartEntry> _cart = [];
-  final Map<String, DateTime> _lastScanTime = {};
-  bool _processing = false;
+  /// A code must be out of view this long before it counts again.
+  static const _rearmGap = Duration(milliseconds: 900);
+
+  final Map<String, DateTime> _lastSeen = {};
+  bool _busy = false;
+  bool _torchOn = false;
   bool _scannerErrorHandled = false;
-  Timer? _labelClearTimer;
+  ScanFeedback? _feedback;
+  Timer? _feedbackTimer;
+
+  @override
+  void dispose() {
+    _feedbackTimer?.cancel();
+    _ctrl?.dispose();
+    super.dispose();
+  }
 
   void _onScannerError(Object error, StackTrace stackTrace) {
     if (_scannerErrorHandled || !mounted) return;
     _scannerErrorHandled = true;
     _notifyScannerUnavailable(context);
-    // Hand back whatever was scanned before the model gave out; the caller
-    // then falls through to manual entry.
-    Navigator.of(context).pop(_cart);
-  }
-
-  late final AnimationController _successAnim;
-  late final Animation<double> _successScale;
-  String? _lastScannedName;
-
-  int get _totalItems => _cart.fold(0, (s, e) => s + e.qty);
-  double get _subtotal => _cart.fold(0.0, (s, e) => s + e.price * e.qty);
-
-  @override
-  void initState() {
-    super.initState();
-    _successAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 380),
-    );
-    _successScale = CurvedAnimation(
-      parent: _successAnim,
-      curve: Curves.elasticOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _labelClearTimer?.cancel();
-    _ctrl?.dispose();
-    _successAnim.dispose();
-    super.dispose();
+    widget.onClose();
   }
 
   void _onDetect(BarcodeCapture capture) {
-    final value = capture.barcodes.firstOrNull?.rawValue;
-    if (value != null) _handleCode(value);
+    final now = DateTime.now();
+    for (final b in capture.barcodes) {
+      final code = b.rawValue?.trim() ?? '';
+      if (code.isEmpty) continue;
+      final seen = _lastSeen[code];
+      _lastSeen[code] = now;
+      if (seen != null && now.difference(seen) < _rearmGap) continue;
+      _handle(code);
+      return; // one product per frame
+    }
   }
 
-  Future<void> _handleCode(String value) async {
-    if (_processing || value.isEmpty) return;
-
-    // Cooldown check — prevents scanning the same barcode twice in quick succession.
-    final now = DateTime.now();
-    final lastTime = _lastScanTime[value];
-    if (lastTime != null && now.difference(lastTime) < widget.scanCooldown) {
-      return;
-    }
-
-    _processing = true;
-    _lastScanTime[value] = now;
-    final scanTimer = Stopwatch()..start();
-
-    HapticFeedback.mediumImpact();
-
+  Future<void> _handle(String code) async {
+    if (_busy || code.isEmpty) return;
+    _busy = true;
+    final timer = Stopwatch()..start();
     try {
-      final entry = await widget.onScanned(value);
+      final result = await widget.onCode(code);
       if (!mounted) return;
-
-      if (entry != null) {
-        setState(() {
-          // If same product already in cart, increment qty.
-          final existing = _cart.firstWhere(
-            (e) => e.barcode == value,
-            orElse: () => PosCartEntry(barcode: '', name: '', price: 0),
-          );
-          if (existing.barcode.isNotEmpty) {
-            existing.qty += entry.qty;
-          } else {
-            _cart.add(entry);
-          }
-          _lastScannedName = entry.name;
-        });
-        // Play success animation on the overlay indicator.
-        _successAnim.forward(from: 0);
+      if (result.ok) {
+        HapticFeedback.mediumImpact();
         SystemSound.play(SystemSoundType.click);
         SentryMetricsService.scannerAttempt(success: true);
-        SentryMetricsService.scanToCartTime(scanTimer.elapsed);
-        // Clear the "scanned" label after a moment WITHOUT blocking the next
-        // scan — checkout speed is limited only by the per-barcode cooldown.
-        _labelClearTimer?.cancel();
-        _labelClearTimer = Timer(const Duration(milliseconds: 1400), () {
-          if (mounted) setState(() => _lastScannedName = null);
-        });
+        SentryMetricsService.scanToCartTime(timer.elapsed);
       } else {
-        // Not found — brief error haptic.
         HapticFeedback.heavyImpact();
         SystemSound.play(SystemSoundType.alert);
         SentryMetricsService.scannerAttempt(success: false);
       }
+      _feedbackTimer?.cancel();
+      setState(() => _feedback = result);
+      _feedbackTimer = Timer(const Duration(milliseconds: 1800), () {
+        if (mounted) setState(() => _feedback = null);
+      });
     } finally {
-      _processing = false;
+      _busy = false;
     }
-  }
-
-  void _done() {
-    Navigator.of(context).pop(_cart);
   }
 
   @override
   Widget build(BuildContext context) {
     final ctrl = _ctrl;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (ctrl != null) ...[
+    return Padding(
+      padding: widget.margin,
+      child: ctrl == null ? _buildDeviceInput() : _buildCamera(ctrl),
+    );
+  }
+
+  Widget _buildCamera(MobileScannerController ctrl) {
+    final fb = _feedback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: widget.height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
             MobileScanner(
               controller: ctrl,
               onDetect: _onDetect,
               onDetectError: _onScannerError,
             ),
-            const _ScanOverlay(),
-          ] else
-            Align(
-              alignment: const Alignment(0, -0.35),
-              child: _ScannerDeviceInput(onCode: _handleCode),
-            ),
-
-          // ── Top bar ──────────────────────────────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    Material(
-                      type: MaterialType.transparency,
-                      child: InkWell(
-                        onTap: _done,
-                        borderRadius: BorderRadius.circular(99),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                widget.title,
-                                style: GoogleFonts.dmSans(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // Torch + camera flip
-                    if (ctrl != null) ...[
-                      _IconBtn(
-                        icon: Icons.flash_on,
-                        onTap: () => ctrl.toggleTorch(),
-                      ),
-                      const SizedBox(width: 6),
-                      _IconBtn(
-                        icon: Icons.flip_camera_ios,
-                        onTap: () => ctrl.switchCamera(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Scan success indicator ────────────────────────────────────────
-          if (_lastScannedName != null)
+            // Aim line across the middle.
             Center(
-              child: ScaleTransition(
-                scale: _successScale,
+              child: FractionallySizedBox(
+                widthFactor: 0.78,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 40),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
+                  height: 2,
                   decoration: BoxDecoration(
-                    color: AppColors.success,
-                    borderRadius: BorderRadius.circular(18),
+                    color: AppColors.yellowBrand,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.success.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          _lastScannedName!,
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        color: AppColors.yellowBrand.withValues(alpha: 0.6),
+                        blurRadius: 8,
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-
-          // ── Floating mini-cart ────────────────────────────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  transitionBuilder: (child, anim) => SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0, 1),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOut),
-                        ),
-                    child: FadeTransition(opacity: anim, child: child),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                children: [
+                  _StripButton(
+                    icon: _torchOn
+                        ? Icons.flash_off_rounded
+                        : Icons.flash_on_rounded,
+                    tooltip: _t('Flashlight', 'Taa'),
+                    onTap: () {
+                      ctrl.toggleTorch();
+                      setState(() => _torchOn = !_torchOn);
+                    },
                   ),
-                  child: _cart.isEmpty
-                      ? (ctrl != null
-                            ? const _ScanHint(key: ValueKey('hint'))
-                            : const SizedBox.shrink(key: ValueKey('hint')))
-                      : _MiniCart(
-                          key: const ValueKey('cart'),
-                          itemCount: _totalItems,
-                          subtotal: _subtotal,
-                          onDone: _done,
+                  const SizedBox(width: 6),
+                  _StripButton(
+                    icon: Icons.close_rounded,
+                    tooltip: _t('Stop scanning', 'Acha kuskani'),
+                    onTap: widget.onClose,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 10,
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: fb == null
+                      ? _StripPill(
+                          key: const ValueKey('hint'),
+                          color: Colors.black54,
+                          icon: Icons.qr_code_scanner_rounded,
+                          text: _t(
+                            'Point at a barcode — it goes straight to the cart',
+                            'Elekeza kwenye barcode — inaingia kikapuni moja kwa moja',
+                          ),
+                        )
+                      : _StripPill(
+                          key: ValueKey(fb),
+                          color: fb.ok ? AppColors.success : AppColors.error,
+                          icon: fb.ok
+                              ? Icons.check_circle_rounded
+                              : Icons.error_outline_rounded,
+                          text: fb.message,
                         ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeviceInput() {
+    final fb = _feedback;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _InlineDeviceField(onCode: _handle, onClose: widget.onClose),
+        if (fb != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Row(
+              children: [
+                Icon(
+                  fb.ok
+                      ? Icons.check_circle_rounded
+                      : Icons.error_outline_rounded,
+                  size: 16,
+                  color: fb.ok ? AppColors.success : AppColors.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    fb.message,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: fb.ok ? AppColors.success : AppColors.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Desktop variant of [InlineBarcodeScanner]: an always-focused field a USB
+/// scanner types into (it ends each code with Enter).
+class _InlineDeviceField extends StatefulWidget {
+  final ValueChanged<String> onCode;
+  final VoidCallback onClose;
+
+  const _InlineDeviceField({required this.onCode, required this.onClose});
+
+  @override
+  State<_InlineDeviceField> createState() => _InlineDeviceFieldState();
+}
+
+class _InlineDeviceFieldState extends State<_InlineDeviceField> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit(String raw) {
+    final code = raw.trim();
+    _ctrl.clear();
+    _focus.requestFocus();
+    if (code.isNotEmpty) widget.onCode(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctrl,
+      focusNode: _focus,
+      autofocus: true,
+      textInputAction: TextInputAction.done,
+      onSubmitted: _submit,
+      style: GoogleFonts.dmSans(
+        fontSize: 15,
+        letterSpacing: 1.1,
+        color: AppColors.navyPrimary,
+      ),
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: AppColors.tealAccent.withValues(alpha: 0.06),
+        hintText: _t(
+          'Scan with your barcode scanner, or type the code + Enter',
+          'Skani kwa kifaa cha barcode, au andika nambari + Enter',
+        ),
+        hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+        prefixIcon: const Icon(
+          Icons.qr_code_scanner_rounded,
+          color: AppColors.tealAccent,
+        ),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.close_rounded, size: 18),
+          color: AppColors.textMuted,
+          tooltip: _t('Stop scanning', 'Acha kuskani'),
+          onPressed: widget.onClose,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _StripPill extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  const _StripPill({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StripButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _StripButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black54,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+        ),
       ),
     );
   }
@@ -639,164 +691,6 @@ class _ScannerDeviceInputState extends State<_ScannerDeviceInput> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ScanHint extends StatelessWidget {
-  const _ScanHint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Text(
-          'Point camera at barcode or QR code',
-          style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniCart extends StatelessWidget {
-  final int itemCount;
-  final double subtotal;
-  final VoidCallback onDone;
-
-  const _MiniCart({
-    super.key,
-    required this.itemCount,
-    required this.subtotal,
-    required this.onDone,
-  });
-
-  String _fmt(double v) {
-    if (v >= 1000000) return 'TSh ${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) return 'TSh ${(v / 1000).toStringAsFixed(0)}K';
-    return 'TSh ${v.toStringAsFixed(0)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
-      decoration: BoxDecoration(
-        color: AppColors.navyPrimary,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.4),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                '$itemCount',
-                style: GoogleFonts.dmSans(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _t(
-                    '$itemCount ${itemCount == 1 ? "item" : "items"} added',
-                    '$itemCount ${itemCount == 1 ? "bidhaa" : "bidhaa"} zimeongezwa',
-                  ),
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  _fmt(subtotal),
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onDone,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _t('Done', 'Maliza'),
-                style: GoogleFonts.dmSans(
-                  color: AppColors.navyPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }

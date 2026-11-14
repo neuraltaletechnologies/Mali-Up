@@ -1,0 +1,11 @@
+# Local-only helper for scripts/backfill-catalog-images.ts — never deployed.
+# Runs Workers AI through your `wrangler login`, so the backfill needs no
+# Cloudflare API token:
+#   cd scripts/ai-proxy && npx wrangler dev --port 8799
+#   cd scripts && npm run images -- --ai-url http://localhost:8799
+name = "maliup-catalog-ai-proxy"
+main = "index.ts"
+compatibility_date = "2026-06-01"
+
+[ai]
+binding = "AI"

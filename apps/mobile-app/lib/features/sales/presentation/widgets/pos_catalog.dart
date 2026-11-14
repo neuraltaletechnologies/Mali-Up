@@ -73,6 +73,29 @@ List<Map<String, dynamic>> filterPosProducts(
   });
 }
 
+/// True when a scanned [code] is this product's barcode or SKU. Ignores
+/// case, spaces and the leading zero that separates a 12-digit UPC-A from
+/// the same code read as a 13-digit EAN-13.
+bool posCodeMatches(Map<String, dynamic> product, String code) {
+  String norm(Object? v) {
+    final s = (v ?? '').toString().replaceAll(RegExp(r'\s'), '').toLowerCase();
+    return RegExp(r'^\d{13}$').hasMatch(s) && s.startsWith('0')
+        ? s.substring(1)
+        : s;
+  }
+
+  final c = norm(code);
+  if (c.isEmpty) return false;
+  return norm(product['barcode']) == c || norm(product['sku']) == c;
+}
+
+/// The active product a scanned [code] belongs to, or null.
+Map<String, dynamic>? posFindByCode(
+  List<Map<String, dynamic>> products,
+  String code,
+) =>
+    products.where((p) => p.posIsActive && posCodeMatches(p, code)).firstOrNull;
+
 List<String> posCategories(List<Map<String, dynamic>> products) {
   final set = <String>{
     for (final p in products)
@@ -584,6 +607,51 @@ class PosCartBar extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Phone scan mode, before the first scan: what to do next.
+class PosScanEmpty extends StatelessWidget {
+  const PosScanEmpty({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.shopping_basket_outlined,
+              size: 40,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _tr('Cart is empty', 'Kikapu ni tupu'),
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _tr(
+                'Scan a product and it shows up here.',
+                'Skani bidhaa nayo itaonekana hapa.',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );
