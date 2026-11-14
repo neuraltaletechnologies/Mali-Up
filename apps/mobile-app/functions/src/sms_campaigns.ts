@@ -2,6 +2,7 @@ import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import {BEEM_NOT_COVERED_REASON, isBeemReachable} from "./beem_coverage";
 
 /**
  * Beem SMS campaign dispatcher — the sending half of the admin console's
@@ -246,11 +247,22 @@ async function postBeem(
 }
 
 async function sendToRecipients(
-  recipients: Recipient[],
+  allRecipients: Recipient[],
   message: string,
   senderId: string,
 ): Promise<SendResult[]> {
   const results: SendResult[] = [];
+
+  // Numbers Beem can't reach are recorded as failed, never sent (no credit
+  // spent on a text that won't arrive).
+  const recipients: Recipient[] = [];
+  for (const r of allRecipients) {
+    if (isBeemReachable(r.phone)) {
+      recipients.push(r);
+    } else {
+      results.push({recipient: r, accepted: false, requestId: null, reason: BEEM_NOT_COVERED_REASON});
+    }
+  }
 
   if (/\{\{?(name|businessName|phone|appName)\}\}?/i.test(message)) {
     // Personalised: one request per recipient, a few in flight at a time.

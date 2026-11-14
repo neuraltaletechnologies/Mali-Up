@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -22,6 +24,12 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+
+  /// Payloads of tray notifications the user tapped while the app was
+  /// running. Push-originated notifications carry an in-app route (starting
+  /// with `/`); [PushNotificationService] listens and navigates to it.
+  static final _tapController = StreamController<String>.broadcast();
+  static Stream<String> get tapPayloads => _tapController.stream;
 
   /// Sets up the plugin and the Android notification channel. Does NOT
   /// request the OS permission — call [requestPermission] from a deliberate
@@ -49,10 +57,17 @@ class NotificationService {
           iOS: iosInit,
           windows: windowsInit,
         ),
+        onDidReceiveNotificationResponse: (response) {
+          final payload = response.payload;
+          if (payload != null && payload.isNotEmpty) {
+            _tapController.add(payload);
+          }
+        },
       );
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(
             const AndroidNotificationChannel(
               _channelId,

@@ -39,6 +39,18 @@ function audienceSummary(b: PushBroadcast): string {
   return `${names[0]}, ${names[1]} +${names.length - 2} more`
 }
 
+// Topic broadcasts have no per-device count — FCM delivers to every
+// subscribed device. Delivery/open stats live in Firebase Console →
+// Messaging → Reports (label broadcast_<id>).
+function deliverySummary(b: PushBroadcast): string {
+  if (b.deliveryMode !== 'topics') {
+    return `${b.sentCount}/${b.targetCount} delivered${b.failureCount > 0 ? `, ${b.failureCount} failed` : ''}`
+  }
+  const parts = [b.topicFailureCount > 0 ? `${b.topicFailureCount}/${b.topicCount} topic sends failed` : 'Sent to all subscribed devices']
+  if (b.targetCount > 0) parts.push(`+${b.sentCount}/${b.targetCount} older-app devices`)
+  return parts.join(' · ')
+}
+
 function BusinessPicker({
   businesses,
   selectedIds,
@@ -119,10 +131,8 @@ function BroadcastRow({ b }: { b: PushBroadcast }) {
       </div>
       <div className="shrink-0 text-right">
         <StatusDot status={cfg.status} label={cfg.label} />
-        {b.status === 'sent' && (
-          <div className="text-[11px] text-[var(--ink-faint)] mt-1">
-            {b.sentCount}/{b.targetCount} delivered{b.failureCount > 0 ? `, ${b.failureCount} failed` : ''}
-          </div>
+        {b.status !== 'pending' && (
+          <div className="text-[11px] text-[var(--ink-faint)] mt-1">{deliverySummary(b)}</div>
         )}
         <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{timeAgo(b.createdAt)}</div>
       </div>
@@ -166,7 +176,9 @@ function PushNotificationsSection() {
     (audienceKind === 'all' || selectedBusinesses.size > 0)
 
   const audienceLabel =
-    audienceKind === 'all' ? 'every user with the app installed' : `${selectedBusinesses.size} selected business${selectedBusinesses.size === 1 ? '' : 'es'}`
+    audienceKind === 'all'
+      ? 'every signed-in user'
+      : `everyone using ${selectedBusinesses.size} selected business${selectedBusinesses.size === 1 ? '' : 'es'} (owner and team)`
 
   async function handleSend() {
     setSending(true)
@@ -292,7 +304,7 @@ function PushNotificationsSection() {
         loading={sending}
         variant="warning"
         title="Send this notification?"
-        description={`This will push "${titleEn}" to ${audienceLabel}. This can't be recalled once sent.`}
+        description={`This will push "${titleEn}" to ${audienceLabel}. Users with the app in Swahili get the Swahili copy (or the English one if left blank). This can't be recalled once sent.`}
         confirmLabel="Send"
       />
 

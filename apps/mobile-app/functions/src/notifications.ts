@@ -2,14 +2,22 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 /**
- * Fans an admin-composed notification out to FCM device tokens.
+ * Sends an admin-composed notification through FCM **topics**.
  *
  * The admin console (apps/admin "Notifications" page) only ever creates the
- * `admin_broadcasts/{id}` doc via the Admin SDK — all send/fan-out logic
- * lives here so retries/resends can be added later without touching the
- * admin app. Device tokens live at `users/{uid}/fcm_tokens/{token}`
- * (doc id = the token itself), registered by
- * lib/core/services/push_notification_service.dart on the mobile client.
+ * `admin_broadcasts/{id}` doc — all send logic lives here. Devices subscribe
+ * themselves (lib/core/services/push_notification_service.dart):
+ *   - `all_<lang>`             every signed-in device, in its app language
+ *   - `biz_<businessId>_<lang>` devices whose active business is that one
+ * One FCM request per topic reaches every subscribed device, so the cost of a
+ * broadcast doesn't grow with the number of users (no token reads, no
+ * per-device fan-out in this function).
+ *
+ * Legacy path: app builds from before topics registered tokens under
+ * `users/{uid}/fcm_tokens/{token}`. Updated clients delete their entry, so
+ * whatever is left there is exactly the not-yet-updated installs; they still
+ * get broadcasts the old way until they update. Remove `sendLegacy` once that
+ * collection is empty.
  */
 
 type BroadcastAudience =
@@ -26,100 +34,152 @@ interface BroadcastDoc {
   audience: BroadcastAudience;
 }
 
-interface TokenRef {
-  token: string;
-  ref: FirebaseFirestore.DocumentReference;
-}
+type Lang = "sw" | "en";
 
-const MULTICAST_BATCH_SIZE = 500;
+const SEND_BATCH_SIZE = 500;
 
-// FCM error codes meaning the token is permanently dead — safe to delete
-// instead of re-sending to it next time.
+// FCM error codes meaning a token is permanently dead — safe to delete.
 const STALE_TOKEN_ERROR_CODES = new Set([
   "messaging/registration-token-not-registered",
   "messaging/invalid-argument",
 ]);
+
+/** FCM topic names allow only [a-zA-Z0-9-_.~%]. Mirrors PushTopics (Dart). */
+const safe = (id: string) => id.replace(/[^a-zA-Z0-9\-_.~%]/g, "_");
+
+export function topicsFor(audience: BroadcastAudience, lang: Lang): string[] {
+  if (audience.kind === "all") return [`all_${lang}`];
+  return (audience.businessIds ?? []).map((id) => `biz_${safe(id)}_${lang}`);
+}
+
+function copyFor(data: BroadcastDoc, lang: Lang) {
+  // Swahili users get the Swahili copy when the admin supplied one, else the
+  // English text; English users always get English.
+  if (lang === "sw") {
+    return {
+      title: data.titleSw?.trim() || data.titleEn,
+      body: data.bodySw?.trim() || data.bodyEn,
+    };
+  }
+  return {title: data.titleEn, body: data.bodyEn};
+}
+
+function messageBase(data: BroadcastDoc, broadcastId: string, lang: Lang) {
+  return {
+    notification: copyFor(data, lang),
+    data: {
+      category: data.category ?? "general",
+      broadcastId,
+      ...(data.route ? {route: data.route} : {}),
+    },
+    android: {notification: {channelId: "mali_up_alerts"}},
+    // Groups delivery/open stats per broadcast in Firebase Console →
+    // Messaging → Reports.
+    fcmOptions: {analyticsLabel: `broadcast_${safe(broadcastId)}`.slice(0, 50)},
+  };
+}
 
 export const sendAdminBroadcast = onDocumentCreated(
   {document: "admin_broadcasts/{broadcastId}", region: "us-central1"},
   async (event) => {
     const snap = event.data;
     if (!snap) return;
-
     const data = snap.data() as BroadcastDoc;
+    const broadcastId = event.params.broadcastId;
     const db = admin.firestore();
 
-    // Swahili-first: prefer the Swahili copy when the admin supplied one.
-    const title = (data.titleSw && data.titleSw.trim()) || data.titleEn;
-    const body = (data.bodySw && data.bodySw.trim()) || data.bodyEn;
+    const messages: admin.messaging.Message[] = [];
+    for (const lang of ["sw", "en"] as const) {
+      const base = messageBase(data, broadcastId, lang);
+      for (const topic of topicsFor(data.audience, lang)) {
+        messages.push({...base, topic});
+      }
+    }
 
-    let recipients: TokenRef[] = [];
+    let topicSent = 0;
+    let topicFailed = 0;
+    for (let i = 0; i < messages.length; i += SEND_BATCH_SIZE) {
+      try {
+        const res = await admin.messaging().sendEach(messages.slice(i, i + SEND_BATCH_SIZE));
+        topicSent += res.successCount;
+        topicFailed += res.failureCount;
+        res.responses.forEach((r) => {
+          if (!r.success) console.error("[sendAdminBroadcast] topic send failed", r.error?.code, r.error?.message);
+        });
+      } catch (error) {
+        console.error("[sendAdminBroadcast] topic batch failed", error);
+        topicFailed += Math.min(SEND_BATCH_SIZE, messages.length - i);
+      }
+    }
+
+    let legacy = {target: 0, sent: 0, failed: 0};
     try {
-      recipients = await resolveTokens(db, data.audience);
+      legacy = await sendLegacy(db, data, broadcastId);
     } catch (error) {
-      console.error("[sendAdminBroadcast] failed to resolve recipients", error);
-      await snap.ref.update({
-        status: "failed",
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    if (recipients.length === 0) {
-      await snap.ref.update({
-        status: "sent",
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-        targetCount: 0,
-        sentCount: 0,
-        failureCount: 0,
-      });
-      return;
-    }
-
-    let sentCount = 0;
-    let failureCount = 0;
-    const staleRefs: FirebaseFirestore.DocumentReference[] = [];
-
-    for (let i = 0; i < recipients.length; i += MULTICAST_BATCH_SIZE) {
-      const batch = recipients.slice(i, i + MULTICAST_BATCH_SIZE);
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens: batch.map((r) => r.token),
-        notification: {title, body},
-        data: {
-          category: data.category ?? "general",
-          broadcastId: event.params.broadcastId,
-          ...(data.route ? {route: data.route} : {}),
-        },
-        android: {notification: {channelId: "mali_up_alerts"}},
-      });
-
-      sentCount += response.successCount;
-      failureCount += response.failureCount;
-      response.responses.forEach((r, idx) => {
-        if (!r.success && r.error && STALE_TOKEN_ERROR_CODES.has(r.error.code)) {
-          staleRefs.push(batch[idx].ref);
-        }
-      });
-    }
-
-    if (staleRefs.length > 0) {
-      const writer = db.bulkWriter();
-      for (const ref of staleRefs) writer.delete(ref);
-      await writer.close();
+      console.error("[sendAdminBroadcast] legacy token send failed", error);
     }
 
     await snap.ref.update({
-      status: "sent",
+      status: topicSent > 0 || legacy.sent > 0 || messages.length === 0 ? "sent" : "failed",
       sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      targetCount: recipients.length,
-      sentCount,
-      failureCount,
+      deliveryMode: "topics",
+      topicCount: messages.length,
+      topicSentCount: topicSent,
+      topicFailureCount: topicFailed,
+      // Legacy (pre-topics app builds) per-device counts.
+      targetCount: legacy.target,
+      sentCount: legacy.sent,
+      failureCount: legacy.failed,
     });
   },
 );
 
-/** All device tokens for the given audience, deduped by token string. */
-async function resolveTokens(
+// ── Legacy: per-token fan-out for app builds that predate topics ───────────
+
+interface TokenRef {
+  token: string;
+  ref: FirebaseFirestore.DocumentReference;
+}
+
+async function sendLegacy(
+  db: FirebaseFirestore.Firestore,
+  data: BroadcastDoc,
+  broadcastId: string,
+): Promise<{target: number; sent: number; failed: number}> {
+  const recipients = await resolveLegacyTokens(db, data.audience);
+  if (recipients.length === 0) return {target: 0, sent: 0, failed: 0};
+
+  // Old builds have no language topic; keep their previous Swahili-first copy.
+  const base = messageBase(data, broadcastId, "sw");
+  let sent = 0;
+  let failed = 0;
+  const staleRefs: FirebaseFirestore.DocumentReference[] = [];
+
+  for (let i = 0; i < recipients.length; i += SEND_BATCH_SIZE) {
+    const batch = recipients.slice(i, i + SEND_BATCH_SIZE);
+    const res = await admin.messaging().sendEachForMulticast({
+      ...base,
+      tokens: batch.map((r) => r.token),
+    });
+    sent += res.successCount;
+    failed += res.failureCount;
+    res.responses.forEach((r, idx) => {
+      if (!r.success && r.error && STALE_TOKEN_ERROR_CODES.has(r.error.code)) {
+        staleRefs.push(batch[idx].ref);
+      }
+    });
+  }
+
+  if (staleRefs.length > 0) {
+    const writer = db.bulkWriter();
+    for (const ref of staleRefs) writer.delete(ref);
+    await writer.close();
+  }
+
+  return {target: recipients.length, sent, failed};
+}
+
+async function resolveLegacyTokens(
   db: FirebaseFirestore.Firestore,
   audience: BroadcastAudience,
 ): Promise<TokenRef[]> {
@@ -128,10 +188,9 @@ async function resolveTokens(
     return dedupe(snap.docs.map((d) => ({token: d.id, ref: d.ref})));
   }
 
-  const businessIds = audience.businessIds ?? [];
   const ownerUids = new Set<string>();
   await Promise.all(
-    businessIds.map(async (businessId) => {
+    (audience.businessIds ?? []).map(async (businessId) => {
       const bizDoc = await db.collection("businesses").doc(businessId).get();
       const ownerUid = bizDoc.data()?.ownerUid as string | undefined;
       if (ownerUid) ownerUids.add(ownerUid);

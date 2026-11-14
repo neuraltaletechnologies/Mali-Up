@@ -173,6 +173,12 @@ export interface PushBroadcast {
   audience: BroadcastAudience
   route?: string
   status: BroadcastStatus
+  /** 'topics' for broadcasts sent via FCM topics; absent on older per-device ones. */
+  deliveryMode?: 'topics'
+  /** Topic sends (one per audience topic × language); FCM fans each out to every subscribed device. */
+  topicCount: number
+  topicFailureCount: number
+  /** Per-device sends — for topics broadcasts, only installs still on a pre-topics app build. */
   targetCount: number
   sentCount: number
   failureCount: number

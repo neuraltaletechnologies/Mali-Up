@@ -2,7 +2,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import {enforceRateLimit} from "./rate_limit";
-import {isBeemOtpReachable} from "./beem_coverage";
+import {isBeemReachable} from "./beem_coverage";
 
 /**
  * Phone OTP verification for first-time registration (new owner + team
@@ -155,7 +155,7 @@ export const sendBeemOtp = onCall<SendOtpRequest>(
     // verified marker directly. `bypassed` makes consumeOtpVerification
     // refuse the orphan-account password reset for this phone, since nobody
     // actually proved they receive its SMS.
-    if (!isBeemOtpReachable(phone)) {
+    if (!isBeemReachable(phone)) {
       console.log("[BeemOtp] country not covered by Beem, skipping OTP for", phone.slice(0, 4) + "…");
       await admin
         .firestore()

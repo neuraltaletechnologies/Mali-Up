@@ -1,4 +1,5 @@
 import { restFirestore as adminFirestore } from '@/lib/firestore-rest'
+import { BEEM_NOT_COVERED_REASON, isBeemReachable } from '@/lib/beem-coverage'
 
 export interface BeemConfig {
   apiKey: string
@@ -252,6 +253,10 @@ export async function sendBeemSmsBatch(options: SendSmsBatchOptions): Promise<Se
         failedNumbers.push({ phone: r.phone, reason: 'Invalid phone format' })
         continue
       }
+      if (!isBeemReachable(normalizedPhone)) {
+        failedNumbers.push({ phone: normalizedPhone, reason: BEEM_NOT_COVERED_REASON })
+        continue
+      }
 
       const personalized = formatPersonalizedMessage(options.message, {
         name: r.name,
@@ -302,13 +307,15 @@ export async function sendBeemSmsBatch(options: SendSmsBatchOptions): Promise<Se
       for (let idx = 0; idx < chunk.length; idx++) {
         const r = chunk[idx]
         const normalized = normalizePhone(r.phone)
-        if (normalized.length >= 9 && normalized.length <= 15) {
+        if (normalized.length < 9 || normalized.length > 15) {
+          failedNumbers.push({ phone: r.phone, reason: 'Invalid phone format' })
+        } else if (!isBeemReachable(normalized)) {
+          failedNumbers.push({ phone: normalized, reason: BEEM_NOT_COVERED_REASON })
+        } else {
           validRecipients.push({
             recipient_id: idx + 1,
             dest_addr: normalized,
           })
-        } else {
-          failedNumbers.push({ phone: r.phone, reason: 'Invalid phone format' })
         }
       }
 

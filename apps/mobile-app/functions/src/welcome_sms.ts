@@ -191,7 +191,7 @@ async function sendWelcomeSmsToUser(
   }
 
   const attempts = (data.welcomeSmsAttempts as number | undefined || 0) + 1;
-  const status = attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
+  const status = sendResult.notCovered || attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
   await ref.update({
     welcomeSmsStatus: status,
     welcomeSmsAttempts: attempts,

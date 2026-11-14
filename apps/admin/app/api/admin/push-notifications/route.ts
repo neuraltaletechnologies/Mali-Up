@@ -20,11 +20,11 @@ function toIso(value: unknown): string | undefined {
   return undefined
 }
 
-// Admin composes a notification here; the actual push fan-out happens in the
+// Admin composes a notification here; the actual send happens in the
 // `sendAdminBroadcast` Cloud Function (functions/src/notifications.ts),
-// triggered by this doc's creation — this route never calls
-// admin.messaging() directly, so retries/resends can be added later without
-// touching the admin app.
+// triggered by this doc's creation. It sends to FCM topics (all_<lang>,
+// biz_<id>_<lang>), so FCM — not this app or the function — fans out to
+// devices. This route never calls admin.messaging() directly.
 export async function GET() {
   const denied = await requireAdminSession()
   if (denied) return denied
@@ -57,6 +57,9 @@ async function fetchBroadcasts() {
       audience:          (d.audience as BroadcastAudience) || { kind: 'all' },
       route:             (d.route as string) || undefined,
       status:            (d.status as PushBroadcast['status']) || 'pending',
+      deliveryMode:      d.deliveryMode === 'topics' ? 'topics' : undefined,
+      topicCount:        (d.topicCount as number) || 0,
+      topicFailureCount: (d.topicFailureCount as number) || 0,
       targetCount:       (d.targetCount as number) || 0,
       sentCount:         (d.sentCount as number) || 0,
       failureCount:      (d.failureCount as number) || 0,
