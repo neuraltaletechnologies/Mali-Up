@@ -23,5 +23,16 @@
     "failed": "Could not reset your PIN. Check your connection and try again.",
     "sendFailed": "Could not send a new code. Try again in a few minutes.",
     "backToLogin": "Back to login"
+  },
+  "trial": {
+    "giftCta": "Start using it",
+    "giftSeePlans": "See plans",
+    "endsOn": "Ends on $date",
+    "daysLeftChip": "$days days left",
+    "lastDayChip": "Last day",
+    "bannerTitle": "Free $tier: $days days left",
+    "bannerTitleLastDay": "Free $tier ends today",
+    "bannerBody": "Ends on $date. Pay now to keep every feature.",
+    "bannerCta": "Pay"
   }
 }

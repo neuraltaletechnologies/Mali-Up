@@ -86,7 +86,33 @@ function personalize(template: string, r: Recipient): string {
 // businesses/{id}: ownerUid, ownerName, businessName, businessCategory, plan — no phone;
 // the owner's phone lives on users/{ownerUid}.
 
-const MAX_DOCS = 2000;
+// Read in pages with only the fields used below, so a campaign covers every
+// user however large the base grows (a single capped read silently dropped
+// everyone past the cap).
+const PAGE_SIZE = 1000;
+const USER_FIELDS = ["phone", "phoneNumber", "name", "firstName", "selectedBusinessId", "businessId", "isTeamMember"];
+const BUSINESS_FIELDS = [
+  "ownerUid", "ownerName", "ownerPhone", "phone", "businessName", "name",
+  "businessCategory", "category", "industry", "plan",
+];
+
+async function readAll(
+  collection: string,
+  fields: string[],
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const db = admin.firestore();
+  const out: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let q = db.collection(collection).select(...fields)
+      .orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE_SIZE);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    out.push(...snap.docs);
+    if (snap.size < PAGE_SIZE) return out;
+    last = snap.docs[snap.docs.length - 1];
+  }
+}
 
 type Data = FirebaseFirestore.DocumentData;
 
@@ -97,14 +123,13 @@ interface Directory {
 }
 
 async function loadDirectory(): Promise<Directory> {
-  const db = admin.firestore();
-  const [usersSnap, bizSnap] = await Promise.all([
-    db.collection("users").limit(MAX_DOCS).get(),
-    db.collection("businesses").limit(MAX_DOCS).get(),
+  const [userDocs, bizDocs] = await Promise.all([
+    readAll("users", USER_FIELDS),
+    readAll("businesses", BUSINESS_FIELDS),
   ]);
   const usersById = new Map<string, Data>();
   const usersByPhone = new Map<string, Data>();
-  for (const doc of usersSnap.docs) {
+  for (const doc of userDocs) {
     const d = doc.data();
     usersById.set(doc.id, d);
     const phone = normalizePhone(d.phone || d.phoneNumber);
@@ -112,7 +137,7 @@ async function loadDirectory(): Promise<Directory> {
     if (phone && (!usersByPhone.has(phone) || d.isTeamMember !== true)) usersByPhone.set(phone, d);
   }
   const businessesById = new Map<string, Data>();
-  for (const doc of bizSnap.docs) businessesById.set(doc.id, doc.data());
+  for (const doc of bizDocs) businessesById.set(doc.id, doc.data());
   return {usersById, usersByPhone, businessesById};
 }
 
@@ -137,14 +162,23 @@ function userRecipient(dir: Directory, user: Data, phone: string): Recipient {
   };
 }
 
-function businessRecipient(dir: Directory, biz: Data): Recipient | null {
+interface BusinessCandidate {
+  recipient: Recipient;
+  /** This is the business the owner currently has open in the app. */
+  isOpen: boolean;
+}
+
+function businessRecipient(dir: Directory, id: string, biz: Data): BusinessCandidate | null {
   const owner = dir.usersById.get(String(biz.ownerUid || ""));
   const phone = normalizePhone(biz.ownerPhone || biz.phone || owner?.phone);
   if (!validPhone(phone)) return null;
   return {
-    phone,
-    name: firstNameOf(owner?.firstName, biz.ownerName, owner?.name),
-    businessName: businessNameOf(biz),
+    recipient: {
+      phone,
+      name: firstNameOf(owner?.firstName, biz.ownerName, owner?.name),
+      businessName: businessNameOf(biz),
+    },
+    isOpen: String(owner?.selectedBusinessId || owner?.businessId || "") === id,
   };
 }
 
@@ -153,6 +187,19 @@ async function resolveRecipients(audience: Audience): Promise<Recipient[]> {
   const byPhone = new Map<string, Recipient>();
   const add = (r: Recipient | null) => {
     if (r && !byPhone.has(r.phone)) byPhone.set(r.phone, r);
+  };
+  // One SMS per phone. When an owner matches several businesses,
+  // {{businessName}} uses the one they have open in the app (else the first
+  // match), so the name matches what they see.
+  const openMatch = new Set<string>();
+  const addBusiness = (id: string, biz: Data) => {
+    const c = businessRecipient(dir, id, biz);
+    if (!c) return;
+    const phone = c.recipient.phone;
+    if (!byPhone.has(phone) || (c.isOpen && !openMatch.has(phone))) {
+      byPhone.set(phone, c.recipient);
+      if (c.isOpen) openMatch.add(phone);
+    }
   };
 
   switch (audience.kind) {
@@ -168,23 +215,23 @@ async function resolveRecipients(audience: Audience): Promise<Recipient[]> {
   case "selected_businesses":
     for (const id of audience.businessIds ?? []) {
       const biz = dir.businessesById.get(id);
-      if (biz) add(businessRecipient(dir, biz));
+      if (biz) addBusiness(id, biz);
     }
     break;
 
   case "business_category": {
     const target = (audience.category ?? "").toLowerCase().trim();
-    for (const biz of dir.businessesById.values()) {
+    for (const [id, biz] of dir.businessesById) {
       const cat = String(biz.businessCategory || biz.category || biz.industry || "").toLowerCase().trim();
-      if (cat === target || cat.includes(target)) add(businessRecipient(dir, biz));
+      if (cat === target || cat.includes(target)) addBusiness(id, biz);
     }
     break;
   }
 
   case "plan_tier": {
     const target = (audience.planTier ?? "").toLowerCase().trim();
-    for (const biz of dir.businessesById.values()) {
-      if (String(biz.plan || "starter").toLowerCase().trim() === target) add(businessRecipient(dir, biz));
+    for (const [id, biz] of dir.businessesById) {
+      if (String(biz.plan || "starter").toLowerCase().trim() === target) addBusiness(id, biz);
     }
     break;
   }

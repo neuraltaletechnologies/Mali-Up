@@ -20,12 +20,31 @@ void main() {
 
     test('forUser skips the business topic until a business exists', () {
       expect(
-        PushTopics.forUser(businessId: '', language: AppLanguage.english),
+        PushTopics.forUser(
+          businessId: '',
+          language: AppLanguage.english,
+          isOwner: false,
+        ),
         {'all_en'},
       );
       expect(
-        PushTopics.forUser(businessId: 'x1', language: AppLanguage.swahili),
+        PushTopics.forUser(
+          businessId: 'x1',
+          language: AppLanguage.swahili,
+          isOwner: false,
+        ),
         {'all_sw', 'biz_x1_sw'},
+      );
+    });
+
+    test('only owners get the owner-only channels', () {
+      expect(
+        PushTopics.forUser(
+          businessId: 'x1',
+          language: AppLanguage.swahili,
+          isOwner: true,
+        ),
+        {'all_sw', 'biz_x1_sw', 'owners_sw', 'biz_x1_owners_sw'},
       );
     });
   });

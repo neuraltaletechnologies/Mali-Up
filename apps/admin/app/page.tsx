@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import type { PublicPlanPrice, PublicPlanPrices } from '@/lib/public-plans'
+import { loadPublicPrices } from '@/lib/public-plans-server'
 import { Nav } from "@/components/mali/nav"
 import { Hero } from "@/components/mali/hero"
 import { Features } from "@/components/mali/features"
@@ -20,7 +22,32 @@ export const metadata: Metadata = {
   alternates: { canonical: BASE_URL },
 }
 
-const jsonLd = {
+// Rendered per request (cached 60s in loadPublicPrices) so the prices in
+// Google's structured data always match the admin Plans page.
+export const dynamic = 'force-dynamic'
+
+const tzs = (n: number) => n.toLocaleString('en-US')
+const usersText = (n: number) => (n === -1 ? 'watumiaji bila kikomo' : `watumiaji ${n}`)
+const bizText = (n: number) => (n === -1 ? 'biashara bila kikomo' : `hadi biashara ${n}`)
+
+function paidOffer(name: string, tier: 'growth' | 'business', p: PublicPlanPrice, pitch: string) {
+  return {
+    '@type': 'Offer',
+    name,
+    description: `${pitch} TSh ${tzs(p.priceMonthly)} kwa mwezi au TSh ${tzs(p.priceYearly)} kwa mwaka.`,
+    price: String(p.priceMonthly),
+    priceCurrency: 'TZS',
+    priceSpecification: [
+      { '@type': 'UnitPriceSpecification', price: String(p.priceMonthly), priceCurrency: 'TZS', billingDuration: 'P1M' },
+      { '@type': 'UnitPriceSpecification', price: String(p.priceYearly), priceCurrency: 'TZS', billingDuration: 'P1Y' },
+    ],
+    availability: 'https://schema.org/InStock',
+    priceValidUntil: '2028-12-31',
+    url: `${BASE_URL}/pay?plan=${tier}`,
+  }
+}
+
+const buildJsonLd = (prices: PublicPlanPrices) => ({
   '@context': 'https://schema.org',
   '@graph': [
     {
@@ -82,34 +109,10 @@ const jsonLd = {
             priceValidUntil: '2028-12-31',
             url: `${BASE_URL}/pay?plan=starter`,
           },
-          {
-            '@type': 'Offer',
-            name: 'Growth Plan',
-            description: 'Kwa biashara zinazokua. Mauzo bila kikomo, mapato na matumizi, ripoti kamili, M-Pesa na watumiaji 3. TSh 6,000 kwa mwezi au TSh 60,000 kwa mwaka.',
-            price: '6000',
-            priceCurrency: 'TZS',
-            priceSpecification: [
-              { '@type': 'UnitPriceSpecification', price: '6000', priceCurrency: 'TZS', billingDuration: 'P1M' },
-              { '@type': 'UnitPriceSpecification', price: '60000', priceCurrency: 'TZS', billingDuration: 'P1Y' },
-            ],
-            availability: 'https://schema.org/InStock',
-            priceValidUntil: '2028-12-31',
-            url: `${BASE_URL}/pay?plan=growth`,
-          },
-          {
-            '@type': 'Offer',
-            name: 'Business Plan',
-            description: 'Kwa biashara zenye matawi mengi na wafanyakazi hadi 10. Matawi mengi, ripoti zote na msaada wa kipaumbele. TSh 8,000 kwa mwezi au TSh 80,000 kwa mwaka.',
-            price: '8000',
-            priceCurrency: 'TZS',
-            priceSpecification: [
-              { '@type': 'UnitPriceSpecification', price: '8000', priceCurrency: 'TZS', billingDuration: 'P1M' },
-              { '@type': 'UnitPriceSpecification', price: '80000', priceCurrency: 'TZS', billingDuration: 'P1Y' },
-            ],
-            availability: 'https://schema.org/InStock',
-            priceValidUntil: '2028-12-31',
-            url: `${BASE_URL}/pay?plan=business`,
-          },
+          paidOffer('Growth Plan', 'growth', prices.growth,
+            `Kwa biashara zinazokua. Mauzo bila kikomo, mapato na matumizi, ripoti kamili, M-Pesa na ${usersText(prices.growth.maxUsers)}.`),
+          paidOffer('Business Plan', 'business', prices.business,
+            `Kwa biashara zenye matawi mengi: ${bizText(prices.business.maxBusinesses)}, ${usersText(prices.business.maxUsers)}, ripoti zote na msaada wa kipaumbele.`),
         ],
       },
       featureList: [
@@ -181,9 +184,10 @@ const jsonLd = {
       },
     },
   ],
-}
+})
 
-export default function HomePage() {
+export default async function HomePage() {
+  const jsonLd = buildJsonLd(await loadPublicPrices())
   return (
     <>
       <Script

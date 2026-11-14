@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { writeAudit } from '@/lib/write-audit'
 import { withCache, invalidateCache } from '@/lib/api-cache'
 import { FieldValue } from '@/lib/firestore-rest'
-import type { BroadcastAudience, BroadcastCategory, PushBroadcast } from '@/types'
+import type { BroadcastAudience, BroadcastCategory, BroadcastRecipients, PushBroadcast } from '@/types'
 
 const CACHE_KEY = 'push-notifications'
 const CATEGORIES: BroadcastCategory[] = ['reminder', 'promotion', 'update', 'general']
@@ -55,6 +55,7 @@ async function fetchBroadcasts() {
       bodySw:            (d.bodySw as string) || undefined,
       category:          (d.category as BroadcastCategory) || 'general',
       audience:          (d.audience as BroadcastAudience) || { kind: 'all' },
+      recipients:        d.recipients === 'owners' ? 'owners' : 'everyone',
       route:             (d.route as string) || undefined,
       status:            (d.status as PushBroadcast['status']) || 'pending',
       deliveryMode:      d.deliveryMode === 'topics' ? 'topics' : undefined,
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       category?: string
       route?: string
       audience?: BroadcastAudience
+      recipients?: string
     }
 
     const titleEn = body.titleEn?.trim() || ''
@@ -105,6 +107,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Select at least one business' }, { status: 400 })
     }
 
+    const recipients: BroadcastRecipients = body.recipients === 'owners' ? 'owners' : 'everyone'
+
     const session = await auth()
     const adminId = session?.user?.id ?? 'unknown'
     const adminName = session?.user?.name ?? session?.user?.email ?? 'Admin'
@@ -119,6 +123,7 @@ export async function POST(request: Request) {
       category,
       route:              body.route?.trim() || null,
       audience,
+      recipients,
       status:             'pending',
       targetCount:        0,
       sentCount:          0,
@@ -138,6 +143,7 @@ export async function POST(request: Request) {
       after: {
         category,
         audience,
+        recipients,
         titleEn,
         bodyEn,
       },

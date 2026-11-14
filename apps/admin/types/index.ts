@@ -163,6 +163,9 @@ export type BroadcastAudience =
   | { kind: 'all' }
   | { kind: 'businesses'; businessIds: string[]; businessNames: string[] }
 
+/** 'owners' skips team members (billing/plan messages); 'everyone' = owners + team. */
+export type BroadcastRecipients = 'everyone' | 'owners'
+
 export interface PushBroadcast {
   id: string
   titleEn: string
@@ -171,6 +174,7 @@ export interface PushBroadcast {
   bodySw?: string
   category: BroadcastCategory
   audience: BroadcastAudience
+  recipients: BroadcastRecipients
   route?: string
   status: BroadcastStatus
   /** 'topics' for broadcasts sent via FCM topics; absent on older per-device ones. */

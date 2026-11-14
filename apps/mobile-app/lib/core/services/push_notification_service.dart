@@ -233,11 +233,20 @@ class PushTopics {
   static String business(String businessId, AppLanguage language) =>
       'biz_${_safe(businessId)}_${_lang(language)}';
 
+  /// Owner-only channels — billing/plan messages a team member shouldn't get.
+  static String allOwners(AppLanguage language) => 'owners_${_lang(language)}';
+
+  static String businessOwners(String businessId, AppLanguage language) =>
+      'biz_${_safe(businessId)}_owners_${_lang(language)}';
+
   static Set<String> forUser({
     required String businessId,
     required AppLanguage language,
+    required bool isOwner,
   }) => {
     all(language),
     if (businessId.isNotEmpty) business(businessId, language),
+    if (isOwner) allOwners(language),
+    if (isOwner && businessId.isNotEmpty) businessOwners(businessId, language),
   };
 }

@@ -7,8 +7,11 @@ import * as admin from "firebase-admin";
  * The admin console (apps/admin "Notifications" page) only ever creates the
  * `admin_broadcasts/{id}` doc — all send logic lives here. Devices subscribe
  * themselves (lib/core/services/push_notification_service.dart):
- *   - `all_<lang>`             every signed-in device, in its app language
- *   - `biz_<businessId>_<lang>` devices whose active business is that one
+ *   - `all_<lang>`                    every signed-in device, in its app language
+ *   - `biz_<businessId>_<lang>`        devices whose active business is that one
+ *   - `owners_<lang>` / `biz_<businessId>_owners_<lang>`  the same, owners only
+ * `recipients: "owners"` on the broadcast targets the owner-only topics, so
+ * billing/plan messages never reach team members.
  * One FCM request per topic reaches every subscribed device, so the cost of a
  * broadcast doesn't grow with the number of users (no token reads, no
  * per-device fan-out in this function).
@@ -32,6 +35,8 @@ interface BroadcastDoc {
   category?: string;
   route?: string | null;
   audience: BroadcastAudience;
+  /** "owners" skips team members; default "everyone" (owners + team). */
+  recipients?: "everyone" | "owners";
 }
 
 type Lang = "sw" | "en";
@@ -47,9 +52,14 @@ const STALE_TOKEN_ERROR_CODES = new Set([
 /** FCM topic names allow only [a-zA-Z0-9-_.~%]. Mirrors PushTopics (Dart). */
 const safe = (id: string) => id.replace(/[^a-zA-Z0-9\-_.~%]/g, "_");
 
-export function topicsFor(audience: BroadcastAudience, lang: Lang): string[] {
-  if (audience.kind === "all") return [`all_${lang}`];
-  return (audience.businessIds ?? []).map((id) => `biz_${safe(id)}_${lang}`);
+export function topicsFor(
+  audience: BroadcastAudience,
+  lang: Lang,
+  ownersOnly = false,
+): string[] {
+  if (audience.kind === "all") return [ownersOnly ? `owners_${lang}` : `all_${lang}`];
+  const suffix = ownersOnly ? `owners_${lang}` : lang;
+  return (audience.businessIds ?? []).map((id) => `biz_${safe(id)}_${suffix}`);
 }
 
 function copyFor(data: BroadcastDoc, lang: Lang) {
@@ -80,7 +90,8 @@ function messageBase(data: BroadcastDoc, broadcastId: string, lang: Lang) {
 }
 
 export const sendAdminBroadcast = onDocumentCreated(
-  {document: "admin_broadcasts/{broadcastId}", region: "us-central1"},
+  // 300s: headroom for very large "selected businesses" sends.
+  {document: "admin_broadcasts/{broadcastId}", region: "us-central1", timeoutSeconds: 300},
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -91,7 +102,7 @@ export const sendAdminBroadcast = onDocumentCreated(
     const messages: admin.messaging.Message[] = [];
     for (const lang of ["sw", "en"] as const) {
       const base = messageBase(data, broadcastId, lang);
-      for (const topic of topicsFor(data.audience, lang)) {
+      for (const topic of topicsFor(data.audience, lang, data.recipients === "owners")) {
         messages.push({...base, topic});
       }
     }
@@ -146,7 +157,8 @@ async function sendLegacy(
   data: BroadcastDoc,
   broadcastId: string,
 ): Promise<{target: number; sent: number; failed: number}> {
-  const recipients = await resolveLegacyTokens(db, data.audience);
+  // Legacy "businesses" sends already reach only the owner's tokens.
+  const recipients = await resolveLegacyTokens(db, data.audience, data.recipients === "owners");
   if (recipients.length === 0) return {target: 0, sent: 0, failed: 0};
 
   // Old builds have no language topic; keep their previous Swahili-first copy.
@@ -182,10 +194,18 @@ async function sendLegacy(
 async function resolveLegacyTokens(
   db: FirebaseFirestore.Firestore,
   audience: BroadcastAudience,
+  ownersOnly: boolean,
 ): Promise<TokenRef[]> {
   if (audience.kind === "all") {
     const snap = await db.collectionGroup("fcm_tokens").get();
-    return dedupe(snap.docs.map((d) => ({token: d.id, ref: d.ref})));
+    let docs = snap.docs;
+    if (ownersOnly) {
+      const owners = await db.collection("businesses").select("ownerUid").get();
+      const ownerUids = new Set(owners.docs.map((d) => String(d.get("ownerUid") ?? "")));
+      // users/{uid}/fcm_tokens/{token} → uid is the grandparent doc id.
+      docs = docs.filter((d) => ownerUids.has(d.ref.parent.parent?.id ?? ""));
+    }
+    return dedupe(docs.map((d) => ({token: d.id, ref: d.ref})));
   }
 
   const ownerUids = new Set<string>();

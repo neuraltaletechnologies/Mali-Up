@@ -46,6 +46,7 @@ export {
 } from "./pin_recovery";
 export {removeTeamMember} from "./team";
 export {dispatchSmsCampaigns, onSmsCampaignCreated} from "./sms_campaigns";
+export {onBusinessCreatedTrial} from "./trial";
 
 // Must match `applicationId` in android/app/build.gradle.kts.
 const PACKAGE_NAME = "com.neuraltale.maliup";

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/rbac/data/rbac_providers.dart'
+    show userProfileStreamProvider;
 import '../services/localization_service.dart';
 import '../services/push_notification_service.dart';
 import 'auth_provider.dart';
@@ -46,12 +48,21 @@ final _pushTopicsProvider = Provider<void>((ref) {
   // Still resolving — don't unsubscribe from the business topic just
   // because the id is momentarily unknown.
   if (businessId == null) return;
+  // Owner vs team member decides the owner-only channels. Unknown while the
+  // profile loads — wait rather than briefly dropping an owner's channels.
+  final profileAsync = ref.watch(userProfileStreamProvider);
+  if (profileAsync.isLoading && !profileAsync.hasValue) return;
+  final isOwner = profileAsync.valueOrNull?['isTeamMember'] != true;
   final language = ref.watch(_pushLanguageProvider);
 
   // ignore: unawaited_futures — queued behind initialize(), never blocks UI.
   PushNotificationService.setTopics(
     uid,
-    PushTopics.forUser(businessId: businessId, language: language),
+    PushTopics.forUser(
+      businessId: businessId,
+      language: language,
+      isOwner: isOwner,
+    ),
   );
 });
 

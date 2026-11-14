@@ -47,9 +47,10 @@ String _blurbFor(PlanTier tier, PlanLimits limits) {
         'Ankara zisizo na kikomo · Ripoti kamili · Kuingiza M-Pesa',
       );
     case PlanTier.business:
+      final biz = limits.maxBusinesses;
       return _t(
-        'Multi-location stock · API access · Priority support',
-        'Stoo za maeneo mengi · API · Msaada wa kipaumbele',
+        '${biz == -1 ? 'Unlimited businesses' : 'Up to $biz businesses'} · Multi-location stock · Priority support',
+        '${biz == -1 ? 'Biashara bila kikomo' : 'Hadi biashara $biz'} · Stoo za maeneo mengi · Msaada wa kipaumbele',
       );
     case PlanTier.enterprise:
       return _t(
@@ -165,10 +166,11 @@ class SubscriptionScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               _PlanList(
                 tiers: tiers,
-                currentTier: status.tier,
+                // A trial's tier isn't paid for yet — keep it buyable.
+                currentTier: status.isTrial ? null : status.tier,
                 defs: defs,
                 onTap: (tier) {
-                  if (tier == status.tier) return;
+                  if (tier == status.tier && !status.isTrial) return;
                   _openUpgrade(context, ref, status);
                 },
               ),
@@ -310,7 +312,10 @@ class _CurrentPlanBlock extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      status.tierLabel,
+                      status.isTrial
+                          ? _t('${status.tierLabel} (free trial)',
+                              '${status.tierLabel} (majaribio ya bure)')
+                          : status.tierLabel,
                       style: GoogleFonts.dmSans(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -355,7 +360,7 @@ class _CurrentPlanBlock extends StatelessWidget {
             ],
           ),
 
-          if (status.isStarter) ...[
+          if (status.isStarter || status.isTrial) ...[
             const SizedBox(height: 16),
             GestureDetector(
               onTap: onUpgradeTap,
@@ -363,7 +368,10 @@ class _CurrentPlanBlock extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _t('Upgrade my plan', 'Boresha mpango wangu'),
+                    status.isTrial
+                        ? _t('Pay to keep ${status.tierLabel}',
+                            'Lipia uendelee na ${status.tierLabel}')
+                        : _t('Upgrade my plan', 'Boresha mpango wangu'),
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -549,7 +557,7 @@ class _UsageRow extends StatelessWidget {
 
 class _PlanList extends StatelessWidget {
   final List<PlanTier> tiers;
-  final PlanTier currentTier;
+  final PlanTier? currentTier;
   final PlanDefinitions? defs;
   final ValueChanged<PlanTier> onTap;
 
