@@ -213,8 +213,8 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     maxUsers: 1,
     maxBusinesses: 1,
     maxCustomers: 20,
-    maxProducts: 15,
-    maxServiceProducts: 3,
+    maxProducts: 30,
+    maxServiceProducts: 5,
     maxSalesPerDay: 10,
     maxAccounts: 1,
     fullReports: false,
@@ -229,6 +229,7 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     monthlyInvoices: -1,
     maxUsers: 3,
     maxBusinesses: 1,
+    maxAccounts: 3,
     pricePerCycle: 30000,
     priceMonthly: 6000,
     priceYearly: 60000,
@@ -246,14 +247,16 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
   PlanTier.business: PlanLimits(
     monthlyInvoices: -1,
     maxUsers: 10,
-    pricePerCycle: 40000,
-    priceMonthly: 8000,
-    priceYearly: 80000,
+    maxBusinesses: 5,
+    pricePerCycle: 75000,
+    priceMonthly: 15000,
+    priceYearly: 150000,
     fullReports: true,
     mpesaImport: true,
     smsReminders: true,
     multiLocation: true,
-    apiAccess: true,
+    // No public API exists yet — don't sell it.
+    apiAccess: false,
     allExports: true,
     prioritySupport: true,
     cashFlow: true,
@@ -388,6 +391,77 @@ PlanLimits limitsFor(PlanTier tier, [PlanDefinitions? defs]) =>
     defs?[tier] ?? _fallbackLimits[tier]!;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Business allowance — how many businesses an owner may have
+//
+// Plans are per business, so the allowance comes from the owner's most
+// generous *live, really paid* plan: the highest `maxBusinesses` among their
+// businesses that are on a paid tier, not expired, and not a trial. Never
+// below 1 (the first business is always free). Trials deliberately don't
+// count — every new business gets a trial, so letting a trial unlock more
+// businesses would let an owner chain free trials forever.
+//
+// Mirrored server-side by businessAllowance() in functions/src/trial.ts,
+// which only grants a new business its trial if it fits this allowance.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Expiry of a business map from Firestore (`Timestamp`) or from the offline
+/// profile cache (`planExpiresAtMs`, see BusinessProfileService).
+DateTime? _planExpiryOf(Map biz) {
+  final raw = biz['planExpiresAt'];
+  if (raw is Timestamp) return raw.toDate();
+  if (raw is DateTime) return raw;
+  final ms = biz['planExpiresAtMs'];
+  if (ms is num) return DateTime.fromMillisecondsSinceEpoch(ms.toInt());
+  return null;
+}
+
+/// True when [biz] is on a live plan the owner paid for or an admin granted.
+/// No expiry on a paid tier counts as live, matching PlanService.
+bool isLivePaidBusiness(Map biz, {DateTime? now}) {
+  if (PlanTierX.fromString(biz['plan'] as String?) == PlanTier.starter) {
+    return false;
+  }
+  if (biz['planSource'] == 'trial') return false;
+  final expires = _planExpiryOf(biz);
+  return expires == null || expires.isAfter(now ?? DateTime.now());
+}
+
+/// Most businesses the owner of [businesses] may have; -1 means unlimited.
+int allowedBusinessCount(
+  Iterable<Map> businesses, {
+  PlanDefinitions? defs,
+  DateTime? now,
+}) {
+  var allowed = 1;
+  for (final biz in businesses) {
+    if (!isLivePaidBusiness(biz, now: now)) continue;
+    final tier = PlanTierX.fromString(biz['plan'] as String?);
+    var max = limitsFor(tier, defs).maxBusinesses;
+    // Negotiated Enterprise deals can set their own business cap.
+    if (tier == PlanTier.enterprise) {
+      final overrides = biz['enterpriseOverrides'];
+      final overrideMax = overrides is Map
+          ? overrides['maxBusinesses']
+          : biz['enterpriseMaxBusinesses'];
+      if (overrideMax is num) max = overrideMax.toInt();
+    }
+    if (max == -1) return -1;
+    if (max > allowed) allowed = max;
+  }
+  return allowed;
+}
+
+/// Whether the owner of [businesses] may create one more business.
+bool canAddBusiness(
+  List<Map> businesses, {
+  PlanDefinitions? defs,
+  DateTime? now,
+}) {
+  final allowed = allowedBusinessCount(businesses, defs: defs, now: now);
+  return allowed == -1 || businesses.length < allowed;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PlanStatus — runtime snapshot for the current user
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -419,6 +493,16 @@ class PlanStatus {
   /// tier except Enterprise businesses with a deal on file.
   final PlanLimits? overrideLimits;
 
+  /// True while the business is on the free reverse trial granted at
+  /// signup (`planSource: 'trial'`, functions/src/trial.ts). The tier is a
+  /// real paid tier until [expiresAt]; after that it reads as Starter and
+  /// this is false.
+  final bool isTrial;
+
+  /// When the trial was granted (`trialStartedAt`). Identifies the trial so
+  /// the welcome-gift popup shows once per trial, not once per launch.
+  final DateTime? trialStartedAt;
+
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
@@ -427,7 +511,18 @@ class PlanStatus {
     this.activatedAt,
     this.definitions,
     this.overrideLimits,
+    this.isTrial = false,
+    this.trialStartedAt,
   });
+
+  /// Whole days left on the trial, rounded up (1.2 days → 2). Zero when
+  /// not on a trial.
+  int get trialDaysLeft {
+    if (!isTrial || expiresAt == null) return 0;
+    final ms = expiresAt!.difference(DateTime.now()).inMilliseconds;
+    if (ms <= 0) return 0;
+    return (ms / Duration.millisecondsPerDay).ceil();
+  }
 
   PlanLimits get limits => overrideLimits ?? limitsFor(tier, definitions);
 
@@ -520,6 +615,9 @@ class PlanStatusCache {
             'activatedAt': status.activatedAt!.millisecondsSinceEpoch,
           if (status.overrideLimits != null)
             'overrideLimits': status.overrideLimits!.toCacheJson(),
+          if (status.isTrial) 'isTrial': true,
+          if (status.trialStartedAt != null)
+            'trialStartedAt': status.trialStartedAt!.millisecondsSinceEpoch,
         }),
       );
     } catch (_) {
@@ -568,6 +666,9 @@ class PlanStatusCache {
         );
       }
 
+      final trialStartedMs = (data['trialStartedAt'] as num?)?.toInt();
+      final isTrial = data['isTrial'] == true && tier != PlanTier.starter;
+
       return PlanStatus(
         tier: tier,
         invoicesUsedThisMonth: invoiceCount,
@@ -576,6 +677,10 @@ class PlanStatusCache {
         activatedAt: activatedAt,
         definitions: definitions,
         overrideLimits: overrideLimits,
+        isTrial: isTrial,
+        trialStartedAt: isTrial && trialStartedMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(trialStartedMs)
+            : null,
       );
     } catch (_) {
       await prefs.remove(_key(businessId));
@@ -824,8 +929,16 @@ class PlanService {
       }
     }
 
+    final isTrial =
+        data['planSource'] == 'trial' && effectiveTier != PlanTier.starter;
+    final trialStartedRaw = data['trialStartedAt'];
+
     return PlanStatus(
       tier: effectiveTier,
+      isTrial: isTrial,
+      trialStartedAt: isTrial && trialStartedRaw is Timestamp
+          ? trialStartedRaw.toDate()
+          : null,
       invoicesUsedThisMonth: invoiceCount,
       businessId: businessId,
       expiresAt: expiresAt,

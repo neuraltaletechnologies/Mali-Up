@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { writeAudit } from '@/lib/write-audit'
 import { withCache, invalidateCache } from '@/lib/api-cache'
 import { FieldValue } from '@/lib/firestore-rest'
-import type { BroadcastAudience, BroadcastCategory, PushBroadcast } from '@/types'
+import type { BroadcastAudience, BroadcastCategory, BroadcastRecipients, PushBroadcast } from '@/types'
 
 const CACHE_KEY = 'push-notifications'
 const CATEGORIES: BroadcastCategory[] = ['reminder', 'promotion', 'update', 'general']
@@ -20,11 +20,11 @@ function toIso(value: unknown): string | undefined {
   return undefined
 }
 
-// Admin composes a notification here; the actual push fan-out happens in the
+// Admin composes a notification here; the actual send happens in the
 // `sendAdminBroadcast` Cloud Function (functions/src/notifications.ts),
-// triggered by this doc's creation — this route never calls
-// admin.messaging() directly, so retries/resends can be added later without
-// touching the admin app.
+// triggered by this doc's creation. It sends to FCM topics (all_<lang>,
+// biz_<id>_<lang>), so FCM — not this app or the function — fans out to
+// devices. This route never calls admin.messaging() directly.
 export async function GET() {
   const denied = await requireAdminSession()
   if (denied) return denied
@@ -55,8 +55,12 @@ async function fetchBroadcasts() {
       bodySw:            (d.bodySw as string) || undefined,
       category:          (d.category as BroadcastCategory) || 'general',
       audience:          (d.audience as BroadcastAudience) || { kind: 'all' },
+      recipients:        d.recipients === 'owners' ? 'owners' : 'everyone',
       route:             (d.route as string) || undefined,
       status:            (d.status as PushBroadcast['status']) || 'pending',
+      deliveryMode:      d.deliveryMode === 'topics' ? 'topics' : undefined,
+      topicCount:        (d.topicCount as number) || 0,
+      topicFailureCount: (d.topicFailureCount as number) || 0,
       targetCount:       (d.targetCount as number) || 0,
       sentCount:         (d.sentCount as number) || 0,
       failureCount:      (d.failureCount as number) || 0,
@@ -83,6 +87,7 @@ export async function POST(request: Request) {
       category?: string
       route?: string
       audience?: BroadcastAudience
+      recipients?: string
     }
 
     const titleEn = body.titleEn?.trim() || ''
@@ -102,6 +107,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Select at least one business' }, { status: 400 })
     }
 
+    const recipients: BroadcastRecipients = body.recipients === 'owners' ? 'owners' : 'everyone'
+
     const session = await auth()
     const adminId = session?.user?.id ?? 'unknown'
     const adminName = session?.user?.name ?? session?.user?.email ?? 'Admin'
@@ -116,6 +123,7 @@ export async function POST(request: Request) {
       category,
       route:              body.route?.trim() || null,
       audience,
+      recipients,
       status:             'pending',
       targetCount:        0,
       sentCount:          0,
@@ -135,6 +143,7 @@ export async function POST(request: Request) {
       after: {
         category,
         audience,
+        recipients,
         titleEn,
         bodyEn,
       },

@@ -12,7 +12,7 @@ import { fetchBusinesses, fetchPushBroadcasts, sendPushBroadcast } from '@/lib/a
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Business, BroadcastCategory, PushBroadcast } from '@/types'
+import type { Business, BroadcastCategory, BroadcastRecipients, PushBroadcast } from '@/types'
 
 const CATEGORY_OPTIONS: { value: BroadcastCategory; label: string }[] = [
   { value: 'reminder',  label: 'Reminder' },
@@ -26,6 +26,11 @@ const AUDIENCE_OPTIONS: { value: 'all' | 'businesses'; label: string }[] = [
   { value: 'businesses',  label: 'Selected businesses' },
 ]
 
+const RECIPIENT_OPTIONS: { value: BroadcastRecipients; label: string }[] = [
+  { value: 'everyone', label: 'Owners + team' },
+  { value: 'owners',   label: 'Owners only' },
+]
+
 const statusConfig: Record<PushBroadcast['status'], { status: 'good' | 'warn' | 'bad'; label: string; icon: typeof CheckCircle2 }> = {
   sent:    { status: 'good', label: 'Sent',    icon: CheckCircle2 },
   pending: { status: 'warn', label: 'Sending…', icon: Clock },
@@ -33,10 +38,23 @@ const statusConfig: Record<PushBroadcast['status'], { status: 'good' | 'warn' | 
 }
 
 function audienceSummary(b: PushBroadcast): string {
-  if (b.audience.kind === 'all') return 'All users'
+  const who = b.recipients === 'owners' ? ' (owners only)' : ''
+  if (b.audience.kind === 'all') return `All users${who}`
   const names = b.audience.businessNames ?? []
-  if (names.length <= 2) return names.join(', ') || `${b.audience.businessIds.length} businesses`
-  return `${names[0]}, ${names[1]} +${names.length - 2} more`
+  if (names.length <= 2) return (names.join(', ') || `${b.audience.businessIds.length} businesses`) + who
+  return `${names[0]}, ${names[1]} +${names.length - 2} more${who}`
+}
+
+// Topic broadcasts have no per-device count — FCM delivers to every
+// subscribed device. Delivery/open stats live in Firebase Console →
+// Messaging → Reports (label broadcast_<id>).
+function deliverySummary(b: PushBroadcast): string {
+  if (b.deliveryMode !== 'topics') {
+    return `${b.sentCount}/${b.targetCount} delivered${b.failureCount > 0 ? `, ${b.failureCount} failed` : ''}`
+  }
+  const parts = [b.topicFailureCount > 0 ? `${b.topicFailureCount}/${b.topicCount} topic sends failed` : 'Sent to all subscribed devices']
+  if (b.targetCount > 0) parts.push(`+${b.sentCount}/${b.targetCount} older-app devices`)
+  return parts.join(' · ')
 }
 
 function BusinessPicker({
@@ -119,10 +137,8 @@ function BroadcastRow({ b }: { b: PushBroadcast }) {
       </div>
       <div className="shrink-0 text-right">
         <StatusDot status={cfg.status} label={cfg.label} />
-        {b.status === 'sent' && (
-          <div className="text-[11px] text-[var(--ink-faint)] mt-1">
-            {b.sentCount}/{b.targetCount} delivered{b.failureCount > 0 ? `, ${b.failureCount} failed` : ''}
-          </div>
+        {b.status !== 'pending' && (
+          <div className="text-[11px] text-[var(--ink-faint)] mt-1">{deliverySummary(b)}</div>
         )}
         <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{timeAgo(b.createdAt)}</div>
       </div>
@@ -142,6 +158,7 @@ function PushNotificationsSection() {
 
   const [category, setCategory] = useState<BroadcastCategory>('general')
   const [audienceKind, setAudienceKind] = useState<'all' | 'businesses'>('all')
+  const [recipients, setRecipients] = useState<BroadcastRecipients>('everyone')
   const [titleEn, setTitleEn] = useState('')
   const [bodyEn, setBodyEn] = useState('')
   const [titleSw, setTitleSw] = useState('')
@@ -165,8 +182,15 @@ function PushNotificationsSection() {
     bodyEn.trim().length > 0 &&
     (audienceKind === 'all' || selectedBusinesses.size > 0)
 
+  const plural = selectedBusinesses.size === 1 ? '' : 'es'
   const audienceLabel =
-    audienceKind === 'all' ? 'every user with the app installed' : `${selectedBusinesses.size} selected business${selectedBusinesses.size === 1 ? '' : 'es'}`
+    recipients === 'owners'
+      ? audienceKind === 'all'
+        ? 'every business owner (team members excluded)'
+        : `the owners of ${selectedBusinesses.size} selected business${plural}`
+      : audienceKind === 'all'
+        ? 'every signed-in user'
+        : `everyone using ${selectedBusinesses.size} selected business${plural} (owner and team)`
 
   async function handleSend() {
     setSending(true)
@@ -178,6 +202,7 @@ function PushNotificationsSection() {
         titleSw: titleSw.trim() || undefined,
         bodySw: bodySw.trim() || undefined,
         category,
+        recipients,
         audience:
           audienceKind === 'all'
             ? { kind: 'all' }
@@ -208,7 +233,10 @@ function PushNotificationsSection() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2 flex items-center justify-between flex-wrap gap-2">
             <SegmentedControl options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
-            <SegmentedControl options={AUDIENCE_OPTIONS} value={audienceKind} onChange={setAudienceKind} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <SegmentedControl options={AUDIENCE_OPTIONS} value={audienceKind} onChange={setAudienceKind} />
+              <SegmentedControl options={RECIPIENT_OPTIONS} value={recipients} onChange={setRecipients} />
+            </div>
           </div>
 
           <div>
@@ -292,7 +320,7 @@ function PushNotificationsSection() {
         loading={sending}
         variant="warning"
         title="Send this notification?"
-        description={`This will push "${titleEn}" to ${audienceLabel}. This can't be recalled once sent.`}
+        description={`This will push "${titleEn}" to ${audienceLabel}. Users with the app in Swahili get the Swahili copy (or the English one if left blank). This can't be recalled once sent.`}
         confirmLabel="Send"
       />
 

@@ -12,7 +12,10 @@ import { withCache } from '@/lib/api-cache'
  * Businesses carry no phone of their own — the owner's phone lives on users/{ownerUid}.
  */
 
-const MAX_DOCS = 2000
+// Preview cap only — the Cloud Function (functions/src/sms_campaigns.ts)
+// re-resolves the audience at send time with paged reads and no cap. This
+// REST client has no query cursors, so the estimate reads in one go.
+const MAX_DOCS = 20000
 
 type Directory = {
   usersById: Map<string, DocumentData>
@@ -120,9 +123,18 @@ export async function resolveSmsRecipients(audience: SmsCampaignAudience): Promi
   const recipientsMap = new Map<string, SmsRecipient>()
   const dir = await loadDirectory()
 
+  // One SMS per phone; when an owner matches several businesses, use the one
+  // they have open in the app (mirrors addBusiness in sms_campaigns.ts).
+  const openMatch = new Set<string>()
   const addBusiness = (id: string, biz: DocumentData) => {
     const r = recipientFromBusiness(dir, id, biz)
-    if (r && !recipientsMap.has(r.phone)) recipientsMap.set(r.phone, r)
+    if (!r) return
+    const owner = dir.usersById.get((biz.ownerUid as string) || '')
+    const isOpen = ((owner?.selectedBusinessId as string) || (owner?.businessId as string) || '') === id
+    if (!recipientsMap.has(r.phone) || (isOpen && !openMatch.has(r.phone))) {
+      recipientsMap.set(r.phone, r)
+      if (isOpen) openMatch.add(r.phone)
+    }
   }
 
   if (audience.kind === 'custom_numbers') {

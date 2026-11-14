@@ -41,6 +41,7 @@ class TranslationsSw extends Translations with BaseTranslations<AppLocale, Trans
 	// Translations
 	@override late final _Translations$app$sw app = _Translations$app$sw._(_root);
 	@override late final _Translations$pinResetCode$sw pinResetCode = _Translations$pinResetCode$sw._(_root);
+	@override late final _Translations$trial$sw trial = _Translations$trial$sw._(_root);
 }
 
 // Path: app
@@ -82,6 +83,24 @@ class _Translations$pinResetCode$sw extends Translations$pinResetCode$en {
 	@override String get backToLogin => 'Rudi kuingia';
 }
 
+// Path: trial
+class _Translations$trial$sw extends Translations$trial$en {
+	_Translations$trial$sw._(TranslationsSw root) : this._root = root, super.internal(root);
+
+	final TranslationsSw _root; // ignore: unused_field
+
+	// Translations
+	@override String get giftCta => 'Anza kutumia';
+	@override String get giftSeePlans => 'Angalia mipango';
+	@override String endsOn({required Object date}) => 'Kinaisha ${date}';
+	@override String daysLeftChip({required Object days}) => 'Siku ${days} zimebaki';
+	@override String get lastDayChip => 'Siku ya mwisho';
+	@override String bannerTitle({required Object tier, required Object days}) => '${tier} bure: siku ${days} zimebaki';
+	@override String bannerTitleLastDay({required Object tier}) => '${tier} bure kinaisha leo';
+	@override String bannerBody({required Object date}) => 'Kinaisha tarehe ${date}. Lipia sasa uendelee kutumia vipengele vyote.';
+	@override String get bannerCta => 'Lipia';
+}
+
 /// The flat map containing all translations for locale <sw>.
 /// Only for edge cases! For simple maps, use the map function of this library.
 ///
@@ -111,6 +130,15 @@ extension on TranslationsSw {
 			'pinResetCode.failed' => 'Imeshindikana kuweka upya PIN. Angalia mtandao na ujaribu tena.',
 			'pinResetCode.sendFailed' => 'Imeshindikana kutuma namba mpya. Jaribu tena baada ya dakika chache.',
 			'pinResetCode.backToLogin' => 'Rudi kuingia',
+			'trial.giftCta' => 'Anza kutumia',
+			'trial.giftSeePlans' => 'Angalia mipango',
+			'trial.endsOn' => ({required Object date}) => 'Kinaisha ${date}',
+			'trial.daysLeftChip' => ({required Object days}) => 'Siku ${days} zimebaki',
+			'trial.lastDayChip' => 'Siku ya mwisho',
+			'trial.bannerTitle' => ({required Object tier, required Object days}) => '${tier} bure: siku ${days} zimebaki',
+			'trial.bannerTitleLastDay' => ({required Object tier}) => '${tier} bure kinaisha leo',
+			'trial.bannerBody' => ({required Object date}) => 'Kinaisha tarehe ${date}. Lipia sasa uendelee kutumia vipengele vyote.',
+			'trial.bannerCta' => 'Lipia',
 			_ => null,
 		};
 	}

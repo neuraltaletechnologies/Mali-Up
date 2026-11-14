@@ -132,7 +132,8 @@ service cloud.firestore {
         // admin approval), which bypasses these rules entirely.
         (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
         !data.keys().hasAny(
-          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource']);
+          ['planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource',
+           'trialUsedAt', 'trialsGranted']);
     }
 
     function isValidBusinessCreate(data) {
@@ -155,7 +156,8 @@ service cloud.firestore {
         // document instead of the owner's user document.
         (!data.keys().hasAny(['plan']) || data.plan == 'Trial') &&
         !data.keys().hasAny(
-          ['planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
+          ['planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides',
+           'trialStartedAt', 'trialEndsAt', 'trialDays']);
     }
 
     function isValidWorkerCreate(data) {
@@ -285,7 +287,8 @@ service cloud.firestore {
       // client can never self-declare its phone verified.
       allow update: if isSignedIn() && isOwner(userId) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource', 'phoneVerified']);
+          ['plan', 'planExpiresAt', 'premiumExpiresAt', 'lastPayment', 'enterpriseOverrides', 'planSource', 'phoneVerified',
+           'trialUsedAt', 'trialsGranted']);
       // Phone lookup (login / onboarding): every real caller queries with
       // limit(1), signed in or not — a signed-in user must not be able to
       // run an unbounded query and dump every user's name/phone.
@@ -347,7 +350,8 @@ service cloud.firestore {
       // now lives here instead of on their user document).
       allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides']);
+          ['plan', 'planExpiresAt', 'subscriptionStatus', 'planSource', 'planStartedAt', 'enterpriseOverrides',
+           'trialStartedAt', 'trialEndsAt', 'trialDays']);
       // Delete: owner only.
       allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
 
@@ -694,6 +698,12 @@ service cloud.firestore {
     // be warned/blocked before they ever reach a signed-in write path.
     match /platform_config/version_gate {
       allow read: if true;
+    }
+
+    // Free-trial settings + message templates (admin portal "Free Trial"
+    // page). The app reads the welcome-popup template from here.
+    match /platform_config/trial {
+      allow read: if isSignedIn();
     }
 
     // =========================================================================
