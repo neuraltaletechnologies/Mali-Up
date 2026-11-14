@@ -189,6 +189,24 @@ class MasterCatalogRepository {
       return;
     }
 
+    // Categories are cached but products aren't — e.g. a community category
+    // was saved locally before the catalog ever loaded, or the products query
+    // failed after the categories one succeeded. Without this the product
+    // suggestions stay empty forever (the age check below can't help: a
+    // freshly added community category resets its cachedAt). Try a fetch now,
+    // but keep serving whatever is cached if it fails (e.g. offline).
+    final prodCount = await _db.masterCatalogDao.productCount(businessType);
+    if (prodCount == 0) {
+      try {
+        await _fetchFromFirestore(businessType);
+      } catch (e) {
+        debugPrint(
+          '[MasterCatalog] product fetch failed for "$businessType": $e',
+        );
+      }
+      return;
+    }
+
     // Already have something to show. Never block the UI on a refresh, and
     // never fail because the cache is "too old" — the cached rows keep
     // being served either way. Just kick a silent background refresh once

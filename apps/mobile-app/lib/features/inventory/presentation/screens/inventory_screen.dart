@@ -978,6 +978,43 @@ class _ProductTile extends ConsumerWidget {
 
 // ── Product Row ───────────────────────────────────────────────────────────────
 
+/// Phone-list avatar: the product picture (e.g. from the master catalog)
+/// when there is one, otherwise — and while it loads or if it fails — the
+/// stock-status-tinted initial.
+class _RowAvatar extends StatelessWidget {
+  final String name;
+  final String imageUrl;
+  final Color color;
+  const _RowAvatar({
+    required this.name,
+    required this.imageUrl,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: GoogleFonts.dmSans(
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+    if (imageUrl.isEmpty) return initial;
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      cacheWidth: 120,
+      errorBuilder: (_, _, _) => initial,
+      loadingBuilder: (_, child, progress) =>
+          progress == null ? child : initial,
+    );
+  }
+}
+
 class _ProductRow extends ConsumerWidget {
   final Map<String, dynamic> item;
   final bool isLast;
@@ -1022,23 +1059,19 @@ class _ProductRow extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  // ── Circular avatar ────────────────────────────────
+                  // ── Circular avatar: product picture, else initial ─
                   Container(
                     width: 40,
                     height: 40,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: fColor.withValues(alpha: 0.10),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: fColor,
-                        ),
-                      ),
+                    child: _RowAvatar(
+                      name: name,
+                      imageUrl: (item['imageUrl'] ?? '').toString().trim(),
+                      color: fColor,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -5107,183 +5140,192 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       // ── Existing-product suggestions (restock) ────────
                       if (nameSuggestions.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.tealAccent.withValues(
-                                alpha: 0.35,
+                        // TextFieldTapRegion: on desktop/web a pointer-down
+                        // outside the name field unfocuses it, which hides
+                        // this list before the tap completes. Grouping the
+                        // list with the field keeps focus so onTap fires.
+                        TextFieldTapRegion(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.tealAccent.withValues(
+                                  alpha: 0.35,
+                                ),
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  14,
-                                  9,
-                                  14,
-                                  4,
-                                ),
-                                child: Text(
-                                  _tr(
-                                    'Already in your inventory — restock?',
-                                    'Tayari kwenye stoo yako — ongeza tena?',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    9,
+                                    14,
+                                    4,
                                   ),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.tealAccent,
-                                  ),
-                                ),
-                              ),
-                              ...nameSuggestions.asMap().entries.map((e) {
-                                final idx = e.key;
-                                final item = e.value;
-                                final isExact =
-                                    item.name.toLowerCase() == query;
-                                return InkWell(
-                                  onTap: () {
-                                    _applyFromExisting(item);
-                                    setState(() {
-                                      _restockTarget = item;
-                                      _stockCtrl.text = '1';
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.vertical(
-                                    bottom: idx == nameSuggestions.length - 1
-                                        ? const Radius.circular(12)
-                                        : Radius.zero,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
+                                  child: Text(
+                                    _tr(
+                                      'Already in your inventory — restock?',
+                                      'Tayari kwenye stoo yako — ongeza tena?',
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 32,
-                                          height: 32,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.tealAccent
-                                                .withValues(alpha: 0.08),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.tealAccent,
+                                    ),
+                                  ),
+                                ),
+                                ...nameSuggestions.asMap().entries.map((e) {
+                                  final idx = e.key;
+                                  final item = e.value;
+                                  final isExact =
+                                      item.name.toLowerCase() == query;
+                                  return InkWell(
+                                    onTap: () {
+                                      _applyFromExisting(item);
+                                      setState(() {
+                                        _restockTarget = item;
+                                        _stockCtrl.text = '1';
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.vertical(
+                                      bottom: idx == nameSuggestions.length - 1
+                                          ? const Radius.circular(12)
+                                          : Radius.zero,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.tealAccent
+                                                  .withValues(alpha: 0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.add_circle_outline_rounded,
+                                              size: 16,
+                                              color: AppColors.tealAccent,
                                             ),
                                           ),
-                                          child: const Icon(
-                                            Icons.add_circle_outline_rounded,
-                                            size: 16,
-                                            color: AppColors.tealAccent,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Flexible(
-                                                    child: Text(
-                                                      item.name,
-                                                      style: GoogleFonts.dmSans(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: AppColors
-                                                            .navyPrimary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (isExact) ...[
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 5,
-                                                            vertical: 1,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: AppColors
-                                                            .tealAccent
-                                                            .withValues(
-                                                              alpha: 0.12,
-                                                            ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              4,
-                                                            ),
-                                                      ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Flexible(
                                                       child: Text(
-                                                        _tr(
-                                                          'MATCH',
-                                                          'INAFANANA',
-                                                        ),
+                                                        item.name,
                                                         style:
                                                             GoogleFonts.dmSans(
-                                                              fontSize: 9,
+                                                              fontSize: 13,
                                                               fontWeight:
                                                                   FontWeight
-                                                                      .w800,
+                                                                      .w700,
                                                               color: AppColors
-                                                                  .tealAccent,
+                                                                  .navyPrimary,
                                                             ),
                                                       ),
                                                     ),
+                                                    if (isExact) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 5,
+                                                              vertical: 1,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: AppColors
+                                                              .tealAccent
+                                                              .withValues(
+                                                                alpha: 0.12,
+                                                              ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          _tr(
+                                                            'MATCH',
+                                                            'INAFANANA',
+                                                          ),
+                                                          style:
+                                                              GoogleFonts.dmSans(
+                                                                fontSize: 9,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w800,
+                                                                color: AppColors
+                                                                    .tealAccent,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
-                                                ],
-                                              ),
-                                              Text(
-                                                [
-                                                  if (item
-                                                      .categoryName
-                                                      .isNotEmpty)
-                                                    item.categoryName,
-                                                  if (item.unitPrice > 0)
-                                                    _fmtAmount(item.unitPrice),
-                                                  '${item.currentStock.toStringAsFixed(0)} ${item.unit} ${_tr("on hand", "iliyopo")}',
-                                                ].join(' · '),
-                                                style: GoogleFonts.dmSans(
-                                                  fontSize: 11,
-                                                  color: AppColors.textMuted,
                                                 ),
-                                              ),
-                                            ],
+                                                Text(
+                                                  [
+                                                    if (item
+                                                        .categoryName
+                                                        .isNotEmpty)
+                                                      item.categoryName,
+                                                    if (item.unitPrice > 0)
+                                                      _fmtAmount(
+                                                        item.unitPrice,
+                                                      ),
+                                                    '${item.currentStock.toStringAsFixed(0)} ${item.unit} ${_tr("on hand", "iliyopo")}',
+                                                  ].join(' · '),
+                                                  style: GoogleFonts.dmSans(
+                                                    fontSize: 11,
+                                                    color: AppColors.textMuted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _tr('Restock', 'Ongeza'),
-                                          style: GoogleFonts.dmSans(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _tr('Restock', 'Ongeza'),
+                                            style: GoogleFonts.dmSans(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.tealAccent,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          const Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 15,
                                             color: AppColors.tealAccent,
                                           ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        const Icon(
-                                          Icons.chevron_right_rounded,
-                                          size: 15,
-                                          color: AppColors.tealAccent,
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }),
-                            ],
+                                  );
+                                }),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -5293,135 +5335,140 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       // and product identity without retyping them.
                       if (catalogSuggestions.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  14,
-                                  9,
-                                  14,
-                                  4,
-                                ),
-                                child: Text(
-                                  _tr(
-                                    'Found in product catalog — tap to fill in',
-                                    'Imeonekana kwenye katalogi — gusa kujaza',
+                        // See the TextFieldTapRegion note on the restock list.
+                        TextFieldTapRegion(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    9,
+                                    14,
+                                    4,
                                   ),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.tealAccent,
-                                  ),
-                                ),
-                              ),
-                              ...catalogSuggestions.asMap().entries.map((e) {
-                                final index = e.key;
-                                final product = e.value;
-                                final displayName =
-                                    LocalizationService.isSwahili &&
-                                        product.productNameSw.isNotEmpty
-                                    ? product.productNameSw
-                                    : product.productName;
-                                final alternativeName =
-                                    displayName == product.productName
-                                    ? product.productNameSw
-                                    : product.productName;
-                                return InkWell(
-                                  onTap: () => _applyFromCatalog(product),
-                                  borderRadius: BorderRadius.vertical(
-                                    bottom:
-                                        index == catalogSuggestions.length - 1
-                                        ? const Radius.circular(12)
-                                        : Radius.zero,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
+                                  child: Text(
+                                    _tr(
+                                      'Found in product catalog — tap to fill in',
+                                      'Imeonekana kwenye katalogi — gusa kujaza',
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 32,
-                                          height: 32,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.yellowBrand
-                                                .withValues(alpha: 0.18),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.tealAccent,
+                                    ),
+                                  ),
+                                ),
+                                ...catalogSuggestions.asMap().entries.map((e) {
+                                  final index = e.key;
+                                  final product = e.value;
+                                  final displayName =
+                                      LocalizationService.isSwahili &&
+                                          product.productNameSw.isNotEmpty
+                                      ? product.productNameSw
+                                      : product.productName;
+                                  final alternativeName =
+                                      displayName == product.productName
+                                      ? product.productNameSw
+                                      : product.productName;
+                                  return InkWell(
+                                    onTap: () => _applyFromCatalog(product),
+                                    borderRadius: BorderRadius.vertical(
+                                      bottom:
+                                          index == catalogSuggestions.length - 1
+                                          ? const Radius.circular(12)
+                                          : Radius.zero,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.yellowBrand
+                                                  .withValues(alpha: 0.18),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.download_rounded,
+                                              size: 16,
+                                              color: AppColors.navyPrimary,
                                             ),
                                           ),
-                                          child: const Icon(
-                                            Icons.download_rounded,
-                                            size: 16,
-                                            color: AppColors.navyPrimary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                displayName,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.dmSans(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AppColors.navyPrimary,
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  displayName,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: GoogleFonts.dmSans(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        AppColors.navyPrimary,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                [
-                                                  if (alternativeName
-                                                      .isNotEmpty)
-                                                    alternativeName,
-                                                  if (product
-                                                      .genericName
-                                                      .isNotEmpty)
-                                                    product.genericName,
-                                                  product.unit,
-                                                ].join(' · '),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.dmSans(
-                                                  fontSize: 11,
-                                                  color: AppColors.textMuted,
+                                                Text(
+                                                  [
+                                                    if (alternativeName
+                                                        .isNotEmpty)
+                                                      alternativeName,
+                                                    if (product
+                                                        .genericName
+                                                        .isNotEmpty)
+                                                      product.genericName,
+                                                    product.unit,
+                                                  ].join(' · '),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: GoogleFonts.dmSans(
+                                                    fontSize: 11,
+                                                    color: AppColors.textMuted,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _tr('Import', 'Ingiza'),
-                                          style: GoogleFonts.dmSans(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _tr('Import', 'Ingiza'),
+                                            style: GoogleFonts.dmSans(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.tealAccent,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          const Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 15,
                                             color: AppColors.tealAccent,
                                           ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        const Icon(
-                                          Icons.chevron_right_rounded,
-                                          size: 15,
-                                          color: AppColors.tealAccent,
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }),
-                            ],
+                                  );
+                                }),
+                              ],
+                            ),
                           ),
                         ),
                       ] else if (showCatalogLoadingSkeleton) ...[
