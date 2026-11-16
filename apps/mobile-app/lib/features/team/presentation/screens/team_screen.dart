@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../../../../core/services/error_reporter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -1306,6 +1307,16 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           targetMemberId: memberRef.id,
           targetName: name,
           newValue: _selectedRole.name,
+        ),
+      );
+      unawaited(
+        Posthog().capture(
+          eventName: 'team_member_invited',
+          properties: {
+            'role': _selectedRole.name,
+            'data_scope': effectiveScope.name,
+            'uses_custom_role': savedRole != null,
+          },
         ),
       );
 

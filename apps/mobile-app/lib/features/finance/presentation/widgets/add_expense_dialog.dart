@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -479,6 +482,17 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
           // Best-effort: the expense itself already saved successfully.
         }
       }
+
+      unawaited(
+        Posthog().capture(
+          eventName: 'expense_added',
+          properties: {
+            'category': _selectedCategory,
+            'is_recurring': _isRecurring,
+            'is_credit_purchase': _isCreditPurchase,
+          },
+        ),
+      );
 
       if (mounted) {
         Navigator.pop(context);

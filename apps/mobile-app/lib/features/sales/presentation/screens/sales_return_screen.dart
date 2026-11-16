@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/file_upload_service.dart';
@@ -546,6 +547,16 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         details: _composedReason,
       ));
       unawaited(ref.read(syncServiceProvider).syncNow());
+      unawaited(
+        Posthog().capture(
+          eventName: 'sales_return_processed',
+          properties: {
+            'reason_category': _reasonType!.name,
+            'resolution_type': _resolution.name,
+            'restocked_items': restockableIds.isNotEmpty,
+          },
+        ),
+      );
 
       if (mounted) {
         Navigator.of(context).pop({

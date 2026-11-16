@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/app_rating_service.dart';
@@ -662,6 +663,18 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         ),
       );
       unawaited(ref.read(syncServiceProvider).syncNow());
+      unawaited(
+        Posthog().capture(
+          eventName: 'invoice_saved',
+          properties: {
+            'invoice_type': _isQuotation ? 'quotation' : 'invoice',
+            'status': status,
+            'is_draft': asDraft,
+            'is_edit': isEdit,
+            'is_credit_sale': _isCredit,
+          },
+        ),
+      );
 
       // A confirmed sale is a genuine happy-path moment — count it toward
       // the "rate us" prompt gating (see AppRatingService).

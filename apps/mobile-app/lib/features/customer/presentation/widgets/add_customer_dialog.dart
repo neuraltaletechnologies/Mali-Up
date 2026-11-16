@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
@@ -723,6 +724,15 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     final saved = await ref.read(customerRepositoryProvider).save(customer);
 
     SentryMetricsService.customerAdded(source: 'add_customer_dialog');
+    unawaited(
+      Posthog().capture(
+        eventName: 'customer_added',
+        properties: {
+          'source': 'manual_entry',
+          'customer_type': isOrganisation ? 'organisation' : 'individual',
+        },
+      ),
+    );
     await ref.read(customerAuditLoggerProvider).log(
           AuditLogService.customerCreated,
           customerId: saved.id,

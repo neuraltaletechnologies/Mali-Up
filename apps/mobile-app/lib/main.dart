@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -26,6 +27,8 @@ import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/core/services/version_gate_service.dart';
 import 'package:mali_up/core/providers/sync_provider.dart';
+import 'package:mali_up/posthog/posthog.dart';
+import 'package:mali_up/posthog/posthog_log.dart';
 import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
     show
         onboardingBootstrapProvider,
@@ -40,6 +43,55 @@ import 'firebase_options.dart';
 
 // Must match OnboardingService._completedKey so the bootstrap read is consistent.
 const String _onboardingCompletedKey = 'mali_onboarding_complete';
+
+StreamSubscription<User?>? _postHogAuthSubscription;
+String? _identifiedPostHogUserId;
+
+/// Keeps the shared PostHog client aligned with Firebase Auth's session.
+///
+/// Firebase Auth emits the restored session on subscription, followed by each
+/// sign-in and sign-out. The UID is Firebase's stable, non-PII user identifier;
+/// person properties contain optional PII instead of event properties.
+void _initializePostHogIdentity() {
+  void syncIdentity(User? user) {
+    if (user == null) {
+      if (_identifiedPostHogUserId != null) {
+        _identifiedPostHogUserId = null;
+        unawaited(Posthog().reset());
+      }
+      return;
+    }
+
+    if (_identifiedPostHogUserId == user.uid) return;
+
+    // A direct account switch may not emit an intermediate signed-out state.
+    // Clear the prior identity before associating subsequent events and errors
+    // with the newly authenticated Firebase user.
+    if (_identifiedPostHogUserId != null) {
+      unawaited(Posthog().reset());
+    }
+
+    _identifiedPostHogUserId = user.uid;
+    final userProperties = <String, dynamic>{
+      if (user.email != null) r'$email': user.email,
+      if (user.displayName != null) r'$name': user.displayName,
+      if (user.phoneNumber != null) r'$phone': user.phoneNumber,
+    };
+    unawaited(
+      Posthog().identify(
+        userId: user.uid,
+        userProperties: userProperties,
+      ),
+    );
+  }
+
+  // Establish identity immediately for a restored session, then handle every
+  // later auth transition exactly once through the same boundary.
+  syncIdentity(FirebaseAuth.instance.currentUser);
+  _postHogAuthSubscription ??= FirebaseAuth.instance.authStateChanges().listen(
+    syncIdentity,
+  );
+}
 
 Future<void> _startApp() async {
   // Fonts are bundled under assets/google_fonts/ — never fetch them over the
@@ -70,6 +122,10 @@ Future<void> _startApp() async {
       }
     }
   }
+
+  // Start identity tracking immediately after Firebase Auth is available so
+  // PostHog events and error tracking inherit the signed-in user's UID.
+  _initializePostHogIdentity();
 
   // Drift is the source of truth for offline data — Firestore's own
   // persistence cache is disabled to prevent a dual-cache inconsistency.
@@ -155,6 +211,14 @@ Future<void> _startApp() async {
     ),
   );
 
+  posthogLog.info(
+    'app_startup_completed',
+    attributes: {
+      'has_active_session': hasActiveSession,
+      'onboarding_complete': hasCompletedOnboarding,
+    },
+  );
+
   runApp(
     ProviderScope(
       overrides: [
@@ -178,15 +242,15 @@ Future<void> _startApp() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await setupPostHog();
   SentryMetricsService.configure(enabled: kDebugMode);
 
-  // Route caught framework/platform errors through the single reporter hook.
-  // `sentry_flutter` used to do this; it was removed for app size (it shipped
-  // ~1.5 MB of native code but never carried a production DSN). ErrorReporter
-  // is where a real crash reporter (e.g. firebase_crashlytics) plugs back in.
-  final originalOnError = FlutterError.onError;
+  // Preserve PostHog's global handlers while routing the same uncaught errors
+  // through the app's existing reporter hook.
+  final posthogFlutterErrorHandler = FlutterError.onError;
+  final posthogPlatformErrorHandler = PlatformDispatcher.instance.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
-    originalOnError?.call(details);
+    posthogFlutterErrorHandler?.call(details);
     ErrorReporter.captureException(
       details.exception,
       stackTrace: details.stack,
@@ -194,7 +258,7 @@ Future<void> main() async {
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     ErrorReporter.captureException(error, stackTrace: stack);
-    return true;
+    return posthogPlatformErrorHandler?.call(error, stack) ?? true;
   };
 
   await _startApp();
@@ -299,6 +363,10 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
       // customer or product added elsewhere) don't appear here until one
       // of those happens to fire. Pull on every foreground instead.
       if (FirebaseAuth.instance.currentUser != null) {
+        posthogLog.info(
+          'authenticated_app_resumed',
+          attributes: {'sync_trigger': 'app_resumed'},
+        );
         unawaited(ref.read(syncServiceProvider).syncNow());
       }
     }

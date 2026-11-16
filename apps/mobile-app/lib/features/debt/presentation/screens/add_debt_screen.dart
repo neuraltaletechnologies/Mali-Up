@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -327,6 +330,16 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
         ref,
         before: widget.debtToEdit,
         after: debt,
+      );
+      unawaited(
+        Posthog().capture(
+          eventName: 'debt_saved',
+          properties: {
+            'debt_type': debt.type,
+            'is_edit': !isNew,
+            'has_interest': debt.hasInterest,
+          },
+        ),
       );
 
       if (mounted) Navigator.of(context).pop(true);

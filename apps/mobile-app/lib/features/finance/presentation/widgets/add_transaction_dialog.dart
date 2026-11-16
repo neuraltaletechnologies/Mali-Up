@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
@@ -515,6 +518,15 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
 
       // Saves locally (incl. balance adjustments) and queues the sync.
       await ref.read(cashRepositoryProvider).addTransaction(txn);
+      unawaited(
+        Posthog().capture(
+          eventName: 'cash_transaction_recorded',
+          properties: {
+            'transaction_type': _type,
+            'activity_category': txn.activityCategory,
+          },
+        ),
+      );
 
       if (mounted) {
         Navigator.pop(context, true);
