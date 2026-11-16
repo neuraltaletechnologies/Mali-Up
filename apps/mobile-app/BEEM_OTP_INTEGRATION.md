@@ -74,7 +74,7 @@ otherwise client-state-driven (see `routing.dart`'s `_redirect`).
 ### Countries Beem can't reach
 
 Beem only delivers to African networks. For a phone whose dial code isn't in
-`functions/src/beem_coverage.ts` (override with `BEEM_OTP_COUNTRY_CODES` in
+`functions/src/beem_coverage.ts` (override with `BEEM_COUNTRY_CODES` in
 `functions/.env`), `sendBeemOtp` sends **no SMS**: it writes the
 `otp_verifications/{phone}` marker straight away with `bypassed: true` and
 returns `{ bypassed: true }`, and the app goes directly to PIN setup.
@@ -83,6 +83,12 @@ bypassed marker, so re-"registering" an existing uncovered number can't take
 over that account. It surfaces "account already exists" instead.
 PIN recovery by code (`requestPinResetOtp`) is **not** bypassed, for the same
 reason. Users on uncovered numbers reset their PIN through support.
+
+The same list gates every other Beem SMS: welcome and invite SMS
+(`beem_sms.ts`) mark an uncovered number `abandoned` with no retries,
+campaigns (`sms_campaigns.ts`) and the admin console's test send
+(`apps/admin/lib/beem-coverage.ts`) list it as failed with "Country not
+covered by Beem". No SMS is sent and no credit is spent.
 
 ## Setup
 

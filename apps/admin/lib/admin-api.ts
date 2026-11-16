@@ -5,10 +5,11 @@ import type {
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
   CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
-  PushBroadcast, BroadcastAudience, BroadcastCategory, DurationUnit,
+  PushBroadcast, BroadcastAudience, BroadcastCategory, BroadcastRecipients, DurationUnit,
   BeemSmsCampaign, SmsCampaignAudience, SmsCampaignType, BeemAutoCampaign, BeemAutoCampaignInput,
   SmsCampaignRecipient,
 } from '@/types'
+import type { TrialConfig } from '@/lib/trial-config'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
 
@@ -259,6 +260,24 @@ export async function saveVersionGate(config: VersionGateConfig): Promise<void> 
   })
 }
 
+// ─── Free Trial ───────────────────────────────────────────────────────────────
+
+export async function fetchTrialConfig(): Promise<TrialConfig> {
+  return apiFetch('/api/admin/trial')
+}
+
+export async function saveTrialConfig(config: TrialConfig): Promise<void> {
+  await apiFetch('/api/admin/trial', { method: 'PATCH', body: JSON.stringify(config) })
+}
+
+export async function countTrialEligible(): Promise<{ eligible: number }> {
+  return apiFetch('/api/admin/trial/grant-existing')
+}
+
+export async function grantTrialToExisting(): Promise<{ granted: number; endsAt: string }> {
+  return apiFetch('/api/admin/trial/grant-existing', { method: 'POST' })
+}
+
 // ─── System Health ────────────────────────────────────────────────────────────
 
 export async function fetchSystemHealth(): Promise<{ services: ServiceHealth[]; updatedAt: string; firestoreLatencyMs: number; manualOverrideAt: string | null }> {
@@ -491,6 +510,7 @@ export async function sendPushBroadcast(data: {
   category: BroadcastCategory
   route?: string
   audience: BroadcastAudience
+  recipients?: BroadcastRecipients
 }): Promise<{ id: string }> {
   return apiFetch('/api/admin/push-notifications', { method: 'POST', body: JSON.stringify(data) })
 }

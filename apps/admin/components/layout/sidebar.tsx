@@ -62,6 +62,7 @@ const nav: NavItem[] = [
       { label: 'Feature Flags', href: '/admin/features' },
       { label: 'Config',        href: '/admin/config' },
       { label: 'Version Gate',  href: '/admin/version-gate' },
+      { label: 'Free Trial',    href: '/admin/trial' },
     ]
   },
   { label: 'My Profile', href: '/admin/profile', icon: UserCircle },

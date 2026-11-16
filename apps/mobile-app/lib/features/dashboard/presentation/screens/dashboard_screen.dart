@@ -21,6 +21,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/rate_app_dialog.dart';
 import '../../../../shared/widgets/shimmer.dart';
+import '../../../../shared/widgets/trial_gift_dialog.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../finance/data/finance_providers.dart';
 import '../../../finance/domain/models/expense.dart';
@@ -324,6 +326,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return (business['logoUrl'] as String?)?.trim();
   }
 
+  String? _heroPlanLabel() {
+    final status = ref.watch(planStatusProvider).valueOrNull;
+    if (status == null || status.businessId.isEmpty) {
+      return _getBusinessPlan(_profile);
+    }
+    return status.isTrial
+        ? _tr('${status.tierLabel} trial', '${status.tierLabel} majaribio')
+        : status.tierLabel;
+  }
+
   String? _getBusinessPlan(Map<String, dynamic>? profile) {
     final businesses = profile?['businesses'];
     if (businesses is! List || businesses.isEmpty) return null;
@@ -601,6 +613,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 const SizedBox(height: 20),
 
+                // ── Free-trial countdown (owner only) ────────────────
+                if (permissions.isOwner) const TrialCountdownBanner(),
+
                 // ── Hero card + revenue snapshot + insights ──────────
                 // Phones: stacked. Wide content areas: the card keeps real
                 // card proportions on the left and the snapshot/insights
@@ -618,7 +633,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             customerCount: customerCount,
                             businessName: _getBusinessName(_profile),
                             logoUrl: _getBusinessLogoUrl(_profile),
-                            plan: _getBusinessPlan(_profile),
+                            // Live entitlement, so an expired trial or plan
+                            // reads as Starter instead of its stale tier.
+                            plan: _heroPlanLabel(),
                           )
                         : const _DashboardHeroSkeleton();
                     final side = <Widget>[

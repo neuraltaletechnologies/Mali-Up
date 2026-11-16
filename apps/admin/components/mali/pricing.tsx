@@ -5,6 +5,7 @@ import { Check, ArrowRight, Smartphone } from "lucide-react"
 import {
   DEFAULT_PUBLIC_PRICES,
   PLAN_COPY,
+  planFeatures,
   formatTZS,
   priceFor,
   yearlySaving,
@@ -28,16 +29,27 @@ const plans: PlanStyle[] = [
   { tier: "business", ctaText: "Lipia Business" },
 ]
 
+function trialTierName(tier: string): string {
+  return tier === "business" ? "Business" : "Growth"
+}
+
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("yearly")
   const [prices, setPrices] = useState<PublicPlanPrices>(DEFAULT_PUBLIC_PRICES)
+  // New signups get a free Growth trial (admin portal → Free Trial).
+  const [trial, setTrial] = useState<{ enabled: boolean; days: number; tier: string } | null>({
+    enabled: true, days: 7, tier: "growth",
+  })
   const sectionRef = useRef<HTMLDivElement>(null)
   const isAnnual = cycle === "yearly"
 
   useEffect(() => {
     fetch("/api/plans")
       .then((r) => r.json())
-      .then((d: { prices?: PublicPlanPrices }) => d.prices && setPrices(d.prices))
+      .then((d: { prices?: PublicPlanPrices; trial?: { enabled: boolean; days: number; tier: string } | null }) => {
+        if (d.prices) setPrices(d.prices)
+        if (d.trial !== undefined) setTrial(d.trial)
+      })
       .catch(() => { /* defaults stay */ })
   }, [])
 
@@ -100,6 +112,14 @@ export function Pricing() {
             Bei wazi, bila ada zilizofichika. Lipa hapa hapa kwa M-Pesa, Tigo Pesa, Airtel Money au HaloPesa —
             huhitaji kupakua programu kwanza.
           </p>
+
+          {trial?.enabled && (
+            <div className="reveal flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/30 px-4 py-2 text-sm font-semibold text-[#0C1B2E]">
+                🎁 Jisajili leo upate {trialTierName(trial.tier)} BURE kwa siku {trial.days} — bila malipo yoyote
+              </span>
+            </div>
+          )}
 
           {/* Billing Cycle Toggle — one switch, both words inside the track */}
           <div className="reveal flex justify-center mt-4">
@@ -225,7 +245,7 @@ export function Pricing() {
 
                   {/* Features */}
                   <ul className="space-y-2.5 mb-8">
-                    {copy.features.map((feat) => (
+                    {planFeatures(plan.tier, prices[plan.tier]).map((feat) => (
                       <li key={feat} className="flex items-start gap-2.5 text-sm leading-snug">
                         <Check
                           size={16}
@@ -245,7 +265,11 @@ export function Pricing() {
                       : "bg-[#0C1B2E] text-white hover:bg-[#142038]"
                   }`}
                 >
-                  <span>{plan.ctaText}</span>
+                  <span>
+                    {trial?.enabled && plan.tier === "starter"
+                      ? `Anza Bure + Siku ${trial.days} za ${trialTierName(trial.tier)}`
+                      : plan.ctaText}
+                  </span>
                   <ArrowRight size={15} />
                 </a>
               </div>

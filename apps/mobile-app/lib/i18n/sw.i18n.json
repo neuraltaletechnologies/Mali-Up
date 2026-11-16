@@ -23,5 +23,16 @@
     "failed": "Imeshindikana kuweka upya PIN. Angalia mtandao na ujaribu tena.",
     "sendFailed": "Imeshindikana kutuma namba mpya. Jaribu tena baada ya dakika chache.",
     "backToLogin": "Rudi kuingia"
+  },
+  "trial": {
+    "giftCta": "Anza kutumia",
+    "giftSeePlans": "Angalia mipango",
+    "endsOn": "Kinaisha $date",
+    "daysLeftChip": "Siku $days zimebaki",
+    "lastDayChip": "Siku ya mwisho",
+    "bannerTitle": "$tier bure: siku $days zimebaki",
+    "bannerTitleLastDay": "$tier bure kinaisha leo",
+    "bannerBody": "Kinaisha tarehe $date. Lipia sasa uendelee kutumia vipengele vyote.",
+    "bannerCta": "Lipia"
   }
 }

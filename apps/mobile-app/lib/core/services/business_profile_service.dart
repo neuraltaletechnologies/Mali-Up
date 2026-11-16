@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -91,7 +92,14 @@ class BusinessProfileService {
       'x',
       'linkedin',
       'plan',
+      'planSource',
     };
+
+    // Needed offline by canAddBusiness() (plan_service.dart); Timestamps
+    // aren't JSON-encodable, so store plain numbers.
+    final expires = entry['planExpiresAt'];
+    final overrides = entry['enterpriseOverrides'];
+    final overrideMax = overrides is Map ? overrides['maxBusinesses'] : null;
 
     return <String, dynamic>{
       for (final field in fields)
@@ -99,6 +107,8 @@ class BusinessProfileService {
             entry[field] is bool ||
             entry[field] is num)
           field: entry[field],
+      if (expires is Timestamp) 'planExpiresAtMs': expires.millisecondsSinceEpoch,
+      if (overrideMax is num) 'enterpriseMaxBusinesses': overrideMax,
     };
   }
 

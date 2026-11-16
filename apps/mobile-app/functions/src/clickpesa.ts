@@ -54,7 +54,7 @@ interface TierPricing {
 // unreachable or missing a field.
 const FALLBACK_PRICING: Record<PayableTier, TierPricing> = {
   growth: {pricePerCycle: 30000, cycleMonths: 6, priceMonthly: 6000, priceYearly: 60000},
-  business: {pricePerCycle: 40000, cycleMonths: 6, priceMonthly: 8000, priceYearly: 80000},
+  business: {pricePerCycle: 75000, cycleMonths: 6, priceMonthly: 15000, priceYearly: 150000},
 };
 
 interface PlanPricing {

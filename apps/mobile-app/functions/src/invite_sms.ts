@@ -126,7 +126,7 @@ async function sendInviteSms(ref: FirebaseFirestore.DocumentReference): Promise<
   }
 
   const attempts = (invite.inviteSmsAttempts as number | undefined || 0) + 1;
-  const status = attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
+  const status = sendResult.notCovered || attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
   await ref.update({
     inviteSmsStatus: status,
     inviteSmsAttempts: attempts,

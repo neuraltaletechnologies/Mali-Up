@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { restFirestore } from '@/lib/firestore-rest'
 import { withCache } from '@/lib/api-cache'
-import { DEFAULT_PUBLIC_PRICES, type PublicPlanPrices, type PublicTier } from '@/lib/public-plans'
+import { DEFAULT_PUBLIC_PRICES } from '@/lib/public-plans'
+import { loadPublicPrices } from '@/lib/public-plans-server'
+import { mergeTrialConfig } from '@/lib/trial-config'
 
 // Public (unauthenticated) read of the self-serve plan prices for the
 // marketing site's pricing section and /pay checkout. platform_config/plans
@@ -9,34 +11,22 @@ import { DEFAULT_PUBLIC_PRICES, type PublicPlanPrices, type PublicTier } from '@
 // price fields the site shows, and caches it so a landing-page visit never
 // costs its own Firestore read.
 
-const TIERS: PublicTier[] = ['starter', 'growth', 'business']
-
-function positive(value: unknown, fallback: number): number {
-  return typeof value === 'number' && value >= 0 ? value : fallback
-}
-
-async function fetchPrices(): Promise<PublicPlanPrices> {
-  const snap = await restFirestore.collection('platform_config').doc('plans').get()
-  const data = (snap.data() ?? {}) as Record<string, Record<string, unknown> | undefined>
-  const result = { ...DEFAULT_PUBLIC_PRICES }
-  for (const tier of TIERS) {
-    const raw = data[tier]
-    if (!raw) continue
-    const fallback = DEFAULT_PUBLIC_PRICES[tier]
-    result[tier] = {
-      priceMonthly: tier === 'starter' ? 0 : positive(raw.priceMonthly, fallback.priceMonthly) || fallback.priceMonthly,
-      priceYearly:  tier === 'starter' ? 0 : positive(raw.priceYearly, fallback.priceYearly) || fallback.priceYearly,
-      maxUsers:     typeof raw.maxUsers === 'number' ? raw.maxUsers : fallback.maxUsers,
-    }
-  }
-  return result
+// Only the public bits of platform_config/trial — whether new signups get a
+// free trial and how long — for the site's "N days free" messaging.
+async function fetchTrial(): Promise<{ enabled: boolean; days: number; tier: string }> {
+  const snap = await restFirestore.collection('platform_config').doc('trial').get()
+  const c = mergeTrialConfig(snap.data())
+  return { enabled: c.enabled, days: c.days, tier: c.tier }
 }
 
 export async function GET() {
   try {
-    const prices = await withCache('public-plan-prices', 60_000, fetchPrices)
+    const [prices, trial] = await Promise.all([
+      loadPublicPrices(),
+      withCache('public-trial', 60_000, fetchTrial).catch(() => null),
+    ])
     return NextResponse.json(
-      { prices },
+      { prices, trial },
       { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=120' } },
     )
   } catch (err) {

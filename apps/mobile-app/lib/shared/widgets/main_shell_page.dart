@@ -15,6 +15,7 @@ import '../../core/services/default_context_routing_service.dart';
 import '../../core/services/live_activity_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/services/trial_service.dart';
 import '../../core/services/version_gate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -38,6 +39,7 @@ import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
 import 'nav_aware_fab.dart';
 import 'page_tour.dart';
+import 'trial_gift_dialog.dart';
 import 'plan_activated_dialog.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
@@ -730,6 +732,47 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   }
 
   bool _switchingDialogOpen = false;
+
+  /// Set while [_maybeShowTrialGift] is waiting for a quiet moment.
+  bool _trialGiftWaiting = false;
+
+  /// Shows the "we've gifted you N days" popup once per trial, to the owner,
+  /// on the dashboard. A brand-new owner reaches the dashboard with the
+  /// first-run tour (and maybe the website sheet) about to start, so this
+  /// waits until none of those are on screen — for a steady couple of
+  /// seconds, since the tour starts a moment after the first frame — rather
+  /// than stacking a dialog on top of them. Gives up after a few minutes
+  /// without marking the trial shown, so the next launch tries again.
+  Future<void> _maybeShowTrialGift(PlanStatus status, String businessId) async {
+    final startedAt = status.trialStartedAt;
+    if (_trialGiftWaiting || !status.isTrial || startedAt == null) return;
+    _trialGiftWaiting = true;
+    try {
+      var quietTicks = 0;
+      for (var i = 0; i < 300 && quietTicks < 3; i++) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        final prefs = await SharedPreferences.getInstance();
+        if (!mounted) return;
+        final onDashboard =
+            GoRouterState.of(context).uri.path == AppRoutes.dashboard;
+        final busy = PageTour.isActive ||
+            _switchingDialogOpen ||
+            (prefs.getBool('pending_website_interest') ?? false) ||
+            ModalRoute.of(context)?.isCurrent == false;
+        quietTicks = onDashboard && !busy ? quietTicks + 1 : 0;
+      }
+      if (quietTicks < 3 || !mounted) return;
+      if (!ref.read(permissionServiceProvider).isOwner) return;
+      final current = ref.read(currentBusinessIdProvider).valueOrNull?.trim();
+      if (current != businessId) return;
+      if (!await TrialGiftTracker.claim(businessId, startedAt)) return;
+      if (!mounted) return;
+      await TrialGiftDialog.show(context, status);
+    } finally {
+      _trialGiftWaiting = false;
+    }
+  }
   // Captured from the dialog's own builder so it can be dismissed without
   // going through this State's `context`/`mounted`. If something elsewhere
   // in the switch (e.g. a router redirect reacting to the RBAC reload that
@@ -1906,7 +1949,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       _planActivationWatcher
           .checkForActivation(businessId, status.tier, status.activatedAt)
           .then((shouldCelebrate) {
-            if (!context.mounted || !shouldCelebrate) return;
+            if (!context.mounted) return;
+            // A free trial has its own welcome popup (the activation is
+            // still recorded above, so a later real payment celebrates).
+            if (status.isTrial) {
+              _maybeShowTrialGift(status, businessId);
+              return;
+            }
+            if (!shouldCelebrate) return;
             // Don't drop the popup on top of the "switching…" spinner (doing so
             // used to strand that dialog). The activation is already recorded,
             // so this just skips that one crowded moment.

@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import {getFunctions} from "firebase-admin/functions";
 import {BEEM_API_KEY, BEEM_SECRET_KEY, beemAuthHeader, digitsOnly, sendBeemSms} from "./beem_sms";
 import {retryPendingInviteSms} from "./invite_sms";
+import {runTrialLifecycle} from "./trial";
 
 /**
  * Beem Africa Welcome SMS Integration.
@@ -191,7 +192,7 @@ async function sendWelcomeSmsToUser(
   }
 
   const attempts = (data.welcomeSmsAttempts as number | undefined || 0) + 1;
-  const status = attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
+  const status = sendResult.notCovered || attempts >= MAX_SEND_ATTEMPTS ? "abandoned" : "failed";
   await ref.update({
     welcomeSmsStatus: status,
     welcomeSmsAttempts: attempts,
@@ -272,7 +273,8 @@ export const sendWelcomeSms = onTaskDispatched<WelcomeSmsTaskData>(
  * Hourly safety net. Retries failed sends, takes over claims left behind by
  * a crashed run, and covers users whose task was never queued. Reads only
  * users created in the last SWEEP_LOOKBACK_MS, never the whole collection.
- * Also retries failed staff invitation SMS (invite_sms.ts).
+ * Also retries failed staff invitation SMS (invite_sms.ts) and runs the
+ * free-trial reminder/expiry sweep (trial.ts).
  */
 export const processPendingWelcomeSms = onSchedule(
   {
@@ -298,5 +300,12 @@ export const processPendingWelcomeSms = onSchedule(
     // Shares this job (and its Beem secrets) to stay within Cloud
     // Scheduler's 3 free jobs.
     console.log("[InviteSMS] Retry sweep:", await retryPendingInviteSms());
+
+    // Free-trial reminder push + end-date SMS (trial.ts) — same reason.
+    try {
+      console.log("[Trial] Lifecycle sweep:", await runTrialLifecycle());
+    } catch (err) {
+      console.error("[Trial] Lifecycle sweep failed:", err);
+    }
   },
 );

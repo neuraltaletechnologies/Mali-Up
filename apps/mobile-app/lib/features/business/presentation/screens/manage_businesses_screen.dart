@@ -49,16 +49,6 @@ String _planLabel(PlanTier tier) {
   }
 }
 
-/// True if any business in [businesses] (each carrying its own independent
-/// plan — see [PlanService]) is on a paid tier. The first business an
-/// account creates is always free; adding a 2nd+ business requires that at
-/// least one existing business already pays, since a Starter business no
-/// longer implies anything about the account as a whole.
-bool _hasAnyPaidBusiness(List<Map<String, dynamic>> businesses) {
-  return businesses.any(
-    (b) => PlanTierX.fromString(b['plan'] as String?) != PlanTier.starter,
-  );
-}
 
 class ManageBusinessesScreen extends ConsumerStatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -112,22 +102,23 @@ class _ManageBusinessesScreenState
   }
 
   /// Add-business entry point (FAB): the first business is always free.
-  /// Adding a 2nd+ business requires the account to already have at least
-  /// one paid business — plans are independent per business now, so owning
-  /// a single Starter business doesn't unlock more of them. Users blocked by
-  /// this are gated behind the shared slide-up upgrade sheet instead of a
-  /// blocking dialog, matching the rest of the app's paywall UX.
+  /// More businesses are allowed up to the `maxBusinesses` of the owner's
+  /// best live paid plan (see [canAddBusiness]) — trials don't count. Each
+  /// new business then gets its own free trial server-side
+  /// (functions/src/trial.ts). Users blocked by this are gated behind the
+  /// shared slide-up upgrade sheet, matching the rest of the app's paywall UX.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
     if (!await OnlineGuard.ensureOnline(context)) return;
     if (!mounted) return;
     final businesses = _businessesFromProfile(profile);
-    if (businesses.isNotEmpty && !_hasAnyPaidBusiness(businesses)) {
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    if (!canAddBusiness(businesses, defs: defs)) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
         triggerReason: _tr(
-          'Upgrade one of your businesses to a paid plan to add another business.',
-          'Panda mpango wa biashara moja kuwa wa malipo ili kuongeza biashara nyingine.',
+          'Your plan allows ${allowedBusinessCount(businesses, defs: defs)} business(es). Upgrade a business to a plan with more businesses to add another.',
+          'Mpango wako unaruhusu biashara ${allowedBusinessCount(businesses, defs: defs)}. Panda mpango wa biashara uwe unaoruhusu biashara zaidi ili kuongeza nyingine.',
         ),
       );
       return;
@@ -224,10 +215,14 @@ class _ManageBusinessesScreenState
             'website': (entry['website'] as String?)?.trim() ?? '',
             'x': (entry['x'] as String?)?.trim() ?? '',
             'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
-            // Each business carries its own plan now — used to decide
-            // whether this account may add another business (see
-            // _hasAnyPaidBusiness).
+            // Each business carries its own plan — these decide whether
+            // this account may add another business (see canAddBusiness).
             'plan': (entry['plan'] as String?)?.trim() ?? '',
+            'planSource': entry['planSource'],
+            'planExpiresAt': entry['planExpiresAt'],
+            'planExpiresAtMs': entry['planExpiresAtMs'],
+            'enterpriseOverrides': entry['enterpriseOverrides'],
+            'enterpriseMaxBusinesses': entry['enterpriseMaxBusinesses'],
           },
         )
         .where((entry) => (entry['id'] as String).isNotEmpty)
@@ -1524,8 +1519,10 @@ class _ManageBusinessesScreenState
         );
         final tier =
             livePlanTier ?? PlanTierX.fromString(profile?['plan'] as String?);
-        final canAddMoreBusinesses =
-            businesses.isEmpty || _hasAnyPaidBusiness(businesses);
+        final canAddMoreBusinesses = canAddBusiness(
+          businesses,
+          defs: ref.watch(planDefinitionsProvider).valueOrNull,
+        );
         final isOnline = ref.watch(isOnlineProvider);
 
         // The active business always sits on top of the list. When offline the

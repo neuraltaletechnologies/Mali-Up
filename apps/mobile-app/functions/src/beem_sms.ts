@@ -1,4 +1,5 @@
 import {defineSecret} from "firebase-functions/params";
+import {BEEM_NOT_COVERED_REASON, isBeemReachable} from "./beem_coverage";
 
 /**
  * Shared Beem Africa SMS sender, used by the welcome and staff invitation
@@ -26,10 +27,15 @@ export async function sendBeemSms(
   phone: string,
   message: string,
   sourceAddr?: string,
-): Promise<{success: boolean; error?: string; responseData?: unknown}> {
+): Promise<{success: boolean; error?: string; notCovered?: boolean; responseData?: unknown}> {
   const formattedDest = digitsOnly(phone);
   if (formattedDest.length < 9 || formattedDest.length > 15) {
     return {success: false, error: `Invalid destination phone number: ${phone}`};
+  }
+  // Beem would accept it and never deliver — don't spend credit. Callers
+  // treat notCovered as final (no retries).
+  if (!isBeemReachable(formattedDest)) {
+    return {success: false, notCovered: true, error: BEEM_NOT_COVERED_REASON};
   }
 
   const senderId =

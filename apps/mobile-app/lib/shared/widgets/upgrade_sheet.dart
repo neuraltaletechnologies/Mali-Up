@@ -404,12 +404,21 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   /// preselect) or when they tap their own current tier's card. The CTA
   /// swaps to an Enterprise nudge instead of a "pay again" button in this
   /// case; see [_selectedIsCurrentTier] usage in build().
-  bool get _selectedIsCurrentTier => widget.currentStatus?.tier == _selected;
+  bool get _selectedIsCurrentTier => _paidTier == _selected;
+
+  /// The tier the business actually pays for. A free trial's tier doesn't
+  /// count: the trial exists to sell that same tier, so its card must stay
+  /// buyable rather than show as "current".
+  PlanTier? get _paidTier {
+    final status = widget.currentStatus;
+    if (status == null || status.isTrial) return null;
+    return status.tier;
+  }
 
   @override
   void initState() {
     super.initState();
-    final currentTier = widget.currentStatus?.tier;
+    final currentTier = _paidTier;
     if (_isMultiBusiness) {
       _selected = PlanTier.business;
     } else if (currentTier == PlanTier.growth) {
@@ -545,7 +554,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   cycle: _cycle,
                   limits: limitsFor(PlanTier.growth, widget.defs),
                   isSelected: !_showEnterprise && _selected == PlanTier.growth,
-                  isCurrent: widget.currentStatus?.tier == PlanTier.growth,
+                  isCurrent: _paidTier == PlanTier.growth,
                   onTap: () => setState(() {
                     _selected = PlanTier.growth;
                     _showEnterprise = false;
@@ -559,7 +568,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 cycle: _cycle,
                 limits: limitsFor(PlanTier.business, widget.defs),
                 isSelected: !_showEnterprise && _selected == PlanTier.business,
-                isCurrent: widget.currentStatus?.tier == PlanTier.business,
+                isCurrent: _paidTier == PlanTier.business,
                 onTap: () => setState(() {
                   _selected = PlanTier.business;
                   _showEnterprise = false;

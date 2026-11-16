@@ -70,6 +70,10 @@ AUTH_TRUST_HOST = "true"
 
 # Beem Africa SMS Gateway (SMS Campaigns & Notifications)
 BEEM_SMS_SENDER_ID = "Mali Up"
+# Optional: dial codes Beem can deliver to (comma-separated). Unset = the
+# default list in lib/beem-coverage.ts. Keep in sync with the Cloud Functions'
+# BEEM_COUNTRY_CODES (apps/mobile-app/functions/.env).
+# BEEM_COUNTRY_CODES = "255,254,256,250"
 
 # Deployment: Cloudflare's native Git Build integration (Workers & Pages →
 # mali-up → Settings → Build) is the ONLY deployer, and its build report is the

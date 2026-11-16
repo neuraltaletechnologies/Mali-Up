@@ -43,6 +43,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	// Translations
 	late final Translations$app$en app = Translations$app$en.internal(_root);
 	late final Translations$pinResetCode$en pinResetCode = Translations$pinResetCode$en.internal(_root);
+	late final Translations$trial$en trial = Translations$trial$en.internal(_root);
 }
 
 // Path: app
@@ -126,6 +127,42 @@ class Translations$pinResetCode$en {
 	String get backToLogin => 'Back to login';
 }
 
+// Path: trial
+class Translations$trial$en {
+	Translations$trial$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Start using it'
+	String get giftCta => 'Start using it';
+
+	/// en: 'See plans'
+	String get giftSeePlans => 'See plans';
+
+	/// en: 'Ends on $date'
+	String endsOn({required Object date}) => 'Ends on ${date}';
+
+	/// en: '$days days left'
+	String daysLeftChip({required Object days}) => '${days} days left';
+
+	/// en: 'Last day'
+	String get lastDayChip => 'Last day';
+
+	/// en: 'Free $tier: $days days left'
+	String bannerTitle({required Object tier, required Object days}) => 'Free ${tier}: ${days} days left';
+
+	/// en: 'Free $tier ends today'
+	String bannerTitleLastDay({required Object tier}) => 'Free ${tier} ends today';
+
+	/// en: 'Ends on $date. Pay now to keep every feature.'
+	String bannerBody({required Object date}) => 'Ends on ${date}. Pay now to keep every feature.';
+
+	/// en: 'Pay'
+	String get bannerCta => 'Pay';
+}
+
 /// The flat map containing all translations for locale <en>.
 /// Only for edge cases! For simple maps, use the map function of this library.
 ///
@@ -155,6 +192,15 @@ extension on Translations {
 			'pinResetCode.failed' => 'Could not reset your PIN. Check your connection and try again.',
 			'pinResetCode.sendFailed' => 'Could not send a new code. Try again in a few minutes.',
 			'pinResetCode.backToLogin' => 'Back to login',
+			'trial.giftCta' => 'Start using it',
+			'trial.giftSeePlans' => 'See plans',
+			'trial.endsOn' => ({required Object date}) => 'Ends on ${date}',
+			'trial.daysLeftChip' => ({required Object days}) => '${days} days left',
+			'trial.lastDayChip' => 'Last day',
+			'trial.bannerTitle' => ({required Object tier, required Object days}) => 'Free ${tier}: ${days} days left',
+			'trial.bannerTitleLastDay' => ({required Object tier}) => 'Free ${tier} ends today',
+			'trial.bannerBody' => ({required Object date}) => 'Ends on ${date}. Pay now to keep every feature.',
+			'trial.bannerCta' => 'Pay',
 			_ => null,
 		};
 	}
