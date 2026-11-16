@@ -31,6 +31,7 @@ import '../../core/services/business_profile_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/finance/data/finance_providers.dart';
+import '../../features/notifications/data/broadcast_inbox_sync.dart';
 import '../../features/notifications/data/notification_aggregator.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/data/role_cache_service.dart';
@@ -307,6 +308,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (!(prefs.getBool('pending_website_interest') ?? false)) break;
       await Future.delayed(const Duration(milliseconds: 300));
     }
+    if (!mounted) return;
+    await _showTrialGiftBeforeTour();
     if (!mounted) return;
     PageTour.maybeAutoStart(
       context: context,
@@ -736,6 +739,61 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   /// Set while [_maybeShowTrialGift] is waiting for a quiet moment.
   bool _trialGiftWaiting = false;
 
+  /// Set while a brand-new owner's first-run tour is held back so the trial
+  /// gift can open first (see [_showTrialGiftBeforeTour]). The plan
+  /// listener's [_maybeShowTrialGift] stands down meanwhile, so only one
+  /// path ever shows the popup.
+  bool _giftBeforeTourPending = false;
+
+  /// How long the first-run tour waits for the server to grant the trial —
+  /// onBusinessCreatedTrial (functions/src/trial.ts) stamps it a moment
+  /// after the business doc is created, usually within a couple of seconds.
+  static const _giftBeforeTourMaxWait = Duration(seconds: 10);
+
+  /// First-run only: opens the "we've gifted you N days" popup *before* the
+  /// nav tour, so a new owner's first moment in the app is the gift, and
+  /// returns once it's dismissed. If the trial hasn't landed within
+  /// [_giftBeforeTourMaxWait] (slow network, trials switched off, owner past
+  /// their trial allowance) the tour starts anyway and the regular
+  /// [_maybeShowTrialGift] path shows the gift after it, if it arrives.
+  Future<void> _showTrialGiftBeforeTour() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_tourSeenKey) ?? false) return;
+    _giftBeforeTourPending = true;
+    PlanStatus? lastSeen;
+    try {
+      final deadline = DateTime.now().add(_giftBeforeTourMaxWait);
+      while (mounted) {
+        final businessId =
+            ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
+        final status = ref.read(planStatusProvider).valueOrNull;
+        final startedAt = status?.trialStartedAt;
+        if (status != null &&
+            businessId.isNotEmpty &&
+            status.businessId == businessId) {
+          lastSeen = status;
+          if (status.isTrial && startedAt != null) {
+            if (!await TrialGiftTracker.claim(businessId, startedAt)) return;
+            if (!mounted) return;
+            await TrialGiftDialog.show(context, status);
+            return;
+          }
+        }
+        if (DateTime.now().isAfter(deadline)) break;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    } finally {
+      _giftBeforeTourPending = false;
+    }
+    // Timed out. The plan listener may have fired (and stood down) while we
+    // were waiting, so hand whatever we last saw to the regular path; it
+    // waits for the tour to finish before showing anything.
+    final status = lastSeen;
+    if (mounted && status != null && status.isTrial) {
+      _maybeShowTrialGift(status, status.businessId);
+    }
+  }
+
   /// Shows the "we've gifted you N days" popup once per trial, to the owner,
   /// on the dashboard. A brand-new owner reaches the dashboard with the
   /// first-run tour (and maybe the website sheet) about to start, so this
@@ -745,7 +803,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   /// without marking the trial shown, so the next launch tries again.
   Future<void> _maybeShowTrialGift(PlanStatus status, String businessId) async {
     final startedAt = status.trialStartedAt;
-    if (_trialGiftWaiting || !status.isTrial || startedAt == null) return;
+    if (_giftBeforeTourPending ||
+        _trialGiftWaiting ||
+        !status.isTrial ||
+        startedAt == null) {
+      return;
+    }
     _trialGiftWaiting = true;
     try {
       var quietTicks = 0;
@@ -1858,6 +1921,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     ref.watch(
       pushTokenRegistrarProvider,
     ); // registers this device's FCM token for admin-broadcast push notifications
+    ref.watch(
+      broadcastInboxSyncActivatorProvider,
+    ); // pulls admin broadcasts kept in the inbox into the bell list
     // Open the relevant screen when the user taps an admin-broadcast push
     // notification that carries a deep link.
     ref.listen<AsyncValue<String>>(pushNotificationRouteProvider, (prev, next) {

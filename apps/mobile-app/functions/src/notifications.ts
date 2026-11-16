@@ -37,6 +37,11 @@ interface BroadcastDoc {
   audience: BroadcastAudience;
   /** "owners" skips team members; default "everyone" (owners + team). */
   recipients?: "everyone" | "owners";
+  /**
+   * Also keep it in the app's in-app notifications list (bell). When false
+   * it is a one-off tray push only. Missing = true (pre-toggle broadcasts).
+   */
+  saveToInbox?: boolean;
 }
 
 type Lang = "sw" | "en";
@@ -80,6 +85,7 @@ function messageBase(data: BroadcastDoc, broadcastId: string, lang: Lang) {
     data: {
       category: data.category ?? "general",
       broadcastId,
+      saveToInbox: data.saveToInbox === false ? "0" : "1",
       ...(data.route ? {route: data.route} : {}),
     },
     android: {notification: {channelId: "mali_up_alerts"}},
@@ -98,6 +104,17 @@ export const sendAdminBroadcast = onDocumentCreated(
     const data = snap.data() as BroadcastDoc;
     const broadcastId = event.params.broadcastId;
     const db = admin.firestore();
+
+    // Written before the FCM send so the inbox entry already exists by the
+    // time a user taps the push and the app opens.
+    const saveToInbox = data.saveToInbox !== false;
+    if (saveToInbox) {
+      try {
+        await writeInboxEntry(db, data, broadcastId);
+      } catch (error) {
+        console.error("[sendAdminBroadcast] inbox write failed", error);
+      }
+    }
 
     const messages: admin.messaging.Message[] = [];
     for (const lang of ["sw", "en"] as const) {
@@ -144,6 +161,48 @@ export const sendAdminBroadcast = onDocumentCreated(
     });
   },
 );
+
+// ── In-app inbox feed ───────────────────────────────────────────────────────
+
+/**
+ * `inbox_broadcasts/{broadcastId}` is the client-readable copy of a broadcast
+ * the admin chose to keep in the app's notifications list. The app pulls new
+ * entries for its active business into its local (Drift) inbox — see
+ * lib/features/notifications/data/broadcast_inbox_sync.dart. Pulling (rather
+ * than writing on push receipt) means a push the user swiped away, or one sent
+ * while the device was off, still shows up in the bell, and desktop/web builds
+ * without FCM get it too.
+ *
+ * `targets` holds "all" or "biz_<businessId>" so one array-contains-any query
+ * covers both audiences. `admin_broadcasts` itself stays admin-only: it
+ * carries business names and admin identities.
+ */
+export function inboxTargets(audience: BroadcastAudience): string[] {
+  if (audience.kind === "all") return ["all"];
+  return (audience.businessIds ?? []).map((id) => `biz_${id}`);
+}
+
+async function writeInboxEntry(
+  db: FirebaseFirestore.Firestore,
+  data: BroadcastDoc,
+  broadcastId: string,
+): Promise<void> {
+  const targets = inboxTargets(data.audience);
+  if (targets.length === 0) return;
+  // array-contains-any is capped at 30 values per query, but that limit is on
+  // the query side (the app asks for at most 2); the stored array can be long.
+  await db.collection("inbox_broadcasts").doc(broadcastId).set({
+    titleEn: data.titleEn,
+    bodyEn: data.bodyEn,
+    titleSw: data.titleSw?.trim() || null,
+    bodySw: data.bodySw?.trim() || null,
+    category: data.category ?? "general",
+    route: data.route ?? null,
+    targets,
+    ownersOnly: data.recipients === "owners",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
 
 // ── Legacy: per-token fan-out for app builds that predate topics ───────────
 

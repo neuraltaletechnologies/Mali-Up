@@ -57,6 +57,7 @@ async function fetchBroadcasts() {
       audience:          (d.audience as BroadcastAudience) || { kind: 'all' },
       recipients:        d.recipients === 'owners' ? 'owners' : 'everyone',
       route:             (d.route as string) || undefined,
+      saveToInbox:       d.saveToInbox !== false,
       status:            (d.status as PushBroadcast['status']) || 'pending',
       deliveryMode:      d.deliveryMode === 'topics' ? 'topics' : undefined,
       topicCount:        (d.topicCount as number) || 0,
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
       route?: string
       audience?: BroadcastAudience
       recipients?: string
+      saveToInbox?: boolean
     }
 
     const titleEn = body.titleEn?.trim() || ''
@@ -108,6 +110,13 @@ export async function POST(request: Request) {
     }
 
     const recipients: BroadcastRecipients = body.recipients === 'owners' ? 'owners' : 'everyone'
+    const saveToInbox = body.saveToInbox !== false
+
+    // Only in-app paths; the app ignores anything else on tap.
+    const route = body.route?.trim() || null
+    if (route && !route.startsWith('/')) {
+      return NextResponse.json({ error: 'route must be an in-app path like /sales' }, { status: 400 })
+    }
 
     const session = await auth()
     const adminId = session?.user?.id ?? 'unknown'
@@ -121,9 +130,10 @@ export async function POST(request: Request) {
       titleSw:            body.titleSw?.trim() || null,
       bodySw:             body.bodySw?.trim() || null,
       category,
-      route:              body.route?.trim() || null,
+      route,
       audience,
       recipients,
+      saveToInbox,
       status:             'pending',
       targetCount:        0,
       sentCount:          0,
@@ -144,6 +154,8 @@ export async function POST(request: Request) {
         category,
         audience,
         recipients,
+        saveToInbox,
+        route,
         titleEn,
         bodyEn,
       },

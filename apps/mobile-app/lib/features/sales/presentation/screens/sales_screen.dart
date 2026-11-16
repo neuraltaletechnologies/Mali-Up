@@ -309,7 +309,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   Future<bool> _checkCanSell(BuildContext ctx) async {
     final plan = await ref.read(planStatusProvider.future);
     if (!ctx.mounted) return false;
-    if (!plan.canCreateInvoice) {
+    final usage = ref.read(planUsageProvider);
+    if (!plan.allowsSaleThisMonth(usage.invoicesThisMonth)) {
       await showUpgradeSheet(
         ctx,
         currentStatus: plan,
@@ -323,8 +324,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     // Free-plan daily sales cap — separate from the monthly one above, and
     // counted from the offline-first Drift list so it stays correct with no
     // connection.
-    final salesToday = ref.read(planUsageProvider).salesToday;
-    if (!plan.allowsSaleToday(salesToday)) {
+    if (!plan.allowsSaleToday(usage.salesToday)) {
       if (!ctx.mounted) return false;
       await showUpgradeSheet(
         ctx,
@@ -3509,10 +3509,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   /// shared slide-up upgrade sheet instead of the add-customer form, same
   /// as the Customers list FAB and the shared customer picker.
   Future<void> _openAddNewCustomerFromSuggestions() async {
-    final tier =
-        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
-    final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    final plan = await ref.read(planStatusProvider.future);
+    if (!mounted) return;
+    final maxCustomers = plan.limits.maxCustomers;
     final currentCount = ref.read(customerListProvider).value?.length ?? 0;
     if (maxCustomers != -1 && currentCount >= maxCustomers) {
       await showUpgradeSheet(

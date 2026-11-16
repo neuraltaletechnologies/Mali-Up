@@ -88,6 +88,36 @@ class NotificationLogDao extends DatabaseAccessor<AppDatabase>
     return false;
   }
 
+  /// Inserts an admin broadcast kept in the inbox, once per broadcast id.
+  /// Returns false (and changes nothing) if it is already logged — so a
+  /// broadcast the user read and dismissed never comes back as unread.
+  Future<bool> insertBroadcastIfAbsent({
+    required String businessId,
+    required String broadcastId,
+    required String title,
+    required String body,
+    String? route,
+    required int createdAt,
+  }) async {
+    final existing = await findByKey(businessId, 'broadcast', broadcastId);
+    if (existing != null) return false;
+    await into(notificationLogTable).insert(
+      NotificationLogTableCompanion.insert(
+        id: 'broadcast-$businessId-$broadcastId',
+        businessId: businessId,
+        type: 'broadcast',
+        entityId: Value(broadcastId),
+        route: Value(route),
+        title: title,
+        body: body,
+        createdAt: createdAt,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+    return true;
+  }
+
   Future<void> markAsRead(String id) async {
     await (update(notificationLogTable)..where((t) => t.id.equals(id))).write(
       const NotificationLogTableCompanion(isRead: Value(1)),

@@ -176,6 +176,8 @@ export interface PushBroadcast {
   audience: BroadcastAudience
   recipients: BroadcastRecipients
   route?: string
+  /** Also kept in the app's in-app notifications list (bell). */
+  saveToInbox: boolean
   status: BroadcastStatus
   /** 'topics' for broadcasts sent via FCM topics; absent on older per-device ones. */
   deliveryMode?: 'topics'

@@ -62,6 +62,20 @@ class PushNotificationService {
   static final _routeController = StreamController<String>.broadcast();
   static Stream<String> get routeStream => _routeController.stream;
 
+  /// Fires when a push arrives or is tapped for a broadcast the admin kept
+  /// in the in-app inbox (`saveToInbox` data field). Consumed by
+  /// broadcastInboxSyncActivatorProvider to pull it into the bell list right
+  /// away instead of waiting for the next app resume.
+  static final _inboxController = StreamController<void>.broadcast();
+  static Stream<void> get inboxBroadcastStream => _inboxController.stream;
+
+  static void _maybeSignalInbox(RemoteMessage message) {
+    if (message.data['broadcastId'] != null &&
+        message.data['saveToInbox'] != '0') {
+      _inboxController.add(null);
+    }
+  }
+
   /// Runs [op] after every previously queued operation, never concurrently.
   static Future<void> _serial(Future<void> Function() op) {
     final next = _queue.then((_) => op()).catchError((Object e) {
@@ -196,6 +210,7 @@ class PushNotificationService {
   /// App is foregrounded — FCM never auto-displays in that state, so show
   /// it through the same local-notification channel reactive alerts use.
   static void _handleForegroundMessage(RemoteMessage message) {
+    _maybeSignalInbox(message);
     final notification = message.notification;
     if (notification == null) return;
     NotificationService.showLocalNotification(
@@ -207,6 +222,7 @@ class PushNotificationService {
   }
 
   static void _handleOpenedMessage(RemoteMessage message) {
+    _maybeSignalInbox(message);
     final route = message.data['route'] as String?;
     if (route != null && route.isNotEmpty) _routeController.add(route);
   }

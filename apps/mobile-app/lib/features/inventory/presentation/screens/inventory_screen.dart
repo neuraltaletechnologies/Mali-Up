@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/services/image_cache/cached_image_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -1004,10 +1005,13 @@ class _RowAvatar extends StatelessWidget {
       ),
     );
     if (imageUrl.isEmpty) return initial;
-    return Image.network(
-      imageUrl,
+    return Image(
+      image: ResizeImage.resizeIfNeeded(
+        120,
+        null,
+        cachedImageProvider(imageUrl),
+      ),
       fit: BoxFit.cover,
-      cacheWidth: 120,
       errorBuilder: (_, _, _) => initial,
       loadingBuilder: (_, child, progress) =>
           progress == null ? child : initial,

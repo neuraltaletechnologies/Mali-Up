@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/widgets/app_notification.dart';
@@ -33,6 +34,9 @@ import '../../../printing/domain/printer_settings.dart';
 import '../../../printing/presentation/screens/printer_settings_screen.dart';
 import 'account_details_screen.dart';
 import 'subscription_screen.dart';
+
+/// Installed build info, read once per app run (it can't change while running).
+final Future<PackageInfo> _packageInfoFuture = PackageInfo.fromPlatform();
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -602,13 +606,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'v1.1.0',
-                  style: GoogleFonts.dmSans(
-                    color: AppColors.textDisabled,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
+                // Read from the installed build (pubspec `version:`), so it
+                // always matches the release instead of a hardcoded string.
+                FutureBuilder<PackageInfo>(
+                  future: _packageInfoFuture,
+                  builder: (context, snap) => Text(
+                    snap.hasData ? 'v${snap.data!.version}' : '',
+                    style: GoogleFonts.dmSans(
+                      color: AppColors.textDisabled,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ],
@@ -1052,7 +1061,8 @@ List<_UsageItem> _starterUsageItems(
   }
 
   add('Sales today', 'Mauzo leo', usage.salesToday, l.maxSalesPerDay);
-  add('This month', 'Mwezi huu', s.invoicesUsedThisMonth, l.monthlyInvoices);
+  add('This month', 'Mwezi huu', s.monthlyUsed(usage.invoicesThisMonth),
+      l.monthlyInvoices);
   add('Customers', 'Wateja', usage.customers, l.maxCustomers);
   add('Products', 'Bidhaa', usage.products, l.maxProducts);
   return items;

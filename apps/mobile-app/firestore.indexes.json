@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "inbox_broadcasts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targets", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "sales_invoices",
       "queryScope": "COLLECTION",
       "fields": [

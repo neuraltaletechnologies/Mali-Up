@@ -511,6 +511,7 @@ export async function sendPushBroadcast(data: {
   route?: string
   audience: BroadcastAudience
   recipients?: BroadcastRecipients
+  saveToInbox?: boolean
 }): Promise<{ id: string }> {
   return apiFetch('/api/admin/push-notifications', { method: 'POST', body: JSON.stringify(data) })
 }

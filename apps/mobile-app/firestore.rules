@@ -706,6 +706,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
+    // Admin push broadcasts the admin chose to keep in the app's in-app
+    // notifications list. Written only by the sendAdminBroadcast Cloud
+    // Function (Admin SDK); the app pulls the entries for its active business
+    // into its local inbox. Copy is marketing/announcement text — business
+    // names and admin identities stay in admin_broadcasts, which is denied.
+    match /inbox_broadcasts/{broadcastId} {
+      allow read: if isSignedIn();
+    }
+
     // =========================================================================
     // PLAN REQUESTS  (enterprise inquiries + payment confirmations from the app)
     // =========================================================================

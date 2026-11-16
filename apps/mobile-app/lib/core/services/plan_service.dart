@@ -535,6 +535,23 @@ class PlanStatus {
     return invoicesUsedThisMonth < limit;
   }
 
+  /// Sales used this month: the larger of the server count (refreshed only
+  /// when the business doc changes) and [localThisMonth], the live Drift
+  /// count — so sales made since the last server refresh, or offline, still
+  /// count toward the monthly cap.
+  int monthlyUsed(int localThisMonth) =>
+      localThisMonth > invoicesUsedThisMonth
+          ? localThisMonth
+          : invoicesUsedThisMonth;
+
+  /// Monthly-cap check that also accounts for [localThisMonth] — see
+  /// [monthlyUsed]. Prefer this over [canCreateInvoice] at gates.
+  bool allowsSaleThisMonth(int localThisMonth) {
+    final limit = limits.monthlyInvoices;
+    if (limit == -1) return true;
+    return monthlyUsed(localThisMonth) < limit;
+  }
+
   int get invoicesRemaining {
     final limit = limits.monthlyInvoices;
     if (limit == -1) return 999999;
@@ -914,15 +931,32 @@ class PlanService {
         businessId.isNotEmpty) {
       try {
         final now = DateTime.now();
-        final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-        final snap = await _db
+        final monthStart = DateTime(now.year, now.month);
+        final nextMonth = DateTime(now.year, now.month + 1);
+        final invoices = _db
             .collection('businesses')
             .doc(businessId)
-            .collection('sales_invoices')
-            .where('createdAt', isGreaterThanOrEqualTo: monthStart)
-            .count()
-            .get();
-        invoiceCount = snap.count ?? 0;
+            .collection('sales_invoices');
+        // The app writes `createdAt` as a local ISO-8601 string
+        // (Invoice.toFirestore), and Firestore range filters only match
+        // values of the same type — a Timestamp bound alone counted nothing.
+        // ISO strings sort chronologically, so a string range works; the
+        // Timestamp range still covers any legacy docs written as Timestamps.
+        final results = await Future.wait([
+          invoices
+              .where('createdAt',
+                  isGreaterThanOrEqualTo: monthStart.toIso8601String(),
+                  isLessThan: nextMonth.toIso8601String())
+              .count()
+              .get(),
+          invoices
+              .where('createdAt',
+                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart),
+                  isLessThan: Timestamp.fromDate(nextMonth))
+              .count()
+              .get(),
+        ]);
+        invoiceCount = results.fold<int>(0, (acc, r) => acc + (r.count ?? 0));
       } catch (_) {
         // A usage-count failure must not downgrade an otherwise valid paid
         // package. Keep the last server-verified monthly count instead.
@@ -1040,12 +1074,19 @@ class PlanService {
 final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
   final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
 
-  final initialCached = await PlanStatusCache.load(businessId);
+  // The first emission is what `planStatusProvider.future` resolves to, and
+  // every limit gate (Add Sale, Add Customer) awaits exactly that — so it
+  // must carry the admin-configured limits from the last fetched catalog,
+  // not the compile-time fallbacks.
+  final cachedDefs = await PlanDefinitionsCache.load();
+  final initialCached =
+      await PlanStatusCache.load(businessId, definitions: cachedDefs);
   yield initialCached ??
       PlanStatus(
         tier: PlanTier.starter,
         invoicesUsedThisMonth: 0,
         businessId: businessId,
+        definitions: cachedDefs,
       );
 
   if (businessId.isEmpty) return;
@@ -1056,7 +1097,7 @@ final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
           const Duration(seconds: 6),
         );
   } catch (_) {
-    defs = null;
+    defs = cachedDefs;
   }
 
   yield* PlanService.watchStatus(businessId: businessId, defs: defs);

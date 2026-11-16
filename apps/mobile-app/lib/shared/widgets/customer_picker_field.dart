@@ -229,10 +229,9 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
     // customer_list_screen.dart so every "add customer" entry point (here:
     // invoice creation and manual debt entry, which both open via this
     // picker) enforces the same limit.
-    final tier =
-        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
-    final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    final plan = await ref.read(planStatusProvider.future);
+    if (!mounted) return;
+    final maxCustomers = plan.limits.maxCustomers;
     if (maxCustomers != -1 && widget.customers.length >= maxCustomers) {
       await showUpgradeSheet(
         context,

@@ -198,4 +198,37 @@ void main() {
       expect(found, isNull);
     });
   });
+
+  group('insertBroadcastIfAbsent', () {
+    test('logs a broadcast once and keeps its route; re-pull is a no-op', () async {
+      final first = await dao.insertBroadcastIfAbsent(
+        businessId: businessId,
+        broadcastId: 'b-1',
+        title: 'Toleo jipya',
+        body: 'Sasisha app',
+        route: '/subscription',
+        createdAt: 1000,
+      );
+      expect(first, isTrue);
+
+      final row = (await dao.watchAll(businessId).first).single;
+      expect(row.type, 'broadcast');
+      expect(row.route, '/subscription');
+      expect(row.createdAt, 1000);
+
+      // Read + re-pulled: must not come back as unread or duplicate.
+      await dao.markAsRead(row.id);
+      final again = await dao.insertBroadcastIfAbsent(
+        businessId: businessId,
+        broadcastId: 'b-1',
+        title: 'Toleo jipya',
+        body: 'Sasisha app',
+        createdAt: 1000,
+      );
+      expect(again, isFalse);
+      final rows = await dao.watchAll(businessId).first;
+      expect(rows, hasLength(1));
+      expect(rows.single.isRead, 1);
+    });
+  });
 }

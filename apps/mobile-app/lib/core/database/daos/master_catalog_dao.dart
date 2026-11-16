@@ -93,6 +93,14 @@ class MasterCatalogDao extends DatabaseAccessor<AppDatabase>
     }).toList();
   }
 
+  /// Every cached catalog product that has a picture, across business types.
+  /// Feeds the inventory picture fallback for stock items added by hand.
+  Stream<List<MasterProductsTableData>> watchProductsWithImages() {
+    return (select(masterProductsTable)
+          ..where((t) => t.imageUrl.equals('').not()))
+        .watch();
+  }
+
   Future<int> productCount(String businessType) async {
     final rows = await (select(masterProductsTable)
           ..where((t) => t.businessType.equals(businessType)))

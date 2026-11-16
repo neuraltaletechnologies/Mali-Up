@@ -738,12 +738,18 @@ class SyncService extends ChangeNotifier {
         continue;
       }
       final invoice = InvoiceMapper.fromFirestore(update.data, update.id);
+      // Keep the invoice's real creation time. Stamping a pulled row with
+      // "now" made every invoice pulled today (new device, web reload, a
+      // teammate's sale) count toward today's and this month's plan limits.
+      final remoteCreatedMs =
+          DateTime.tryParse(invoice.createdAt)?.millisecondsSinceEpoch;
       await _localInvoice.upsert(
         invoice,
         syncStatus: 'synced',
         localVersion: localRaw?.localVersion ?? 1,
-        createdAtMs:
-            localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        createdAtMs: remoteCreatedMs ??
+            localRaw?.createdAt ??
+            DateTime.now().millisecondsSinceEpoch,
         serverUpdatedAt: serverTs,
       );
     }

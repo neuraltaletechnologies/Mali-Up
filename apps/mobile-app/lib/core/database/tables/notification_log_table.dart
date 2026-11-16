@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart';
 
 /// Local, device-only log of in-app alerts (low stock, overdue debts,
-/// overdue invoices, sync failures). Never synced to Firestore — every
-/// row here is re-derivable from data already on-device, so there is
-/// nothing to push and nothing to pull.
+/// overdue invoices, sync failures) plus admin broadcasts the admin chose
+/// to keep in the inbox. Never pushed to Firestore: alerts are re-derivable
+/// from data already on-device, and broadcasts are pulled read-only from
+/// `inbox_broadcasts` (see broadcast_inbox_sync.dart).
 class NotificationLogTable extends Table {
   @override
   String get tableName => 'notification_log';
@@ -11,12 +12,17 @@ class NotificationLogTable extends Table {
   TextColumn get id => text()();
   TextColumn get businessId => text()();
 
-  /// 'low_stock' | 'overdue_debt' | 'overdue_invoice' | 'sync_failure'
+  /// 'low_stock' | 'overdue_debt' | 'overdue_invoice' | 'sync_failure' |
+  /// 'broadcast'
   TextColumn get type => text()();
 
-  /// The inventory/debt/invoice id this alert refers to. Null for
-  /// sync_failure, which is a single per-business row, not per-entity.
+  /// The inventory/debt/invoice id this alert refers to, or the broadcast
+  /// id. Null for sync_failure, which is a single per-business row, not
+  /// per-entity.
   TextColumn get entityId => text().nullable()();
+
+  /// In-app route to open on tap (broadcasts only; alerts route by [type]).
+  TextColumn get route => text().nullable()();
 
   TextColumn get title => text()();
   TextColumn get body => text()();

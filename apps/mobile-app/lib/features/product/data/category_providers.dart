@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -202,10 +204,32 @@ final currentBusinessTypeProvider = StreamProvider<String>((ref) {
   // Falling back to '' is treated as "unresolved" downstream (never a
   // hardcoded vertical like 'retail') — the real value still arrives (and
   // callers rebuild) the moment a snapshot lands. distinct() avoids
-  // re-notifying on repeated timeout fallbacks.
-  return snapshots
-      .timeout(const Duration(seconds: 4), onTimeout: (sink) => sink.add(''))
-      .distinct();
+  //
+  // The fallback must fire only while *no* snapshot has arrived yet.
+  // `Stream.timeout` re-arms after every event, so it used to inject '' every
+  // 4s of inactivity — the business doc rarely changes, so the type flipped
+  // to '' 4s after loading and stayed there, emptying the master-catalog
+  // product suggestions on the Add Product form.
+  final controller = StreamController<String>();
+  var gotSnapshot = false;
+  final fallback = Timer(const Duration(seconds: 4), () {
+    if (!gotSnapshot && !controller.isClosed) controller.add('');
+  });
+  final sub = snapshots.listen(
+    (type) {
+      gotSnapshot = true;
+      if (!controller.isClosed) controller.add(type);
+    },
+    onError: (Object e, StackTrace st) {
+      if (!controller.isClosed) controller.addError(e, st);
+    },
+  );
+  ref.onDispose(() {
+    fallback.cancel();
+    sub.cancel();
+    controller.close();
+  });
+  return controller.stream.distinct();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

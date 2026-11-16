@@ -282,10 +282,11 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   /// instead of the add-customer form. The limit is plan-driven (Firestore
   /// `maxCustomers`, admin-editable) and defaults to unlimited.
   Future<void> _showAddDialog(BuildContext context, int currentCount) async {
-    final tier =
-        ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
-    final defs = ref.read(planDefinitionsProvider).valueOrNull;
-    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    // The plan status carries the admin-configured limits (and any
+    // per-business Enterprise overrides), unlike limitsFor(tier, defs).
+    final plan = await ref.read(planStatusProvider.future);
+    if (!context.mounted) return;
+    final maxCustomers = plan.limits.maxCustomers;
     if (maxCustomers != -1 && currentCount >= maxCustomers) {
       await showUpgradeSheet(
         context,

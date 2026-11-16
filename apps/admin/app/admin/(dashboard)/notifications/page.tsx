@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Send, Search, AlertCircle, CheckCircle2, Clock, MessageSquare, Bell } from 'lucide-react'
+import { Send, Search, AlertCircle, CheckCircle2, Clock, MessageSquare, Bell, Inbox } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { StatusDot } from '@/components/ui/status-dot'
@@ -12,6 +12,7 @@ import { fetchBusinesses, fetchPushBroadcasts, sendPushBroadcast } from '@/lib/a
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { PUSH_PRESETS, PUSH_ROUTES, type PushPreset } from '@/components/push/push-presets'
 import type { Business, BroadcastCategory, BroadcastRecipients, PushBroadcast } from '@/types'
 
 const CATEGORY_OPTIONS: { value: BroadcastCategory; label: string }[] = [
@@ -129,6 +130,15 @@ function BroadcastRow({ b }: { b: PushBroadcast }) {
           <span className="text-[11px] text-[var(--ink-faint)] bg-[var(--canvas)] border border-[var(--line)] rounded px-1.5 py-0.5 capitalize">
             {b.category}
           </span>
+          {b.saveToInbox && (
+            <span
+              title="Kept in the app's notifications list"
+              className="inline-flex items-center gap-1 text-[11px] text-[var(--ink-faint)] bg-[var(--canvas)] border border-[var(--line)] rounded px-1.5 py-0.5"
+            >
+              <Inbox className="h-3 w-3" />
+              In-app
+            </span>
+          )}
         </div>
         <p className="text-[12px] text-[var(--ink-muted)] mt-0.5 truncate">{b.bodyEn}</p>
         <div className="text-[11px] text-[var(--ink-faint)] mt-1">
@@ -156,7 +166,10 @@ function PushNotificationsSection() {
   const broadcasts = broadcastData?.broadcasts ?? []
   const businesses = businessData?.businesses ?? []
 
+  const [presetId, setPresetId] = useState<string>('custom')
   const [category, setCategory] = useState<BroadcastCategory>('general')
+  const [route, setRoute] = useState('')
+  const [saveToInbox, setSaveToInbox] = useState(true)
   const [audienceKind, setAudienceKind] = useState<'all' | 'businesses'>('all')
   const [recipients, setRecipients] = useState<BroadcastRecipients>('everyone')
   const [titleEn, setTitleEn] = useState('')
@@ -167,6 +180,18 @@ function PushNotificationsSection() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+
+  function applyPreset(preset: PushPreset) {
+    setPresetId(preset.id)
+    setCategory(preset.category)
+    setRoute(preset.route)
+    setSaveToInbox(preset.saveToInbox)
+    setRecipients(preset.ownersOnly ? 'owners' : 'everyone')
+    setTitleEn(preset.titleEn)
+    setBodyEn(preset.bodyEn)
+    setTitleSw(preset.titleSw)
+    setBodySw(preset.bodySw)
+  }
 
   function toggleBusiness(id: string, name: string) {
     setSelectedBusinesses((prev) => {
@@ -203,6 +228,8 @@ function PushNotificationsSection() {
         bodySw: bodySw.trim() || undefined,
         category,
         recipients,
+        route: route || undefined,
+        saveToInbox,
         audience:
           audienceKind === 'all'
             ? { kind: 'all' }
@@ -217,6 +244,9 @@ function PushNotificationsSection() {
       setTitleSw('')
       setBodySw('')
       setSelectedBusinesses(new Map())
+      setPresetId('custom')
+      setRoute('')
+      setSaveToInbox(true)
       setConfirmOpen(false)
       refetch()
     } catch (err) {
@@ -230,6 +260,32 @@ function PushNotificationsSection() {
     <div>
       {/* ── Compose ─────────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5 mb-6">
+        <div className="mb-5">
+          <label className="block text-[12px] font-semibold text-[var(--ink)] mb-2">Template</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            {PUSH_PRESETS.map((preset) => {
+              const isSelected = presetId === preset.id
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset)}
+                  className={cn(
+                    'flex flex-col items-start p-2.5 rounded-lg border text-left transition-all',
+                    isSelected
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)]/20 shadow-xs ring-1 ring-[var(--accent)]'
+                      : 'border-[var(--line)] bg-[var(--canvas)] hover:border-[var(--ink-faint)]',
+                  )}
+                >
+                  <span className="text-xl mb-1">{preset.icon}</span>
+                  <span className="text-[12px] font-semibold text-[var(--ink)] line-clamp-1">{preset.title}</span>
+                  <span className="text-[10.5px] text-[var(--ink-muted)] line-clamp-1 mt-0.5">{preset.subtitle}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2 flex items-center justify-between flex-wrap gap-2">
             <SegmentedControl options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
@@ -283,6 +339,38 @@ function PushNotificationsSection() {
             />
           </div>
 
+          <div>
+            <label className="block text-[12px] font-medium text-[var(--ink-muted)] mb-1">Opens when tapped</label>
+            <select
+              value={route}
+              onChange={(e) => setRoute(e.target.value)}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            >
+              {PUSH_ROUTES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-[var(--ink-muted)] mb-1">In-app notifications</label>
+            <label className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveToInbox}
+                onChange={(e) => setSaveToInbox(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--accent)]"
+              />
+              <span className="min-w-0">
+                <span className="block text-[12.5px] font-medium text-[var(--ink)]">Keep in the app&apos;s notifications list</span>
+                <span className="block text-[11px] text-[var(--ink-muted)]">
+                  {saveToInbox
+                    ? 'Also shows under the bell, even if the push was dismissed or the phone was off.'
+                    : 'Phone notification only. Nothing is added to the bell list.'}
+                </span>
+              </span>
+            </label>
+          </div>
+
           {audienceKind === 'businesses' && (
             <div className="md:col-span-2">
               <label className="block text-[12px] font-medium text-[var(--ink-muted)] mb-1">Businesses</label>
@@ -320,7 +408,7 @@ function PushNotificationsSection() {
         loading={sending}
         variant="warning"
         title="Send this notification?"
-        description={`This will push "${titleEn}" to ${audienceLabel}. Users with the app in Swahili get the Swahili copy (or the English one if left blank). This can't be recalled once sent.`}
+        description={`This will push "${titleEn}" to ${audienceLabel}. Users with the app in Swahili get the Swahili copy (or the English one if left blank).${saveToInbox ? ' It will also be kept in the app’s notifications list.' : ' It will not be added to the app’s notifications list.'} This can't be recalled once sent.`}
         confirmLabel="Send"
       />
 

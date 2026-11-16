@@ -5,25 +5,28 @@ import * as admin from "firebase-admin";
 import {getFunctions} from "firebase-admin/functions";
 import {BEEM_API_KEY, BEEM_SECRET_KEY, beemAuthHeader, digitsOnly, sendBeemSms} from "./beem_sms";
 import {retryPendingInviteSms} from "./invite_sms";
-import {runTrialLifecycle} from "./trial";
+import {runTrialLifecycle, trialWelcomeSms} from "./trial";
 
 /**
  * Beem Africa Welcome SMS Integration.
  *
  * Requirements:
- * 1. 5 minutes after a user account has been created in the app, automatically
+ * 1. 30 minutes after a user account has been created in the app (see
+ *    welcomeSmsSendAt for why, and for the night-time rule), automatically
  *    send an SMS using the Beem SMS template named "Maelezo ya mteja mpya":
  *    "Habari!! {name} Tumekukalibishe kishupavu zaidi na Ofa ya Free plan kwenye
  *    account yako Kwa huduma ya kukuhamishia taarifa zako zote kwenye App,
  *    msadaa au changamoto yoyote Piga +255-653-520-829"
+ *    When the owner has a free trial, the text is instead the welcome message
+ *    set on the admin portal's Free Trial page (trialWelcomeSms in trial.ts).
  * 2. Dynamic template syncing: Whenever the template is updated in the Beem
  *    Africa dashboard, the updated text is fetched and used automatically.
  * 3. Multi-country support: Sends to any phone number supported by Beem Africa
  *    (canonical digits-only format).
  *
  * Flow (event-driven, so idle hours cost no Firestore reads):
- *   users/{uid} created → onUserCreatedWelcomeSms queues a Cloud Task delayed
- *   5 minutes → sendWelcomeSms sends it. processPendingWelcomeSms runs hourly
+ *   users/{uid} created → onUserCreatedWelcomeSms queues a Cloud Task for
+ *   welcomeSmsSendAt() → sendWelcomeSms sends it. processPendingWelcomeSms runs hourly
  *   over recently created users only, as a retry / safety net.
  */
 
@@ -35,8 +38,17 @@ export const WELCOME_TEMPLATE_NAME = "Maelezo ya mteja mpya";
 export const DEFAULT_WELCOME_TEMPLATE =
   "Habari!! {name} Tumekukalibishe kishupavu zaidi na Ofa ya Free plan kwenye account yako Kwa huduma ya kukuhamishia taarifa zako zote kwenye App, msadaa au changamoto yoyote Piga +255-653-520-829";
 
-// 5 minutes delay after user creation
-const WELCOME_SMS_DELAY_MS = 5 * 60 * 1000;
+// 30 minutes after signup. At 5 minutes the SMS landed while the owner was
+// still in the trial-gift popup / first-run tour, competing with the app for
+// attention. Half an hour is after that first session, while they still
+// remember signing up and are likely still near the phone; an hour or more
+// and many have closed the app and moved on.
+const WELCOME_SMS_DELAY_MS = 30 * 60 * 1000;
+// No SMS at night: a send time outside these East Africa Time hours moves to
+// the next SEND_WINDOW_START_HOUR. Same window as the trial SMS (trial.ts).
+const EAT_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3 all year, no DST
+const SEND_WINDOW_START_HOUR = 8;
+const SEND_WINDOW_END_HOUR = 20;
 // Cloud Tasks may fire a few seconds early relative to Firestore's clock.
 const CLOCK_SKEW_TOLERANCE_MS = 30 * 1000;
 // An "in_progress" claim older than this belongs to a run that crashed.
@@ -112,6 +124,23 @@ export async function getWelcomeTemplateText(): Promise<string> {
 }
 
 /**
+ * When the welcome SMS for an account created at [createdAtMs] should go
+ * out: WELCOME_SMS_DELAY_MS later, or — if that lands at night in East
+ * Africa Time — 08:00 EAT the next morning (or the same morning, for a
+ * signup after midnight).
+ */
+export function welcomeSmsSendAt(createdAtMs: number): number {
+  const due = createdAtMs + WELCOME_SMS_DELAY_MS;
+  const eat = new Date(due + EAT_OFFSET_MS);
+  const hour = eat.getUTCHours();
+  if (hour >= SEND_WINDOW_START_HOUR && hour < SEND_WINDOW_END_HOUR) return due;
+  const morning = new Date(eat);
+  morning.setUTCHours(SEND_WINDOW_START_HOUR, 0, 0, 0);
+  if (hour >= SEND_WINDOW_END_HOUR) morning.setUTCDate(morning.getUTCDate() + 1);
+  return morning.getTime() - EAT_OFFSET_MS;
+}
+
+/**
  * Replaces name placeholders ({name}, {{name}}, {NAME}, etc.) with the user's name.
  */
 export function formatWelcomeMessage(template: string, name: string): string {
@@ -142,9 +171,10 @@ async function sendWelcomeSmsToUser(
       const data = snap.data();
       if (!data || !isWelcomeSmsCandidate(data)) return;
 
-      // Not 5 minutes old yet — the delayed task or the next sweep sends it.
+      // Not due yet (too soon after signup, or held until morning) — the
+      // delayed task or a later sweep sends it.
       const createdAt = data.createdAt as FirebaseFirestore.Timestamp | undefined;
-      if (createdAt && now - createdAt.toMillis() < WELCOME_SMS_DELAY_MS - CLOCK_SKEW_TOLERANCE_MS) {
+      if (createdAt && now < welcomeSmsSendAt(createdAt.toMillis()) - CLOCK_SKEW_TOLERANCE_MS) {
         return;
       }
 
@@ -175,7 +205,15 @@ async function sendWelcomeSmsToUser(
     (data.name as string | undefined)?.trim()?.split(" ")[0] ||
     "Mteja";
 
-  const message = formatWelcomeMessage(await getWelcomeTemplateText(), recipientName);
+  // The welcome message set on the admin portal's Free Trial page, when the
+  // owner has a trial; otherwise the Beem "Maelezo ya mteja mpya" template.
+  let message: string | null = null;
+  try {
+    message = await trialWelcomeSms(ref.id, recipientName);
+  } catch (err) {
+    console.warn(`[WelcomeSMS] Could not build trial welcome for user ${ref.id}, using Beem template:`, err);
+  }
+  message ??= formatWelcomeMessage(await getWelcomeTemplateText(), recipientName);
   const sendResult = await sendBeemSms(phone, message);
 
   if (sendResult.success) {
@@ -217,7 +255,7 @@ function isWelcomeSmsCandidate(data: FirebaseFirestore.DocumentData): boolean {
 
 /**
  * Fires once when a user document is created and schedules the welcome SMS
- * for 5 minutes later via a Cloud Task, so nothing polls the users
+ * for welcomeSmsSendAt() via a Cloud Task, so nothing polls the users
  * collection while there are no signups.
  */
 export const onUserCreatedWelcomeSms = onDocumentCreated(
@@ -227,13 +265,15 @@ export const onUserCreatedWelcomeSms = onDocumentCreated(
     if (!data || !isWelcomeSmsCandidate(data)) return;
 
     const uid = event.params.uid;
+    const createdAt = data.createdAt as FirebaseFirestore.Timestamp | undefined;
+    const sendAt = welcomeSmsSendAt(createdAt?.toMillis?.() ?? Date.now());
     try {
       await getFunctions()
         .taskQueue<WelcomeSmsTaskData>(`locations/${REGION}/functions/sendWelcomeSms`)
         .enqueue(
           {uid},
           {
-            scheduleDelaySeconds: WELCOME_SMS_DELAY_MS / 1000,
+            scheduleTime: new Date(sendAt),
             // Firestore triggers are at-least-once; a fixed task id stops a
             // redelivered event from queueing a second task.
             id: `welcome-${uid}`,

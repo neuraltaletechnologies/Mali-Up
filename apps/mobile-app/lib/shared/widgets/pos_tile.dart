@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/services/image_cache/cached_image_provider.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -140,8 +141,8 @@ class PosTileImage extends StatelessWidget {
             ),
     );
     if (url.isEmpty) return placeholder;
-    return Image.network(
-      url,
+    return Image(
+      image: cachedImageProvider(url),
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => placeholder,
       loadingBuilder: (_, child, progress) =>

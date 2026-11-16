@@ -70,6 +70,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         context.push(AppRouter.salesPath);
       case 'sync_failure':
         context.push(AppRouter.syncDiagnosticsPath);
+      case 'broadcast':
+        final route = item.route;
+        if (route != null && route.startsWith('/')) context.push(route);
     }
   }
 
@@ -640,6 +643,8 @@ class _NotificationItem extends StatelessWidget {
         return (Icons.receipt_long_outlined, AppColors.error);
       case 'sync_failure':
         return (Icons.sync_problem_rounded, AppColors.navyPrimary);
+      case 'broadcast':
+        return (Icons.campaign_outlined, AppColors.yellowBrand);
       default:
         return (Icons.notifications_outlined, AppColors.textMuted);
     }

@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   /// Removes account and business data cached on this device.
   ///
@@ -303,6 +303,21 @@ class AppDatabase extends _$AppDatabase {
               );
             }
             await customStatement('UPDATE master_categories SET cached_at = 0');
+          }
+          if (from < 19) {
+            // Notification log gained an in-app route, for admin broadcasts
+            // kept in the inbox (tapping one opens the screen it points to).
+            // Guarded: an upgrade from < v11 has just created the table from
+            // the current schema, which already has the column.
+            final cols = await customSelect(
+              "SELECT 1 FROM pragma_table_info('notification_log') "
+              "WHERE name = 'route'",
+            ).get();
+            if (cols.isEmpty) {
+              await customStatement(
+                'ALTER TABLE notification_log ADD COLUMN route TEXT',
+              );
+            }
           }
         },
         beforeOpen: (details) async {

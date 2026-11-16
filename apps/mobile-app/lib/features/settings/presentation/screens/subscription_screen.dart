@@ -450,7 +450,7 @@ class _UsagePanel extends ConsumerWidget {
 
     add('Sales today', 'Mauzo leo', usage.salesToday, limits.maxSalesPerDay);
     add('Invoices this month', 'Ankara mwezi huu',
-        status.invoicesUsedThisMonth, limits.monthlyInvoices);
+        status.monthlyUsed(usage.invoicesThisMonth), limits.monthlyInvoices);
     add('Customers', 'Wateja', usage.customers, limits.maxCustomers);
     add('Products', 'Bidhaa', usage.products, limits.maxProducts);
     add('Services', 'Huduma', usage.serviceProducts, limits.maxServiceProducts);

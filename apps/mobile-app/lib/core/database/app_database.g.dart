@@ -15690,6 +15690,15 @@ class $NotificationLogTableTable extends NotificationLogTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _routeMeta = const VerificationMeta('route');
+  @override
+  late final GeneratedColumn<String> route = GeneratedColumn<String>(
+    'route',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -15746,6 +15755,7 @@ class $NotificationLogTableTable extends NotificationLogTable
     businessId,
     type,
     entityId,
+    route,
     title,
     body,
     isRead,
@@ -15789,6 +15799,12 @@ class $NotificationLogTableTable extends NotificationLogTable
       context.handle(
         _entityIdMeta,
         entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    }
+    if (data.containsKey('route')) {
+      context.handle(
+        _routeMeta,
+        route.isAcceptableOrUnknown(data['route']!, _routeMeta),
       );
     }
     if (data.containsKey('title')) {
@@ -15857,6 +15873,10 @@ class $NotificationLogTableTable extends NotificationLogTable
         DriftSqlType.string,
         data['${effectivePrefix}entity_id'],
       ),
+      route: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}route'],
+      ),
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
@@ -15891,12 +15911,17 @@ class NotificationLogTableData extends DataClass
   final String id;
   final String businessId;
 
-  /// 'low_stock' | 'overdue_debt' | 'overdue_invoice' | 'sync_failure'
+  /// 'low_stock' | 'overdue_debt' | 'overdue_invoice' | 'sync_failure' |
+  /// 'broadcast'
   final String type;
 
-  /// The inventory/debt/invoice id this alert refers to. Null for
-  /// sync_failure, which is a single per-business row, not per-entity.
+  /// The inventory/debt/invoice id this alert refers to, or the broadcast
+  /// id. Null for sync_failure, which is a single per-business row, not
+  /// per-entity.
   final String? entityId;
+
+  /// In-app route to open on tap (broadcasts only; alerts route by [type]).
+  final String? route;
   final String title;
   final String body;
   final int isRead;
@@ -15907,6 +15932,7 @@ class NotificationLogTableData extends DataClass
     required this.businessId,
     required this.type,
     this.entityId,
+    this.route,
     required this.title,
     required this.body,
     required this.isRead,
@@ -15921,6 +15947,9 @@ class NotificationLogTableData extends DataClass
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || entityId != null) {
       map['entity_id'] = Variable<String>(entityId);
+    }
+    if (!nullToAbsent || route != null) {
+      map['route'] = Variable<String>(route);
     }
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
@@ -15938,6 +15967,9 @@ class NotificationLogTableData extends DataClass
       entityId: entityId == null && nullToAbsent
           ? const Value.absent()
           : Value(entityId),
+      route: route == null && nullToAbsent
+          ? const Value.absent()
+          : Value(route),
       title: Value(title),
       body: Value(body),
       isRead: Value(isRead),
@@ -15956,6 +15988,7 @@ class NotificationLogTableData extends DataClass
       businessId: serializer.fromJson<String>(json['businessId']),
       type: serializer.fromJson<String>(json['type']),
       entityId: serializer.fromJson<String?>(json['entityId']),
+      route: serializer.fromJson<String?>(json['route']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
       isRead: serializer.fromJson<int>(json['isRead']),
@@ -15971,6 +16004,7 @@ class NotificationLogTableData extends DataClass
       'businessId': serializer.toJson<String>(businessId),
       'type': serializer.toJson<String>(type),
       'entityId': serializer.toJson<String?>(entityId),
+      'route': serializer.toJson<String?>(route),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
       'isRead': serializer.toJson<int>(isRead),
@@ -15984,6 +16018,7 @@ class NotificationLogTableData extends DataClass
     String? businessId,
     String? type,
     Value<String?> entityId = const Value.absent(),
+    Value<String?> route = const Value.absent(),
     String? title,
     String? body,
     int? isRead,
@@ -15994,6 +16029,7 @@ class NotificationLogTableData extends DataClass
     businessId: businessId ?? this.businessId,
     type: type ?? this.type,
     entityId: entityId.present ? entityId.value : this.entityId,
+    route: route.present ? route.value : this.route,
     title: title ?? this.title,
     body: body ?? this.body,
     isRead: isRead ?? this.isRead,
@@ -16010,6 +16046,7 @@ class NotificationLogTableData extends DataClass
           : this.businessId,
       type: data.type.present ? data.type.value : this.type,
       entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      route: data.route.present ? data.route.value : this.route,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
       isRead: data.isRead.present ? data.isRead.value : this.isRead,
@@ -16025,6 +16062,7 @@ class NotificationLogTableData extends DataClass
           ..write('businessId: $businessId, ')
           ..write('type: $type, ')
           ..write('entityId: $entityId, ')
+          ..write('route: $route, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('isRead: $isRead, ')
@@ -16040,6 +16078,7 @@ class NotificationLogTableData extends DataClass
     businessId,
     type,
     entityId,
+    route,
     title,
     body,
     isRead,
@@ -16054,6 +16093,7 @@ class NotificationLogTableData extends DataClass
           other.businessId == this.businessId &&
           other.type == this.type &&
           other.entityId == this.entityId &&
+          other.route == this.route &&
           other.title == this.title &&
           other.body == this.body &&
           other.isRead == this.isRead &&
@@ -16067,6 +16107,7 @@ class NotificationLogTableCompanion
   final Value<String> businessId;
   final Value<String> type;
   final Value<String?> entityId;
+  final Value<String?> route;
   final Value<String> title;
   final Value<String> body;
   final Value<int> isRead;
@@ -16078,6 +16119,7 @@ class NotificationLogTableCompanion
     this.businessId = const Value.absent(),
     this.type = const Value.absent(),
     this.entityId = const Value.absent(),
+    this.route = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
     this.isRead = const Value.absent(),
@@ -16090,6 +16132,7 @@ class NotificationLogTableCompanion
     required String businessId,
     required String type,
     this.entityId = const Value.absent(),
+    this.route = const Value.absent(),
     required String title,
     required String body,
     this.isRead = const Value.absent(),
@@ -16108,6 +16151,7 @@ class NotificationLogTableCompanion
     Expression<String>? businessId,
     Expression<String>? type,
     Expression<String>? entityId,
+    Expression<String>? route,
     Expression<String>? title,
     Expression<String>? body,
     Expression<int>? isRead,
@@ -16120,6 +16164,7 @@ class NotificationLogTableCompanion
       if (businessId != null) 'business_id': businessId,
       if (type != null) 'type': type,
       if (entityId != null) 'entity_id': entityId,
+      if (route != null) 'route': route,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
       if (isRead != null) 'is_read': isRead,
@@ -16134,6 +16179,7 @@ class NotificationLogTableCompanion
     Value<String>? businessId,
     Value<String>? type,
     Value<String?>? entityId,
+    Value<String?>? route,
     Value<String>? title,
     Value<String>? body,
     Value<int>? isRead,
@@ -16146,6 +16192,7 @@ class NotificationLogTableCompanion
       businessId: businessId ?? this.businessId,
       type: type ?? this.type,
       entityId: entityId ?? this.entityId,
+      route: route ?? this.route,
       title: title ?? this.title,
       body: body ?? this.body,
       isRead: isRead ?? this.isRead,
@@ -16169,6 +16216,9 @@ class NotificationLogTableCompanion
     }
     if (entityId.present) {
       map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (route.present) {
+      map['route'] = Variable<String>(route.value);
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
@@ -16198,6 +16248,7 @@ class NotificationLogTableCompanion
           ..write('businessId: $businessId, ')
           ..write('type: $type, ')
           ..write('entityId: $entityId, ')
+          ..write('route: $route, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('isRead: $isRead, ')
@@ -23931,6 +23982,7 @@ typedef $$NotificationLogTableTableCreateCompanionBuilder =
       required String businessId,
       required String type,
       Value<String?> entityId,
+      Value<String?> route,
       required String title,
       required String body,
       Value<int> isRead,
@@ -23944,6 +23996,7 @@ typedef $$NotificationLogTableTableUpdateCompanionBuilder =
       Value<String> businessId,
       Value<String> type,
       Value<String?> entityId,
+      Value<String?> route,
       Value<String> title,
       Value<String> body,
       Value<int> isRead,
@@ -23978,6 +24031,11 @@ class $$NotificationLogTableTableFilterComposer
 
   ColumnFilters<String> get entityId => $composableBuilder(
     column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get route => $composableBuilder(
+    column: $table.route,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24036,6 +24094,11 @@ class $$NotificationLogTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get route => $composableBuilder(
+    column: $table.route,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get title => $composableBuilder(
     column: $table.title,
     builder: (column) => ColumnOrderings(column),
@@ -24084,6 +24147,9 @@ class $$NotificationLogTableTableAnnotationComposer
 
   GeneratedColumn<String> get entityId =>
       $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get route =>
+      $composableBuilder(column: $table.route, builder: (column) => column);
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
@@ -24148,6 +24214,7 @@ class $$NotificationLogTableTableTableManager
                 Value<String> businessId = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String?> entityId = const Value.absent(),
+                Value<String?> route = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
                 Value<int> isRead = const Value.absent(),
@@ -24159,6 +24226,7 @@ class $$NotificationLogTableTableTableManager
                 businessId: businessId,
                 type: type,
                 entityId: entityId,
+                route: route,
                 title: title,
                 body: body,
                 isRead: isRead,
@@ -24172,6 +24240,7 @@ class $$NotificationLogTableTableTableManager
                 required String businessId,
                 required String type,
                 Value<String?> entityId = const Value.absent(),
+                Value<String?> route = const Value.absent(),
                 required String title,
                 required String body,
                 Value<int> isRead = const Value.absent(),
@@ -24183,6 +24252,7 @@ class $$NotificationLogTableTableTableManager
                 businessId: businessId,
                 type: type,
                 entityId: entityId,
+                route: route,
                 title: title,
                 body: body,
                 isRead: isRead,

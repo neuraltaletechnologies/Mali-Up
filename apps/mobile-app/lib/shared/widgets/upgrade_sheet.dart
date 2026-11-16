@@ -646,7 +646,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 Center(
                   child: Text(
                     _cycle == BillingCycle.yearly
-                        ? _t('Paid once for 12 months', 'Unalipa mara moja kwa miezi 12')
+                        ? _t(
+                            'Paid once for 12 months',
+                            'Unalipa mara moja kwa miezi 12',
+                          )
                         : _t(
                             'Paid once for 1 month — renew anytime',
                             'Unalipa mara moja kwa mwezi 1 — ongeza muda wakati wowote',
@@ -924,36 +927,36 @@ class _TierCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 6),
-            // Price
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _fmtPrice(limits.perMonthFor(cycle)),
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? AppColors.yellowBrand
-                          : AppColors.navyPrimary,
-                    ),
+            const SizedBox(width: 8),
+            // Price — sized to its own content (not Flexible, which split the
+            // row 50/50 with the name column and left a gap after "Growth").
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _fmtPrice(limits.perMonthFor(cycle)),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected
+                        ? AppColors.yellowBrand
+                        : AppColors.navyPrimary,
                   ),
-                  Text(
-                    _t('/mo', '/mwezi'),
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 9,
-                      color: isSelected
-                          ? Colors.white.withValues(alpha: 0.45)
-                          : AppColors.textMuted,
-                    ),
+                ),
+                Text(
+                  _t('/mo', '/mwezi'),
+                  maxLines: 1,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.45)
+                        : AppColors.textMuted,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1325,7 +1328,10 @@ class _AlreadyOnThisPlanNotice extends StatelessWidget {
   final PlanTier tier;
   final VoidCallback onSeeEnterprise;
 
-  const _AlreadyOnThisPlanNotice({required this.tier, required this.onSeeEnterprise});
+  const _AlreadyOnThisPlanNotice({
+    required this.tier,
+    required this.onSeeEnterprise,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1397,8 +1403,9 @@ class _PhonePaymentForm extends StatefulWidget {
 }
 
 class _PhonePaymentFormState extends State<_PhonePaymentForm> {
-  late final TextEditingController _phoneController =
-      TextEditingController(text: widget.initialPhone ?? '');
+  late final TextEditingController _phoneController = TextEditingController(
+    text: widget.initialPhone ?? '',
+  );
   String? _error;
 
   @override
@@ -1415,10 +1422,12 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
   void _submit() {
     final phone = _phoneController.text.trim();
     if (!_looksLikePhone(phone)) {
-      setState(() => _error = _t(
-            'Enter a valid mobile money number, e.g. 0712 345 678',
-            'Weka namba sahihi ya pesa ya simu, mf. 0712 345 678',
-          ));
+      setState(
+        () => _error = _t(
+          'Enter a valid mobile money number, e.g. 0712 345 678',
+          'Weka namba sahihi ya pesa ya simu, mf. 0712 345 678',
+        ),
+      );
       return;
     }
     setState(() => _error = null);
@@ -1484,7 +1493,10 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
           style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w600),
           decoration: InputDecoration(
             hintText: '0712 345 678',
-            hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+            hintStyle: GoogleFonts.dmSans(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
             prefixIcon: const Icon(Icons.phone_android_rounded, size: 18),
             filled: true,
             fillColor: AppColors.surface,
@@ -1518,7 +1530,10 @@ class _PhonePaymentFormState extends State<_PhonePaymentForm> {
             icon: const Icon(Icons.send_to_mobile_rounded, size: 16),
             label: Text(
               _t('Send Payment Request', 'Tuma Ombi la Malipo'),
-              style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w800),
+              style: GoogleFonts.dmSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.yellowBrand,
@@ -1554,7 +1569,8 @@ class _ClickPesaPaymentSheet extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_ClickPesaPaymentSheet> createState() => _ClickPesaPaymentSheetState();
+  ConsumerState<_ClickPesaPaymentSheet> createState() =>
+      _ClickPesaPaymentSheetState();
 }
 
 class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
@@ -1643,7 +1659,9 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
       );
       if (_disposed || !mounted) return;
 
-      debugPrint('[ClickPesaPaymentSheet] payment confirmed: ${initiated.orderReference}');
+      debugPrint(
+        '[ClickPesaPaymentSheet] payment confirmed: ${initiated.orderReference}',
+      );
       setState(() => _succeeded = true);
       // Wait for the checkmark to actually be on screen, hold a beat so
       // it registers, then close on its own — there's nothing else on
@@ -1713,7 +1731,8 @@ class _ClickPesaPaymentSheetState extends ConsumerState<_ClickPesaPaymentSheet>
               if (_failed) ...[
                 const SizedBox(height: 14),
                 _PaymentFailedCard(
-                  message: _failureMessage ??
+                  message:
+                      _failureMessage ??
                       _t('Something went wrong.', 'Hitilafu imetokea.'),
                   onRetry: () => unawaited(_runPayment()),
                   onCancel: () => Navigator.pop(context),

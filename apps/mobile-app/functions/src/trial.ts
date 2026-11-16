@@ -386,6 +386,39 @@ async function templateVars(
   };
 }
 
+/**
+ * The welcome SMS for a new owner (welcome_sms.ts), in the words an admin set
+ * for the welcome popup on the admin portal's Free Trial page
+ * (`welcomeBodySw`), filled for the owner's newest trial business. Swahili
+ * body only: the title's emoji would switch the SMS to Unicode and roughly
+ * double its cost. Null when the owner has no trial (trials off, or not
+ * granted), so the caller falls back to its own text.
+ */
+export async function trialWelcomeSms(ownerUid: string, firstName: string): Promise<string | null> {
+  if (!ownerUid) return null;
+  const config = await loadTrialConfig();
+  if (!config.enabled) return null;
+  const owned = await admin.firestore().collection("businesses")
+    .where("ownerUid", "==", ownerUid)
+    .get();
+  let trial: FirebaseFirestore.DocumentData | null = null;
+  let trialStart = 0;
+  for (const doc of owned.docs) {
+    const b = doc.data();
+    const started = toDate(b.trialStartedAt)?.getTime() ?? 0;
+    if (b.planSource === "trial" && started > trialStart) {
+      trial = b;
+      trialStart = started;
+    }
+  }
+  const endsAt = trial ? toDate(trial.trialEndsAt) ?? toDate(trial.planExpiresAt) : null;
+  if (!trial || !endsAt) return null;
+  const now = new Date();
+  const vars = await templateVars(trial, config, await loadPrices(String(trial.plan)), endsAt, now);
+  if (firstName.trim()) vars.name = firstName.trim();
+  return fillTemplate(config.welcomeBodySw, vars);
+}
+
 async function sendReminderPush(
   businessId: string,
   config: TrialConfig,
